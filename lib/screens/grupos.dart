@@ -308,7 +308,7 @@ class _GruposScreenState extends State<GruposScreen> {
   }
 
   // Function to build table
-  Widget tabla() {
+Widget tabla() {
   double fontsizecell = 12;
 
   // Datos estáticos de ejemplo
@@ -336,22 +336,19 @@ class _GruposScreenState extends State<GruposScreen> {
             child: DataTable(
               showCheckboxColumn: false,
               columnSpacing: 10,
+              headingRowColor: MaterialStateProperty.resolveWith((states) => Color(0xFFE8EFF9)), // Color de fondo para el encabezado
               columns: const [
                 DataColumn(
-                  label: Text('Tipo de Grupo',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: Text('Tipo de Grupo',), // Color del texto
                 ),
                 DataColumn(
-                  label: Text('Nombre',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: Text('Nombre',),
                 ),
                 DataColumn(
-                  label: Text('Detalles',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: Text('Detalles',),
                 ),
                 DataColumn(
-                  label: Text('Fecha de Creación',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: Text('Fecha de Creación',),
                 ),
               ],
               rows: gruposEjemplo.map((lg) {
@@ -401,6 +398,7 @@ class _GruposScreenState extends State<GruposScreen> {
     ),
   );
 }
+
 
 
 

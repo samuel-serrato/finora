@@ -3,7 +3,16 @@ import 'package:money_facil/navigation_rail.dart';
 
 
 
-void main() => runApp(MyApp());
+import 'package:intl/date_symbol_data_local.dart';
+
+void main() async {
+  // Inicializa los datos de localización para formato de fechas
+  await initializeDateFormatting('es'); // 'es' para español
+
+  // Lanza la aplicación Flutter
+  runApp(MyApp());
+}
+
 
 class MyApp extends StatelessWidget {
   @override

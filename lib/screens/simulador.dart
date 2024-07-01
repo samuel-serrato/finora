@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
 class SimuladorScreen extends StatefulWidget {
   @override
@@ -11,6 +12,17 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   List<Usuario> listausuarios = [];
   bool isLoading = true;
   bool showErrorDialog = false;
+
+  final TextEditingController montoController = TextEditingController();
+  final TextEditingController plazoController = TextEditingController();
+  final TextEditingController interesController = TextEditingController();
+  String periodo = 'Semanal';
+  double monto = 0.0;
+  double interesMensual = 0.0;
+  int plazoSemanas = 0;
+  DateTime? fechaSeleccionada;
+
+  List<AmortizacionItem> tablaAmortizacion = [];
 
   @override
   void initState() {
@@ -24,15 +36,18 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
     });
 
     try {
-      final response =
-          await http.get(Uri.parse('https://api.escuelajs.co/api/v1/users'));
+      final response = await http.get(Uri.parse('https://api.escuelajs.co/api/v1/users'));
       if (response.statusCode == 200) {
         final parsedJson = json.decode(response.body);
 
         setState(() {
           listausuarios = (parsedJson as List)
               .map((item) => Usuario(
-                  item['id'], item['email'], item['password'], item['name']))
+                    item['id'],
+                    item['email'],
+                    item['password'],
+                    item['name'],
+                  ))
               .toList();
           isLoading = false;
         });
@@ -57,20 +72,6 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
     );
   }
 
-// Función para obtener los datos de la API y mostrarlos en la consola
-/* void obtenerDatos() async {
-  final response = await http.get(Uri.parse('https://api.escuelajs.co/api/v1/ids'));
-
-  if (response.statusCode == 200) {
-    // Parsear la respuesta a formato JSON
-    final List<dynamic> data = json.decode(response.body);
-    print('Datos obtenidos de la API:');
-    print(data);
-  } else {
-    print('Error al obtener los datos. Código de estado: ${response.statusCode}');
-  }
-} */
-
   Widget content(BuildContext context) {
     return Column(
       children: [
@@ -81,10 +82,8 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
     );
   }
 
-// Fila 1
   Widget filaBienvenida() {
     return Container(
-      /* color: Colors.blue, */
       color: Color(0xFFEFF5FD),
       padding: EdgeInsets.all(16.0),
       child: Row(
@@ -104,11 +103,10 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
             child: Row(
               children: [
                 Icon(
-                  Icons
-                      .person, // Icono de usuario, puedes cambiarlo según tu preferencia
-                  color: Colors.black, // Color del icono
+                  Icons.person,
+                  color: Colors.black,
                 ),
-                SizedBox(width: 10.0), // Espacio entre el icono y el texto
+                SizedBox(width: 10.0),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -124,54 +122,28 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
     );
   }
 
-// Fila 3
   Widget filaSearch(context) {
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
-
     return Container(
-      /* color: Colors.orange, */
       color: Color(0xFFEFF5FD),
-      padding: EdgeInsets.only(bottom: 0, left: 20, right: 20),
+      padding: EdgeInsets.only(top: 20, bottom: 10, left: 20, right: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start, // Alinea el texto abajo
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
             'Simulador',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          Container(
-            //height: 50,
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: TextField(
-              decoration: InputDecoration(
-                contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0), // Ajusta el relleno interno
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20.0),
-                    borderSide:
-                        BorderSide(color: Color.fromARGB(255, 137, 192, 255))),
-                prefixIcon: Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                hintText: 'Buscar...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20.0),
-                  borderSide: BorderSide.none, // Borde transparente
-                ),
-              ),
-            ),
           ),
         ],
       ),
     );
   }
 
-// Fila 4
   Widget filaTabla(BuildContext context) {
     return Expanded(
       child: Container(
         color: Color(0xFFEFF5FD),
-        /* color: Colors.purple, */
         padding: EdgeInsets.all(20),
         child: Center(
           child: Container(
@@ -180,80 +152,239 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(15.0),
             ),
-            child: Column(
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.only(bottom: 16.0, left: 0, right: 0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Últimos Clientes',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w500),
-                      ),
-                      ElevatedButton(
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStatePropertyAll(
-                            Color(0xFF7EFF8B),
-                          ),
-                          foregroundColor: MaterialStatePropertyAll(
-                            Color(0xFF434343),
-                          ),
-                          shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                  10), // Aquí puedes cambiar el valor del radio
-                            ),
-                          ),
-                        ),
-                        onPressed: () {
-                          obtenerusuarios();
-                        },
-                        child: Text('Nuevo Cliente'),
-                      ),
-                    ],
-                  ),
-                ),
-                // Widget "tabla" donde se muestra la DataTable
-                Expanded(
-                  child: SingleChildScrollView(child: tabla()),
-                ),
-              ],
-            ),
+            child: simuladorWidget(),
           ),
         ),
       ),
     );
   }
 
-  Widget tabla() {
-    return SizedBox(
-      width: MediaQuery.of(context).size.width,
-      child: DataTable(
-        headingRowColor:
-            MaterialStateProperty.resolveWith((states) => Color(0xFFE8EFF9)),
-        columnSpacing: 30,
-        headingRowHeight: 50,
-        columns: const [
-          DataColumn(label: Text('ID')),
-          DataColumn(label: Text('Email')),
-          DataColumn(label: Text('Password')),
-          DataColumn(label: Text('Nombre')),
+  Widget simuladorWidget() {
+    void recalcular() {
+      setState(() {
+        monto = double.tryParse(montoController.text) ?? 0.0;
+        interesMensual = double.tryParse(interesController.text) ?? 0.0;
+        plazoSemanas = int.tryParse(plazoController.text) ?? 0;
+        generarTablaAmortizacion();
+      });
+    }
+
+    void selectDate(BuildContext context) async {
+      final DateTime? picked = await showDatePicker(
+        context: context,
+        initialDate: fechaSeleccionada ?? DateTime.now(),
+        firstDate: DateTime.now(),
+        lastDate: DateTime(DateTime.now().year + 10),
+      );
+      if (picked != null && picked != fechaSeleccionada) {
+        setState(() {
+          fechaSeleccionada = picked;
+        });
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: montoController,
+                            decoration: InputDecoration(labelText: 'Monto'),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        SizedBox(width: 20),
+                        Expanded(
+                          child: TextField(
+                            controller: plazoController,
+                            decoration: InputDecoration(
+                              labelText: 'Plazo ($periodo)',
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButton<String>(
+                            value: periodo,
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                periodo = newValue!;
+                              });
+                            },
+                            items: <String>['Semanal', 'Quincenal']
+                                .map<DropdownMenuItem<String>>((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        SizedBox(width: 20),
+                        Expanded(
+                          child: TextField(
+                            controller: interesController,
+                            decoration: InputDecoration(
+                                labelText: 'Tasa de interés mensual (%)'),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 20),
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => selectDate(context),
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: Color(0xFFFB2056),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(
+                              fechaSeleccionada == null
+                                  ? 'Seleccionar Fecha de Inicio'
+                                  : 'Fecha de Inicio: ${DateFormat('dd/MM/yyyy', 'es').format(fechaSeleccionada!)}',
+                              style: TextStyle(fontSize: 16.0),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 20),
+                        if (fechaSeleccionada != null)
+                          Text(
+                            DateFormat('EEEE, MMMM d, yyyy', 'es').format(fechaSeleccionada!),
+                            style: TextStyle(fontSize: 16.0),
+                          ),
+                      ],
+                    ),
+                    SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: recalcular,
+                      child: Text('Calcular'),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Resumen:',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Text('Monto a prestar: \$${monto.toStringAsFixed(2)}'),
+                    Text('Intereses: \$${calculateInterest(monto, interesMensual, plazoSemanas).toStringAsFixed(2)}'),
+                    Text('Pago ${periodo.toLowerCase()}: \$${calculateWeeklyPayment(monto, interesMensual, plazoSemanas).toStringAsFixed(2)}'),
+                    SizedBox(height: 10),
+                    Text('Total: \$${calculateTotal(monto, interesMensual, plazoSemanas).toStringAsFixed(2)}'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20),
+          if (tablaAmortizacion.isNotEmpty) ...[
+            Text(
+              'Tabla de Amortización:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            Expanded(
+              child: SingleChildScrollView(
+                child: DataTable(
+                  columns: [
+                    DataColumn(label: Text('No. $periodo')),
+                    DataColumn(label: Text('Fecha de Pago')),
+                    DataColumn(label: Text('Pago por Cuota')),
+                    DataColumn(label: Text('Interés (%)')),
+                    DataColumn(label: Text('Interés \$')),
+                    DataColumn(label: Text('Restante')),
+                  ],
+                  rows: tablaAmortizacion.map((item) {
+                    return DataRow(cells: [
+                      DataCell(Text(item.numero.toString())),
+                       DataCell(Text(item.numero == 0 ? '' : DateFormat('dd/MM/yyyy', 'es').format(item.fecha))),
+                      DataCell(Text(item.numero == 0 ? '' : item.pagoCuota.toStringAsFixed(2))),
+                      DataCell(Text(item.numero == 0 ? '' : item.interesPorcentaje.toStringAsFixed(2))),
+                      DataCell(Text(item.numero == 0 ? '' : item.interesCantidad.toStringAsFixed(2))),
+                      DataCell(Text('\$${item.restante.toStringAsFixed(2)}')),
+                    ]);
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
         ],
-        rows: listausuarios.map((usuario) {
-          return DataRow(cells: [
-            DataCell(Text(
-                usuario.id.toString())), // Convertir a String si es necesario
-            DataCell(Text(usuario.email)),
-            DataCell(Text(usuario.password)),
-            DataCell(Text(usuario.name)),
-          ]);
-        }).toList(),
       ),
     );
+  }
+
+  void generarTablaAmortizacion() {
+    tablaAmortizacion.clear();
+    double saldoRestante = monto + calculateInterest(monto, interesMensual, plazoSemanas);
+    double pagoPeriodico = calculateWeeklyPayment(monto, interesMensual, plazoSemanas);
+    double interesPorPeriodo = interesMensual / (periodo == 'Semanal' ? 4.0 : 2.0); // Tasa de interés por semana o quincena
+    DateTime fechaInicio = fechaSeleccionada ?? DateTime.now();
+
+    // Primera fila para el desembolso inicial
+    tablaAmortizacion.add(AmortizacionItem(
+      numero: 0,
+      fecha: fechaInicio,
+      pagoCuota: 0.0,
+      interesPorcentaje: 0.0,
+      interesCantidad: 0.0,
+      restante: saldoRestante,
+    ));
+
+    for (int i = 1; i <= plazoSemanas; i++) {
+      double interesPeriodo = saldoRestante * (interesPorPeriodo / 100);
+      double pagoCuota = pagoPeriodico + interesPeriodo;
+      double pagoInteres = interesPeriodo;
+      saldoRestante -= pagoPeriodico;
+
+      DateTime fechaPago = fechaInicio.add(Duration(days: (periodo == 'Semanal' ? 7 : 14) * i));
+
+      tablaAmortizacion.add(AmortizacionItem(
+        numero: i,
+        fecha: fechaPago,
+        pagoCuota: pagoCuota,
+        interesPorcentaje: interesPorPeriodo,
+        interesCantidad: pagoInteres,
+        restante: saldoRestante,
+      ));
+    }
+  }
+
+  double calculateInterest(double monto, double interesMensual, int plazoSemanas) {
+    double interesPeriodo = monto * (interesMensual / 100) * (plazoSemanas / (periodo == 'Semanal' ? 4.0 : 2.0));
+    return interesPeriodo;
+  }
+
+  double calculateWeeklyPayment(double monto, double interesMensual, int plazoSemanas) {
+    double total = calculateTotal(monto, interesMensual, plazoSemanas);
+    return total / plazoSemanas;
+  }
+
+  double calculateTotal(double monto, double interesMensual, int plazoSemanas) {
+    return monto + calculateInterest(monto, interesMensual, plazoSemanas);
   }
 }
 
@@ -264,4 +395,22 @@ class Usuario {
   final String name;
 
   Usuario(this.id, this.email, this.password, this.name);
+}
+
+class AmortizacionItem {
+  final int numero;
+  final DateTime fecha;
+  final double pagoCuota;
+  final double interesPorcentaje;
+  final double interesCantidad;
+  final double restante;
+
+  AmortizacionItem({
+    required this.numero,
+    required this.fecha,
+    required this.pagoCuota,
+    required this.interesPorcentaje,
+    required this.interesCantidad,
+    required this.restante,
+  });
 }
