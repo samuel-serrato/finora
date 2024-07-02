@@ -20,7 +20,7 @@ class _NavigationRailScreenState extends State<NavigationRailScreen> {
     SeguimientoScreen(),
     GruposScreen(username: 'samuel',),
     ClientesScreen(),
-    SimuladorScreen()
+    SimuladorScreen(username: 'samuel',)
   ];
 
   @override
