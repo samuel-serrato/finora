@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:money_facil/custom_app_bar.dart';
 import 'package:money_facil/widgets/CardUserWidget.dart';
 
 class SimuladorScreen extends StatefulWidget {
@@ -13,12 +14,10 @@ class SimuladorScreen extends StatefulWidget {
 }
 
 class _SimuladorScreenState extends State<SimuladorScreen> {
-  List<Usuario> listausuarios = [];
   bool isLoading = true;
   bool showErrorDialog = false;
-  
-  bool isGrupalSelected = true;
 
+  bool isGrupalSelected = true;
 
   final TextEditingController montoController = TextEditingController();
   final TextEditingController plazoController = TextEditingController();
@@ -34,49 +33,25 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   @override
   void initState() {
     super.initState();
-    obtenerusuarios();
   }
 
-  void obtenerusuarios() async {
+  bool _isDarkMode = false; // Estado del modo oscuro
+
+  void _toggleDarkMode(bool value) {
     setState(() {
-      isLoading = true;
+      _isDarkMode = value;
     });
-
-    try {
-      final response =
-          await http.get(Uri.parse('https://api.escuelajs.co/api/v1/users'));
-      if (response.statusCode == 200) {
-        final parsedJson = json.decode(response.body);
-
-        setState(() {
-          listausuarios = (parsedJson as List)
-              .map((item) => Usuario(
-                    item['id'],
-                    item['email'],
-                    item['password'],
-                    item['name'],
-                  ))
-              .toList();
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          showErrorDialog = true;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        showErrorDialog = true;
-        isLoading = false;
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFEFF5FD),
+      backgroundColor: Color(0xFFf7f8fa),
+      appBar: CustomAppBar(
+        isDarkMode: _isDarkMode,
+        toggleDarkMode: _toggleDarkMode,
+        title: 'Simulador', // Título específico para esta pantalla
+      ),
       body: content(context),
     );
   }
@@ -84,23 +59,6 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   Widget content(BuildContext context) {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 20, right: 20),
-          child: Container(
-            // color: Colors.red,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: CardUserWidget(
-                    username: widget.username,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
         filaTitulo(context),
         filaTabla(context),
       ],
@@ -108,319 +66,94 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   }
 
   Widget filaTitulo(context) {
-  return Container(
-    color: Color(0xFFEFF5FD),
-    padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-    child: Row(
-      children: <Widget>[
-        Expanded(
-          child: Text(
-            'Simulador',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-        ),
-        Spacer(), // Espacio flexible para empujar los ChoiceChip a la derecha
-        ChoiceChip(
-          label: Text('Grupal'),
-          selected: isGrupalSelected, // Puedes ajustar este valor según el estado
-          onSelected: (isSelected) {
-            // Acción cuando se selecciona el chip
-            setState(() {
-              isGrupalSelected = true;
-            });
-          },
-        ),
-        SizedBox(width: 10), // Espacio entre los ChoiceChips
-        ChoiceChip(
-          label: Text('Individual'),
-          selected: !isGrupalSelected, // Puedes ajustar este valor según el estado
-          onSelected: (isSelected) {
-            // Acción cuando se selecciona el chip
-            setState(() {
-              isGrupalSelected = false;
-            });
-          },
-        ),
-      ],
-    ),
-  );
-}
-
-  Widget filaTabla(BuildContext context) {
-    return Expanded(
-      child: Container(
-        color: Color(0xFFEFF5FD),
-        padding: EdgeInsets.all(20),
-        child: Center(
-          child: Container(
-            padding: EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15.0),
-            ),
-            child: isGrupalSelected ? simuladorGrupal(): simuladorIndividual(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget simuladorIndividual() {
-
-    double parseAmount(String text) {
-  // Reemplaza las comas con nada para convertir a un formato numérico válido
-  String cleanedText = text.replaceAll(',', '');
-  // Intenta convertir el texto a double
-  return double.tryParse(cleanedText) ?? 0.0;
-}
-
-    void recalcular() {
-  setState(() {
-    monto = parseAmount(montoController.text);
-    interesMensual = double.tryParse(interesController.text) ?? 0.0;
-    plazoSemanas = int.tryParse(plazoController.text) ?? 0;
-    generarTablaAmortizacion();
-  });
-}
-
-
-    void selectDate(BuildContext context) async {
-      final DateTime? picked = await showDatePicker(
-        context: context,
-        initialDate: fechaSeleccionada ?? DateTime.now(),
-        firstDate: DateTime.now(),
-        lastDate: DateTime(DateTime.now().year + 10),
-      );
-      if (picked != null && picked != fechaSeleccionada) {
-        setState(() {
-          fechaSeleccionada = picked;
-        });
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Individual'),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Container(
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: montoController,
-                                decoration: InputDecoration(labelText: 'Monto'),
-                                keyboardType: TextInputType.number,
-                              ),
-                            ),
-                            SizedBox(width: 20),
-                            Expanded(
-                              child: TextField(
-                                controller: plazoController,
-                                decoration: InputDecoration(
-                                  labelText: 'Plazo ($periodo)',
-                                ),
-                                keyboardType: TextInputType.number,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                height: 60,
-                                padding: EdgeInsets.symmetric(vertical: 4),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    isExpanded: true,
-                                    value: periodo,
-                                    onChanged: (String? newValue) {
-                                      setState(() {
-                                        periodo = newValue!;
-                                      });
-                                    },
-                                    items: <String>['Semanal', 'Quincenal']
-                                        .map<DropdownMenuItem<String>>(
-                                            (String value) {
-                                      return DropdownMenuItem<String>(
-                                        value: value,
-                                        child: Text(value),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 20),
-                            Expanded(
-                              child: Container(
-                                height: 60,
-                                child: TextField(
-                                  controller: interesController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Tasa de interés mensual (%)',
-                                  ),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 20),
-                        Row(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () => selectDate(context),
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Color(0xFFFB2056),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Text(
-                                  fechaSeleccionada == null
-                                      ? 'Seleccionar Fecha de Inicio'
-                                      : 'Fecha de Inicio: ${DateFormat('dd/MM/yyyy', 'es').format(fechaSeleccionada!)}',
-                                  style: TextStyle(fontSize: 14.0),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 20),
-                            if (fechaSeleccionada != null)
-                              Text(
-                                DateFormat('EEEE, MMMM d, yyyy', 'es')
-                                    .format(fechaSeleccionada!),
-                                style: TextStyle(fontSize: 16.0),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: 20),
-                  Expanded(
-                    child: Container(
-                      margin: EdgeInsets.only(bottom: 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Resumen:',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                              'Monto a prestar: \$${NumberFormat.decimalPattern('es').format(monto).replaceAll('.', ',')}'),
-                          Text(
-                              'Intereses Totales: \$${NumberFormat.decimalPattern('es').format(calculateInterest(monto, interesMensual, plazoSemanas)).replaceAll('.', ',')}'),
-                          Text(
-                              'Pago ${periodo.toLowerCase()}: \$${NumberFormat.decimalPattern('es').format(calculateWeeklyPayment(monto, interesMensual, plazoSemanas)).replaceAll('.', ',')}'),
-                          Text(
-                              'Interés ${periodo.toLowerCase()}: ${(interesMensual / (periodo == 'Semanal' ? 4.0 : 2.0)).toStringAsFixed(2)}%'),
-                          SizedBox(height: 10),
-                          Text(
-                              'Total: \$${NumberFormat.decimalPattern('es').format(calculateTotal(monto, interesMensual, plazoSemanas)).replaceAll('.', ',')}'),
-                          SizedBox(height: 40),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  backgroundColor: Color(0xFFFB2056),
-                                ),
-                                onPressed: recalcular,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Text('Calcular'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+    return Container(
+      padding: EdgeInsets.only(right: 10, left: 10, top: 0, bottom: 10),
+      child: Row(
+        children: <Widget>[
+          Spacer(), // Espacio flexible para empujar los ChoiceChip a la derecha
+          ChoiceChip(
+            label: Text(
+              'Grupal',
+              style: TextStyle(
+                color: isGrupalSelected
+                    ? Colors.white
+                    : Color(
+                        0xFFFB2056), // Cambia el color del texto según la selección
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ),
-          Divider(), // Añade el Divider aquí
-          SizedBox(height: 20),
-          if (tablaAmortizacion.isNotEmpty) ...[
-            Text(
-              'Tabla de Amortización:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 10),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                child: SingleChildScrollView(
-                  child: DataTable(
-                    columns: [
-                      DataColumn(label: Text('No. $periodo')),
-                      DataColumn(label: Text('Fecha de Pago')),
-                      DataColumn(label: Text('Pago por Cuota')),
-                      DataColumn(label: Text('Restante')),
-                    ],
-                    rows: tablaAmortizacion.map((item) {
-                      return DataRow(cells: [
-                        DataCell(Text(item.numero.toString())),
-                        DataCell(Text(item.numero == 0
-                            ? ''
-                            : DateFormat('dd/MM/yyyy', 'es').format(item.fecha).replaceAll('.', ','))),
-                        DataCell(Text(item.numero == 0
-                            ? ''
-                            : '\$${NumberFormat.decimalPattern('es').format(item.pagoCuota).replaceAll('.', ',')}')),
-                        DataCell(Text('\$${NumberFormat.decimalPattern('es').format(item.restante).replaceAll('.', ',')}')),
-
-                      ]);
-                    }).toList(),
-                  ),
-                ),
+            selected: isGrupalSelected,
+            onSelected: (isSelected) {
+              setState(() {
+                isGrupalSelected = true;
+              });
+            },
+            backgroundColor:
+                Colors.white, // Color del chip cuando no está seleccionado
+            selectedColor:
+                Color(0xFFFB2056), // Color del chip cuando está seleccionado
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                  15.0), // Bordes redondeados para un diseño moderno
+              side: BorderSide(
+                color: Color(0xFFFB2056), // Borde del chip
+                width: 2.0, // Ancho del borde
               ),
             ),
-          ],
+            elevation: 5.0, // Sombras para dar efecto de profundidad
+            pressElevation: 10.0, // Elevación al presionar
+          ),
+
+          SizedBox(width: 10), // Espacio entre los ChoiceChips
+          /* ChoiceChip(
+            label: Text('Individual'),
+            selected:
+                !isGrupalSelected, // Puedes ajustar este valor según el estado
+            onSelected: (isSelected) {
+              // Acción cuando se selecciona el chip
+              setState(() {
+                isGrupalSelected = false;
+              });
+            },
+          ), */
         ],
       ),
     );
   }
 
+  Widget filaTabla(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.only(top: 0, bottom: 20, right: 20, left: 20),
+        child: Center(
+          child: Container(
+              padding: EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15.0),
+              ),
+              child: /* isGrupalSelected ?  */
+                  simuladorGrupal() /* : simuladorIndividual(), */
+              ),
+        ),
+      ),
+    );
+  }
 
   Widget simuladorGrupal() {
-
     double parseAmount(String text) {
-  // Reemplaza las comas con nada para convertir a un formato numérico válido
-  String cleanedText = text.replaceAll(',', '');
-  // Intenta convertir el texto a double
-  return double.tryParse(cleanedText) ?? 0.0;
-}
+      String cleanedText = text.replaceAll(',', '');
+      return double.tryParse(cleanedText) ?? 0.0;
+    }
 
     void recalcular() {
-  setState(() {
-    monto = parseAmount(montoController.text);
-    interesMensual = double.tryParse(interesController.text) ?? 0.0;
-    plazoSemanas = int.tryParse(plazoController.text) ?? 0;
-    generarTablaAmortizacion();
-  });
-}
-
+      setState(() {
+        monto = parseAmount(montoController.text);
+        interesMensual = double.tryParse(interesController.text) ?? 0.0;
+        plazoSemanas = int.tryParse(plazoController.text) ?? 0;
+        generarTablaAmortizacion();
+      });
+    }
 
     void selectDate(BuildContext context) async {
       final DateTime? picked = await showDatePicker(
@@ -437,12 +170,12 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+            padding: const EdgeInsets.symmetric(vertical: 5),
             child: Container(
               child: Row(
                 children: [
@@ -455,8 +188,32 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                             Expanded(
                               child: TextField(
                                 controller: montoController,
-                                decoration: InputDecoration(labelText: 'Monto'),
+                                decoration: InputDecoration(
+                                  labelText: 'Monto',
+                                  labelStyle: TextStyle(
+                                    fontSize: 14.0,
+                                    color: Colors.grey[700],
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15.0),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[300]!,
+                                      width: 2.0,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15.0),
+                                    borderSide: BorderSide(
+                                      color: Color(
+                                          0xFFFB2056), // Color al enfocar el TextField
+                                      width: 2.0,
+                                    ),
+                                  ),
+                                ),
                                 keyboardType: TextInputType.number,
+                                style: TextStyle(fontSize: 14.0),
                               ),
                             ),
                             SizedBox(width: 20),
@@ -465,8 +222,29 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 controller: plazoController,
                                 decoration: InputDecoration(
                                   labelText: 'Plazo ($periodo)',
+                                  labelStyle: TextStyle(
+                                    fontSize: 14.0,
+                                    color: Colors.grey[700],
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15.0),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[300]!,
+                                      width: 2.0,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15.0),
+                                    borderSide: BorderSide(
+                                      color: Color(0xFFFB2056),
+                                      width: 2.0,
+                                    ),
+                                  ),
                                 ),
                                 keyboardType: TextInputType.number,
+                                style: TextStyle(fontSize: 14.0),
                               ),
                             ),
                           ],
@@ -476,11 +254,21 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                           children: [
                             Expanded(
                               child: Container(
-                                height: 60,
-                                padding: EdgeInsets.symmetric(vertical: 4),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 0),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey),
-                                  borderRadius: BorderRadius.circular(4),
+                                  color: Colors.grey[100],
+                                  border: Border.all(
+                                      color: Colors.grey[300]!, width: 2.0),
+                                  borderRadius: BorderRadius.circular(15.0),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.grey.withOpacity(0.1),
+                                      blurRadius: 5,
+                                      offset: Offset(0,
+                                          2), // Sombra para darle profundidad
+                                    ),
+                                  ],
                                 ),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<String>(
@@ -496,24 +284,47 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                             (String value) {
                                       return DropdownMenuItem<String>(
                                         value: value,
-                                        child: Text(value),
+                                        child: Text(value,
+                                            style: TextStyle(fontSize: 14.0)),
                                       );
                                     }).toList(),
+                                    icon: Icon(Icons.arrow_drop_down,
+                                        color: Color(0xFFFB2056)),
+                                    dropdownColor: Colors
+                                        .white, // Fondo del menú desplegable
                                   ),
                                 ),
                               ),
                             ),
                             SizedBox(width: 20),
                             Expanded(
-                              child: Container(
-                                height: 60,
-                                child: TextField(
-                                  controller: interesController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Tasa de interés mensual (%)',
+                              child: TextField(
+                                controller: interesController,
+                                decoration: InputDecoration(
+                                  labelText: 'Tasa de interés mensual (%)',
+                                  labelStyle: TextStyle(
+                                    fontSize: 14.0,
+                                    color: Colors.grey[700],
                                   ),
-                                  keyboardType: TextInputType.number,
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15.0),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey[300]!,
+                                      width: 2.0,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15.0),
+                                    borderSide: BorderSide(
+                                      color: Color(0xFFFB2056),
+                                      width: 2.0,
+                                    ),
+                                  ),
                                 ),
+                                keyboardType: TextInputType.number,
+                                style: TextStyle(fontSize: 14.0),
                               ),
                             ),
                           ],
@@ -526,6 +337,9 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
                                 backgroundColor: Color(0xFFFB2056),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15.0),
+                                ),
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.all(8),
@@ -537,13 +351,45 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 ),
                               ),
                             ),
-                            SizedBox(width: 20),
+                            SizedBox(width: 10),
                             if (fechaSeleccionada != null)
                               Text(
                                 DateFormat('EEEE, MMMM d, yyyy', 'es')
                                     .format(fechaSeleccionada!),
-                                style: TextStyle(fontSize: 16.0),
+                                style: TextStyle(
+                                    fontSize: 14.0, color: Colors.grey[700]),
                               ),
+                            Spacer(),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  // Limpiar los campos del formulario
+                                  montoController.clear();
+                                  plazoController.clear();
+                                  interesController.clear();
+                                  periodo =
+                                      'Semanal'; // Restablecer el valor predeterminado del dropdown
+                                  fechaSeleccionada =
+                                      null; // Restablecer la fecha seleccionada
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor:
+                                    Colors.grey, // Botón de limpieza en gris
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15.0),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 10),
+                                child: Text(
+                                  'Limpiar Campos',
+                                  style: TextStyle(fontSize: 14.0),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -559,19 +405,26 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                           Text(
                             'Resumen:',
                             style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                                fontSize: 14,
+                                fontWeight:
+                                    FontWeight.bold), // Ajuste de tamaño
                           ),
                           Text(
-                              'Monto a prestar: \$${NumberFormat.decimalPattern('es').format(monto).replaceAll('.', ',')}'),
+                              'Monto a prestar: \$${NumberFormat.decimalPattern('es').format(monto).replaceAll('.', ',')}',
+                              style: TextStyle(fontSize: 12.0)),
                           Text(
-                              'Intereses Totales: \$${NumberFormat.decimalPattern('es').format(calculateInterest(monto, interesMensual, plazoSemanas)).replaceAll('.', ',')}'),
+                              'Intereses Totales: \$${NumberFormat.decimalPattern('es').format(calculateInterest(monto, interesMensual, plazoSemanas)).replaceAll('.', ',')}',
+                              style: TextStyle(fontSize: 12.0)),
                           Text(
-                              'Pago ${periodo.toLowerCase()}: \$${NumberFormat.decimalPattern('es').format(calculateWeeklyPayment(monto, interesMensual, plazoSemanas)).replaceAll('.', ',')}'),
+                              'Pago ${periodo.toLowerCase()}: \$${NumberFormat.decimalPattern('es').format(calculateWeeklyPayment(monto, interesMensual, plazoSemanas)).replaceAll('.', ',')}',
+                              style: TextStyle(fontSize: 12.0)),
                           Text(
-                              'Interés ${periodo.toLowerCase()}: ${(interesMensual / (periodo == 'Semanal' ? 4.0 : 2.0)).toStringAsFixed(2)}%'),
+                              'Interés ${periodo.toLowerCase()}: ${(interesMensual / (periodo == 'Semanal' ? 4.0 : 2.0)).toStringAsFixed(2)}%',
+                              style: TextStyle(fontSize: 12.0)),
                           SizedBox(height: 10),
                           Text(
-                              'Total: \$${NumberFormat.decimalPattern('es').format(calculateTotal(monto, interesMensual, plazoSemanas)).replaceAll('.', ',')}'),
+                              'Total: \$${NumberFormat.decimalPattern('es').format(calculateTotal(monto, interesMensual, plazoSemanas)).replaceAll('.', ',')}',
+                              style: TextStyle(fontSize: 12.0)),
                           SizedBox(height: 40),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -584,7 +437,9 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 onPressed: recalcular,
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
-                                  child: Text('Calcular'),
+                                  child: Text('Calcular',
+                                      style: TextStyle(
+                                          fontSize: 12.0)), // Ajuste de tamaño
                                 ),
                               ),
                             ],
@@ -597,12 +452,14 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
               ),
             ),
           ),
-          Divider(), // Añade el Divider aquí
+          Divider(),
           SizedBox(height: 20),
           if (tablaAmortizacion.isNotEmpty) ...[
             Text(
               'Tabla de Amortización:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold), // Ajuste de tamaño
             ),
             SizedBox(height: 10),
             Expanded(
@@ -610,23 +467,48 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                 width: double.infinity,
                 child: SingleChildScrollView(
                   child: DataTable(
+                    dataRowHeight: 30,
                     columns: [
-                      DataColumn(label: Text('No. $periodo')),
-                      DataColumn(label: Text('Fecha de Pago')),
-                      DataColumn(label: Text('Pago por Cuota')),
-                      DataColumn(label: Text('Restante')),
+                      DataColumn(
+                          label: Text('No. $periodo',
+                              style: TextStyle(
+                                  fontSize: 12.0))), // Ajuste de tamaño
+                      DataColumn(
+                          label: Text('Fecha de Pago',
+                              style: TextStyle(
+                                  fontSize: 12.0))), // Ajuste de tamaño
+                      DataColumn(
+                          label: Text('Pago por Cuota',
+                              style: TextStyle(
+                                  fontSize: 12.0))), // Ajuste de tamaño
+                      DataColumn(
+                          label: Text('Restante',
+                              style: TextStyle(
+                                  fontSize: 12.0))), // Ajuste de tamaño
                     ],
                     rows: tablaAmortizacion.map((item) {
                       return DataRow(cells: [
-                        DataCell(Text(item.numero.toString())),
-                        DataCell(Text(item.numero == 0
-                            ? ''
-                            : DateFormat('dd/MM/yyyy', 'es').format(item.fecha).replaceAll('.', ','))),
-                        DataCell(Text(item.numero == 0
-                            ? ''
-                            : '\$${NumberFormat.decimalPattern('es').format(item.pagoCuota).replaceAll('.', ',')}')),
-                        DataCell(Text('\$${NumberFormat.decimalPattern('es').format(item.restante).replaceAll('.', ',')}')),
-
+                        DataCell(Text(item.numero.toString(),
+                            style:
+                                TextStyle(fontSize: 12.0))), // Ajuste de tamaño
+                        DataCell(Text(
+                            item.numero == 0
+                                ? ''
+                                : DateFormat('dd/MM/yyyy', 'es')
+                                    .format(item.fecha)
+                                    .replaceAll('.', ','),
+                            style:
+                                TextStyle(fontSize: 12.0))), // Ajuste de tamaño
+                        DataCell(Text(
+                            item.numero == 0
+                                ? ''
+                                : '\$${NumberFormat.decimalPattern('es').format(item.pagoCuota).replaceAll('.', ',')}',
+                            style:
+                                TextStyle(fontSize: 12.0))), // Ajuste de tamaño
+                        DataCell(Text(
+                            '\$${NumberFormat.decimalPattern('es').format(item.restante).replaceAll('.', ',')}',
+                            style:
+                                TextStyle(fontSize: 12.0))), // Ajuste de tamaño
                       ]);
                     }).toList(),
                   ),
@@ -697,15 +579,6 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   double calculateTotal(double monto, double interesMensual, int plazoSemanas) {
     return monto + calculateInterest(monto, interesMensual, plazoSemanas);
   }
-}
-
-class Usuario {
-  final int id;
-  final String email;
-  final String password;
-  final String name;
-
-  Usuario(this.id, this.email, this.password, this.name);
 }
 
 class AmortizacionItem {
