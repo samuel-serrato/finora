@@ -71,39 +71,41 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
       child: Row(
         children: <Widget>[
           Spacer(), // Espacio flexible para empujar los ChoiceChip a la derecha
-          ChoiceChip(
-            label: Text(
-              'Grupal',
-              style: TextStyle(
-                color: isGrupalSelected
-                    ? Colors.white
-                    : Color(
-                        0xFFFB2056), // Cambia el color del texto según la selección
-                fontWeight: FontWeight.bold,
+          SizedBox(
+            child: ChoiceChip(
+              labelPadding: EdgeInsets.all(0),
+              label: Text(
+                'Grupal',
+                style: TextStyle(
+                    color: isGrupalSelected
+                        ? Colors.white
+                        : Color(
+                            0xFFFB2056), // Cambia el color del texto según la selección
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12),
               ),
-            ),
-            selected: isGrupalSelected,
-            onSelected: (isSelected) {
-              setState(() {
-                isGrupalSelected = true;
-              });
-            },
-            backgroundColor:
-                Colors.white, // Color del chip cuando no está seleccionado
-            selectedColor:
-                Color(0xFFFB2056), // Color del chip cuando está seleccionado
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                  15.0), // Bordes redondeados para un diseño moderno
-              side: BorderSide(
-                color: Color(0xFFFB2056), // Borde del chip
-                width: 2.0, // Ancho del borde
+              selected: isGrupalSelected,
+              onSelected: (isSelected) {
+                setState(() {
+                  isGrupalSelected = true;
+                });
+              },
+              backgroundColor:
+                  Colors.white, // Color del chip cuando no está seleccionado
+              selectedColor:
+                  Color(0xFFFB2056), // Color del chip cuando está seleccionado
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                    15.0), // Bordes redondeados para un diseño moderno
+                side: BorderSide(
+                  color: Color(0xFFFB2056), // Borde del chip
+                  width: 2.0, // Ancho del borde
+                ),
               ),
+              elevation: 5.0, // Sombras para dar efecto de profundidad
+              pressElevation: 10.0, // Elevación al presionar
             ),
-            elevation: 5.0, // Sombras para dar efecto de profundidad
-            pressElevation: 10.0, // Elevación al presionar
           ),
-
           SizedBox(width: 10), // Espacio entre los ChoiceChips
           /* ChoiceChip(
             label: Text('Individual'),
