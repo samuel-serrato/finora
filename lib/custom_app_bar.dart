@@ -6,7 +6,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title; // Nuevo parámetro para el título
 
   @override
-  Size get preferredSize => Size.fromHeight(100);
+  Size get preferredSize => Size.fromHeight(90);
 
   CustomAppBar({
     required this.isDarkMode,
