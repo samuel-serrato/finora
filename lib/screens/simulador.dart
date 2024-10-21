@@ -216,7 +216,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    flex: 2,
+                    flex: 7, // 7 partes del ancho
                     child: Column(
                       children: [
                         Row(
@@ -263,48 +263,6 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                             Expanded(
                               child: Container(
                                 height: 40, // Ajustar altura
-                                child: TextField(
-                                  controller: plazoController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Plazo ($periodo)',
-                                    labelStyle: TextStyle(
-                                      fontSize: 14.0,
-                                      color: Colors.grey[700],
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.grey[100],
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(15.0),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey[300]!,
-                                        width: 2.0,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(15.0),
-                                      borderSide: BorderSide(
-                                        color: Color(0xFFFB2056),
-                                        width: 2.0,
-                                      ),
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(
-                                        vertical: 5.0,
-                                        horizontal:
-                                            10.0), // Reducir aún más la altura
-                                  ),
-                                  keyboardType: TextInputType.number,
-                                  style: TextStyle(fontSize: 14.0),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                height: 40, // Ajustar altura
                                 padding: EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 0),
                                 decoration: BoxDecoration(
@@ -347,7 +305,12 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 ),
                               ),
                             ),
-                            SizedBox(width: 20),
+                            
+                          ],
+                        ),
+                        SizedBox(height: 20),
+                        Row(
+                          children: [
                             Expanded(
                               child: Container(
                                 height: 40, // Ajustar altura
@@ -355,6 +318,45 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                   controller: interesController,
                                   decoration: InputDecoration(
                                     labelText: 'Tasa de interés mensual (%)',
+                                    labelStyle: TextStyle(
+                                      fontSize: 14.0,
+                                      color: Colors.grey[700],
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.grey[100],
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(15.0),
+                                      borderSide: BorderSide(
+                                        color: Colors.grey[300]!,
+                                        width: 2.0,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(15.0),
+                                      borderSide: BorderSide(
+                                        color: Color(0xFFFB2056),
+                                        width: 2.0,
+                                      ),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(
+                                        vertical: 5.0,
+                                        horizontal:
+                                            10.0), // Reducir aún más la altura
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                  style: TextStyle(fontSize: 14.0),
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(width: 20),
+                            Expanded(
+                              child: Container(
+                                height: 40, // Ajustar altura
+                                child: TextField(
+                                  controller: plazoController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Plazo ($periodo)',
                                     labelStyle: TextStyle(
                                       fontSize: 14.0,
                                       color: Colors.grey[700],
@@ -458,6 +460,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                   ),
                   SizedBox(width: 20),
                   Expanded(
+                    flex: 3, // 3 partes del ancho
                     child: Container(
                       margin: EdgeInsets.only(bottom: 0),
                       child: Column(
@@ -471,7 +474,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                             ),
                           ),
                           Text(
-                            'Monto a prestar: \$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(monto)}',
+                            'Monto a prestar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto)}',
                             style: TextStyle(fontSize: 12.0),
                           ),
                           SizedBox(height: 10),
@@ -483,15 +486,15 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Capital ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(monto / plazoSemanas)}',
+                                    'Capital ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto / plazoSemanas)}',
                                     style: TextStyle(fontSize: 12.0),
                                   ),
                                   Text(
-                                    'Interés Semanal: \$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(calculateInterest(monto, interesMensual, plazoSemanas) / plazoSemanas)}',
+                                    'Interés Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(calculateInterest(monto, interesMensual, plazoSemanas) / plazoSemanas)}',
                                     style: TextStyle(fontSize: 12.0),
                                   ),
                                   Text(
-                                    'Pago ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(calculateWeeklyPayment(monto, interesMensual, plazoSemanas))}',
+                                    'Pago ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(calculateWeeklyPayment(monto, interesMensual, plazoSemanas))}',
                                     style: TextStyle(fontSize: 12.0),
                                   ),
                                 ],
@@ -502,7 +505,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Intereses Totales: \$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(calculateInterest(monto, interesMensual, plazoSemanas))}',
+                                    'Intereses Totales: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(calculateInterest(monto, interesMensual, plazoSemanas))}',
                                     style: TextStyle(fontSize: 12.0),
                                   ),
                                   Text(
@@ -522,7 +525,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                             'Total a recuperar: \$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(calculateTotal(monto, interesMensual, plazoSemanas))}',
                             style: TextStyle(fontSize: 12.0),
                           ),
-                          SizedBox(height: 20),
+                          SizedBox(height: 10),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -530,6 +533,9 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 style: ElevatedButton.styleFrom(
                                   foregroundColor: Colors.white,
                                   backgroundColor: Color(0xFFFB2056),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(15.0)),
                                 ),
                                 onPressed: recalcular,
                                 child: Padding(
@@ -600,20 +606,20 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                     .replaceAll('.', ','),
                             style: TextStyle(fontSize: 12.0))),
                         DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(item.capitalSemanal)}',
+                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.capitalSemanal)}',
                             style: TextStyle(fontSize: 12.0))),
                         DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(item.interesSemanal)}',
+                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.interesSemanal)}',
                             style: TextStyle(fontSize: 12.0))),
                         DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(item.pagoCuota)}',
+                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.pagoCuota)}',
                             style: TextStyle(fontSize: 12.0))),
                         DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(item.pagado)}',
+                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.pagado)}',
                             style: TextStyle(
                                 fontSize: 12.0))), // Muestra total pagado
                         DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(item.restante)}',
+                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.restante)}',
                             style: TextStyle(fontSize: 12.0))),
                       ]);
                     }).toList(),
