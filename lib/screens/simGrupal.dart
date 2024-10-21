@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -18,6 +19,9 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
   int plazoSemanas = 0;
 
   List<UsuarioPrestamo> listaUsuarios = [];
+
+  // Define un ScrollController en la clase de tu widget.
+  ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -56,6 +60,8 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
+
     for (var controller in montoPorUsuarioControllers) {
       controller.dispose();
     }
@@ -65,241 +71,36 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Row para el formulario y el recuadro verde
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: Row(
-              children: [
-                // Formulario con flex 6
-                Expanded(
-                  flex: 7,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Monto Total y Tasa de Interés en columnas
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  height: 40, // Ajustar altura
-                                  child: TextField(
-                                    controller: montoController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Monto Total',
-                                      labelStyle: TextStyle(
-                                          fontSize: 14.0,
-                                          color: Colors.grey[700]),
-                                      filled: true,
-                                      fillColor: Colors.grey[100],
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(15.0),
-                                        borderSide: BorderSide(
-                                            color: Colors.grey[300]!,
-                                            width: 2.0),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(15.0),
-                                        borderSide: BorderSide(
-                                            color: Color(0xFFFB2056),
-                                            width: 2.0),
-                                      ),
-                                      contentPadding: EdgeInsets.symmetric(
-                                          vertical: 5.0, horizontal: 10.0),
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    style: TextStyle(fontSize: 14.0),
-                                  ),
-                                ),
-                                SizedBox(height: 20),
-                                Container(
-                                  height: 40, // Ajustar altura
-                                  child: TextField(
-                                    controller: interesController,
-                                    onChanged: (value) {
-                                      tasaInteresMensual =
-                                          double.tryParse(value) ?? 0.0;
-                                    },
-                                    decoration: InputDecoration(
-                                      labelText: 'Tasa de Interés (%)',
-                                      labelStyle: TextStyle(
-                                          fontSize: 14.0,
-                                          color: Colors.grey[700]),
-                                      filled: true,
-                                      fillColor: Colors.grey[100],
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(15.0),
-                                        borderSide: BorderSide(
-                                            color: Colors.grey[300]!,
-                                            width: 2.0),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(15.0),
-                                        borderSide: BorderSide(
-                                            color: Color(0xFFFB2056),
-                                            width: 2.0),
-                                      ),
-                                      contentPadding: EdgeInsets.symmetric(
-                                          vertical: 5.0, horizontal: 10.0),
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    style: TextStyle(fontSize: 14.0),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(width: 20),
-                          Expanded(
-                            flex: 1,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Container(
-                                        height: 40,
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 0),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[100],
-                                          border: Border.all(
-                                              color: Colors.grey[300]!,
-                                              width: 2.0),
-                                          borderRadius:
-                                              BorderRadius.circular(15.0),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color:
-                                                  Colors.grey.withOpacity(0.1),
-                                              blurRadius: 5,
-                                              offset: Offset(0, 2),
-                                            ),
-                                          ],
-                                        ),
-                                        child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
-                                            isExpanded: true,
-                                            value: frecuenciaPrestamo,
-                                            onChanged: (String? newValue) {
-                                              setState(() {
-                                                frecuenciaPrestamo = newValue!;
-                                              });
-                                            },
-                                            items: <String>[
-                                              'Semanal',
-                                              'Quincenal'
-                                            ].map<DropdownMenuItem<String>>(
-                                                (String value) {
-                                              return DropdownMenuItem<String>(
-                                                value: value,
-                                                child: Text(value,
-                                                    style: TextStyle(
-                                                        fontSize: 14.0)),
-                                              );
-                                            }).toList(),
-                                            icon: Icon(Icons.arrow_drop_down,
-                                                color: Color(0xFFFB2056)),
-                                            dropdownColor: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 20),
-                                Container(
-                                  height: 40, // Ajustar altura
-                                  child: TextField(
-                                    controller: plazoController,
-                                    decoration: InputDecoration(
-                                      labelText:
-                                          'Plazo (en semanas o quincenas)',
-                                      labelStyle: TextStyle(
-                                          fontSize: 14.0,
-                                          color: Colors.grey[700]),
-                                      filled: true,
-                                      fillColor: Colors.grey[100],
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(15.0),
-                                        borderSide: BorderSide(
-                                            color: Colors.grey[300]!,
-                                            width: 2.0),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(15.0),
-                                        borderSide: BorderSide(
-                                            color: Color(0xFFFB2056),
-                                            width: 2.0),
-                                      ),
-                                      contentPadding: EdgeInsets.symmetric(
-                                          vertical: 5.0, horizontal: 10.0),
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    style: TextStyle(fontSize: 14.0),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 20),
-
-                      // Cantidad de usuarios y montos por usuario
-                      Row(
-                        children: [
-                          Text('Cantidad de usuarios:',
-                              style: TextStyle(fontSize: 14)),
-                          SizedBox(width: 10),
-                          DropdownButton<int>(
-                            value: numeroUsuarios,
-                            onChanged: (int? newValue) {
-                              if (newValue != null) {
-                                _actualizarNumeroUsuarios(newValue);
-                              }
-                            },
-                            items: List<DropdownMenuItem<int>>.generate(
-                              12,
-                              (index) => DropdownMenuItem<int>(
-                                value: index + 1,
-                                child: Text('${index + 1}',
-                                    style: TextStyle(fontSize: 14)),
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 20),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children:
-                                    List.generate(numeroUsuarios, (index) {
-                                  return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row para el formulario y el recuadro verde
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  // Formulario con flex 6
+                  Expanded(
+                    flex: 7,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Monto Total y Tasa de Interés en columnas
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
                                     height: 40, // Ajustar altura
-                                    width:
-                                        150, // Ancho mínimo para los campos de texto
-                                    margin: EdgeInsets.symmetric(horizontal: 5),
                                     child: TextField(
-                                      controller:
-                                          montoPorUsuarioControllers[index],
+                                      controller: montoController,
                                       decoration: InputDecoration(
-                                        labelText: 'Usuario ${index + 1}',
+                                        labelText: 'Monto Total',
                                         labelStyle: TextStyle(
                                             fontSize: 14.0,
                                             color: Colors.grey[700]),
@@ -325,139 +126,261 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                       keyboardType: TextInputType.number,
                                       style: TextStyle(fontSize: 14.0),
                                     ),
-                                  );
-                                }),
+                                  ),
+                                  SizedBox(height: 20),
+                                  Container(
+                                    height: 40, // Ajustar altura
+                                    child: TextField(
+                                      controller: interesController,
+                                      onChanged: (value) {
+                                        tasaInteresMensual =
+                                            double.tryParse(value) ?? 0.0;
+                                      },
+                                      decoration: InputDecoration(
+                                        labelText: 'Tasa de Interés (%)',
+                                        labelStyle: TextStyle(
+                                            fontSize: 14.0,
+                                            color: Colors.grey[700]),
+                                        filled: true,
+                                        fillColor: Colors.grey[100],
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(15.0),
+                                          borderSide: BorderSide(
+                                              color: Colors.grey[300]!,
+                                              width: 2.0),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(15.0),
+                                          borderSide: BorderSide(
+                                              color: Color(0xFFFB2056),
+                                              width: 2.0),
+                                        ),
+                                        contentPadding: EdgeInsets.symmetric(
+                                            vertical: 5.0, horizontal: 10.0),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      style: TextStyle(fontSize: 14.0),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                // Recuadro verde a la derecha con flex 4
-                SizedBox(width: 20),
-                // Recuadro verde a la derecha con flex 4
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      //color: Colors.green,
-                      borderRadius: BorderRadius.circular(15.0),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Resumen:',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        Text(
-                          'Monto a prestar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto)}',
-                          style: TextStyle(fontSize: 12.0, color: Colors.black),
-                        ),
-                        SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Columna izquierda
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Capital Semanal
-                                Text(
-                                  'Capital Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto / plazoSemanas)}',
-                                  style: TextStyle(
-                                      fontSize: 12.0, color: Colors.black),
-                                ),
-                                // Interés Semanal
-                                Text(
-                                  'Interés Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto * (tasaInteresMensual / 4 / 100))}', // Asegúrate de dividir la tasa por 100
-                                  style: TextStyle(
-                                      fontSize: 12.0, color: Colors.black),
-                                ),
-                                // Pago Semanal
-                                Text(
-                                  'Pago Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((monto / plazoSemanas) + (monto * (tasaInteresMensual / 4 / 100)))}',
-                                  style: TextStyle(
-                                      fontSize: 12.0, color: Colors.black),
-                                ),
-                              ],
-                            ),
-                            SizedBox(width: 20), // Espacio entre las columnas
-                            // Columna derecha
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Interés Total
-                                Text(
-                                  'Interés Total: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto * (tasaInteresMensual / 4 / 100) * plazoSemanas)}',
-                                  style: TextStyle(
-                                      fontSize: 12.0, color: Colors.black),
-                                ),
-                                // Interés Semanal (%)
-                                Text(
-                                  'Interés Semanal: ${(tasaInteresMensual / 4).toStringAsFixed(2)}%',
-                                  style: TextStyle(
-                                      fontSize: 12.0, color: Colors.black),
-                                ),
-                                // Interés Global (%)
-                                Text(
-                                  'Interés Global: ${(tasaInteresMensual / 4 * plazoSemanas).toStringAsFixed(2)}%',
-                                  style: TextStyle(
-                                      fontSize: 12.0, color: Colors.black),
-                                ),
-                              ],
+                            SizedBox(width: 20),
+                            Expanded(
+                              flex: 1,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          height: 40,
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 0),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[100],
+                                            border: Border.all(
+                                                color: Colors.grey[300]!,
+                                                width: 2.0),
+                                            borderRadius:
+                                                BorderRadius.circular(15.0),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.grey
+                                                    .withOpacity(0.1),
+                                                blurRadius: 5,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              isExpanded: true,
+                                              value: frecuenciaPrestamo,
+                                              onChanged: (String? newValue) {
+                                                setState(() {
+                                                  frecuenciaPrestamo =
+                                                      newValue!;
+                                                });
+                                              },
+                                              items: <String>[
+                                                'Semanal',
+                                                'Quincenal'
+                                              ].map<DropdownMenuItem<String>>(
+                                                  (String value) {
+                                                return DropdownMenuItem<String>(
+                                                  value: value,
+                                                  child: Text(value,
+                                                      style: TextStyle(
+                                                          fontSize: 14.0)),
+                                                );
+                                              }).toList(),
+                                              icon: Icon(Icons.arrow_drop_down,
+                                                  color: Color(0xFFFB2056)),
+                                              dropdownColor: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 20),
+                                  Container(
+                                    height: 40, // Ajustar altura
+                                    child: TextField(
+                                      controller: plazoController,
+                                      decoration: InputDecoration(
+                                        labelText:
+                                            'Plazo (en semanas o quincenas)',
+                                        labelStyle: TextStyle(
+                                            fontSize: 14.0,
+                                            color: Colors.grey[700]),
+                                        filled: true,
+                                        fillColor: Colors.grey[100],
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(15.0),
+                                          borderSide: BorderSide(
+                                              color: Colors.grey[300]!,
+                                              width: 2.0),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(15.0),
+                                          borderSide: BorderSide(
+                                              color: Color(0xFFFB2056),
+                                              width: 2.0),
+                                        ),
+                                        contentPadding: EdgeInsets.symmetric(
+                                            vertical: 5.0, horizontal: 10.0),
+                                      ),
+                                      keyboardType: TextInputType.number,
+                                      style: TextStyle(fontSize: 14.0),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            'Total a Recuperar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto + (monto * (tasaInteresMensual / 4 / 100) * plazoSemanas))}',
-                            style:
-                                TextStyle(fontSize: 12.0, color: Colors.black),
-                          ),
-                        ),
+                        SizedBox(height: 10),
+
+                        // Cantidad de usuarios y montos por usuario
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  listaUsuarios = calcularTabla();
-                                });
-
-                                double totalPrestamo =
-                                    montoPorUsuarioControllers.fold(
-                                  0.0,
-                                  (sum, controller) =>
-                                      sum +
-                                      (double.tryParse(controller.text) ?? 0.0),
-                                );
-
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(SnackBar(
-                                  content: Text(
-                                      'Total del préstamo grupal: \$${totalPrestamo.toStringAsFixed(2)}'),
-                                ));
-
-                                recalcular();
+                            Text('Cantidad de usuarios:',
+                                style: TextStyle(fontSize: 14)),
+                            SizedBox(width: 10),
+                            DropdownButton<int>(
+                              value: numeroUsuarios,
+                              onChanged: (int? newValue) {
+                                if (newValue != null) {
+                                  _actualizarNumeroUsuarios(newValue);
+                                }
                               },
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Color(0xFFFB2056),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(15.0)),
+                              items: List<DropdownMenuItem<int>>.generate(
+                                12,
+                                (index) => DropdownMenuItem<int>(
+                                  value: index + 1,
+                                  child: Text('${index + 1}',
+                                      style: TextStyle(fontSize: 14)),
+                                ),
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Text('Calcular',
-                                    style: TextStyle(fontSize: 12.0)),
+                            ),
+                            SizedBox(width: 20),
+                            Expanded(
+                              child: Listener(
+                                onPointerSignal: (pointerSignal) {
+                                  if (pointerSignal is PointerScrollEvent) {
+                                    // Deslizar horizontalmente usando la rueda del mouse.
+                                    _scrollController.jumpTo(
+                                      _scrollController.offset +
+                                          pointerSignal.scrollDelta.dy,
+                                    );
+                                  }
+                                },
+                                child: SizedBox(
+                                  width:
+                                      100, // Ajusta el ancho de la barra de desplazamiento aquí.
+                                  child: Scrollbar(
+                                    controller:
+                                        _scrollController, // Conecta el ScrollController al Scrollbar.
+                                    thumbVisibility:
+                                        true, // Para que la barra de desplazamiento siempre esté visible.
+                                    thickness:
+                                        8.0, // Ajusta el grosor de la barra de desplazamiento aquí.
+                                    radius: Radius.circular(
+                                        10), // Opcional: agregar esquinas redondeadas.
+                                    child: SingleChildScrollView(
+                                      controller:
+                                          _scrollController, // Conecta el ScrollController al SingleChildScrollView.
+                                      scrollDirection: Axis.horizontal,
+                                      physics:
+                                          ClampingScrollPhysics(), // Física adecuada para escritorio.
+                                      child: Row(
+                                        children: List.generate(numeroUsuarios,
+                                            (index) {
+                                          return Container(
+                                            height:
+                                                60, // Aumenta la altura del contenedor para mayor espacio.
+                                            width:
+                                                150, // Ancho mínimo para los campos de texto.
+                                            margin: EdgeInsets.symmetric(
+                                                horizontal: 5),
+                                            padding: EdgeInsets.symmetric(
+                                                vertical:
+                                                    10), // Agrega padding adicional.
+                                            child: TextField(
+                                              controller:
+                                                  montoPorUsuarioControllers[
+                                                      index],
+                                              textAlignVertical: TextAlignVertical
+                                                  .center, // Alinea el texto verticalmente.
+                                              decoration: InputDecoration(
+                                                labelText:
+                                                    'Usuario ${index + 1}',
+                                                labelStyle: TextStyle(
+                                                    fontSize: 14.0,
+                                                    color: Colors.grey[700]),
+                                                filled: true,
+                                                fillColor: Colors.grey[100],
+                                                enabledBorder:
+                                                    OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          15.0),
+                                                  borderSide: BorderSide(
+                                                      color: Colors.grey[300]!,
+                                                      width: 2.0),
+                                                ),
+                                                focusedBorder:
+                                                    OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          15.0),
+                                                  borderSide: BorderSide(
+                                                      color: Color(0xFFFB2056),
+                                                      width: 2.0),
+                                                ),
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                        vertical: 15.0,
+                                                        horizontal:
+                                                            10.0), // Ajusta el padding aquí.
+                                              ),
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              style: TextStyle(fontSize: 14.0),
+                                            ),
+                                          );
+                                        }),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -465,20 +388,341 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                       ],
                     ),
                   ),
-                ),
-              ],
+                  // Recuadro verde a la derecha con flex 4
+                  SizedBox(width: 20),
+                  // Recuadro verde a la derecha con flex 4
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        //color: Colors.green,
+                        borderRadius: BorderRadius.circular(15.0),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Resumen:',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          Text(
+                            'Monto a prestar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto)}',
+                            style:
+                                TextStyle(fontSize: 12.0, color: Colors.black),
+                          ),
+                          SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Columna izquierda
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Capital Semanal
+                                  Text(
+                                    'Capital Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto / plazoSemanas)}',
+                                    style: TextStyle(
+                                        fontSize: 12.0, color: Colors.black),
+                                  ),
+                                  // Interés Semanal
+                                  Text(
+                                    'Interés Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto * (tasaInteresMensual / 4 / 100))}', // Asegúrate de dividir la tasa por 100
+                                    style: TextStyle(
+                                        fontSize: 12.0, color: Colors.black),
+                                  ),
+                                  // Pago Semanal
+                                  Text(
+                                    'Pago Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((monto / plazoSemanas) + (monto * (tasaInteresMensual / 4 / 100)))}',
+                                    style: TextStyle(
+                                        fontSize: 12.0, color: Colors.black),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(width: 20), // Espacio entre las columnas
+                              // Columna derecha
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Interés Total
+                                  Text(
+                                    'Interés Total: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto * (tasaInteresMensual / 4 / 100) * plazoSemanas)}',
+                                    style: TextStyle(
+                                        fontSize: 12.0, color: Colors.black),
+                                  ),
+                                  // Interés Semanal (%)
+                                  Text(
+                                    'Interés Semanal: ${(tasaInteresMensual / 4).toStringAsFixed(2)}%',
+                                    style: TextStyle(
+                                        fontSize: 12.0, color: Colors.black),
+                                  ),
+                                  // Interés Global (%)
+                                  Text(
+                                    'Interés Global: ${(tasaInteresMensual / 4 * plazoSemanas).toStringAsFixed(2)}%',
+                                    style: TextStyle(
+                                        fontSize: 12.0, color: Colors.black),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              'Total a Recuperar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto + (monto * (tasaInteresMensual / 4 / 100) * plazoSemanas))}',
+                              style: TextStyle(
+                                  fontSize: 12.0, color: Colors.black),
+                            ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    listaUsuarios = calcularTabla();
+                                  });
+
+                                  double totalPrestamo =
+                                      montoPorUsuarioControllers.fold(
+                                    0.0,
+                                    (sum, controller) =>
+                                        sum +
+                                        (double.tryParse(controller.text) ??
+                                            0.0),
+                                  );
+
+                                  ScaffoldMessenger.of(context)
+                                      .showSnackBar(SnackBar(
+                                    content: Text(
+                                        'Total del préstamo grupal: \$${totalPrestamo.toStringAsFixed(2)}'),
+                                  ));
+
+                                  recalcular();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  backgroundColor: Color(0xFFFB2056),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(15.0)),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text('Calcular',
+                                      style: TextStyle(fontSize: 12.0)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+            // Divider
+            Divider(thickness: 2, color: Colors.grey[300]),
 
-          // Divider
-          Divider(thickness: 2, color: Colors.grey[300]),
-
-          // Mostrar la tabla de resultados si hay datos
-          if (listaUsuarios.isNotEmpty)
-            TablaResultados(listaUsuarios: listaUsuarios),
-        ],
-      ),
-    );
+// Mostrar la tabla de resultados si hay datos
+            if (listaUsuarios.isNotEmpty)
+              Expanded(
+                  child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Tabla de resultados
+                  Expanded(
+                    flex: 3, // Define cuánto espacio ocupará la tabla
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.vertical, // Desplazamiento vertical
+                      child: TablaResultados(listaUsuarios: listaUsuarios),
+                    ),
+                  ),
+                  // Relleno para mantener espacio entre tabla y recuadro verde
+                  SizedBox(width: 20),
+                  // Recuadro verde a la derecha
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      height: double
+                          .infinity, // Permite que el contenedor se ajuste al espacio disponible
+                      padding: EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        //color: Colors.green[100], // Fondo verde claro
+                        border: Border.all(
+                          color: Colors.grey, // Color del borde verde
+                          width: 1.5, // Grosor del borde
+                        ),
+                        borderRadius:
+                            BorderRadius.circular(10), // Bordes redondeados
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection:
+                            Axis.vertical, // Desplazamiento vertical
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Recuadro verde',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFB2056),
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            // Tabla de ejemplo dentro del recuadro verde
+                            Table(
+                              border: TableBorder.all(color: Colors.grey),
+                              children: [
+                                // Cabecera de la tabla
+                                TableRow(children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'Header 1',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'Header 2',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'Header 3',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12),
+                                    ),
+                                  ),
+                                ]),
+                                // Filas de datos
+                                TableRow(children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 1 Col 1',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 1 Col 2',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 1 Col 3',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ]),
+                                TableRow(children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 2 Col 1',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 2 Col 2',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 2 Col 3',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ]),
+                                TableRow(children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 3 Col 1',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 3 Col 2',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 3 Col 3',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ]),
+                                TableRow(children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 4 Col 1',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 4 Col 2',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 4 Col 3',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ]),
+                                TableRow(children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 5 Col 1',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 5 Col 2',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 5 Col 3',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ]),
+                                TableRow(children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 6 Col 1',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 6 Col 2',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text('Row 6 Col 3',
+                                        style: TextStyle(fontSize: 12)),
+                                  ),
+                                ]),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )),
+          ],
+        ));
   }
 
   List<UsuarioPrestamo> calcularTabla() {
@@ -488,8 +732,15 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
     double interesSemanal = tasaInteresMensual / 4;
 
     // Supongamos que el plazo es en semanas (esto debe ser ingresado por el usuario)
-    int? plazo = int.tryParse(plazoController
-        .text); // Cambia este valor por el ingresado por el usuario en el TextField
+    int? plazo = int.tryParse(plazoController.text);
+
+    // Variables para almacenar los totales
+    double totalMontoIndividual = 0.0;
+    double totalCapitalSemanal = 0.0;
+    double totalInteresIndividualSemanal = 0.0;
+    double totalTotalIntereses = 0.0;
+    double totalPagoIndSemanal = 0.0;
+    double totalPagoIndTotal = 0.0;
 
     for (var controller in montoPorUsuarioControllers) {
       double montoIndividual = double.tryParse(controller.text) ?? 0.0;
@@ -510,6 +761,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
       // Calcular el pago individual total multiplicando el pago semanal por el plazo
       double pagoIndTotal = pagoIndSemanal * plazo;
 
+      // Agregar los valores a la lista de usuarios
       listaUsuarios.add(UsuarioPrestamo(
         montoIndividual: montoIndividual,
         capitalSemanal: capitalSemanal,
@@ -518,7 +770,25 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
         pagoIndSemanal: pagoIndSemanal,
         pagoIndTotal: pagoIndTotal,
       ));
+
+      // Sumar los totales
+      totalMontoIndividual += montoIndividual;
+      totalCapitalSemanal += capitalSemanal;
+      totalInteresIndividualSemanal += interesIndividualSemanal;
+      totalTotalIntereses += totalIntereses;
+      totalPagoIndSemanal += pagoIndSemanal;
+      totalPagoIndTotal += pagoIndTotal;
     }
+
+    // Agregar la fila de totales
+    listaUsuarios.add(UsuarioPrestamo(
+      montoIndividual: totalMontoIndividual,
+      capitalSemanal: totalCapitalSemanal,
+      interesIndividualSemanal: totalInteresIndividualSemanal,
+      totalIntereses: totalTotalIntereses,
+      pagoIndSemanal: totalPagoIndSemanal,
+      pagoIndTotal: totalPagoIndTotal,
+    ));
 
     return listaUsuarios;
   }
@@ -531,46 +801,117 @@ class TablaResultados extends StatelessWidget {
   const TablaResultados({Key? key, required this.listaUsuarios})
       : super(key: key);
 
-   @override
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    return Expanded(
       child: SingleChildScrollView(
-        scrollDirection: Axis.vertical, // Agregar scroll vertical
-        child: DataTable(
-          columns: const [
-            DataColumn(label: Text('Integrantes')),
-            DataColumn(label: Text('Monto individual')),
-            DataColumn(label: Text('Capital Semanal')),
-            DataColumn(label: Text('Interés Individual Semanal')),
-            DataColumn(label: Text('Total Intereses')),
-            DataColumn(label: Text('Pago Ind Semanal')),
-            DataColumn(label: Text('Pago Ind Total')),
-          ],
-          rows: List<DataRow>.generate(listaUsuarios.length, (index) {
-            final usuario = listaUsuarios[index];
-            return DataRow(cells: [
-              DataCell(Text('Usuario ${index + 1}')),
-              DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.montoIndividual)}')),
-              DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.capitalSemanal)}')),
-              DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.interesIndividualSemanal)}')),
-              DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.totalIntereses)}')),
-              DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.pagoIndSemanal)}')),
-              DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.pagoIndTotal)}')),
-            ]);
-          }),
+        scrollDirection: Axis.vertical, // Solo scroll vertical
+        child: SizedBox(
+          width: double
+              .infinity, // Hace que la tabla ocupe todo el ancho disponible
+          child: DataTable(
+            columnSpacing: 0, // Espacio entre las columnas
+            columns: const [
+              DataColumn(
+                  label: Text(
+                'Integrantes',
+                style: TextStyle(fontSize: 12),
+              )),
+              DataColumn(
+                  label: Text(
+                'Monto individual',
+                style: TextStyle(fontSize: 12),
+              )),
+              DataColumn(
+                  label: Text(
+                'Capital Semanal',
+                style: TextStyle(fontSize: 12),
+              )),
+              DataColumn(
+                  label: Text(
+                'Interés Ind. Sem.',
+                style: TextStyle(fontSize: 12),
+              )),
+              DataColumn(
+                  label: Text(
+                'Total Intereses',
+                style: TextStyle(fontSize: 12),
+              )),
+              DataColumn(
+                  label: Text(
+                'Pago Ind. Sem.',
+                style: TextStyle(fontSize: 12),
+              )),
+              DataColumn(
+                  label: Text(
+                'Pago Ind. Total',
+                style: TextStyle(fontSize: 12),
+              )),
+            ],
+            rows: List<DataRow>.generate(listaUsuarios.length, (index) {
+              final usuario = listaUsuarios[index];
+
+              // Verifica si es la fila de totales
+              bool isTotalRow = index == listaUsuarios.length - 1;
+
+              return DataRow(cells: [
+                DataCell(Text(
+                  isTotalRow ? 'Total' : 'Usuario ${index + 1}',
+                  style: TextStyle(
+                      fontWeight:
+                          isTotalRow ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12),
+                )),
+                DataCell(Text(
+                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.montoIndividual)}',
+                  style: TextStyle(
+                      fontWeight:
+                          isTotalRow ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12),
+                )),
+                DataCell(Text(
+                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.capitalSemanal)}',
+                  style: TextStyle(
+                      fontWeight:
+                          isTotalRow ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12),
+                )),
+                DataCell(Text(
+                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.interesIndividualSemanal)}',
+                  style: TextStyle(
+                      fontWeight:
+                          isTotalRow ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12),
+                )),
+                DataCell(Text(
+                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.totalIntereses)}',
+                  style: TextStyle(
+                      fontWeight:
+                          isTotalRow ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12),
+                )),
+                DataCell(Text(
+                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.pagoIndSemanal)}',
+                  style: TextStyle(
+                      fontWeight:
+                          isTotalRow ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12),
+                )),
+                DataCell(Text(
+                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.pagoIndTotal)}',
+                  style: TextStyle(
+                      fontWeight:
+                          isTotalRow ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12),
+                )),
+              ]);
+            }),
+          ),
         ),
       ),
     );
   }
 }
-
 
 // Modelo de datos
 class UsuarioPrestamo {
