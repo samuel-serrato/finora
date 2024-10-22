@@ -17,6 +17,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
   final TextEditingController interesController = TextEditingController();
   double tasaInteresMensual = 0.0;
   int plazoSemanas = 0;
+  DateTime? fechaSeleccionada;
 
   List<UsuarioPrestamo> listaUsuarios = [];
 
@@ -385,6 +386,72 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                             ),
                           ],
                         ),
+                        SizedBox(height: 10),
+                        Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: () => selectDate(context),
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor: Color(0xFFFB2056),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15.0),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Text(
+                                  fechaSeleccionada == null
+                                      ? 'Seleccionar Fecha de Inicio'
+                                      : 'Fecha de Inicio: ${DateFormat('dd/MM/yyyy', 'es').format(fechaSeleccionada!)}',
+                                  style: TextStyle(fontSize: 14.0),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            if (fechaSeleccionada != null)
+                              Text(
+                                DateFormat('EEEE, MMMM d, yyyy', 'es')
+                                    .format(fechaSeleccionada!),
+                                style: TextStyle(
+                                    fontSize: 14.0, color: Colors.grey[700]),
+                              ),
+                            Spacer(),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  // Limpiar los campos del formulario
+                                  montoController.clear();
+                                  plazoController.clear();
+                                  interesController.clear();
+                                  monto = 0.0;
+                                  /*  interesMensual = 0.0;
+                                  periodo =
+                                      'Semanal'; // Restablecer el valor predeterminado del dropdown
+                                  fechaSeleccionada =
+                                      null; // Restablecer la fecha seleccionada
+                                  tablaAmortizacion.clear(); */
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                backgroundColor:
+                                    Colors.grey, // Botón de limpieza en gris
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15.0),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 10),
+                                child: Text(
+                                  'Limpiar Campos',
+                                  style: TextStyle(fontSize: 14.0),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -723,6 +790,20 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
               )),
           ],
         ));
+  }
+
+  void selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: fechaSeleccionada ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(DateTime.now().year + 10),
+    );
+    if (picked != null && picked != fechaSeleccionada) {
+      setState(() {
+        fechaSeleccionada = picked;
+      });
+    }
   }
 
   List<UsuarioPrestamo> calcularTabla() {
