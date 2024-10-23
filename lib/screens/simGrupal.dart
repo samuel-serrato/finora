@@ -18,6 +18,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
   double tasaInteresMensual = 0.0;
   int plazoSemanas = 0;
   DateTime? fechaSeleccionada;
+  int plazoSeleccionado = 12; // Valor inicial de plazo
 
   List<UsuarioPrestamo> listaUsuarios = [];
 
@@ -51,7 +52,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
     setState(() {
       monto = parseAmount(montoController.text);
       tasaInteresMensual = double.tryParse(interesController.text) ?? 0.0;
-      plazoSemanas = int.tryParse(plazoController.text) ?? 0;
+      plazoSemanas = plazoSeleccionado; // Usar la opción seleccionada
 
       // Para depuración
       print(
@@ -71,6 +72,9 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
 
   @override
   Widget build(BuildContext context) {
+    List<String> fechasDePago =
+        generarFechasDePago(fechaSeleccionada ?? DateTime.now(), plazoSemanas);
+
     return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Column(
@@ -97,13 +101,13 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Container(
-                                    height: 40, // Ajustar altura
+                                    height: 35, // Ajustar altura
                                     child: TextField(
                                       controller: montoController,
                                       decoration: InputDecoration(
                                         labelText: 'Monto Total',
                                         labelStyle: TextStyle(
-                                            fontSize: 14.0,
+                                            fontSize: 12,
                                             color: Colors.grey[700]),
                                         filled: true,
                                         fillColor: Colors.grey[100],
@@ -125,12 +129,12 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                             vertical: 5.0, horizontal: 10.0),
                                       ),
                                       keyboardType: TextInputType.number,
-                                      style: TextStyle(fontSize: 14.0),
+                                      style: TextStyle(fontSize: 12.0),
                                     ),
                                   ),
                                   SizedBox(height: 20),
                                   Container(
-                                    height: 40, // Ajustar altura
+                                    height: 35, // Ajustar altura
                                     child: TextField(
                                       controller: interesController,
                                       onChanged: (value) {
@@ -140,7 +144,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                       decoration: InputDecoration(
                                         labelText: 'Tasa de Interés (%)',
                                         labelStyle: TextStyle(
-                                            fontSize: 14.0,
+                                            fontSize: 12.0,
                                             color: Colors.grey[700]),
                                         filled: true,
                                         fillColor: Colors.grey[100],
@@ -162,7 +166,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                             vertical: 5.0, horizontal: 10.0),
                                       ),
                                       keyboardType: TextInputType.number,
-                                      style: TextStyle(fontSize: 14.0),
+                                      style: TextStyle(fontSize: 12.0),
                                     ),
                                   ),
                                 ],
@@ -178,7 +182,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                     children: [
                                       Expanded(
                                         child: Container(
-                                          height: 40,
+                                          height: 35,
                                           padding: EdgeInsets.symmetric(
                                               horizontal: 12, vertical: 0),
                                           decoration: BoxDecoration(
@@ -216,7 +220,8 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                                   value: value,
                                                   child: Text(value,
                                                       style: TextStyle(
-                                                          fontSize: 14.0)),
+                                                          fontSize: 12.0,
+                                                          color: Colors.black)),
                                                 );
                                               }).toList(),
                                               icon: Icon(Icons.arrow_drop_down,
@@ -230,36 +235,41 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                   ),
                                   SizedBox(height: 20),
                                   Container(
-                                    height: 40, // Ajustar altura
-                                    child: TextField(
-                                      controller: plazoController,
-                                      decoration: InputDecoration(
-                                        labelText:
-                                            'Plazo (en semanas o quincenas)',
-                                        labelStyle: TextStyle(
-                                            fontSize: 14.0,
-                                            color: Colors.grey[700]),
-                                        filled: true,
-                                        fillColor: Colors.grey[100],
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15.0),
-                                          borderSide: BorderSide(
-                                              color: Colors.grey[300]!,
-                                              width: 2.0),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15.0),
-                                          borderSide: BorderSide(
-                                              color: Color(0xFFFB2056),
-                                              width: 2.0),
-                                        ),
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 5.0, horizontal: 10.0),
+                                    height: 35,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(15.0),
+                                      border: Border.all(
+                                          color: Colors.grey[300]!, width: 2.0),
+                                    ),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 10.0), // Ajustar altura
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<int>(
+                                        isExpanded: true,
+                                        value: plazoSeleccionado,
+                                        onChanged: (int? newValue) {
+                                          setState(() {
+                                            plazoSeleccionado = newValue!;
+                                          });
+                                        },
+                                        items: <int>[12, 14, 16]
+                                            .map<DropdownMenuItem<int>>(
+                                                (int value) {
+                                          return DropdownMenuItem<int>(
+                                            value: value,
+                                            child: Text(
+                                              '$value semanas',
+                                              style: TextStyle(
+                                                  fontSize: 12.0,
+                                                  color: Colors.black),
+                                            ),
+                                          );
+                                        }).toList(),
+                                        icon: Icon(Icons.arrow_drop_down,
+                                            color: Color(0xFFFB2056)),
+                                        dropdownColor: Colors.white,
                                       ),
-                                      keyboardType: TextInputType.number,
-                                      style: TextStyle(fontSize: 14.0),
                                     ),
                                   ),
                                 ],
@@ -273,7 +283,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                         Row(
                           children: [
                             Text('Cantidad de usuarios:',
-                                style: TextStyle(fontSize: 14)),
+                                style: TextStyle(fontSize: 12)),
                             SizedBox(width: 10),
                             DropdownButton<int>(
                               value: numeroUsuarios,
@@ -287,7 +297,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                 (index) => DropdownMenuItem<int>(
                                   value: index + 1,
                                   child: Text('${index + 1}',
-                                      style: TextStyle(fontSize: 14)),
+                                      style: TextStyle(fontSize: 12)),
                                 ),
                               ),
                             ),
@@ -326,7 +336,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                             (index) {
                                           return Container(
                                             height:
-                                                60, // Aumenta la altura del contenedor para mayor espacio.
+                                                55, // Aumenta la altura del contenedor para mayor espacio.
                                             width:
                                                 150, // Ancho mínimo para los campos de texto.
                                             margin: EdgeInsets.symmetric(
@@ -344,7 +354,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                                 labelText:
                                                     'Usuario ${index + 1}',
                                                 labelStyle: TextStyle(
-                                                    fontSize: 14.0,
+                                                    fontSize: 12.0,
                                                     color: Colors.grey[700]),
                                                 filled: true,
                                                 fillColor: Colors.grey[100],
@@ -374,7 +384,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                               ),
                                               keyboardType:
                                                   TextInputType.number,
-                                              style: TextStyle(fontSize: 14.0),
+                                              style: TextStyle(fontSize: 12.0),
                                             ),
                                           );
                                         }),
@@ -404,7 +414,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                   fechaSeleccionada == null
                                       ? 'Seleccionar Fecha de Inicio'
                                       : 'Fecha de Inicio: ${DateFormat('dd/MM/yyyy', 'es').format(fechaSeleccionada!)}',
-                                  style: TextStyle(fontSize: 14.0),
+                                  style: TextStyle(fontSize: 12.0),
                                 ),
                               ),
                             ),
@@ -414,7 +424,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                 DateFormat('EEEE, MMMM d, yyyy', 'es')
                                     .format(fechaSeleccionada!),
                                 style: TextStyle(
-                                    fontSize: 14.0, color: Colors.grey[700]),
+                                    fontSize: 12.0, color: Colors.grey[700]),
                               ),
                             Spacer(),
                             ElevatedButton(
@@ -446,7 +456,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                     horizontal: 20, vertical: 10),
                                 child: Text(
                                   'Limpiar Campos',
-                                  style: TextStyle(fontSize: 14.0),
+                                  style: TextStyle(fontSize: 12.0),
                                 ),
                               ),
                             ),
@@ -471,7 +481,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                           Text(
                             'Resumen:',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.black,
                             ),
@@ -594,8 +604,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
             ),
             // Divider
             Divider(thickness: 2, color: Colors.grey[300]),
-
-// Mostrar la tabla de resultados si hay datos
+            // Mostrar la tabla de resultados si hay datos
             if (listaUsuarios.isNotEmpty)
               Expanded(
                   child: Row(
@@ -612,180 +621,8 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                   // Relleno para mantener espacio entre tabla y recuadro verde
                   SizedBox(width: 20),
                   // Recuadro verde a la derecha
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      height: double
-                          .infinity, // Permite que el contenedor se ajuste al espacio disponible
-                      padding: EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        //color: Colors.green[100], // Fondo verde claro
-                        border: Border.all(
-                          color: Colors.grey, // Color del borde verde
-                          width: 1.5, // Grosor del borde
-                        ),
-                        borderRadius:
-                            BorderRadius.circular(10), // Bordes redondeados
-                      ),
-                      child: SingleChildScrollView(
-                        scrollDirection:
-                            Axis.vertical, // Desplazamiento vertical
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Recuadro verde',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFFB2056),
-                              ),
-                            ),
-                            SizedBox(height: 10),
-                            // Tabla de ejemplo dentro del recuadro verde
-                            Table(
-                              border: TableBorder.all(color: Colors.grey),
-                              children: [
-                                // Cabecera de la tabla
-                                TableRow(children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      'Header 1',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      'Header 2',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      'Header 3',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12),
-                                    ),
-                                  ),
-                                ]),
-                                // Filas de datos
-                                TableRow(children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 1 Col 1',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 1 Col 2',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 1 Col 3',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                ]),
-                                TableRow(children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 2 Col 1',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 2 Col 2',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 2 Col 3',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                ]),
-                                TableRow(children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 3 Col 1',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 3 Col 2',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 3 Col 3',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                ]),
-                                TableRow(children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 4 Col 1',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 4 Col 2',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 4 Col 3',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                ]),
-                                TableRow(children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 5 Col 1',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 5 Col 2',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 5 Col 3',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                ]),
-                                TableRow(children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 6 Col 1',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 6 Col 2',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text('Row 6 Col 3',
-                                        style: TextStyle(fontSize: 12)),
-                                  ),
-                                ]),
-                              ],
-                            )
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  CustomTable(
+                      title: 'Fechas de Pago', fechasDePago: fechasDePago),
                 ],
               )),
           ],
@@ -813,7 +650,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
     double interesSemanal = tasaInteresMensual / 4;
 
     // Supongamos que el plazo es en semanas (esto debe ser ingresado por el usuario)
-    int? plazo = int.tryParse(plazoController.text);
+    int plazo = plazoSeleccionado; // El plazo ahora viene del DropdownButton
 
     // Variables para almacenar los totales
     double totalMontoIndividual = 0.0;
@@ -891,6 +728,10 @@ class TablaResultados extends StatelessWidget {
           width: double
               .infinity, // Hace que la tabla ocupe todo el ancho disponible
           child: DataTable(
+            border: TableBorder(
+              horizontalInside: BorderSide(color: Colors.grey, width: 1),
+            ),
+            dataRowHeight: 30,
             columnSpacing: 0, // Espacio entre las columnas
             columns: const [
               DataColumn(
@@ -991,6 +832,104 @@ class TablaResultados extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+List<String> generarFechasDePago(DateTime fechaInicial, int semanas) {
+  List<String> fechas = [];
+  for (int i = 0; i < semanas; i++) {
+    // Añadir una semana a la fecha inicial por cada iteración
+    DateTime fechaPago = fechaInicial.add(Duration(days: 7 * i));
+    fechas.add("${fechaPago.day}/${fechaPago.month}/${fechaPago.year}");
+  }
+  return fechas;
+}
+
+class CustomTable extends StatelessWidget {
+  final String title;
+  final List<String> fechasDePago;
+
+  CustomTable({required this.title, required this.fechasDePago});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: 1,
+      child: Container(
+        height: double.infinity, // Se ajusta al espacio disponible
+        padding: EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFFB2056),
+                ),
+              ),
+              SizedBox(height: 10),
+              // Tabla dentro del widget
+              Table(
+                border: TableBorder(
+                  horizontalInside: BorderSide(color: Colors.grey, width: 1),
+                ),
+                children: [
+                  TableRow(
+                    children: _buildTableHeader(['Semana', 'Fecha de Pago']),
+                  ),
+                  ..._buildTableRows(fechasDePago),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildTableHeader(List<String> headers) {
+    return headers
+        .map((header) => Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                header,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ))
+        .toList();
+  }
+
+  List<TableRow> _buildTableRows(List<String> fechas) {
+    return List<TableRow>.generate(fechas.length, (index) {
+      return TableRow(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              style: TextStyle(fontSize: 12),
+              "Semana ${index + 1}",
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              style: TextStyle(fontSize: 12),
+              fechas[index],
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
 
