@@ -18,7 +18,9 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
   double tasaInteresMensual = 0.0;
   int plazoSemanas = 0;
   DateTime? fechaSeleccionada;
-  int plazoSeleccionado = 12; // Valor inicial de plazo
+  int?
+      plazoSeleccionado; // Cambia de 'int' a 'int?' para permitir valores nulos
+  double? tasaInteresMensualSeleccionada;
 
   List<UsuarioPrestamo> listaUsuarios = [];
 
@@ -51,8 +53,9 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
   void recalcular() {
     setState(() {
       monto = parseAmount(montoController.text);
-      tasaInteresMensual = double.tryParse(interesController.text) ?? 0.0;
-      plazoSemanas = plazoSeleccionado; // Usar la opción seleccionada
+      //tasaInteresMensual = double.tryParse(interesController.text) ?? 0.0;
+      plazoSemanas = plazoSeleccionado ?? 0; // Usar la opción seleccionada
+      tasaInteresMensual = tasaInteresMensualSeleccionada ?? 0;
 
       // Para depuración
       print(
@@ -87,7 +90,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                 children: [
                   // Formulario con flex 6
                   Expanded(
-                    flex: 7,
+                    flex: 6,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -134,39 +137,54 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                   ),
                                   SizedBox(height: 20),
                                   Container(
-                                    height: 35, // Ajustar altura
-                                    child: TextField(
-                                      controller: interesController,
-                                      onChanged: (value) {
-                                        tasaInteresMensual =
-                                            double.tryParse(value) ?? 0.0;
-                                      },
-                                      decoration: InputDecoration(
-                                        labelText: 'Tasa de Interés (%)',
-                                        labelStyle: TextStyle(
-                                            fontSize: 12.0,
-                                            color: Colors.grey[700]),
-                                        filled: true,
-                                        fillColor: Colors.grey[100],
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15.0),
-                                          borderSide: BorderSide(
-                                              color: Colors.grey[300]!,
-                                              width: 2.0),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15.0),
-                                          borderSide: BorderSide(
-                                              color: Color(0xFFFB2056),
-                                              width: 2.0),
-                                        ),
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 5.0, horizontal: 10.0),
+                                    height: 35,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(15.0),
+                                      border: Border.all(
+                                          color: Colors.grey[300]!, width: 2.0),
+                                    ),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 10.0), // Ajustar altura
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<double>(
+                                        hint: Text(
+                                          'Elige una tasa de interés',
+                                          style: TextStyle(fontSize: 12),
+                                        ), // Se mostrará hasta que se seleccione algo
+                                        isExpanded: true,
+                                        value: tasaInteresMensualSeleccionada,
+                                        onChanged: (double? newValue) {
+                                          setState(() {
+                                            tasaInteresMensualSeleccionada =
+                                                newValue!;
+                                          });
+                                        },
+                                        items: <double>[
+                                          8.00,
+                                          8.12,
+                                          8.20,
+                                          8.52,
+                                          8.60,
+                                          8.80,
+                                          9.00,
+                                          9.28
+                                        ].map<DropdownMenuItem<double>>(
+                                            (double value) {
+                                          return DropdownMenuItem<double>(
+                                            value: value,
+                                            child: Text(
+                                              '$value %',
+                                              style: TextStyle(
+                                                  fontSize: 12.0,
+                                                  color: Colors.black),
+                                            ),
+                                          );
+                                        }).toList(),
+                                        icon: Icon(Icons.arrow_drop_down,
+                                            color: Color(0xFFFB2056)),
+                                        dropdownColor: Colors.white,
                                       ),
-                                      keyboardType: TextInputType.number,
-                                      style: TextStyle(fontSize: 12.0),
                                     ),
                                   ),
                                 ],
@@ -213,7 +231,6 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                               },
                                               items: <String>[
                                                 'Semanal',
-                                                'Quincenal'
                                               ].map<DropdownMenuItem<String>>(
                                                   (String value) {
                                                 return DropdownMenuItem<String>(
@@ -240,17 +257,23 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                       color: Colors.grey[100],
                                       borderRadius: BorderRadius.circular(15.0),
                                       border: Border.all(
-                                          color: Colors.grey[300]!, width: 2.0),
+                                        color: Colors.grey[300]!,
+                                        width: 2.0,
+                                      ),
                                     ),
-                                    padding: EdgeInsets.symmetric(
-                                        horizontal: 10.0), // Ajustar altura
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 10.0),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        hint: Text(
+                                          'Elige un plazo',
+                                          style: TextStyle(fontSize: 12),
+                                        ), // Se mostrará hasta que se seleccione algo
                                         isExpanded: true,
                                         value: plazoSeleccionado,
                                         onChanged: (int? newValue) {
                                           setState(() {
-                                            plazoSeleccionado = newValue!;
+                                            plazoSeleccionado = newValue;
                                           });
                                         },
                                         items: <int>[12, 14, 16]
@@ -266,8 +289,10 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                             ),
                                           );
                                         }).toList(),
-                                        icon: Icon(Icons.arrow_drop_down,
-                                            color: Color(0xFFFB2056)),
+                                        icon: Icon(
+                                          Icons.arrow_drop_down,
+                                          color: Color(0xFFFB2056),
+                                        ),
                                         dropdownColor: Colors.white,
                                       ),
                                     ),
@@ -434,13 +459,25 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                   montoController.clear();
                                   plazoController.clear();
                                   interesController.clear();
+
+                                  // Limpiar los controladores de los montos individuales
+                                  for (var controller
+                                      in montoPorUsuarioControllers) {
+                                    controller.clear();
+                                  }
+
+                                  // Restablecer las variables clave
                                   monto = 0.0;
-                                  /*  interesMensual = 0.0;
-                                  periodo =
-                                      'Semanal'; // Restablecer el valor predeterminado del dropdown
+                                  tasaInteresMensualSeleccionada =
+                                      null; // O el valor predeterminado
+                                  plazoSeleccionado =
+                                      null; // O el valor predeterminado
+                                  listaUsuarios
+                                      .clear(); // Limpiar la tabla de usuarios
                                   fechaSeleccionada =
-                                      null; // Restablecer la fecha seleccionada
-                                  tablaAmortizacion.clear(); */
+                                      null; // Limpiar la fecha seleccionada
+
+                                  // Si tienes otras listas o tablas, también las puedes limpiar aquí
                                 });
                               },
                               style: ElevatedButton.styleFrom(
@@ -453,7 +490,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 10),
+                                    horizontal: 20, vertical: 0),
                                 child: Text(
                                   'Limpiar Campos',
                                   style: TextStyle(fontSize: 12.0),
@@ -469,7 +506,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                   SizedBox(width: 20),
                   // Recuadro verde a la derecha con flex 4
                   Expanded(
-                    flex: 3,
+                    flex: 4,
                     child: Container(
                       decoration: BoxDecoration(
                         //color: Colors.green,
@@ -554,46 +591,93 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                   fontSize: 12.0, color: Colors.black),
                             ),
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    listaUsuarios = calcularTabla();
-                                  });
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                // Primero actualizamos las variables clave que afectan los cálculos
+                                recalcular();
 
-                                  double totalPrestamo =
-                                      montoPorUsuarioControllers.fold(
-                                    0.0,
-                                    (sum, controller) =>
-                                        sum +
-                                        (double.tryParse(controller.text) ??
-                                            0.0),
+                                // Bandera para determinar si hay errores
+                                bool hayErrores = false;
+
+                                // Verificar si el plazo no ha sido seleccionado
+                                if (plazoSemanas == 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Error: Debes seleccionar el plazo de semanas.'),
+                                      backgroundColor: Colors.red,
+                                    ),
                                   );
+                                  hayErrores =
+                                      true; // Marcamos que hay un error
+                                }
 
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(SnackBar(
-                                    content: Text(
-                                        'Total del préstamo grupal: \$${totalPrestamo.toStringAsFixed(2)}'),
-                                  ));
+                                // Verificar si la tasa de interés no ha sido seleccionada
+                                if (tasaInteresMensual == 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Error: Debes seleccionar una tasa de interés.'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  hayErrores =
+                                      true; // Marcamos que hay un error
+                                }
 
-                                  recalcular();
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  backgroundColor: Color(0xFFFB2056),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(15.0)),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Text('Calcular',
-                                      style: TextStyle(fontSize: 12.0)),
-                                ),
+                                // Si hay errores, salimos de la ejecución sin calcular la tabla
+                                if (hayErrores) return;
+
+                                // Calculamos el total del préstamo ingresado por cada usuario
+                                double totalPrestamo =
+                                    montoPorUsuarioControllers.fold(
+                                  0.0,
+                                  (sum, controller) =>
+                                      sum +
+                                      (double.tryParse(controller.text) ?? 0.0),
+                                );
+
+                                // Obtenemos el monto total ingresado por el usuario
+                                double montoTotal =
+                                    parseAmount(montoController.text);
+
+                                // Verificamos si la suma coincide con el monto total
+                                if (totalPrestamo != montoTotal) {
+                                  // Mostrar un SnackBar con un mensaje de error
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Error: La suma de los montos individuales (\$$totalPrestamo) no coincide con el monto total (\$$montoTotal).'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                } else {
+                                  // Si coinciden, calculamos la tabla
+                                  listaUsuarios = calcularTabla();
+
+                                  // Mostrar un SnackBar con el total del préstamo
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Total del préstamo grupal: \$${totalPrestamo.toStringAsFixed(2)}'),
+                                    ),
+                                  );
+                                }
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: Color(0xFFFB2056),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15.0),
                               ),
-                            ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text('Calcular',
+                                  style: TextStyle(fontSize: 12.0)),
+                            ),
                           ),
                         ],
                       ),
@@ -649,8 +733,16 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
     // Interés semanal calculado a partir del interés mensual dividido entre 4 semanas
     double interesSemanal = tasaInteresMensual / 4;
 
-    // Supongamos que el plazo es en semanas (esto debe ser ingresado por el usuario)
-    int plazo = plazoSeleccionado; // El plazo ahora viene del DropdownButton
+    // Asegúrate de que plazoSeleccionado no sea null
+    int plazo =
+        plazoSeleccionado ?? 0; // Asigna 0 o algún valor por defecto si es null
+
+    // Verifica que el plazo sea mayor que 0 antes de continuar
+    if (plazo <= 0) {
+      print(
+          'El plazo debe ser mayor que 0'); // Manejo de error, puedes lanzar una excepción o manejarlo como quieras
+      return listaUsuarios; // Retorna la lista vacía
+    }
 
     // Variables para almacenar los totales
     double totalMontoIndividual = 0.0;
@@ -664,7 +756,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
       double montoIndividual = double.tryParse(controller.text) ?? 0.0;
 
       // Calcular el capital semanal multiplicando el monto individual por el plazo
-      double capitalSemanal = montoIndividual / plazo!;
+      double capitalSemanal = montoIndividual / plazo;
 
       // Calcular el interés individual semanal
       double interesIndividualSemanal =
@@ -837,7 +929,7 @@ class TablaResultados extends StatelessWidget {
 
 List<String> generarFechasDePago(DateTime fechaInicial, int semanas) {
   List<String> fechas = [];
-  for (int i = 0; i < semanas; i++) {
+  for (int i = 0; i <= semanas; i++) {
     // Añadir una semana a la fecha inicial por cada iteración
     DateTime fechaPago = fechaInicial.add(Duration(days: 7 * i));
     fechas.add("${fechaPago.day}/${fechaPago.month}/${fechaPago.year}");
@@ -915,7 +1007,7 @@ class CustomTable extends StatelessWidget {
             padding: const EdgeInsets.all(8.0),
             child: Text(
               style: TextStyle(fontSize: 12),
-              "Semana ${index + 1}",
+              "Semana $index", // Aquí empieza desde Semana 0
               textAlign: TextAlign.center,
             ),
           ),

@@ -29,6 +29,9 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   double interesMensual = 0.0;
   int plazoSemanas = 0;
   DateTime? fechaSeleccionada;
+  double? tasaInteresMensualSeleccionada;
+  int?
+      plazoSeleccionado; // Cambia de 'int' a 'int?' para permitir valores nulos
 
   List<AmortizacionItem> tablaAmortizacion = [];
 
@@ -185,9 +188,8 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
     void recalcular() {
       setState(() {
         monto = parseAmount(montoController.text);
-        interesMensual = double.tryParse(interesController.text) ?? 0.0;
-        plazoSemanas = int.tryParse(plazoController.text) ?? 0;
-        generarTablaAmortizacion();
+        interesMensual = tasaInteresMensualSeleccionada ?? 0;
+        plazoSemanas = plazoSeleccionado ?? 0; // Usar la opción seleccionada
       });
     }
 
@@ -216,20 +218,20 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    flex: 7, // 7 partes del ancho
+                    flex: 6, // 7 partes del ancho
                     child: Column(
                       children: [
                         Row(
                           children: [
                             Expanded(
                               child: Container(
-                                height: 40, // Ajustar altura
+                                height: 35, // Ajustar altura
                                 child: TextField(
                                   controller: montoController,
                                   decoration: InputDecoration(
                                     labelText: 'Monto',
                                     labelStyle: TextStyle(
-                                      fontSize: 14.0,
+                                      fontSize: 12.0,
                                       color: Colors.grey[700],
                                     ),
                                     filled: true,
@@ -262,7 +264,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                             SizedBox(width: 20),
                             Expanded(
                               child: Container(
-                                height: 40, // Ajustar altura
+                                height: 35, // Ajustar altura
                                 padding: EdgeInsets.symmetric(
                                     horizontal: 12, vertical: 0),
                                 decoration: BoxDecoration(
@@ -294,7 +296,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       return DropdownMenuItem<String>(
                                         value: value,
                                         child: Text(value,
-                                            style: TextStyle(fontSize: 14.0)),
+                                            style: TextStyle(fontSize: 12.0)),
                                       );
                                     }).toList(),
                                     icon: Icon(Icons.arrow_drop_down,
@@ -305,7 +307,6 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 ),
                               ),
                             ),
-                            
                           ],
                         ),
                         SizedBox(height: 20),
@@ -313,77 +314,105 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                           children: [
                             Expanded(
                               child: Container(
-                                height: 40, // Ajustar altura
-                                child: TextField(
-                                  controller: interesController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Tasa de interés mensual (%)',
-                                    labelStyle: TextStyle(
-                                      fontSize: 14.0,
-                                      color: Colors.grey[700],
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.grey[100],
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(15.0),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey[300]!,
-                                        width: 2.0,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(15.0),
-                                      borderSide: BorderSide(
-                                        color: Color(0xFFFB2056),
-                                        width: 2.0,
-                                      ),
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(
-                                        vertical: 5.0,
-                                        horizontal:
-                                            10.0), // Reducir aún más la altura
+                                height: 35,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(15.0),
+                                  border: Border.all(
+                                      color: Colors.grey[300]!, width: 2.0),
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 10.0), // Ajustar altura
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<double>(
+                                    hint: Text(
+                                      'Elige una tasa de interés',
+                                      style: TextStyle(fontSize: 12),
+                                    ), // Se mostrará hasta que se seleccione algo
+                                    isExpanded: true,
+                                    value: tasaInteresMensualSeleccionada,
+                                    onChanged: (double? newValue) {
+                                      setState(() {
+                                        tasaInteresMensualSeleccionada =
+                                            newValue!;
+                                      });
+                                    },
+                                    items: <double>[
+                                      6.00,
+                                      8.00,
+                                      8.12,
+                                      8.20,
+                                      8.52,
+                                      8.60,
+                                      8.80,
+                                      9.00,
+                                      9.28
+                                    ].map<DropdownMenuItem<double>>(
+                                        (double value) {
+                                      return DropdownMenuItem<double>(
+                                        value: value,
+                                        child: Text(
+                                          '$value %',
+                                          style: TextStyle(
+                                              fontSize: 12.0,
+                                              color: Colors.black),
+                                        ),
+                                      );
+                                    }).toList(),
+                                    icon: Icon(Icons.arrow_drop_down,
+                                        color: Color(0xFFFB2056)),
+                                    dropdownColor: Colors.white,
                                   ),
-                                  keyboardType: TextInputType.number,
-                                  style: TextStyle(fontSize: 14.0),
                                 ),
                               ),
                             ),
-
                             SizedBox(width: 20),
                             Expanded(
                               child: Container(
-                                height: 40, // Ajustar altura
-                                child: TextField(
-                                  controller: plazoController,
-                                  decoration: InputDecoration(
-                                    labelText: 'Plazo ($periodo)',
-                                    labelStyle: TextStyle(
-                                      fontSize: 14.0,
-                                      color: Colors.grey[700],
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.grey[100],
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(15.0),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey[300]!,
-                                        width: 2.0,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(15.0),
-                                      borderSide: BorderSide(
-                                        color: Color(0xFFFB2056),
-                                        width: 2.0,
-                                      ),
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(
-                                        vertical: 5.0,
-                                        horizontal:
-                                            10.0), // Reducir aún más la altura
+                                height: 35,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  borderRadius: BorderRadius.circular(15.0),
+                                  border: Border.all(
+                                    color: Colors.grey[300]!,
+                                    width: 2.0,
                                   ),
-                                  keyboardType: TextInputType.number,
-                                  style: TextStyle(fontSize: 14.0),
+                                ),
+                                padding: EdgeInsets.symmetric(horizontal: 10.0),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<int>(
+                                    hint: Text(
+                                      'Elige un plazo',
+                                      style: TextStyle(fontSize: 12),
+                                    ), // Se mostrará hasta que se seleccione algo
+                                    isExpanded: true,
+                                    value: plazoSeleccionado,
+                                    onChanged: (int? newValue) {
+                                      setState(() {
+                                        plazoSeleccionado = newValue;
+                                      });
+                                    },
+                                    items: <int>[
+                                      12,
+                                      14,
+                                      16
+                                    ].map<DropdownMenuItem<int>>((int value) {
+                                      return DropdownMenuItem<int>(
+                                        value: value,
+                                        child: Text(
+                                          '$value semanas',
+                                          style: TextStyle(
+                                              fontSize: 12.0,
+                                              color: Colors.black),
+                                        ),
+                                      );
+                                    }).toList(),
+                                    icon: Icon(
+                                      Icons.arrow_drop_down,
+                                      color: Color(0xFFFB2056),
+                                    ),
+                                    dropdownColor: Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
@@ -407,7 +436,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                   fechaSeleccionada == null
                                       ? 'Seleccionar Fecha de Inicio'
                                       : 'Fecha de Inicio: ${DateFormat('dd/MM/yyyy', 'es').format(fechaSeleccionada!)}',
-                                  style: TextStyle(fontSize: 14.0),
+                                  style: TextStyle(fontSize: 12.0),
                                 ),
                               ),
                             ),
@@ -417,7 +446,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 DateFormat('EEEE, MMMM d, yyyy', 'es')
                                     .format(fechaSeleccionada!),
                                 style: TextStyle(
-                                    fontSize: 14.0, color: Colors.grey[700]),
+                                    fontSize: 12.0, color: Colors.grey[700]),
                               ),
                             Spacer(),
                             ElevatedButton(
@@ -433,6 +462,11 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       'Semanal'; // Restablecer el valor predeterminado del dropdown
                                   fechaSeleccionada =
                                       null; // Restablecer la fecha seleccionada
+                                  tasaInteresMensualSeleccionada =
+                                      null; // O el valor predeterminado
+                                  plazoSeleccionado =
+                                      null; // O el valor predeterminado
+
                                   tablaAmortizacion.clear();
                                 });
                               },
@@ -449,7 +483,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                     horizontal: 20, vertical: 10),
                                 child: Text(
                                   'Limpiar Campos',
-                                  style: TextStyle(fontSize: 14.0),
+                                  style: TextStyle(fontSize: 12.0),
                                 ),
                               ),
                             ),
@@ -460,7 +494,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                   ),
                   SizedBox(width: 20),
                   Expanded(
-                    flex: 3, // 3 partes del ancho
+                    flex: 4, // 3 partes del ancho
                     child: Container(
                       margin: EdgeInsets.only(bottom: 0),
                       child: Column(
@@ -469,7 +503,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                           Text(
                             'Resumen:',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -534,10 +568,55 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                   foregroundColor: Colors.white,
                                   backgroundColor: Color(0xFFFB2056),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(15.0)),
+                                    borderRadius: BorderRadius.circular(15.0),
+                                  ),
                                 ),
-                                onPressed: recalcular,
+                                onPressed: () {
+                                  setState(() {
+                                    recalcular();
+                                    // Imprimir los valores para verificar si están actualizados correctamente
+                                    print(
+                                        'Plazo semanas al presionar el botón: $plazoSemanas');
+                                    print(
+                                        'Tasa interés mensual al presionar el botón: $interesMensual');
+
+                                    bool hayErrores = false;
+
+                                    // Verificar si el plazo no ha sido seleccionado
+                                    if (plazoSemanas == 0) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Error: Debes seleccionar el plazo de semanas.'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      hayErrores = true;
+                                    }
+
+                                    // Verificar si la tasa de interés no ha sido seleccionada
+                                    if (interesMensual <= 0) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Error: Debes seleccionar una tasa de interés.'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      hayErrores = true;
+                                    }
+
+                                    // Si hay errores, salimos de la ejecución
+                                    if (hayErrores) {
+                                      return;
+                                    }
+
+                                    // Si no hay errores, recalculamos y generamos la tabla
+                                    generarTablaAmortizacion();
+                                  });
+                                },
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: Text('Calcular',
