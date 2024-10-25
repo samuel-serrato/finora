@@ -24,6 +24,9 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   final TextEditingController montoController = TextEditingController();
   final TextEditingController plazoController = TextEditingController();
   final TextEditingController interesController = TextEditingController();
+
+  String? otroValor; // Para almacenar el valor del TextField
+
   String periodo = 'Semanal';
   double monto = 0.0;
   double interesMensual = 0.0;
@@ -35,6 +38,20 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
 
   List<AmortizacionItem> tablaAmortizacion = [];
 
+  List<int> plazos = [12, 14, 16]; // Valor inicial de las semanas
+
+  List<double> tasas = [
+    6.00,
+    8.00,
+    8.12,
+    8.20,
+    8.52,
+    8.60,
+    8.80,
+    9.00,
+    9.28,
+    0.0 // Representa la opción "Otro"
+  ];
   @override
   void initState() {
     super.initState();
@@ -180,18 +197,31 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   }
 
   Widget simuladorGeneral() {
+    double capitalQuincenal = monto / (plazoSemanas * 2); // Capital quincenal
+    double interesQuincenal =
+        (monto * (interesMensual / 100) / 4) * 2; // Interés quincenal
+
     double parseAmount(String text) {
       String cleanedText = text.replaceAll(',', '');
       return double.tryParse(cleanedText) ?? 0.0;
     }
 
     void recalcular() {
-      setState(() {
-        monto = parseAmount(montoController.text);
-        interesMensual = tasaInteresMensualSeleccionada ?? 0;
-        plazoSemanas = plazoSeleccionado ?? 0; // Usar la opción seleccionada
-      });
+  setState(() {
+    monto = parseAmount(montoController.text);
+    
+    // Verificar si se seleccionó "Otro" y usar el valor del TextField
+    if (tasaInteresMensualSeleccionada == 0.0) {
+      // Convierte el valor del TextField a un double
+      interesMensual = double.tryParse(otroValor!) ?? 0; // Si no se puede parsear, usar 0
+    } else {
+      interesMensual = tasaInteresMensualSeleccionada ?? 0;
     }
+
+    plazoSemanas = plazoSeleccionado ?? 0; // Usar la opción seleccionada
+  });
+}
+
 
     void selectDate(BuildContext context) async {
       final DateTime? picked = await showDatePicker(
@@ -223,50 +253,46 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                       children: [
                         Row(
                           children: [
-                            Expanded(
+                            Flexible(
+                              flex: 2,
                               child: Container(
-                                height: 35, // Ajustar altura
+                                height: 40, // Consistencia en altura
                                 child: TextField(
                                   controller: montoController,
                                   decoration: InputDecoration(
                                     labelText: 'Monto',
                                     labelStyle: TextStyle(
-                                      fontSize: 12.0,
-                                      color: Colors.grey[700],
-                                    ),
+                                        fontSize: 12.0,
+                                        color: Colors.grey[700]),
                                     filled: true,
                                     fillColor: Colors.grey[100],
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(15.0),
                                       borderSide: BorderSide(
-                                        color: Colors.grey[300]!,
-                                        width: 2.0,
-                                      ),
+                                          color: Colors.grey[300]!, width: 2.0),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(15.0),
                                       borderSide: BorderSide(
                                         color: Color(
-                                            0xFFFB2056), // Color al enfocar el TextField
+                                            0xFFFB2056), // Color al enfocar
                                         width: 2.0,
                                       ),
                                     ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        vertical: 5.0,
-                                        horizontal:
-                                            10.0), // Reducir aún más la altura
+                                        vertical: 10, horizontal: 10),
                                   ),
                                   keyboardType: TextInputType.number,
                                   style: TextStyle(fontSize: 14.0),
                                 ),
                               ),
                             ),
-                            SizedBox(width: 20),
-                            Expanded(
+                            SizedBox(width: 10),
+                            Flexible(
+                              flex: 2,
                               child: Container(
-                                height: 35, // Ajustar altura
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 0),
+                                height: 40, // Consistencia en altura
+                                padding: EdgeInsets.symmetric(horizontal: 10),
                                 decoration: BoxDecoration(
                                   color: Colors.grey[100],
                                   border: Border.all(
@@ -276,8 +302,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                     BoxShadow(
                                       color: Colors.grey.withOpacity(0.1),
                                       blurRadius: 5,
-                                      offset: Offset(0,
-                                          2), // Sombra para darle profundidad
+                                      offset: Offset(0, 2),
                                     ),
                                   ],
                                 ),
@@ -285,24 +310,46 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                   child: DropdownButton<String>(
                                     isExpanded: true,
                                     value: periodo,
+                                    hint: Text('Selecciona periodo',
+                                        style: TextStyle(fontSize: 12)),
                                     onChanged: (String? newValue) {
                                       setState(() {
                                         periodo = newValue!;
+                                        if (periodo == 'Quincenal') {
+                                          plazos = [
+                                            4
+                                          ]; // Plazos para "Quincenal"
+                                        } else if (periodo == 'Semanal') {
+                                          plazos = [
+                                            12,
+                                            14,
+                                            16
+                                          ]; // Plazos para "Semanal"
+                                        } else {
+                                          plazos = [
+                                            3,
+                                            6,
+                                            12,
+                                            24
+                                          ]; // Valores predeterminados
+                                        }
+                                        plazoSeleccionado =
+                                            null; // Reiniciar selección de plazo
                                       });
                                     },
                                     items: <String>['Semanal', 'Quincenal']
                                         .map<DropdownMenuItem<String>>(
-                                            (String value) {
-                                      return DropdownMenuItem<String>(
-                                        value: value,
-                                        child: Text(value,
-                                            style: TextStyle(fontSize: 12.0)),
-                                      );
-                                    }).toList(),
+                                      (String value) {
+                                        return DropdownMenuItem<String>(
+                                          value: value,
+                                          child: Text(value,
+                                              style: TextStyle(fontSize: 12.0)),
+                                        );
+                                      },
+                                    ).toList(),
                                     icon: Icon(Icons.arrow_drop_down,
                                         color: Color(0xFFFB2056)),
-                                    dropdownColor: Colors
-                                        .white, // Fondo del menú desplegable
+                                    dropdownColor: Colors.white,
                                   ),
                                 ),
                               ),
@@ -312,49 +359,48 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                         SizedBox(height: 20),
                         Row(
                           children: [
-                            Expanded(
+                            // Dropdown de tasa de interés (que incluye "Otro")
+                            Flexible(
+                              flex: 1,
                               child: Container(
-                                height: 35,
+                                height: 40,
                                 decoration: BoxDecoration(
                                   color: Colors.grey[100],
                                   borderRadius: BorderRadius.circular(15.0),
                                   border: Border.all(
-                                      color: Colors.grey[300]!, width: 2.0),
+                                    color: Colors.grey[300]!,
+                                    width: 1.5,
+                                  ),
                                 ),
-                                padding: EdgeInsets.symmetric(
-                                    horizontal: 10.0), // Ajustar altura
+                                padding: EdgeInsets.symmetric(horizontal: 10.0),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<double>(
                                     hint: Text(
                                       'Elige una tasa de interés',
-                                      style: TextStyle(fontSize: 12),
-                                    ), // Se mostrará hasta que se seleccione algo
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[700]),
+                                    ),
                                     isExpanded: true,
                                     value: tasaInteresMensualSeleccionada,
                                     onChanged: (double? newValue) {
                                       setState(() {
                                         tasaInteresMensualSeleccionada =
                                             newValue!;
+                                        if (newValue == 0.0) {
+                                          otroValor =
+                                              ''; // Limpiar si selecciona "Otro"
+                                        }
                                       });
                                     },
-                                    items: <double>[
-                                      6.00,
-                                      8.00,
-                                      8.12,
-                                      8.20,
-                                      8.52,
-                                      8.60,
-                                      8.80,
-                                      9.00,
-                                      9.28
-                                    ].map<DropdownMenuItem<double>>(
+                                    items: tasas.map<DropdownMenuItem<double>>(
                                         (double value) {
                                       return DropdownMenuItem<double>(
                                         value: value,
                                         child: Text(
-                                          '$value %',
+                                          value == 0.0 ? 'Otro' : '$value %',
                                           style: TextStyle(
-                                              fontSize: 12.0,
+                                              fontSize: 14.0,
                                               color: Colors.black),
                                         ),
                                       );
@@ -366,25 +412,77 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 ),
                               ),
                             ),
-                            SizedBox(width: 20),
-                            Expanded(
+
+                            // Mostrar el TextField solo si se selecciona "Otro"
+                            if (tasaInteresMensualSeleccionada == 0.0) ...[
+                              SizedBox(width: 10), // Espaciado entre widgets
+                              Flexible(
+                                flex: 1,
+                                child: Container(
+                                  margin: EdgeInsets.only(right: 10),
+                                  height: 40,
+                                  child: TextField(
+                                    decoration: InputDecoration(
+                                      hintText: 'Especificar Tasa',
+                                      hintStyle: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600]),
+                                      filled: true,
+                                      fillColor: Colors.grey[100],
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(15.0),
+                                        borderSide: BorderSide(
+                                            color: Colors.grey[300]!,
+                                            width: 1.5),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(15.0),
+                                        borderSide: BorderSide(
+                                            color: Color(0xFFFB2056),
+                                            width: 1.5),
+                                      ),
+                                      contentPadding: EdgeInsets.symmetric(
+                                          vertical: 10, horizontal: 10),
+                                    ),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        otroValor = value;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+
+                            // Espaciado adicional solo si no se selecciona "Otro"
+                            if (tasaInteresMensualSeleccionada != 0.0)
+                              SizedBox(
+                                  width: 10), // Espaciado entre los dropdowns
+
+                            // Dropdown de Plazos
+                            Flexible(
+                              flex: tasaInteresMensualSeleccionada == 0.0
+                                  ? 2
+                                  : 1, // Si se selecciona "Otro", ocupa menos espacio
                               child: Container(
-                                height: 35,
+                                height: 40,
                                 decoration: BoxDecoration(
                                   color: Colors.grey[100],
                                   borderRadius: BorderRadius.circular(15.0),
                                   border: Border.all(
-                                    color: Colors.grey[300]!,
-                                    width: 2.0,
-                                  ),
+                                      color: Colors.grey[300]!, width: 1.5),
                                 ),
                                 padding: EdgeInsets.symmetric(horizontal: 10.0),
                                 child: DropdownButtonHideUnderline(
                                   child: DropdownButton<int>(
                                     hint: Text(
                                       'Elige un plazo',
-                                      style: TextStyle(fontSize: 12),
-                                    ), // Se mostrará hasta que se seleccione algo
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[700]),
+                                    ),
                                     isExpanded: true,
                                     value: plazoSeleccionado,
                                     onChanged: (int? newValue) {
@@ -392,25 +490,20 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                         plazoSeleccionado = newValue;
                                       });
                                     },
-                                    items: <int>[
-                                      12,
-                                      14,
-                                      16
-                                    ].map<DropdownMenuItem<int>>((int value) {
+                                    items: plazos.map<DropdownMenuItem<int>>(
+                                        (int value) {
                                       return DropdownMenuItem<int>(
                                         value: value,
                                         child: Text(
-                                          '$value semanas',
+                                          '$value ${periodo == "Semanal" ? "semanas" : "meses"}',
                                           style: TextStyle(
-                                              fontSize: 12.0,
+                                              fontSize: 14.0,
                                               color: Colors.black),
                                         ),
                                       );
                                     }).toList(),
-                                    icon: Icon(
-                                      Icons.arrow_drop_down,
-                                      color: Color(0xFFFB2056),
-                                    ),
+                                    icon: Icon(Icons.arrow_drop_down,
+                                        color: Color(0xFFFB2056)),
                                     dropdownColor: Colors.white,
                                   ),
                                 ),
@@ -494,7 +587,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                   ),
                   SizedBox(width: 20),
                   Expanded(
-                    flex: 4, // 3 partes del ancho
+                    flex: 4,
                     child: Container(
                       margin: EdgeInsets.only(bottom: 0),
                       child: Column(
@@ -515,26 +608,24 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // Columna izquierda
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Capital ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto / plazoSemanas)}',
+                                    'Capital ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((periodo == 'Quincenal') ? capitalQuincenal : monto / plazoSemanas)}',
                                     style: TextStyle(fontSize: 12.0),
                                   ),
                                   Text(
-                                    'Interés Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(calculateInterest(monto, interesMensual, plazoSemanas) / plazoSemanas)}',
+                                    'Interés ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((periodo == 'Quincenal') ? interesQuincenal : (monto * (interesMensual / 100) / 4))}',
                                     style: TextStyle(fontSize: 12.0),
                                   ),
                                   Text(
-                                    'Pago ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(calculateWeeklyPayment(monto, interesMensual, plazoSemanas))}',
+                                    'Pago ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((periodo == 'Quincenal') ? (capitalQuincenal + interesQuincenal) : ((monto / plazoSemanas) + (monto * (interesMensual / 100) / 4)))}',
                                     style: TextStyle(fontSize: 12.0),
                                   ),
                                 ],
                               ),
-                              SizedBox(width: 20), // Espacio entre las columnas
-                              // Columna derecha
+                              SizedBox(width: 20),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -734,11 +825,14 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
     double saldoRestante = montoTotalRecuperar;
     double totalPagado = 0.0;
 
-    // Calcular capital y interés fijos por periodo
-    double capitalSemanal =
-        monto / plazoSemanas; // Capital fijo por semana o quincena
-    double interesSemanal =
-        interesTotal / plazoSemanas; // Interés fijo por semana o quincena
+    // Calcular capital y interés por periodo (semana o quincena)
+    double capitalPorPeriodo = (periodo == 'Semanal')
+        ? monto / plazoSemanas // Capital fijo por semana
+        : monto / (plazoSemanas * 2); // Capital fijo por quincena
+
+    double interesPorPeriodo = (periodo == 'Semanal')
+        ? interesTotal / plazoSemanas // Interés por semana
+        : interesTotal / (plazoSemanas * 2); // Interés por quincena
 
     // Primera fila para el desembolso inicial
     tablaAmortizacion.add(AmortizacionItem(
@@ -753,19 +847,20 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
       pagado: totalPagado, // Inicializar total pagado
     ));
 
-    // Calcular el pago total por cuota
-    double pagoCuota =
-        capitalSemanal + interesSemanal; // Total a pagar cada semana o quincena
+    // Calcular el pago total por cuota (semana o quincena)
+    double pagoCuota = capitalPorPeriodo + interesPorPeriodo;
 
-    for (int i = 1; i <= plazoSemanas; i++) {
+    int numPeriodos = (periodo == 'Semanal')
+        ? plazoSemanas
+        : plazoSemanas * 2; // Periodos totales
+
+    for (int i = 1; i <= numPeriodos; i++) {
       // Actualizar el saldo restante después de pagar la cuota
-      saldoRestante -= pagoCuota; // Resta el pago total por cuota
-      totalPagado += pagoCuota; // Acumula el total pagado
+      saldoRestante -= pagoCuota;
+      totalPagado += pagoCuota;
 
-      DateTime fechaPago =
-          fechaInicio; // Asignar fechaInicio como valor por defecto
+      DateTime fechaPago = fechaInicio;
 
-      // Ajuste condicional basado en el periodo seleccionado
       if (periodo == 'Semanal') {
         fechaPago = fechaInicio.add(Duration(days: 7 * i));
       } else if (periodo == 'Quincenal') {
@@ -779,32 +874,42 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
         pagoCuota: pagoCuota,
         interesPorcentaje:
             (interesMensual / (periodo == 'Semanal' ? 4.0 : 2.0)),
-        interesCantidad:
-            interesSemanal, // Este es el interés fijo de cada periodo
+        interesCantidad: interesPorPeriodo,
         restante: saldoRestante,
-        capitalSemanal: capitalSemanal, // Capital fijo por periodo
-        interesSemanal: interesSemanal, // Interés fijo por periodo
-        pagado: totalPagado, // Total pagado hasta el momento
+        capitalSemanal: capitalPorPeriodo,
+        interesSemanal: interesPorPeriodo,
+        pagado: totalPagado,
       ));
     }
   }
 
-  double calculateInterest(
-      double monto, double interesMensual, int plazoSemanas) {
-    double interesPeriodo = monto *
-        (interesMensual / 100) *
-        (plazoSemanas / (periodo == 'Semanal' ? 4.0 : 2.0));
-    return interesPeriodo;
+  double calculateInterest(double monto, double interesMensual, int plazo) {
+    if (periodo == 'Semanal') {
+      // Interés semanal
+      double interesSemanal = interesMensual / 4;
+      return monto * (interesSemanal / 100) * plazo;
+    } else {
+      // Interés quincenal
+      double interesSemanal = interesMensual / 4;
+      double interesQuincenal = interesSemanal * 2;
+      int quincenas = plazo * 2; // Plazo en quincenas
+      return monto * (interesQuincenal / 100) * quincenas;
+    }
   }
 
   double calculateWeeklyPayment(
-      double monto, double interesMensual, int plazoSemanas) {
-    double total = calculateTotal(monto, interesMensual, plazoSemanas);
-    return total / plazoSemanas;
+      double monto, double interesMensual, int plazo) {
+    double total = calculateTotal(monto, interesMensual, plazo);
+    if (periodo == 'Semanal') {
+      return total / plazo; // Pago semanal
+    } else {
+      int quincenas = plazo * 2; // Plazo en quincenas
+      return total / quincenas; // Pago quincenal
+    }
   }
 
-  double calculateTotal(double monto, double interesMensual, int plazoSemanas) {
-    return monto + calculateInterest(monto, interesMensual, plazoSemanas);
+  double calculateTotal(double monto, double interesMensual, int plazo) {
+    return monto + calculateInterest(monto, interesMensual, plazo);
   }
 }
 
