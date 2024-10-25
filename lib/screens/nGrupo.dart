@@ -13,27 +13,15 @@ class _AddGroupDialogState extends State<AddGroupDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Formulario'),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20.0),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
+      title: Text('Agregar Grupo'),
+      content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Agregar Grupo',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 20),
-
             // Estructura de dos columnas
             Row(
               children: [
@@ -45,8 +33,11 @@ class _AddGroupDialogState extends State<AddGroupDialog> {
                       // Campo desplegable para seleccionar integrante
                       DropdownButtonFormField<String>(
                         value: selectedMember,
-                        items: ['Seleccionar Integrante 1', 'Integrante 2', 'Integrante 3']
-                            .map((String member) {
+                        items: [
+                          'Seleccionar Integrante 1',
+                          'Integrante 2',
+                          'Integrante 3'
+                        ].map((String member) {
                           return DropdownMenuItem<String>(
                             value: member,
                             child: Text(member),
@@ -86,8 +77,12 @@ class _AddGroupDialogState extends State<AddGroupDialog> {
                       // Campo desplegable para seleccionar grupo
                       DropdownButtonFormField<String>(
                         value: selectedGroup,
-                        items: ['Seleccionar Grupo', 'Grupo 1', 'Grupo 2', 'Grupo 3']
-                            .map((String group) {
+                        items: [
+                          'Seleccionar Grupo',
+                          'Grupo 1',
+                          'Grupo 2',
+                          'Grupo 3'
+                        ].map((String group) {
                           return DropdownMenuItem<String>(
                             value: group,
                             child: Text(group),
@@ -118,46 +113,38 @@ class _AddGroupDialogState extends State<AddGroupDialog> {
                 ),
               ],
             ),
-
-            Spacer(),
-
-            // Botones de acción
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    // Lógica para aceptar
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 30),
-                    backgroundColor: Colors.blue,
-                  ),
-                  child: Text('Aceptar'),
-                ),
-                SizedBox(width: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    // Lógica para cancelar
-                    Navigator.of(context).pop();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 30),
-                    backgroundColor: Colors.grey,
-                  ),
-                  child: Text('Cancelar'),
-                ),
-              ],
-            ),
           ],
         ),
       ),
+      actions: [
+        ElevatedButton(
+          onPressed: () {
+            // Lógica para aceptar
+            Navigator.of(context).pop();
+          },
+          child: Text('Aceptar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            // Lógica para cancelar
+            Navigator.of(context).pop();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.grey,
+          ),
+          child: Text('Cancelar'),
+        ),
+      ],
     );
   }
 }
 
-void main() {
-  runApp(MaterialApp(
-    home: AddGroupDialog(),
-  ));
+// Función para mostrar el diálogo
+void showAddGroupDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AddGroupDialog();
+    },
+  );
 }

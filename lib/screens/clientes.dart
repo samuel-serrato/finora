@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:money_facil/screens/nCliente.dart';
 
 class ClientesScreen extends StatefulWidget {
   @override
@@ -8,46 +10,42 @@ class ClientesScreen extends StatefulWidget {
 }
 
 class _ClientesScreenState extends State<ClientesScreen> {
-  List<Usuario> listausuarios = [];
+  List<Cliente> listaClientes = [];
   bool isLoading = true;
   bool showErrorDialog = false;
 
   @override
   void initState() {
     super.initState();
-    obtenerusuarios();
+    obtenerClientes();
   }
 
-  void obtenerusuarios() async {
-    setState(() {
-      isLoading = true;
-    });
-
+  Future<void> obtenerClientes() async {
     try {
-      final response =
-          await http.get(Uri.parse('https://api.escuelajs.co/api/v1/users'));
-      if (response.statusCode == 200) {
-        final parsedJson = json.decode(response.body);
+      final response = await http
+          .get(Uri.parse('http://192.168.0.108:3000/api/v1/clientes'));
 
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
         setState(() {
-          listausuarios = (parsedJson as List)
-              .map((item) => Usuario(
-                  item['id'], item['email'], item['password'], item['name']))
-              .toList();
+          listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
           isLoading = false;
         });
       } else {
         setState(() {
           showErrorDialog = true;
-          isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
         showErrorDialog = true;
-        isLoading = false;
       });
     }
+  }
+
+  String formatDate(String dateString) {
+    DateTime date = DateTime.parse(dateString);
+    return DateFormat('dd/MM/yyyy').format(date);
   }
 
   @override
@@ -56,20 +54,6 @@ class _ClientesScreenState extends State<ClientesScreen> {
       body: content(context),
     );
   }
-
-// Función para obtener los datos de la API y mostrarlos en la consola
-/* void obtenerDatos() async {
-  final response = await http.get(Uri.parse('https://api.escuelajs.co/api/v1/ids'));
-
-  if (response.statusCode == 200) {
-    // Parsear la respuesta a formato JSON
-    final List<dynamic> data = json.decode(response.body);
-    print('Datos obtenidos de la API:');
-    print(data);
-  } else {
-    print('Error al obtener los datos. Código de estado: ${response.statusCode}');
-  }
-} */
 
   Widget content(BuildContext context) {
     return Column(
@@ -81,10 +65,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
     );
   }
 
-// Fila 1
   Widget filaBienvenida() {
     return Container(
-      /* color: Colors.blue, */
       color: Color(0xFFEFF5FD),
       padding: EdgeInsets.all(16.0),
       child: Row(
@@ -95,20 +77,13 @@ class _ClientesScreenState extends State<ClientesScreen> {
             padding: EdgeInsets.all(10.0),
             decoration: BoxDecoration(
               color: Colors.white,
-              border: Border.all(
-                color: Colors.white,
-                width: 2.0,
-              ),
+              border: Border.all(color: Colors.white, width: 2.0),
               borderRadius: BorderRadius.circular(20.0),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons
-                      .person, // Icono de usuario, puedes cambiarlo según tu preferencia
-                  color: Colors.black, // Color del icono
-                ),
-                SizedBox(width: 10.0), // Espacio entre el icono y el texto
+                Icon(Icons.person, color: Colors.black),
+                SizedBox(width: 10.0),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -124,28 +99,24 @@ class _ClientesScreenState extends State<ClientesScreen> {
     );
   }
 
-// Fila 3
   Widget filaSearch(context) {
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
-
     return Container(
-      /* color: Colors.orange, */
       color: Color(0xFFEFF5FD),
       padding: EdgeInsets.only(bottom: 0, left: 20, right: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start, // Alinea el texto abajo
         children: <Widget>[
           Text(
             'Clientes',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           Container(
-            //height: 50,
             constraints: BoxConstraints(maxWidth: maxWidth),
             child: TextField(
               decoration: InputDecoration(
-                contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0), // Ajusta el relleno interno
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
                 focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20.0),
                     borderSide:
@@ -156,7 +127,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                 hintText: 'Buscar...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
-                  borderSide: BorderSide.none, // Borde transparente
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
@@ -166,15 +137,14 @@ class _ClientesScreenState extends State<ClientesScreen> {
     );
   }
 
-// Fila 4
   Widget filaTabla(BuildContext context) {
     return Expanded(
       child: Container(
         color: Color(0xFFEFF5FD),
-        /* color: Colors.purple, */
         padding: EdgeInsets.all(20),
         child: Center(
           child: Container(
+            width: double.infinity,
             padding: EdgeInsets.all(16.0),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -183,8 +153,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
             child: Column(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.only(bottom: 16.0, left: 0, right: 0),
+                  padding: const EdgeInsets.only(bottom: 16.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -195,31 +164,30 @@ class _ClientesScreenState extends State<ClientesScreen> {
                       ),
                       ElevatedButton(
                         style: ButtonStyle(
-                          backgroundColor: MaterialStatePropertyAll(
-                            Color(0xFF7EFF8B),
-                          ),
-                          foregroundColor: MaterialStatePropertyAll(
-                            Color(0xFF434343),
-                          ),
+                          backgroundColor:
+                              MaterialStatePropertyAll(Color(0xFF7EFF8B)),
+                          foregroundColor:
+                              MaterialStatePropertyAll(Color(0xFF434343)),
                           shape:
                               MaterialStateProperty.all<RoundedRectangleBorder>(
                             RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                  10), // Aquí puedes cambiar el valor del radio
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
                         onPressed: () {
-                          obtenerusuarios();
+                          mostrarDialogoAgregarCliente(); // Llama a la función para mostrar el diálogo
                         },
-                        child: Text('Nuevo Cliente'),
+                        child: Text('Agregar Clientes'),
                       ),
                     ],
                   ),
                 ),
-                // Widget "tabla" donde se muestra la DataTable
                 Expanded(
-                  child: SingleChildScrollView(child: tabla()),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: tabla(),
+                  ),
                 ),
               ],
             ),
@@ -229,39 +197,120 @@ class _ClientesScreenState extends State<ClientesScreen> {
     );
   }
 
+  void mostrarDialogoAgregarCliente() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return nClienteDialog(
+          onClienteAgregado: () {
+            obtenerClientes(); // Refresca la lista de clientes después de agregar uno
+          },
+        );
+      },
+    );
+  }
+
   Widget tabla() {
-    return SizedBox(
-      width: MediaQuery.of(context).size.width,
-      child: DataTable(
-        headingRowColor:
-            MaterialStateProperty.resolveWith((states) => Color(0xFFE8EFF9)),
-        columnSpacing: 30,
-        headingRowHeight: 50,
-        columns: const [
-          DataColumn(label: Text('ID')),
-          DataColumn(label: Text('Email')),
-          DataColumn(label: Text('Password')),
-          DataColumn(label: Text('Nombre')),
-        ],
-        rows: listausuarios.map((usuario) {
-          return DataRow(cells: [
-            DataCell(Text(
-                usuario.id.toString())), // Convertir a String si es necesario
-            DataCell(Text(usuario.email)),
-            DataCell(Text(usuario.password)),
-            DataCell(Text(usuario.name)),
-          ]);
-        }).toList(),
-      ),
+    return DataTable(
+      showCheckboxColumn: false,
+      headingRowColor:
+          MaterialStateProperty.resolveWith((states) => Color(0xFFDFE7F5)),
+      dataRowHeight: 50,
+      columnSpacing: 30,
+      headingTextStyle:
+          TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+      columns: const [
+        DataColumn(label: Text('ID')),
+        DataColumn(label: Text('Tipo')),
+        DataColumn(label: Text('Nombres')),
+        DataColumn(label: Text('Apellido P')),
+        DataColumn(label: Text('Apellido M')),
+        DataColumn(label: Text('F. Nac')),
+        DataColumn(label: Text('Sexo')),
+        DataColumn(label: Text('Teléfono')),
+        DataColumn(label: Text('E. Civil')),
+        DataColumn(label: Text('F. Creación')),
+        DataColumn(label: Text('Tipo Cliente')),
+      ],
+      rows: listaClientes.map((cliente) {
+        return DataRow(
+          cells: [
+            DataCell(Text(cliente.idclientes)),
+            DataCell(Text(cliente.idtipoclientes.toString())),
+            DataCell(Text(cliente.nombres)),
+            DataCell(Text(cliente.apellidoP)),
+            DataCell(Text(cliente.apellidoM)),
+            DataCell(Text(formatDate(cliente.fechaNac))),
+            DataCell(Text(cliente.sexo)),
+            DataCell(Text(cliente.telefono)),
+            DataCell(Text(cliente.eCilvi)),
+            DataCell(Text(formatDate(cliente.fCreacion))),
+            DataCell(Text(cliente.nombre)),
+          ],
+          onSelectChanged: (isSelected) {
+            // Acción al seleccionar la fila
+            setState(() {
+              // Puedes agregar lógica aquí para manejar la fila seleccionada
+              // Por ejemplo, guardar el cliente seleccionado o realizar otra acción
+            });
+          },
+          color: MaterialStateColor.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.blue.withOpacity(
+                  0.1); // Color azul bajito cuando está seleccionada la fila
+            } else if (states.contains(MaterialState.hovered)) {
+              return Colors.blue.withOpacity(
+                  0.2); // Color azul bajito cuando el mouse está encima
+            }
+            return Colors
+                .transparent; // Color transparente cuando no se cumple ninguna condición
+          }),
+        );
+      }).toList(),
     );
   }
 }
 
-class Usuario {
-  final int id;
-  final String email;
-  final String password;
-  final String name;
+class Cliente {
+  final String idclientes;
+  final int idtipoclientes;
+  final String nombres;
+  final String apellidoP;
+  final String apellidoM;
+  final String fechaNac;
+  final String sexo;
+  final String telefono;
+  final String eCilvi;
+  final String fCreacion;
+  final String nombre;
 
-  Usuario(this.id, this.email, this.password, this.name);
+  Cliente({
+    required this.idclientes,
+    required this.idtipoclientes,
+    required this.nombres,
+    required this.apellidoP,
+    required this.apellidoM,
+    required this.fechaNac,
+    required this.sexo,
+    required this.telefono,
+    required this.eCilvi,
+    required this.fCreacion,
+    required this.nombre,
+  });
+
+  factory Cliente.fromJson(Map<String, dynamic> json) {
+    return Cliente(
+      idclientes: json['idclientes'],
+      idtipoclientes: json['idtipoclientes'],
+      nombres: json['nombres'],
+      apellidoP: json['apellidoP'],
+      apellidoM: json['apellidoM'],
+      fechaNac: json['fechaNac'],
+      sexo: json['sexo'],
+      telefono: json['telefono'],
+      eCilvi: json['eCilvi'],
+      fCreacion: json['fCreacion'],
+      nombre: json['nombre'],
+    );
+  }
 }
