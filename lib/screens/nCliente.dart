@@ -14,7 +14,6 @@ class _nClienteDialogState extends State<nClienteDialog>
   final TextEditingController nombresController = TextEditingController();
   final TextEditingController apellidoPController = TextEditingController();
   final TextEditingController apellidoMController = TextEditingController();
-  final TextEditingController telefonoController = TextEditingController();
   final TextEditingController calleController = TextEditingController();
   final TextEditingController entreCalleController = TextEditingController();
   final TextEditingController coloniaController = TextEditingController();
@@ -26,6 +25,9 @@ class _nClienteDialogState extends State<nClienteDialog>
   final TextEditingController curpController = TextEditingController();
   final TextEditingController rfcController = TextEditingController();
   final TextEditingController tiempoViviendoController =
+      TextEditingController();
+  final TextEditingController emailClientecontroller = TextEditingController();
+  final TextEditingController telefonoClienteController =
       TextEditingController();
 
   String? selectedSexo;
@@ -53,7 +55,10 @@ class _nClienteDialogState extends State<nClienteDialog>
   late TabController _tabController;
   int _currentIndex = 0;
 
-      final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _personalFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _ingresosEgresosFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _referenciasFormKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -84,16 +89,18 @@ class _nClienteDialogState extends State<nClienteDialog>
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
-            TabBar(
-              controller: _tabController,
-              labelColor: Color(0xFFFB2056),
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Color(0xFFFB2056),
-              tabs: [
-                Tab(text: 'Información Personal'),
-                Tab(text: 'Ingresos y Egresos'),
-                Tab(text: 'Referencias'),
-              ],
+            IgnorePointer(
+              child: TabBar(
+                controller: _tabController,
+                labelColor: Color(0xFFFB2056),
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Color(0xFFFB2056),
+                tabs: [
+                  Tab(text: 'Información Personal'),
+                  Tab(text: 'Ingresos y Egresos'),
+                  Tab(text: 'Referencias'),
+                ],
+              ),
             ),
             Expanded(
               child: TabBarView(
@@ -144,7 +151,13 @@ class _nClienteDialogState extends State<nClienteDialog>
                     if (_currentIndex < 2)
                       ElevatedButton(
                         onPressed: () {
-                          if (_formKey.currentState!.validate()) {
+                          // Validar según el índice actual
+                          if (_currentIndex == 0 &&
+                              _personalFormKey.currentState!.validate()) {
+                            _tabController.animateTo(_currentIndex + 1);
+                          } else if (_currentIndex == 1 &&
+                              _ingresosEgresosFormKey.currentState!
+                                  .validate()) {
                             _tabController.animateTo(_currentIndex + 1);
                           }
                         },
@@ -216,39 +229,33 @@ class _nClienteDialogState extends State<nClienteDialog>
     int pasoActual = 1; // Paso actual que queremos marcar como activo
 
     return Form(
-      key: _formKey, // Asignar la clave al formulario
+      key: _personalFormKey, // Asignar la clave al formulario
       child: Row(
         children: [
           // Columna a la izquierda con el círculo y el ícono
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                    color: Color(0xFFFB2056),
-                    borderRadius: BorderRadius.all(Radius.circular(20))),
-                width: 250,
-                height: 500,
-                padding: EdgeInsets.symmetric(
-                    vertical: 20, horizontal: 10), // Espaciado vertical
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    // Paso 1
-                    _buildPasoItem(1, "Información Personal", pasoActual == 1),
-                    SizedBox(height: 20),
+          Container(
+            decoration: BoxDecoration(
+                color: Color(0xFFFB2056),
+                borderRadius: BorderRadius.all(Radius.circular(20))),
+            width: 250,
+            height: 500,
+            padding: EdgeInsets.symmetric(
+                vertical: 20, horizontal: 10), // Espaciado vertical
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // Paso 1
+                _buildPasoItem(1, "Información Personal", pasoActual == 1),
+                SizedBox(height: 20),
 
-                    // Paso 2
-                    _buildPasoItem(2, "Ingresos y Egresos", pasoActual == 2),
-                    SizedBox(height: 20),
+                // Paso 2
+                _buildPasoItem(2, "Ingresos y Egresos", pasoActual == 2),
+                SizedBox(height: 20),
 
-                    // Paso 3
-                    _buildPasoItem(3, "Referencias", pasoActual == 3),
-                  ],
-                ),
-              ),
-              SizedBox(height: 10),
-            ],
+                // Paso 3
+                _buildPasoItem(3, "Referencias", pasoActual == 3),
+              ],
+            ),
           ),
           SizedBox(width: 50), // Espacio entre la columna y el formulario
 
@@ -330,11 +337,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                             });
                           },
                           validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, seleccione el Tipo de Cliente';
-                              }
-                              return null;
-                            },
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, seleccione el Tipo de Cliente';
+                            }
+                            return null;
+                          },
                         ),
                       ),
                       SizedBox(width: 10),
@@ -349,11 +356,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                             });
                           },
                           validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, seleccione el Sexo';
-                              }
-                              return null;
-                            },
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, seleccione el Sexo';
+                            }
+                            return null;
+                          },
                         ),
                       ),
                     ],
@@ -426,7 +433,38 @@ class _nClienteDialogState extends State<nClienteDialog>
                     ],
                   ),
                   SizedBox(height: verticalSpacing),
-
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          controller: telefonoClienteController,
+                          label: 'Teléfono',
+                          icon: Icons.phone,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese el teléfono';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: emailClientecontroller,
+                          label: 'Correo electróncio',
+                          icon: Icons.phone,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese el correo electrónico';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
                   // Sección de Domicilio
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -561,13 +599,21 @@ class _nClienteDialogState extends State<nClienteDialog>
                       ),
                       SizedBox(width: 10),
                       Expanded(
-                        child: _buildTextField(
-                          controller: estadoController,
-                          label: 'Estado',
-                          icon: Icons.map,
+                        child: _buildDropdown(
+                          value: estadoController.text.isNotEmpty
+                              ? estadoController.text
+                              : null,
+                          hint: 'Estado',
+                          items: ['Guerrero'],
+                          onChanged: (newValue) {
+                            if (newValue != null) {
+                              estadoController.text =
+                                  newValue; // Actualiza el controlador
+                            }
+                          },
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese Estado';
+                              return 'Por favor, seleccione el estado';
                             }
                             return null;
                           },
@@ -608,7 +654,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           label: 'CURP',
                           icon: Icons
                               .account_box, // Ícono de identificación más relevante
-                              validator: (value) {
+                          validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese CURP';
                             }
@@ -680,43 +726,47 @@ class _nClienteDialogState extends State<nClienteDialog>
 
         // Contenido principal: Lista de ingresos y egresos
         Expanded(
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  itemCount: ingresosEgresos.length,
-                  itemBuilder: (context, index) {
-                    final item = ingresosEgresos[index];
-                    return ListTile(
-                      title: Text(item['descripcion']),
-                      subtitle: Text('${item['tipo']} - \$${item['monto']}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () => _mostrarDialogIngresoEgreso(
-                                index: index, item: item),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                ingresosEgresos.removeAt(index);
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+          child: Form(
+            // Asegúrate de envolver esto en un Form
+            key: _ingresosEgresosFormKey, // Usar el GlobalKey aquí
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: ingresosEgresos.length,
+                    itemBuilder: (context, index) {
+                      final item = ingresosEgresos[index];
+                      return ListTile(
+                        title: Text(item['descripcion']),
+                        subtitle: Text('${item['tipo']} - \$${item['monto']}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _mostrarDialogIngresoEgreso(
+                                  index: index, item: item),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  ingresosEgresos.removeAt(index);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-              ElevatedButton(
-                onPressed: () => _mostrarDialogIngresoEgreso(),
-                child: Text('Añadir Ingreso/Egreso'),
-              ),
-            ],
+                ElevatedButton(
+                  onPressed: () => _mostrarDialogIngresoEgreso(),
+                  child: Text('Añadir Ingreso/Egreso'),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -773,9 +823,13 @@ class _nClienteDialogState extends State<nClienteDialog>
                           children: [
                             Text('Parentesco: ${referencia['parentesco']}'),
                             Text('Teléfono: ${referencia['telefono']}'),
-                            Text('Domicilio: ${referencia['calle']}'),
-                            Text('Colonia: ${referencia['colonia']}'),
+                            Text(
+                                'Tiempo de conocer: ${referencia['tiempoConocer']}'),
+                            Text('Calle: ${referencia['calle']}'),
+                            Text('Num Ext: ${referencia['nExt']}'),
+                            Text('Num Ext: ${referencia['nInt']}'),
                             Text('Entre calles: ${referencia['entreCalle']}'),
+                            Text('Colonia: ${referencia['colonia']}'),
                             Text('CP: ${referencia['cp']}'),
                             Text('Estado: ${referencia['estado']}'),
                             Text('Municipio: ${referencia['municipio']}'),
@@ -821,13 +875,13 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogReferencia({int? index, Map<String, dynamic>? item}) {
-    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
 // Asignación inicial para dropdowns
     String? selectedParentesco = item?['parentesco'];
-    String? selectedTiempoConocer = item?['tiempoConocer'];
-    String? selectedTiempoViviendo = item?['tiempoViviendo'];
 
+    final tiempoConocerController =
+        TextEditingController(text: item?['tiempoConocer'] ?? '');
+    final tiempoViviendoController =
+        TextEditingController(text: item?['tiempoViviendo'] ?? '');
     final nombresController =
         TextEditingController(text: item?['nombres'] ?? '');
     final apellidoPController =
@@ -869,7 +923,7 @@ class _nClienteDialogState extends State<nClienteDialog>
           height: height,
           child: SingleChildScrollView(
             child: Form(
-              key: _formKey, // Asigna la clave al formulario
+              key: _referenciasFormKey, // Asigna la clave al formulario
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -955,23 +1009,13 @@ class _nClienteDialogState extends State<nClienteDialog>
                             },
                           ),
                           SizedBox(height: 10),
-                          _buildDropdown(
-                            value: selectedTiempoConocer,
-                            hint: 'Tiempo de Conocer',
-                            items: [
-                              'Menos de 1 año',
-                              '1-2 años',
-                              '3-5 años',
-                              'Más de 5 años'
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                selectedTiempoConocer = value;
-                              });
-                            },
+                          _buildTextField(
+                            controller: tiempoConocerController,
+                            label: 'Tiempo de conocer',
+                            icon: Icons.timelapse_rounded,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Por favor, seleccione el tiempo de conocer';
+                                return 'Por favor, ingrese el tiempo de conocer';
                               }
                               return null;
                             },
@@ -1119,23 +1163,13 @@ class _nClienteDialogState extends State<nClienteDialog>
                             ],
                           ),
                           SizedBox(height: 10),
-                          _buildDropdown(
-                            value: selectedTiempoViviendo,
-                            hint: 'Tiempo Viviendo',
-                            items: [
-                              'Menos de 1 año',
-                              '1-2 años',
-                              '3-5 años',
-                              'Más de 5 años'
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                selectedTiempoViviendo = value;
-                              });
-                            },
+                          _buildTextField(
+                            controller: tiempoViviendoController,
+                            label: 'Tiempo viviendo',
+                            icon: Icons.access_time,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Por favor, seleccione el tiempo viviendo';
+                                return 'Por favor, ingrese el tiempo viviendo';
                               }
                               return null;
                             },
@@ -1156,7 +1190,7 @@ class _nClienteDialogState extends State<nClienteDialog>
           ),
           ElevatedButton(
             onPressed: () {
-              if (_formKey.currentState!.validate()) {
+              if (_referenciasFormKey.currentState!.validate()) {
                 setState(() {
                   Map<String, String> nuevaReferencia = {
                     'nombres': nombresController.text.isNotEmpty
@@ -1173,8 +1207,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                     'telefono': telefonoController.text.isNotEmpty
                         ? telefonoController.text
                         : '',
-                    'tiempoConocer': selectedTiempoConocer ??
-                        '', // Proporciona un valor por defecto
+                    'tiempoConocer': tiempoConocerController.text.isNotEmpty
+                        ? tiempoConocerController.text
+                        : '',
                     'calle': calleController.text.isNotEmpty
                         ? calleController.text
                         : '',
@@ -1197,8 +1232,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                     'municipio': municipioController.text.isNotEmpty
                         ? municipioController.text
                         : '',
-                    'tiempoViviendo': selectedTiempoViviendo ??
-                        '', // Proporciona un valor por defecto
+                    'tiempoViviendo': tiempoViviendoController.text.isNotEmpty
+                        ? tiempoViviendoController.text
+                        : '',
                   };
 
                   if (index == null) {
@@ -1218,13 +1254,14 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogIngresoEgreso({int? index, Map<String, dynamic>? item}) {
-    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
     String? selectedTipo = item?['tipo'];
     final descripcionController =
         TextEditingController(text: item?['descripcion'] ?? '');
     final montoController =
         TextEditingController(text: item?['monto']?.toString() ?? '');
+
+    // Crea un nuevo GlobalKey para el formulario del diálogo
+    final GlobalKey<FormState> dialogFormKey = GlobalKey<FormState>();
 
     final width = MediaQuery.of(context).size.width * 0.4;
     final height = MediaQuery.of(context).size.height * 0.5;
@@ -1241,7 +1278,7 @@ class _nClienteDialogState extends State<nClienteDialog>
               width: width,
               height: height,
               child: Form(
-                key: _formKey, // Clave para el formulario
+                key: dialogFormKey, // Usar el nuevo GlobalKey aquí
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1307,7 +1344,8 @@ class _nClienteDialogState extends State<nClienteDialog>
           ElevatedButton(
             onPressed: () {
               // Valida el formulario antes de continuar
-              if (_formKey.currentState!.validate() && selectedTipo != null) {
+              if (dialogFormKey.currentState!.validate() &&
+                  selectedTipo != null) {
                 final nuevoItem = {
                   'tipo': selectedTipo,
                   'descripcion': descripcionController.text,
@@ -1315,10 +1353,8 @@ class _nClienteDialogState extends State<nClienteDialog>
                 };
                 setState(() {
                   if (index == null) {
-                    // Si index es null, es una operación de agregar
                     ingresosEgresos.add(nuevoItem);
                   } else {
-                    // Si index tiene un valor, es una operación de editar
                     ingresosEgresos[index] = nuevoItem;
                   }
                 });
