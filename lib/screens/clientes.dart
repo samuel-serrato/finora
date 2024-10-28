@@ -165,9 +165,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
                       ElevatedButton(
                         style: ButtonStyle(
                           backgroundColor:
-                              MaterialStatePropertyAll(Color(0xFF7EFF8B)),
+                              MaterialStatePropertyAll(Color(0xFFFB2056)),
                           foregroundColor:
-                              MaterialStatePropertyAll(Color(0xFF434343)),
+                              MaterialStatePropertyAll(Colors.white),
                           shape:
                               MaterialStateProperty.all<RoundedRectangleBorder>(
                             RoundedRectangleBorder(
@@ -199,6 +199,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
   void mostrarDialogoAgregarCliente() {
     showDialog(
+      barrierDismissible: false, // Evita que se cierre al tocar fuera
       context: context,
       builder: (context) {
         return nClienteDialog(

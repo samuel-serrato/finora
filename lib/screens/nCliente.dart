@@ -9,13 +9,28 @@ class nClienteDialog extends StatefulWidget {
   _nClienteDialogState createState() => _nClienteDialogState();
 }
 
-class _nClienteDialogState extends State<nClienteDialog> {
+class _nClienteDialogState extends State<nClienteDialog>
+    with SingleTickerProviderStateMixin {
   final TextEditingController nombresController = TextEditingController();
   final TextEditingController apellidoPController = TextEditingController();
   final TextEditingController apellidoMController = TextEditingController();
   final TextEditingController telefonoController = TextEditingController();
+  final TextEditingController calleController = TextEditingController();
+  final TextEditingController entreCalleController = TextEditingController();
+  final TextEditingController coloniaController = TextEditingController();
+  final TextEditingController cpController = TextEditingController();
+  final TextEditingController nExtController = TextEditingController();
+  final TextEditingController nIntController = TextEditingController();
+  final TextEditingController estadoController = TextEditingController();
+  final TextEditingController municipioController = TextEditingController();
+  final TextEditingController curpController = TextEditingController();
+  final TextEditingController rfcController = TextEditingController();
+  final TextEditingController tiempoViviendoController =
+      TextEditingController();
+
   String? selectedSexo;
   String? selectedECivil;
+  String? selectedTipoCliente;
   DateTime? selectedDate;
 
   final List<String> sexos = ['Masculino', 'Femenino'];
@@ -25,19 +40,36 @@ class _nClienteDialogState extends State<nClienteDialog> {
     'Divorciado',
     'Viudo'
   ];
+  final List<String> tiposClientes = [
+    'Asalariado',
+    'Independiente',
+    'Jubilado'
+  ];
+  final List<Map<String, dynamic>> ingresosEgresos = [];
 
-  bool isNombresEmpty = false;
-  bool isApellidoPEmpty = false;
-  bool isApellidoMEmpty = false;
-  bool isTelefonoEmpty = false;
-  bool isSexoEmpty = false;
-  bool isECivilEmpty = false;
-  bool isDateEmpty = false;
+  List<Map<String, String>> referencias =
+      []; // Lista para almacenar referencias
+
+  late TabController _tabController;
+  int _currentIndex = 0;
+
+      final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _currentIndex = _tabController.index;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.8;
-    final height = MediaQuery.of(context).size.height * 0.6;
+    final height = MediaQuery.of(context).size.height * 0.9;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -46,154 +78,47 @@ class _nClienteDialogState extends State<nClienteDialog> {
         height: height,
         padding: EdgeInsets.all(20),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Agregar Cliente',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 20),
-            _buildTextField(
-              controller: nombresController,
-              label: 'Nombres',
-              icon: Icons.person,
-              isEmpty: isNombresEmpty,
-            ),
             SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller: apellidoPController,
-                    label: 'Apellido Paterno',
-                    icon: Icons.person_outline,
-                    isEmpty: isApellidoPEmpty,
-                  ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: _buildTextField(
-                    controller: apellidoMController,
-                    label: 'Apellido Materno',
-                    icon: Icons.person_outline,
-                    isEmpty: isApellidoMEmpty,
-                  ),
-                ),
+            TabBar(
+              controller: _tabController,
+              labelColor: Color(0xFFFB2056),
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Color(0xFFFB2056),
+              tabs: [
+                Tab(text: 'Información Personal'),
+                Tab(text: 'Ingresos y Egresos'),
+                Tab(text: 'Referencias'),
               ],
             ),
-            SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller: telefonoController,
-                    label: 'Teléfono',
-                    icon: Icons.phone,
-                    keyboardType: TextInputType.phone,
-                    isEmpty: isTelefonoEmpty,
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                        right: 30, top: 10, bottom: 10, left: 0),
+                    child: _paginaInfoPersonal(),
                   ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: _buildDropdown(
-                    value: selectedSexo,
-                    hint: 'Selecciona Sexo',
-                    items: sexos,
-                    onChanged: (value) {
-                      setState(() {
-                        selectedSexo = value;
-                        isSexoEmpty = false;
-                      });
-                    },
-                    isEmpty: isSexoEmpty,
+                  Padding(
+                    padding: const EdgeInsets.only(
+                        right: 30, top: 10, bottom: 10, left: 0),
+                    child: _paginaIngresosEgresos(),
                   ),
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.only(
+                        right: 30, top: 10, bottom: 10, left: 0),
+                    child: _paginaReferencias(),
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: 10),
             Row(
-              children: [
-                Expanded(
-                  child: _buildDropdown(
-                    value: selectedECivil,
-                    hint: 'Estado Civil',
-                    items: estadosCiviles,
-                    onChanged: (value) {
-                      setState(() {
-                        selectedECivil = value;
-                        isECivilEmpty = false;
-                      });
-                    },
-                    isEmpty: isECivilEmpty,
-                  ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        height: 50,
-                        child: TextButton(
-                          onPressed: () async {
-                            DateTime? pickedDate = await showDatePicker(
-                              context: context,
-                              initialDate: selectedDate ?? DateTime.now(),
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                            );
-                            if (pickedDate != null) {
-                              setState(() {
-                                selectedDate = pickedDate;
-                                isDateEmpty = false;
-                              });
-                            }
-                          },
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.symmetric(
-                              vertical: 15,
-                              horizontal: 10,
-                            ),
-                            side: BorderSide(
-                              color: isDateEmpty ? Colors.red : Colors.grey,
-                              width: 1.0,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            backgroundColor: Colors.grey[100],
-                          ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              selectedDate != null
-                                  ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
-                                  : 'Selecciona una fecha',
-                              style: TextStyle(
-                                color: selectedDate != null
-                                    ? Colors.black
-                                    : Colors.grey[600],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (isDateEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 5),
-                          child: Text(
-                            'Campo requerido',
-                            style: TextStyle(color: Colors.red, fontSize: 12),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 TextButton(
                   onPressed: () {
@@ -207,16 +132,30 @@ class _nClienteDialogState extends State<nClienteDialog> {
                   ),
                   child: Text('Cancelar'),
                 ),
-                SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: _agregarCliente,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text('Agregar'),
+                Row(
+                  children: [
+                    if (_currentIndex > 0)
+                      TextButton(
+                        onPressed: () {
+                          _tabController.animateTo(_currentIndex - 1);
+                        },
+                        child: Text('Atrás'),
+                      ),
+                    if (_currentIndex < 2)
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_formKey.currentState!.validate()) {
+                            _tabController.animateTo(_currentIndex + 1);
+                          }
+                        },
+                        child: Text('Siguiente'),
+                      ),
+                    if (_currentIndex == 2)
+                      ElevatedButton(
+                        onPressed: _agregarCliente,
+                        child: Text('Agregar'),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -226,24 +165,1192 @@ class _nClienteDialogState extends State<nClienteDialog> {
     );
   }
 
+  // Función que crea cada paso con el círculo y el texto
+  Widget _buildPasoItem(int numeroPaso, String titulo, bool isActive) {
+    return Row(
+      children: [
+        // Círculo numerado para el paso
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isActive
+                ? Colors.white
+                : Colors.transparent, // Fondo blanco solo si está activo
+            border: Border.all(
+                color: Colors.white,
+                width: 2), // Borde blanco en todos los casos
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            numeroPaso.toString(),
+            style: TextStyle(
+              color: isActive
+                  ? Color(0xFFFB2056)
+                  : Colors.white, // Texto rojo si está activo, blanco si no
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        SizedBox(width: 10),
+
+        // Texto del paso
+        Expanded(
+          child: Text(
+            titulo,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _paginaInfoPersonal() {
+    const double verticalSpacing = 20.0; // Variable para el espaciado vertical
+    //const double fontSize = 12.0; // Tamaño de fuente más pequeño
+    int pasoActual = 1; // Paso actual que queremos marcar como activo
+
+    return Form(
+      key: _formKey, // Asignar la clave al formulario
+      child: Row(
+        children: [
+          // Columna a la izquierda con el círculo y el ícono
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                    color: Color(0xFFFB2056),
+                    borderRadius: BorderRadius.all(Radius.circular(20))),
+                width: 250,
+                height: 500,
+                padding: EdgeInsets.symmetric(
+                    vertical: 20, horizontal: 10), // Espaciado vertical
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    // Paso 1
+                    _buildPasoItem(1, "Información Personal", pasoActual == 1),
+                    SizedBox(height: 20),
+
+                    // Paso 2
+                    _buildPasoItem(2, "Ingresos y Egresos", pasoActual == 2),
+                    SizedBox(height: 20),
+
+                    // Paso 3
+                    _buildPasoItem(3, "Referencias", pasoActual == 3),
+                  ],
+                ),
+              ),
+              SizedBox(height: 10),
+            ],
+          ),
+          SizedBox(width: 50), // Espacio entre la columna y el formulario
+
+          // Columna con el formulario
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start, // Alinear el texto a la izquierda
+                children: [
+                  SizedBox(height: verticalSpacing),
+
+                  // Sección de Datos Personales
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10.0),
+                    child: Text(
+                      'Información Básica',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          controller: nombresController,
+                          label: 'Nombres',
+                          icon: Icons.person,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese nombres';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: apellidoPController,
+                          label: 'Apellido Paterno',
+                          icon: Icons.person_outline,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese Apellido Paterno';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: apellidoMController,
+                          label: 'Apellido Materno',
+                          icon: Icons.person_outline,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese Apellido Materno';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
+
+                  // Agrupamos Dropdowns
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDropdown(
+                          value: selectedTipoCliente,
+                          hint: 'Tipo de Cliente',
+                          items: tiposClientes,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedTipoCliente = value;
+                            });
+                          },
+                          validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, seleccione el Tipo de Cliente';
+                              }
+                              return null;
+                            },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildDropdown(
+                          value: selectedSexo,
+                          hint: 'Sexo',
+                          items: sexos,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedSexo = value;
+                            });
+                          },
+                          validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, seleccione el Sexo';
+                              }
+                              return null;
+                            },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
+
+                  // Agrupamos Estado Civil y Fecha de Nacimiento
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDropdown(
+                          value: selectedECivil,
+                          hint: 'Estado Civil',
+                          items: estadosCiviles,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedECivil = value;
+                            });
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          height: 50, // Disminuir altura
+                          color: Colors.transparent,
+                          child: TextButton(
+                            onPressed: () async {
+                              DateTime? pickedDate = await showDatePicker(
+                                context: context,
+                                initialDate: selectedDate ?? DateTime.now(),
+                                firstDate: DateTime(1900),
+                                lastDate: DateTime.now(),
+                              );
+                              if (pickedDate != null) {
+                                setState(() {
+                                  selectedDate = pickedDate;
+                                });
+                              }
+                            },
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.symmetric(
+                                  vertical: 10,
+                                  horizontal: 10), // Disminuir padding
+                              side: BorderSide(
+                                  color: Colors.grey.shade800, width: 1.0),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              backgroundColor: Colors.transparent,
+                            ),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                selectedDate != null
+                                    ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                    : 'Selecciona una fecha de nacimiento',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                  color: selectedDate != null
+                                      ? Colors.grey.shade800
+                                      : Colors.grey.shade800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
+
+                  // Sección de Domicilio
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10.0),
+                    child: Text(
+                      'Domicilio',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+
+                  // Agrupamos Calle, No. Ext y No. Int
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: _buildTextField(
+                          controller: calleController,
+                          label: 'Calle',
+                          icon: Icons.location_on,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese Calle';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: _buildTextField(
+                          controller: nExtController,
+                          label: 'No. Ext',
+                          icon: Icons.house,
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese No. Ext';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: _buildTextField(
+                          controller: nIntController,
+                          label: 'No. Int',
+                          icon: Icons.house,
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese No. Int';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: _buildTextField(
+                          controller: entreCalleController,
+                          label: 'Entre Calle',
+                          icon: Icons.location_on,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese Entre Calle';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: _buildTextField(
+                          controller: cpController,
+                          label: 'Código Postal',
+                          icon: Icons.mail,
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese Código Postal';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: _buildTextField(
+                          controller: tiempoViviendoController,
+                          label: 'Tiempo Viviendo',
+                          icon: Icons.timelapse,
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese Tiempo Viviendo';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
+
+                  // Agrupamos Colonia, Estado y Municipio
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          controller: coloniaController,
+                          label: 'Colonia',
+                          icon: Icons.location_city,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese Colonia';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: estadoController,
+                          label: 'Estado',
+                          icon: Icons.map,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese Estado';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: municipioController,
+                          label: 'Municipio',
+                          icon: Icons.map,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese Municipio';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10.0),
+                    child: Text(
+                      'Datos adicionales',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  // Agrupamos Calle, No. Ext y No. Int
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: _buildTextField(
+                          controller: curpController,
+                          label: 'CURP',
+                          icon: Icons
+                              .account_box, // Ícono de identificación más relevante
+                              validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese CURP';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: _buildTextField(
+                          controller: rfcController,
+                          label: 'RFC',
+                          icon: Icons
+                              .assignment_ind, // Ícono de archivo/identificación
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese RFC';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _paginaIngresosEgresos() {
+    int pasoActual = 2; // Paso actual en la página de "Ingresos y Egresos"
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Contenedor azul a la izquierda para los pasos
+        Container(
+          decoration: BoxDecoration(
+              color: Color(0xFFFB2056),
+              borderRadius: BorderRadius.all(Radius.circular(20))),
+          width: 250,
+          height: 500,
+          padding: EdgeInsets.symmetric(
+              vertical: 20, horizontal: 10), // Espaciado vertical
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              // Paso 1
+              _buildPasoItem(1, "Información Personal", pasoActual == 1),
+              SizedBox(height: 20),
+
+              // Paso 2
+              _buildPasoItem(2, "Ingresos y Egresos", pasoActual == 2),
+              SizedBox(height: 20),
+
+              // Paso 3
+              _buildPasoItem(3, "Referencias", pasoActual == 3),
+            ],
+          ),
+        ),
+        SizedBox(width: 50), // Espacio entre el contenedor azul y la lista
+
+        // Contenido principal: Lista de ingresos y egresos
+        Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  itemCount: ingresosEgresos.length,
+                  itemBuilder: (context, index) {
+                    final item = ingresosEgresos[index];
+                    return ListTile(
+                      title: Text(item['descripcion']),
+                      subtitle: Text('${item['tipo']} - \$${item['monto']}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () => _mostrarDialogIngresoEgreso(
+                                index: index, item: item),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            onPressed: () {
+                              setState(() {
+                                ingresosEgresos.removeAt(index);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => _mostrarDialogIngresoEgreso(),
+                child: Text('Añadir Ingreso/Egreso'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _paginaReferencias() {
+    int pasoActual = 3; // Paso actual en la página de "Ingresos y Egresos"
+
+    return Row(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Color(0xFFFB2056),
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+          width: 250,
+          height: 500,
+          padding: EdgeInsets.symmetric(
+              vertical: 20, horizontal: 10), // Espaciado vertical
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              // Paso 1
+              _buildPasoItem(1, "Información Personal", pasoActual == 1),
+              SizedBox(height: 20),
+
+              // Paso 2
+              _buildPasoItem(2, "Ingresos y Egresos", pasoActual == 2),
+              SizedBox(height: 20),
+
+              // Paso 3
+              _buildPasoItem(3, "Referencias", pasoActual == 3),
+            ],
+          ),
+        ),
+        SizedBox(width: 50), // Espacio entre el contenedor rojo y la lista
+        Expanded(
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  itemCount: referencias.length,
+                  itemBuilder: (context, index) {
+                    final referencia = referencias[index];
+                    return Card(
+                      margin: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                      child: ListTile(
+                        title: Text(
+                          '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}',
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Parentesco: ${referencia['parentesco']}'),
+                            Text('Teléfono: ${referencia['telefono']}'),
+                            Text('Domicilio: ${referencia['calle']}'),
+                            Text('Colonia: ${referencia['colonia']}'),
+                            Text('Entre calles: ${referencia['entreCalle']}'),
+                            Text('CP: ${referencia['cp']}'),
+                            Text('Estado: ${referencia['estado']}'),
+                            Text('Municipio: ${referencia['municipio']}'),
+                            Text(
+                                'Tiempo viviendo: ${referencia['tiempoViviendo']}'),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _mostrarDialogReferencia(
+                                  index: index, item: referencia),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  referencias.removeAt(index);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Container(
+                margin: EdgeInsets.only(top: 10),
+                child: ElevatedButton(
+                  onPressed: _mostrarDialogReferencia,
+                  child: Text('Añadir Referencia'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _mostrarDialogReferencia({int? index, Map<String, dynamic>? item}) {
+    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+// Asignación inicial para dropdowns
+    String? selectedParentesco = item?['parentesco'];
+    String? selectedTiempoConocer = item?['tiempoConocer'];
+    String? selectedTiempoViviendo = item?['tiempoViviendo'];
+
+    final nombresController =
+        TextEditingController(text: item?['nombres'] ?? '');
+    final apellidoPController =
+        TextEditingController(text: item?['apellidoP'] ?? '');
+    final apellidoMController =
+        TextEditingController(text: item?['apellidoM'] ?? '');
+
+    final telefonoController =
+        TextEditingController(text: item?['telefono'] ?? '');
+
+    final calleController = TextEditingController(text: item?['calle'] ?? '');
+    final entreCalleController =
+        TextEditingController(text: item?['entreCalle'] ?? '');
+    final coloniaController =
+        TextEditingController(text: item?['colonia'] ?? '');
+    final cpController = TextEditingController(text: item?['cp'] ?? '');
+    final nExtController = TextEditingController(text: item?['nExt'] ?? '');
+    final nIntController = TextEditingController(text: item?['nInt'] ?? '');
+    final estadoController = TextEditingController(text: item?['estado'] ?? '');
+    final municipioController =
+        TextEditingController(text: item?['municipio'] ?? '');
+
+    final width = MediaQuery.of(context).size.width * 0.7;
+    final height = MediaQuery.of(context).size.height * 0.6;
+
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (_) => AlertDialog(
+        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        title: Center(
+          child: Text(
+            index == null ? 'Nueva Referencia' : 'Editar Referencia',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+        content: Container(
+          width: width,
+          height: height,
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey, // Asigna la clave al formulario
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Información de la persona de referencia',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Divider(color: Colors.grey[300]),
+                          SizedBox(height: 10),
+                          _buildTextField(
+                            controller: nombresController,
+                            label: 'Nombres',
+                            icon: Icons.person,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, ingrese su nombre';
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 10),
+                          _buildTextField(
+                            controller: apellidoPController,
+                            label: 'Apellido Paterno',
+                            icon: Icons.person_outline,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, ingrese su apellido paterno';
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 10),
+                          _buildTextField(
+                            controller: apellidoMController,
+                            label: 'Apellido Materno',
+                            icon: Icons.person_outline,
+                          ),
+                          SizedBox(height: 10),
+                          _buildDropdown(
+                            value: selectedParentesco,
+                            hint: 'Parentesco',
+                            items: [
+                              'Padre',
+                              'Madre',
+                              'Hermano/a',
+                              'Amigo/a',
+                              'Veceino',
+                              'Otro'
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                selectedParentesco = value;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, seleccione el parentesco';
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 10),
+                          _buildTextField(
+                            controller: telefonoController,
+                            label: 'Teléfono',
+                            icon: Icons.phone,
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, ingrese su teléfono';
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 10),
+                          _buildDropdown(
+                            value: selectedTiempoConocer,
+                            hint: 'Tiempo de Conocer',
+                            items: [
+                              'Menos de 1 año',
+                              '1-2 años',
+                              '3-5 años',
+                              'Más de 5 años'
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                selectedTiempoConocer = value;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, seleccione el tiempo de conocer';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 20),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Datos del domicilio de la referencia',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Divider(color: Colors.grey[300]),
+                          SizedBox(height: 10),
+                          _buildTextField(
+                            controller: calleController,
+                            label: 'Calle',
+                            icon: Icons.location_on,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, ingrese la calle';
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTextField(
+                                  controller: nExtController,
+                                  label: 'Núm. Ext',
+                                  icon: Icons.house,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Por favor, ingrese el número exterior';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: _buildTextField(
+                                  controller: nIntController,
+                                  label: 'Núm. Int',
+                                  icon: Icons.house,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Por favor, ingrese el número interior';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 10),
+                          _buildTextField(
+                            controller: entreCalleController,
+                            label: 'Entre Calle',
+                            icon: Icons.location_on,
+                          ),
+                          SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildTextField(
+                                  controller: coloniaController,
+                                  label: 'Colonia',
+                                  icon: Icons.location_city,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Por favor, ingrese la colonia';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: _buildTextField(
+                                  controller: cpController,
+                                  label: 'Código Postal',
+                                  icon: Icons.mail,
+                                  keyboardType: TextInputType.number,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Por favor, ingrese el código postal';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDropdown(
+                                  value: estadoController.text.isNotEmpty
+                                      ? estadoController.text
+                                      : null,
+                                  hint: 'Estado',
+                                  items: ['Guerrero'],
+                                  onChanged: (newValue) {
+                                    if (newValue != null) {
+                                      estadoController.text =
+                                          newValue; // Actualiza el controlador
+                                    }
+                                  },
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Por favor, seleccione el estado';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: _buildTextField(
+                                  controller: municipioController,
+                                  label: 'Municipio',
+                                  icon: Icons.map,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Por favor, ingrese el municipio';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 10),
+                          _buildDropdown(
+                            value: selectedTiempoViviendo,
+                            hint: 'Tiempo Viviendo',
+                            items: [
+                              'Menos de 1 año',
+                              '1-2 años',
+                              '3-5 años',
+                              'Más de 5 años'
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                selectedTiempoViviendo = value;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, seleccione el tiempo viviendo';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_formKey.currentState!.validate()) {
+                setState(() {
+                  Map<String, String> nuevaReferencia = {
+                    'nombres': nombresController.text.isNotEmpty
+                        ? nombresController.text
+                        : '',
+                    'apellidoP': apellidoPController.text.isNotEmpty
+                        ? apellidoPController.text
+                        : '',
+                    'apellidoM': apellidoMController.text.isNotEmpty
+                        ? apellidoMController.text
+                        : '',
+                    'parentesco': selectedParentesco ??
+                        '', // Proporciona un valor por defecto
+                    'telefono': telefonoController.text.isNotEmpty
+                        ? telefonoController.text
+                        : '',
+                    'tiempoConocer': selectedTiempoConocer ??
+                        '', // Proporciona un valor por defecto
+                    'calle': calleController.text.isNotEmpty
+                        ? calleController.text
+                        : '',
+                    'entreCalle': entreCalleController.text.isNotEmpty
+                        ? entreCalleController.text
+                        : '',
+                    'colonia': coloniaController.text.isNotEmpty
+                        ? coloniaController.text
+                        : '',
+                    'cp': cpController.text.isNotEmpty ? cpController.text : '',
+                    'nExt': nExtController.text.isNotEmpty
+                        ? nExtController.text
+                        : '',
+                    'nInt': nIntController.text.isNotEmpty
+                        ? nIntController.text
+                        : '',
+                    'estado': estadoController.text.isNotEmpty
+                        ? estadoController.text
+                        : '',
+                    'municipio': municipioController.text.isNotEmpty
+                        ? municipioController.text
+                        : '',
+                    'tiempoViviendo': selectedTiempoViviendo ??
+                        '', // Proporciona un valor por defecto
+                  };
+
+                  if (index == null) {
+                    referencias.add(nuevaReferencia);
+                  } else {
+                    referencias[index] = nuevaReferencia;
+                  }
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: Text(index == null ? 'Añadir' : 'Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _mostrarDialogIngresoEgreso({int? index, Map<String, dynamic>? item}) {
+    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+    String? selectedTipo = item?['tipo'];
+    final descripcionController =
+        TextEditingController(text: item?['descripcion'] ?? '');
+    final montoController =
+        TextEditingController(text: item?['monto']?.toString() ?? '');
+
+    final width = MediaQuery.of(context).size.width * 0.4;
+    final height = MediaQuery.of(context).size.height * 0.5;
+
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(
+            index == null ? 'Nuevo Ingreso/Egreso' : 'Editar Ingreso/Egreso'),
+        content: StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Container(
+              width: width,
+              height: height,
+              child: Form(
+                key: _formKey, // Clave para el formulario
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDropdown(
+                      value: selectedTipo,
+                      hint: 'Tipo',
+                      items: ['Ingreso', 'Egreso'],
+                      onChanged: (value) {
+                        setState(() {
+                          selectedTipo = value;
+                        });
+                      },
+                      fontSize: 14.0,
+                      validator: (value) {
+                        if (value == null) {
+                          return 'Por favor, seleccione el tipo';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 10),
+                    _buildTextField(
+                      controller: descripcionController,
+                      label: 'Descripción',
+                      icon: Icons.description,
+                      fontSize: 14.0,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese una descripción';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 10),
+                    _buildTextField(
+                      controller: montoController,
+                      label: 'Monto',
+                      icon: Icons.attach_money,
+                      keyboardType: TextInputType.number,
+                      fontSize: 14.0,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese el monto';
+                        }
+                        if (double.tryParse(value) == null ||
+                            double.parse(value) <= 0) {
+                          return 'Ingrese un monto válido';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Valida el formulario antes de continuar
+              if (_formKey.currentState!.validate() && selectedTipo != null) {
+                final nuevoItem = {
+                  'tipo': selectedTipo,
+                  'descripcion': descripcionController.text,
+                  'monto': montoController.text,
+                };
+                setState(() {
+                  if (index == null) {
+                    // Si index es null, es una operación de agregar
+                    ingresosEgresos.add(nuevoItem);
+                  } else {
+                    // Si index tiene un valor, es una operación de editar
+                    ingresosEgresos[index] = nuevoItem;
+                  }
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: Text(index == null ? 'Añadir' : 'Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
-    bool isEmpty = false,
+    String? Function(String?)? validator,
+    double fontSize = 12.0, // Tamaño de fuente por defecto
   }) {
-    return TextField(
+    return TextFormField(
       controller: controller,
+      keyboardType: keyboardType,
+      style: TextStyle(fontSize: fontSize),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        errorText: isEmpty ? 'Campo requerido' : null,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        labelStyle: TextStyle(fontSize: fontSize),
       ),
-      keyboardType: keyboardType,
+      validator: validator, // Asignar el validador
     );
   }
 
@@ -252,63 +1359,48 @@ class _nClienteDialogState extends State<nClienteDialog> {
     required String hint,
     required List<String> items,
     required void Function(String?) onChanged,
-    bool isEmpty = false,
+    double fontSize = 12.0,
+    String? Function(String?)? validator,
   }) {
     return DropdownButtonFormField<String>(
       value: value,
-      hint: Text(hint),
+      hint: value == null
+          ? Text(
+              hint,
+              style: TextStyle(fontSize: fontSize, color: Colors.black),
+            )
+          : null,
       items: items.map((item) {
-        return DropdownMenuItem<String>(
+        return DropdownMenuItem(
           value: item,
-          child: Text(item),
+          child: Text(
+            item,
+            style: TextStyle(fontSize: fontSize, color: Colors.black),
+          ),
         );
       }).toList(),
       onChanged: onChanged,
+      validator: validator, // Validación para el Dropdown
       decoration: InputDecoration(
+        labelText: value != null ? hint : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.black),
         ),
-        errorText: isEmpty ? 'Campo requerido' : null,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.grey.shade700),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.black),
+        ),
       ),
+      style: TextStyle(fontSize: fontSize, color: Colors.black),
     );
   }
 
   void _agregarCliente() {
-    setState(() {
-      isNombresEmpty = nombresController.text.isEmpty;
-      isApellidoPEmpty = apellidoPController.text.isEmpty;
-      isApellidoMEmpty = apellidoMController.text.isEmpty;
-      isTelefonoEmpty = telefonoController.text.isEmpty;
-      isSexoEmpty = selectedSexo == null;
-      isECivilEmpty = selectedECivil == null;
-      isDateEmpty = selectedDate == null;
-    });
-
-    if (!isNombresEmpty &&
-        !isApellidoPEmpty &&
-        !isApellidoMEmpty &&
-        !isTelefonoEmpty &&
-        !isSexoEmpty &&
-        !isECivilEmpty &&
-        !isDateEmpty) {
-      final nuevoCliente = {
-        "idtipoclientes": 1,
-        "nombres": nombresController.text,
-        "apellidoP": apellidoPController.text,
-        "apellidoM": apellidoMController.text,
-        "fechaNac":
-            "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}",
-        "sexo": selectedSexo,
-        "telefono": telefonoController.text,
-        "eCilvi": selectedECivil,
-      };
-
-      widget.onClienteAgregado();
-      Navigator.of(context).pop();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Por favor, completa todos los campos.')),
-      );
-    }
+    // Agregar cliente y validaciones aquí
   }
 }
