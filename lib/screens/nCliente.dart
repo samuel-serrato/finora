@@ -500,7 +500,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                         flex: 2,
                         child: _buildTextField(
                           controller: nExtController,
-                          label: 'No. Ext',
+                          label: 'Num. Ext',
                           icon: Icons.house,
                           keyboardType: TextInputType.number,
                           validator: (value) {
@@ -516,15 +516,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                         flex: 2,
                         child: _buildTextField(
                           controller: nIntController,
-                          label: 'No. Int',
+                          label: 'Num. Int',
                           icon: Icons.house,
                           keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese No. Int';
-                            }
-                            return null;
-                          },
+                         
                         ),
                       ),
                     ],
@@ -1059,7 +1054,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                               Expanded(
                                 child: _buildTextField(
                                   controller: nExtController,
-                                  label: 'Núm. Ext',
+                                  label: 'Num. Ext',
                                   icon: Icons.house,
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
@@ -1075,12 +1070,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   controller: nIntController,
                                   label: 'Núm. Int',
                                   icon: Icons.house,
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Por favor, ingrese el número interior';
-                                    }
-                                    return null;
-                                  },
+                                 
                                 ),
                               ),
                             ],
