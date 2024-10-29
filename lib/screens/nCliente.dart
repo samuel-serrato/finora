@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 class nClienteDialog extends StatefulWidget {
   final VoidCallback onClienteAgregado;
 
@@ -13,8 +16,8 @@ class nClienteDialog extends StatefulWidget {
 
 class _nClienteDialogState extends State<nClienteDialog>
     with SingleTickerProviderStateMixin {
-  final TextEditingController nombresController = TextEditingController();
   final TextEditingController apellidoPController = TextEditingController();
+  final TextEditingController nombresController = TextEditingController();
   final TextEditingController apellidoMController = TextEditingController();
   final TextEditingController calleController = TextEditingController();
   final TextEditingController entreCalleController = TextEditingController();
@@ -32,10 +35,25 @@ class _nClienteDialogState extends State<nClienteDialog>
   final TextEditingController telefonoClienteController =
       TextEditingController();
 
+  final TextEditingController nombrePropietarioController =
+      TextEditingController();
+  final TextEditingController parentescoPropietarioController =
+      TextEditingController();
+
+  final TextEditingController ocupacionController = TextEditingController();
+  final TextEditingController depEconomicosController = TextEditingController();
+
+  final TextEditingController nombreConyugeController = TextEditingController();
+  final TextEditingController telefonoConyugeController =
+      TextEditingController();
+  final TextEditingController ocupacionConyugeController =
+      TextEditingController();
+
   String? selectedSexo;
   String? selectedECivil;
   String? selectedTipoCliente;
   DateTime? selectedDate;
+  String? selectedTipoDomicilio;
 
   final List<String> sexos = ['Masculino', 'Femenino'];
   final List<String> estadosCiviles = [
@@ -44,11 +62,28 @@ class _nClienteDialogState extends State<nClienteDialog>
     'Divorciado',
     'Viudo'
   ];
+
   final List<String> tiposClientes = [
     'Asalariado',
     'Independiente',
     'Jubilado'
   ];
+
+  List<String> tiposIngresoEgreso = [
+    ' Actividad economica',
+    'Actividad Laboral',
+    'Credito con otras financieras',
+    'Aportaciones del esposo',
+    'Otras aportaciones'
+  ];
+
+  final List<String> tiposDomicilio = [
+    'Propio',
+    'Familiar',
+    'Rentado',
+    'Prestado'
+  ];
+
   final List<Map<String, dynamic>> ingresosEgresos = [];
 
   List<Map<String, String>> referencias =
@@ -439,6 +474,38 @@ class _nClienteDialogState extends State<nClienteDialog>
                     children: [
                       Expanded(
                         child: _buildTextField(
+                          controller: ocupacionController,
+                          label: 'Ocupación',
+                          icon: Icons.work,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese el teléfono';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: depEconomicosController,
+                          label: 'Dependientes económicos',
+                          icon: Icons.family_restroom,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese el correo electrónico';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
                           controller: telefonoClienteController,
                           label: 'Teléfono',
                           icon: Icons.phone,
@@ -467,6 +534,52 @@ class _nClienteDialogState extends State<nClienteDialog>
                     ],
                   ),
                   SizedBox(height: verticalSpacing),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          controller: nombreConyugeController,
+                          label: 'Nombre del Conyuge',
+                          icon: Icons.person,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese nombres';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: telefonoConyugeController,
+                          label: 'Número celular del Conyuge',
+                          icon: Icons.person_outline,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese el dato';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTextField(
+                          controller: ocupacionConyugeController,
+                          label: 'Ocupación',
+                          icon: Icons.person_outline,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese el dato';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: verticalSpacing),
                   // Sección de Domicilio
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -481,6 +594,20 @@ class _nClienteDialogState extends State<nClienteDialog>
                   // Agrupamos Calle, No. Ext y No. Int
                   Row(
                     children: [
+                      Expanded(
+                        flex: 3,
+                        child: _buildDropdown(
+                          value: selectedTipoDomicilio,
+                          hint: 'Tipo de Domicilio',
+                          items: tiposDomicilio,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedTipoDomicilio = value;
+                            });
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 10),
                       Expanded(
                         flex: 6,
                         child: _buildTextField(
@@ -500,7 +627,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                         flex: 2,
                         child: _buildTextField(
                           controller: nExtController,
-                          label: 'Num. Ext',
+                          label: 'No. Ext',
                           icon: Icons.house,
                           keyboardType: TextInputType.number,
                           validator: (value) {
@@ -516,14 +643,54 @@ class _nClienteDialogState extends State<nClienteDialog>
                         flex: 2,
                         child: _buildTextField(
                           controller: nIntController,
-                          label: 'Num. Int',
+                          label: 'No. Int',
                           icon: Icons.house,
                           keyboardType: TextInputType.number,
-                         
                         ),
                       ),
                     ],
                   ),
+
+// Aquí agregamos el nuevo Row que aparece si no es "Propio"
+                  // Verificar si `selectedTipoDomicilio` no es vacío y no es "Propio"
+                  if (selectedTipoDomicilio != null &&
+                      selectedTipoDomicilio != 'Propio') ...[
+                    SizedBox(height: 20), // Espacio entre los rows
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 4,
+                          child: _buildTextField(
+                            controller: nombrePropietarioController,
+                            label: 'Nombre del Propietario',
+                            icon: Icons.person,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, ingrese el nombre del propietario';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Expanded(
+                          flex: 4,
+                          child: _buildTextField(
+                            controller: parentescoPropietarioController,
+                            label: 'Parentesco',
+                            icon: Icons.family_restroom,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, ingrese el parentesco';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
                   SizedBox(height: verticalSpacing),
 
                   Row(
@@ -735,7 +902,14 @@ class _nClienteDialogState extends State<nClienteDialog>
                       final item = ingresosEgresos[index];
                       return ListTile(
                         title: Text(item['descripcion']),
-                        subtitle: Text('${item['tipo']} - \$${item['monto']}'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${item['tipo']} - \$${item['monto']}'),
+                            Text(
+                                'Años en Actividad- \$${item['añosenActividad']}'),
+                          ],
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1036,17 +1210,22 @@ class _nClienteDialogState extends State<nClienteDialog>
                             ),
                           ),
                           Divider(color: Colors.grey[300]),
+                          Text(
+                            'Los datos de domicilio de la referencia son opcionales',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey[700]),
+                          ),
                           SizedBox(height: 10),
                           _buildTextField(
                             controller: calleController,
                             label: 'Calle',
                             icon: Icons.location_on,
-                            validator: (value) {
+                            /*   validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor, ingrese la calle';
                               }
                               return null;
-                            },
+                            }, */
                           ),
                           SizedBox(height: 10),
                           Row(
@@ -1054,14 +1233,14 @@ class _nClienteDialogState extends State<nClienteDialog>
                               Expanded(
                                 child: _buildTextField(
                                   controller: nExtController,
-                                  label: 'Num. Ext',
+                                  label: 'Núm. Ext',
                                   icon: Icons.house,
-                                  validator: (value) {
+                                  /*  validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return 'Por favor, ingrese el número exterior';
                                     }
                                     return null;
-                                  },
+                                  }, */
                                 ),
                               ),
                               SizedBox(width: 10),
@@ -1070,7 +1249,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   controller: nIntController,
                                   label: 'Núm. Int',
                                   icon: Icons.house,
-                                 
+                                  /*  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Por favor, ingrese el número interior';
+                                    }
+                                    return null;
+                                  }, */
                                 ),
                               ),
                             ],
@@ -1089,12 +1273,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   controller: coloniaController,
                                   label: 'Colonia',
                                   icon: Icons.location_city,
-                                  validator: (value) {
+                                  /*   validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return 'Por favor, ingrese la colonia';
                                     }
                                     return null;
-                                  },
+                                  }, */
                                 ),
                               ),
                               SizedBox(width: 10),
@@ -1104,12 +1288,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   label: 'Código Postal',
                                   icon: Icons.mail,
                                   keyboardType: TextInputType.number,
-                                  validator: (value) {
+                                  /*    validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return 'Por favor, ingrese el código postal';
                                     }
                                     return null;
-                                  },
+                                  }, */
                                 ),
                               ),
                             ],
@@ -1130,12 +1314,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                                           newValue; // Actualiza el controlador
                                     }
                                   },
-                                  validator: (value) {
+                                  /*  validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return 'Por favor, seleccione el estado';
                                     }
                                     return null;
-                                  },
+                                  }, */
                                 ),
                               ),
                               SizedBox(width: 10),
@@ -1144,12 +1328,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   controller: municipioController,
                                   label: 'Municipio',
                                   icon: Icons.map,
-                                  validator: (value) {
+                                  /* validator: (value) {
                                     if (value == null || value.isEmpty) {
                                       return 'Por favor, ingrese el municipio';
                                     }
                                     return null;
-                                  },
+                                  }, */
                                 ),
                               ),
                             ],
@@ -1159,12 +1343,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                             controller: tiempoViviendoController,
                             label: 'Tiempo viviendo',
                             icon: Icons.access_time,
-                            validator: (value) {
+                            /*     validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor, ingrese el tiempo viviendo';
                               }
                               return null;
-                            },
+                            }, */
                           ),
                         ],
                       ),
@@ -1252,6 +1436,9 @@ class _nClienteDialogState extends State<nClienteDialog>
     final montoController =
         TextEditingController(text: item?['monto']?.toString() ?? '');
 
+    final anosenActividadController =
+        TextEditingController(text: item?['añosenActividad']?.toString() ?? '');
+
     // Crea un nuevo GlobalKey para el formulario del diálogo
     final GlobalKey<FormState> dialogFormKey = GlobalKey<FormState>();
 
@@ -1277,7 +1464,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                     _buildDropdown(
                       value: selectedTipo,
                       hint: 'Tipo',
-                      items: ['Ingreso', 'Egreso'],
+                      items: tiposIngresoEgreso,
                       onChanged: (value) {
                         setState(() {
                           selectedTipo = value;
@@ -1322,6 +1509,19 @@ class _nClienteDialogState extends State<nClienteDialog>
                         return null;
                       },
                     ),
+                    SizedBox(height: 10),
+                    _buildTextField(
+                      controller: anosenActividadController,
+                      label: 'Años en Actividad',
+                      icon: Icons.timelapse,
+                      fontSize: 14.0,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese un dato';
+                        }
+                        return null;
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -1342,6 +1542,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                   'tipo': selectedTipo,
                   'descripcion': descripcionController.text,
                   'monto': montoController.text,
+                  'añosenActividad': anosenActividadController.text,
                 };
                 setState(() {
                   if (index == null) {
@@ -1428,59 +1629,225 @@ class _nClienteDialogState extends State<nClienteDialog>
     );
   }
 
-  void _agregarCliente() {
-  final datosCliente = {
-    "InformacionPersonal": {
+  void _agregarCliente() async {
+    imprimirDatosCliente();
+    // Paso 1: Crear cliente
+    final clienteResponse = await _enviarCliente();
+    if (clienteResponse != null) {
+      final idCliente = clienteResponse["idclientes"];
+
+      // Paso 2: Crear domicilio
+      await _enviarDomicilio(idCliente);
+
+      // Paso 3: Crear datos adicionales
+      await _enviarDatosAdicionales(idCliente);
+
+      // Paso 4: Crear ingresos
+      await _enviarIngresos(idCliente);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _enviarCliente() async {
+    final url = Uri.parse("http://192.168.0.108:3000/api/v1/clientes");
+
+    final datosCliente = {
+      "tipoclientes": selectedTipoCliente ?? "",
+      "ocupacion": ocupacionController.text,
       "nombres": nombresController.text,
-      "apellidoPaterno": apellidoPController.text,
-      "apellidoMaterno": apellidoMController.text,
-      "tipoCliente": selectedTipoCliente,
-      "sexo": selectedSexo,
-      "estadoCivil": selectedECivil,
-      "fechaNacimiento": selectedDate != null
-          ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+      "apellidoP": apellidoPController.text,
+      "apellidoM": apellidoMController.text,
+      "fechaNac": selectedDate != null
+          ? "${selectedDate!.year}-${selectedDate!.month}-${selectedDate!.day}"
           : null,
+      "sexo": selectedSexo ?? "",
       "telefono": telefonoClienteController.text,
-      "correoElectronico": emailClientecontroller.text,
-      "domicilio": {
-        "calle": calleController.text,
-        "noExt": nExtController.text,
-        "noInt": nIntController.text,
-        "entreCalle": entreCalleController.text,
-        "codigoPostal": cpController.text,
-        "tiempoViviendo": tiempoViviendoController.text,
-        "colonia": coloniaController.text,
-        "estado": estadoController.text,
-        "municipio": municipioController.text
-      },
+      "eCivil": selectedECivil ?? "",
+      "email": emailClientecontroller.text,
+      "dependientes_economicos": depEconomicosController.text,
+      "nombreConyuge": nombreConyugeController.text,
+      "telefonoConyuge": telefonoConyugeController.text,
+      "ocupacionConyuge": ocupacionConyugeController.text
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(datosCliente),
+      );
+      if (response.statusCode == 201) {
+        return jsonDecode(response.body)[
+            0]; // Asumiendo que el servidor responde con un array
+      } else {
+        print("Error en crear cliente: ${response.statusCode}");
+        print("Cuerpo de la respuesta: ${response.body}");
+      }
+    } catch (e) {
+      print("Error al enviar cliente: $e");
+    }
+    return null;
+  }
+
+  Future<void> _enviarDomicilio(String idCliente) async {
+    final url = Uri.parse("http://192.168.0.108:3000/api/v1/domicilios");
+
+    final datosDomicilio = {
+      "idclientes": idCliente,
+      "tipo_domicilio": selectedTipoDomicilio ?? "",
+      "nombre_propietario": nombrePropietarioController.text,
+      "parentesco": parentescoPropietarioController.text,
+      "calle": calleController.text,
+      "nExt": nExtController.text,
+      "nInt": nIntController.text,
+      "entreCalle": entreCalleController.text,
+      "colonia": coloniaController.text,
+      "cp": cpController.text,
+      "estado": estadoController.text,
+      "municipio": municipioController.text,
+      "tiempoViviendo": tiempoViviendoController.text
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(datosDomicilio),
+      );
+      if (response.statusCode == 200) {
+        print("Domicilio agregado correctamente");
+      } else {
+        print("Error en agregar domicilio: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error al enviar domicilio: $e");
+    }
+  }
+
+  Future<void> _enviarDatosAdicionales(String idCliente) async {
+    final url = Uri.parse("http://192.168.0.108:3000/api/v1/datosadicionales");
+
+    final datosAdicionales = {
+      "idclientes": idCliente,
+      "NombreCliente":
+          "${nombresController.text} ${apellidoPController.text} ${apellidoMController.text}",
       "curp": curpController.text,
       "rfc": rfcController.text,
-    },
-     "IngresosEgresos": ingresosEgresos.map((item) => {
-      "descripcion": item['descripcion'],
-      "tipo": item['tipo'],
-      "monto": item['monto']
-    }).toList(),
-     "Referencias": referencias.map((referencia) => {
-      "nombres": referencia['nombres'],
-      "apellidoP": referencia['apellidoP'],
-      "apellidoM": referencia['apellidoM'],
-      "parentesco": referencia['parentesco'],
-      "telefono": referencia['telefono'],
-      "tiempoConocer": referencia['tiempoConocer'],
-      "calle": referencia['calle'],
-      "nExt": referencia['nExt'],
-      "nInt": referencia['nInt'],
-      "entreCalle": referencia['entreCalle'],
-      "colonia": referencia['colonia'],
-      "cp": referencia['cp'],
-      "estado": referencia['estado'],
-      "municipio": referencia['municipio'],
-      "tiempoViviendo": referencia['tiempoViviendo']
-    }).toList()
-  };
+    };
 
-  // Convertir a JSON y mostrar en consola
-  print(jsonEncode(datosCliente));
-}
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(datosAdicionales),
+      );
+      if (response.statusCode == 200) {
+        print("Datos adicionales agregados correctamente");
+      } else {
+        print("Error en agregar datos adicionales: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error al enviar datos adicionales: $e");
+    }
+  }
+
+  Future<void> _enviarIngresos(String idCliente) async {
+    final url = Uri.parse("http://192.168.0.108:3000/api/v1/ingresos");
+
+    final ingresosData = ingresosEgresos
+        .map((item) => {
+              "idclientes": idCliente,
+              "años_actividad": item['añosenActividad'] ?? 0,
+              "descripcion": item['descripcion'] ?? "",
+              "monto_semanal": item['monto'] ?? 0
+            })
+        .toList();
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(ingresosData),
+      );
+      if (response.statusCode == 200) {
+        print("Ingresos agregados correctamente");
+      } else {
+        print("Error en agregar ingresos: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error al enviar ingresos: $e");
+    }
+  }
+
+  void imprimirDatosCliente() {
+    final datosCliente = {
+      "InformacionPersonal": {
+        "nombres": nombresController.text,
+        "apellidoPaterno": apellidoPController.text,
+        "apellidoMaterno": apellidoMController.text,
+        "tipoCliente": selectedTipoCliente ?? "",
+        "sexo": selectedSexo ?? "",
+        "estadoCivil": selectedECivil ?? "",
+        "fechaNacimiento": selectedDate != null
+            ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+            : null,
+        "ocupacion": ocupacionController.text,
+        "dependientes_economicos": depEconomicosController.text,
+        "telefono": telefonoClienteController.text,
+        "correoElectronico": emailClientecontroller.text,
+        "nombreConyuge": nombreConyugeController.text,
+        "numeroConyuge": telefonoConyugeController.text,
+        "ocupacionConyuge": ocupacionConyugeController.text,
+        "domicilio": {
+          "tipoDomicilio": selectedTipoDomicilio ?? "",
+          "nombredelPropietario": nombrePropietarioController.text,
+          "parentescoPropietario": parentescoPropietarioController.text,
+          "calle": calleController.text,
+          "noExt": nExtController.text,
+          "noInt": nIntController.text,
+          "entreCalle": entreCalleController.text,
+          "codigoPostal": cpController.text,
+          "tiempoViviendo": tiempoViviendoController.text,
+          "colonia": coloniaController.text,
+          "estado": estadoController.text,
+          "municipio": municipioController.text
+        },
+        "curp": curpController.text,
+        "rfc": rfcController.text,
+      },
+      "IngresosEgresos": ingresosEgresos
+          .map((item) => {
+                "descripcion": item['descripcion'] ?? "",
+                "tipo": item['tipo'] ?? "",
+                "monto": item['monto'] ?? 0,
+                "añosenActividad": item['añosenActividad'] ?? 0
+              })
+          .toList(),
+      "Referencias": referencias
+          .map((referencia) => {
+                "nombres": referencia['nombres'] ?? "",
+                "apellidoP": referencia['apellidoP'] ?? "",
+                "apellidoM": referencia['apellidoM'] ?? "",
+                "parentesco": referencia['parentesco'] ?? "",
+                "telefono": referencia['telefono'] ?? "",
+                "tiempoConocer": referencia['tiempoConocer'] ?? "",
+                "calle": referencia['calle'] ?? "",
+                "nExt": referencia['nExt'] ?? "",
+                "nInt": referencia['nInt'] ?? "",
+                "entreCalle": referencia['entreCalle'] ?? "",
+                "colonia": referencia['colonia'] ?? "",
+                "cp": referencia['cp'] ?? "",
+                "estado": referencia['estado'] ?? "",
+                "municipio": referencia['municipio'] ?? "",
+                "tiempoViviendo": referencia['tiempoViviendo'] ?? ""
+              })
+          .toList()
+    };
+
+    // Convertir a JSON y mostrar en consola
+    try {
+      print(jsonEncode(datosCliente));
+    } catch (e) {
+      print("Error al convertir a JSON: $e");
+    }
+  }
 }
