@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 class nClienteDialog extends StatefulWidget {
@@ -453,7 +455,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                         child: _buildTextField(
                           controller: emailClientecontroller,
                           label: 'Correo electróncio',
-                          icon: Icons.phone,
+                          icon: Icons.email,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese el correo electrónico';
@@ -1437,6 +1439,58 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _agregarCliente() {
-    // Agregar cliente y validaciones aquí
-  }
+  final datosCliente = {
+    "InformacionPersonal": {
+      "nombres": nombresController.text,
+      "apellidoPaterno": apellidoPController.text,
+      "apellidoMaterno": apellidoMController.text,
+      "tipoCliente": selectedTipoCliente,
+      "sexo": selectedSexo,
+      "estadoCivil": selectedECivil,
+      "fechaNacimiento": selectedDate != null
+          ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+          : null,
+      "telefono": telefonoClienteController.text,
+      "correoElectronico": emailClientecontroller.text,
+      "domicilio": {
+        "calle": calleController.text,
+        "noExt": nExtController.text,
+        "noInt": nIntController.text,
+        "entreCalle": entreCalleController.text,
+        "codigoPostal": cpController.text,
+        "tiempoViviendo": tiempoViviendoController.text,
+        "colonia": coloniaController.text,
+        "estado": estadoController.text,
+        "municipio": municipioController.text
+      },
+      "curp": curpController.text,
+      "rfc": rfcController.text,
+    },
+     "IngresosEgresos": ingresosEgresos.map((item) => {
+      "descripcion": item['descripcion'],
+      "tipo": item['tipo'],
+      "monto": item['monto']
+    }).toList(),
+     "Referencias": referencias.map((referencia) => {
+      "nombres": referencia['nombres'],
+      "apellidoP": referencia['apellidoP'],
+      "apellidoM": referencia['apellidoM'],
+      "parentesco": referencia['parentesco'],
+      "telefono": referencia['telefono'],
+      "tiempoConocer": referencia['tiempoConocer'],
+      "calle": referencia['calle'],
+      "nExt": referencia['nExt'],
+      "nInt": referencia['nInt'],
+      "entreCalle": referencia['entreCalle'],
+      "colonia": referencia['colonia'],
+      "cp": referencia['cp'],
+      "estado": referencia['estado'],
+      "municipio": referencia['municipio'],
+      "tiempoViviendo": referencia['tiempoViviendo']
+    }).toList()
+  };
+
+  // Convertir a JSON y mostrar en consola
+  print(jsonEncode(datosCliente));
+}
 }
