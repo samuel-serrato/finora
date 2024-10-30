@@ -131,7 +131,7 @@ class _nClienteDialogState extends State<nClienteDialog>
         child: Column(
           children: [
             Text(
-              'Agregar Cliente',
+              'Agregar Clientee',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
