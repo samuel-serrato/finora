@@ -21,7 +21,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   // Define el tamaño de texto aquí
-  final double textTableSize = 12.0; // Tamaño de texto más pequeño
+  final double textTableSize = 10.0; // Tamaño de texto más pequeño
 
   Future<void> obtenerClientes() async {
     try {
@@ -331,7 +331,7 @@ class Cliente {
       sexo: json['sexo'],
       telefono: json['telefono'] ?? 'N/A', // Proveer 'N/A' si es null
       email: json['email'] ?? 'N/A', // Proveer 'N/A' si es null
-      eCilvi: json['eCilvi'],
+      eCilvi: json['eCivil'],
       fCreacion: json['fCreacion'],
     );
   }

@@ -70,12 +70,21 @@ class _nClienteDialogState extends State<nClienteDialog>
   ];
 
   List<String> tiposIngresoEgreso = [
-    ' Actividad economica',
+    'Actividad economica',
     'Actividad Laboral',
     'Credito con otras financieras',
     'Aportaciones del esposo',
     'Otras aportaciones'
   ];
+
+  // Mapa para asociar tipos con sus respectivos IDs
+  Map<String, int> tiposIngresoEgresoIds = {
+    'Actividad economica': 1,
+    'Actividad Laboral': 2,
+    'Credito con otras financieras': 3,
+    'Aportaciones del esposo': 4,
+    'Otras aportaciones': 5
+  };
 
   final List<String> tiposDomicilio = [
     'Propio',
@@ -1149,7 +1158,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                               'Madre',
                               'Hermano/a',
                               'Amigo/a',
-                              'Veceino',
+                              'Vecino',
                               'Otro'
                             ],
                             onChanged: (value) {
@@ -1628,20 +1637,28 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _agregarCliente() async {
-    imprimirDatosCliente();
-    // Paso 1: Crear cliente
     final clienteResponse = await _enviarCliente();
     if (clienteResponse != null) {
       final idCliente = clienteResponse["idclientes"];
+      print("ID del cliente creado: $idCliente");
 
-      // Paso 2: Crear domicilio
-      await _enviarDomicilio(idCliente);
+      if (idCliente != null) {
+        // Paso 2: Crear domicilio
+        await _enviarDomicilio(idCliente);
 
-      // Paso 3: Crear datos adicionales
-      await _enviarDatosAdicionales(idCliente);
+        // Paso 3: Crear datos adicionales
+        await _enviarDatosAdicionales(idCliente);
 
-      // Paso 4: Crear ingresos
-      await _enviarIngresos(idCliente);
+        // Paso 4: Crear ingresos
+        await _enviarIngresos(idCliente);
+
+        // Paso 5: Crear referencias
+        await _enviarReferencias(idCliente);
+      } else {
+        print("Error: idCliente es nulo.");
+      }
+    } else {
+      print("Error: clienteResponse es nulo.");
     }
   }
 
@@ -1673,12 +1690,17 @@ class _nClienteDialogState extends State<nClienteDialog>
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(datosCliente),
       );
+      print("Código de estado de la respuesta: ${response.statusCode}");
+      print(
+          "Cuerpo de la respuesta: ${response.body}"); // Imprime el cuerpo completo
+
       if (response.statusCode == 201) {
-        return jsonDecode(response.body)[
-            0]; // Asumiendo que el servidor responde con un array
+        final responseBody = jsonDecode(response.body);
+        print(
+            "Cuerpo decodificado: $responseBody"); // Verifica cómo se ve el JSON decodificado
+        return responseBody; // Devuelve el objeto completo
       } else {
         print("Error en crear cliente: ${response.statusCode}");
-        print("Cuerpo de la respuesta: ${response.body}");
       }
     } catch (e) {
       print("Error al enviar cliente: $e");
@@ -1705,16 +1727,34 @@ class _nClienteDialogState extends State<nClienteDialog>
       "tiempoViviendo": tiempoViviendoController.text
     };
 
+    print('IMPRESION domicilio!');
+    print(jsonEncode({
+      "idclientes": idCliente,
+      "tipo_domicilio": selectedTipoDomicilio ?? "",
+      "nombre_propietario": nombrePropietarioController.text,
+      "parentesco": parentescoPropietarioController.text,
+      "calle": calleController.text,
+      "nExt": nExtController.text,
+      "nInt": nIntController.text,
+      "entreCalle": entreCalleController.text,
+      "colonia": coloniaController.text,
+      "cp": cpController.text,
+      "estado": estadoController.text,
+      "municipio": municipioController.text,
+      "tiempoViviendo": tiempoViviendoController.text
+    }));
+
     try {
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(datosDomicilio),
       );
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         print("Domicilio agregado correctamente");
       } else {
         print("Error en agregar domicilio: ${response.statusCode}");
+        print("Cuerpo de la respuesta: ${response.body}");
       }
     } catch (e) {
       print("Error al enviar domicilio: $e");
@@ -1732,16 +1772,26 @@ class _nClienteDialogState extends State<nClienteDialog>
       "rfc": rfcController.text,
     };
 
+    print('IMPRESION datos adicionales!');
+    print(jsonEncode({
+      "idclientes": idCliente,
+      "NombreCliente":
+          "${nombresController.text} ${apellidoPController.text} ${apellidoMController.text}",
+      "curp": curpController.text,
+      "rfc": rfcController.text,
+    }));
+
     try {
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(datosAdicionales),
       );
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         print("Datos adicionales agregados correctamente");
       } else {
         print("Error en agregar datos adicionales: ${response.statusCode}");
+        print("Cuerpo de la respuesta: ${response.body}");
       }
     } catch (e) {
       print("Error al enviar datos adicionales: $e");
@@ -1754,11 +1804,17 @@ class _nClienteDialogState extends State<nClienteDialog>
     final ingresosData = ingresosEgresos
         .map((item) => {
               "idclientes": idCliente,
+              "idinfo": tiposIngresoEgresoIds[item['tipo']] ??
+                  0, // Obtener el ID en lugar del texto
               "años_actividad": item['añosenActividad'] ?? 0,
               "descripcion": item['descripcion'] ?? "",
               "monto_semanal": item['monto'] ?? 0
             })
         .toList();
+
+    // Imprimir los datos antes de enviarlos
+    print("Datos a enviar para ingresos:");
+    print(jsonEncode(ingresosData));
 
     try {
       final response = await http.post(
@@ -1766,13 +1822,57 @@ class _nClienteDialogState extends State<nClienteDialog>
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(ingresosData),
       );
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         print("Ingresos agregados correctamente");
       } else {
         print("Error en agregar ingresos: ${response.statusCode}");
+        print("Cuerpo de la respuesta: ${response.body}");
       }
     } catch (e) {
       print("Error al enviar ingresos: $e");
+    }
+  }
+
+  Future<void> _enviarReferencias(String idCliente) async {
+    final url = Uri.parse("http://192.168.0.108:3000/api/v1/referencia");
+
+    final referenciasData = referencias
+        .map((referencia) => {
+              "idclientes": idCliente,
+              "nombres": referencia['nombres'] ?? "",
+              "apellidoP": referencia['apellidoP'] ?? "",
+              "apellidoM": referencia['apellidoM'] ?? "",
+              "parentesco": referencia['parentesco'] ?? "",
+              "telefono": referencia['telefono'] ?? "",
+              "tiempoConocer": referencia['tiempoConocer'] ?? "",
+              "calle": referencia['calle'] ?? "",
+              "nExt": referencia['nExt'] ?? "",
+              "nInt": referencia['nInt'] ?? "",
+              "entreCalle": referencia['entreCalle'] ?? "",
+              "colonia": referencia['colonia'] ?? "",
+              "cp": referencia['cp'] ?? "",
+              "estado": referencia['estado'] ?? "",
+              "municipio": referencia['municipio'] ?? "",
+              "tiempoViviendo": referencia['tiempoViviendo'] ?? ""
+            })
+        .toList(growable: false);
+    print("Datos a enviar para referencias:");
+    print(jsonEncode(referenciasData));
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(referenciasData),
+      );
+      if (response.statusCode == 201) {
+        print("Referencias agregadas correctamente");
+      } else {
+        print("Error en agregar referencias: ${response.statusCode}");
+        print("Cuerpo de la respuesta: ${response.body}");
+      }
+    } catch (e) {
+      print("Error al enviar referencias: $e");
     }
   }
 
