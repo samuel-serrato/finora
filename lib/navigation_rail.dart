@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:money_facil/screens/clientes.dart';
-import 'package:money_facil/screens/consultas.dart';
 import 'package:money_facil/screens/grupos.dart';
 import 'package:money_facil/screens/home.dart';
 import 'package:money_facil/screens/seguimiento.dart';

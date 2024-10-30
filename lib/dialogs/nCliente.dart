@@ -126,18 +126,16 @@ class _nClienteDialogState extends State<nClienteDialog>
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
-            IgnorePointer(
-              child: TabBar(
-                controller: _tabController,
-                labelColor: Color(0xFFFB2056),
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Color(0xFFFB2056),
-                tabs: [
-                  Tab(text: 'Información Personal'),
-                  Tab(text: 'Ingresos y Egresos'),
-                  Tab(text: 'Referencias'),
-                ],
-              ),
+            TabBar(
+              controller: _tabController,
+              labelColor: Color(0xFFFB2056),
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Color(0xFFFB2056),
+              tabs: [
+                Tab(text: 'Información Personal'),
+                Tab(text: 'Ingresos y Egresos'),
+                Tab(text: 'Referencias'),
+              ],
             ),
             Expanded(
               child: TabBarView(
