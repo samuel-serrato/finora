@@ -17,7 +17,7 @@ class _NavigationRailScreenState extends State<NavigationRailScreen> {
   List<Widget> _widgetOptions = <Widget>[
     HomeScreen(username: 'samuel',),
     SeguimientoScreen(),
-    GruposScreen(username: 'samuel',),
+    GruposScreen(),
     ClientesScreen(),
     SimuladorScreen(username: 'samuel',)
   ];

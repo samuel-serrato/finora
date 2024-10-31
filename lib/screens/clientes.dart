@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:money_facil/custom_app_bar.dart';
 import 'package:money_facil/dialogs/nCliente.dart';
 
 class ClientesScreen extends StatefulWidget {
@@ -56,9 +57,23 @@ class _ClientesScreenState extends State<ClientesScreen> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
+  bool _isDarkMode = false; // Estado del modo oscuro
+
+  void _toggleDarkMode(bool value) {
+    setState(() {
+      _isDarkMode = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFFf7f8fa),
+      appBar: CustomAppBar(
+        isDarkMode: _isDarkMode,
+        toggleDarkMode: _toggleDarkMode,
+        title: 'Clientes', // Título específico para esta pantalla
+      ),
       body: content(context),
     );
   }
@@ -66,69 +81,43 @@ class _ClientesScreenState extends State<ClientesScreen> {
   Widget content(BuildContext context) {
     return Column(
       children: [
-        filaBienvenida(),
         filaSearch(context),
         filaTabla(context),
       ],
     );
   }
 
-  Widget filaBienvenida() {
+  Widget filaSearch(BuildContext context) {
+    double maxWidth = MediaQuery.of(context).size.width * 0.35;
     return Container(
-      color: Color(0xFFEFF5FD),
-      padding: EdgeInsets.all(16.0),
+      padding: EdgeInsets.only(top: 10, bottom: 0, left: 20, right: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
           Container(
-            width: 200,
-            padding: EdgeInsets.all(10.0),
+            height: 40,
+            constraints: BoxConstraints(maxWidth: maxWidth),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.white, width: 2.0),
+              color: Colors.white, // Fondo blanco del TextField
               borderRadius: BorderRadius.circular(20.0),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.person, color: Colors.black),
-                SizedBox(width: 10.0),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Nombre del usuario'),
-                    Text('Tipo de usuario'),
-                  ],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 8.0,
+                  offset: Offset(
+                      1, 1), // Cambia estos valores para ajustar la dirección
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget filaSearch(BuildContext context) {
-    double maxWidth = MediaQuery.of(context).size.width * 0.35;
-    return Container(
-      color: Color(0xFFEFF5FD),
-      padding: EdgeInsets.only(bottom: 0, left: 20, right: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Text(
-            'Clientes',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          Container(
-            constraints: BoxConstraints(maxWidth: maxWidth),
             child: TextField(
               decoration: InputDecoration(
                 contentPadding:
                     EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
                 focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20.0),
-                    borderSide:
-                        BorderSide(color: Color.fromARGB(255, 137, 192, 255))),
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide:
+                      BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
+                ),
                 prefixIcon: Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,
@@ -139,7 +128,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                 ),
               ),
             ),
-          ),
+          )
         ],
       ),
     );
@@ -148,7 +137,6 @@ class _ClientesScreenState extends State<ClientesScreen> {
   Widget filaTabla(BuildContext context) {
     return Expanded(
       child: Container(
-        color: Color(0xFFEFF5FD),
         padding: EdgeInsets.all(20),
         child: Container(
           padding: EdgeInsets.all(16.0),

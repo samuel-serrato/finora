@@ -131,7 +131,7 @@ class _nClienteDialogState extends State<nClienteDialog>
         child: Column(
           children: [
             Text(
-              'Agregar Clientee',
+              'Agregar Cliente',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
@@ -410,73 +410,6 @@ class _nClienteDialogState extends State<nClienteDialog>
                     ],
                   ),
                   SizedBox(height: verticalSpacing),
-
-                  // Agrupamos Estado Civil y Fecha de Nacimiento
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildDropdown(
-                          value: selectedECivil,
-                          hint: 'Estado Civil',
-                          items: estadosCiviles,
-                          onChanged: (value) {
-                            setState(() {
-                              selectedECivil = value;
-                            });
-                          },
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Container(
-                          height: 50, // Disminuir altura
-                          color: Colors.transparent,
-                          child: TextButton(
-                            onPressed: () async {
-                              DateTime? pickedDate = await showDatePicker(
-                                context: context,
-                                initialDate: selectedDate ?? DateTime.now(),
-                                firstDate: DateTime(1900),
-                                lastDate: DateTime.now(),
-                              );
-                              if (pickedDate != null) {
-                                setState(() {
-                                  selectedDate = pickedDate;
-                                });
-                              }
-                            },
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.symmetric(
-                                  vertical: 10,
-                                  horizontal: 10), // Disminuir padding
-                              side: BorderSide(
-                                  color: Colors.grey.shade800, width: 1.0),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              backgroundColor: Colors.transparent,
-                            ),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                selectedDate != null
-                                    ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
-                                    : 'Selecciona una fecha de nacimiento',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                  color: selectedDate != null
-                                      ? Colors.grey.shade800
-                                      : Colors.grey.shade800,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: verticalSpacing),
                   Row(
                     children: [
                       Expanded(
@@ -541,49 +474,121 @@ class _nClienteDialogState extends State<nClienteDialog>
                     ],
                   ),
                   SizedBox(height: verticalSpacing),
-                  Row(
+                  // Agrupamos Estado Civil y Fecha de Nacimiento
+                  Column(
                     children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: nombreConyugeController,
-                          label: 'Nombre del Conyuge',
-                          icon: Icons.person,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese nombres';
-                            }
-                            return null;
-                          },
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDropdown(
+                              value: selectedECivil,
+                              hint: 'Estado Civil',
+                              items: estadosCiviles,
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedECivil = value;
+                                });
+                              },
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Container(
+                              height: 50, // Disminuir altura
+                              color: Colors.transparent,
+                              child: TextButton(
+                                onPressed: () async {
+                                  DateTime? pickedDate = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedDate ?? DateTime.now(),
+                                    firstDate: DateTime(1900),
+                                    lastDate: DateTime.now(),
+                                  );
+                                  if (pickedDate != null) {
+                                    setState(() {
+                                      selectedDate = pickedDate;
+                                    });
+                                  }
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: 10,
+                                      horizontal: 10), // Disminuir padding
+                                  side: BorderSide(
+                                      color: Colors.grey.shade800, width: 1.0),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  backgroundColor: Colors.transparent,
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    selectedDate != null
+                                        ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                        : 'Selecciona una fecha de nacimiento',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                      color: selectedDate != null
+                                          ? Colors.grey.shade800
+                                          : Colors.grey.shade800,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: telefonoConyugeController,
-                          label: 'Número celular del Conyuge',
-                          icon: Icons.person_outline,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese el dato';
-                            }
-                            return null;
-                          },
+                      SizedBox(height: verticalSpacing),
+                      if (selectedECivil ==
+                          'Casado') // Condición para mostrar la fila solo si el estado civil es 'Casado'
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildTextField(
+                                controller: nombreConyugeController,
+                                label: 'Nombre del Conyuge',
+                                icon: Icons.person,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Por favor, ingrese nombres';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: _buildTextField(
+                                controller: telefonoConyugeController,
+                                label: 'Número celular del Conyuge',
+                                icon: Icons.person_outline,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Por favor, ingrese el dato';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: _buildTextField(
+                                controller: ocupacionConyugeController,
+                                label: 'Ocupación',
+                                icon: Icons.person_outline,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Por favor, ingrese el dato';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: ocupacionConyugeController,
-                          label: 'Ocupación',
-                          icon: Icons.person_outline,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese el dato';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
                     ],
                   ),
                   SizedBox(height: verticalSpacing),

@@ -1,150 +1,174 @@
 import 'package:flutter/material.dart';
 
-class AddGroupDialog extends StatefulWidget {
+class nGrupoDialog extends StatefulWidget {
+  final VoidCallback onGrupoAgregado;
+
+  nGrupoDialog({required this.onGrupoAgregado});
+
   @override
-  _AddGroupDialogState createState() => _AddGroupDialogState();
+  _nGrupoDialogState createState() => _nGrupoDialogState();
 }
 
-class _AddGroupDialogState extends State<AddGroupDialog> {
-  String selectedMember = 'Seleccionar Integrante 1';
-  String selectedGroup = 'Seleccionar Grupo';
-  final TextEditingController loanNameController = TextEditingController();
-  final TextEditingController detailsController = TextEditingController();
+class _nGrupoDialogState extends State<nGrupoDialog> with SingleTickerProviderStateMixin {
+  final TextEditingController nombreGrupoController = TextEditingController();
+  final TextEditingController descripcionController = TextEditingController();
+  final TextEditingController liderGrupoController = TextEditingController();
+  final TextEditingController miembrosController = TextEditingController();
+
+  late TabController _tabController;
+  int _currentIndex = 0;
+
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _infoGrupoFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _miembrosFormKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _currentIndex = _tabController.index;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.0),
-      ),
-      title: Text('Agregar Grupo'),
-      content: SingleChildScrollView(
+    final width = MediaQuery.of(context).size.width * 0.8;
+    final height = MediaQuery.of(context).size.height * 0.6;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: width,
+        height: height,
+        padding: EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Estructura de dos columnas
+            Text(
+              'Agregar Grupo',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 10),
+            TabBar(
+              controller: _tabController,
+              labelColor: Color(0xFFFB2056),
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Color(0xFFFB2056),
+              tabs: [
+                Tab(text: 'Información del Grupo'),
+                Tab(text: 'Miembros del Grupo'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                    child: _paginaInfoGrupo(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                    child: _paginaMiembros(),
+                  ),
+                ],
+              ),
+            ),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Primera columna
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Campo desplegable para seleccionar integrante
-                      DropdownButtonFormField<String>(
-                        value: selectedMember,
-                        items: [
-                          'Seleccionar Integrante 1',
-                          'Integrante 2',
-                          'Integrante 3'
-                        ].map((String member) {
-                          return DropdownMenuItem<String>(
-                            value: member,
-                            child: Text(member),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedMember = value!;
-                          });
-                        },
-                        decoration: InputDecoration(
-                          labelText: 'Integrante 1',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                      SizedBox(height: 20),
-
-                      // Campo para agregar detalles
-                      TextField(
-                        controller: detailsController,
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          labelText: 'Detalles',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ],
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
+                  child: Text('Cancelar'),
                 ),
-                SizedBox(width: 20),
-
-                // Segunda columna
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Campo desplegable para seleccionar grupo
-                      DropdownButtonFormField<String>(
-                        value: selectedGroup,
-                        items: [
-                          'Seleccionar Grupo',
-                          'Grupo 1',
-                          'Grupo 2',
-                          'Grupo 3'
-                        ].map((String group) {
-                          return DropdownMenuItem<String>(
-                            value: group,
-                            child: Text(group),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedGroup = value!;
-                          });
+                Row(
+                  children: [
+                    if (_currentIndex > 0)
+                      TextButton(
+                        onPressed: () {
+                          _tabController.animateTo(_currentIndex - 1);
                         },
-                        decoration: InputDecoration(
-                          labelText: 'Grupo',
-                          border: OutlineInputBorder(),
-                        ),
+                        child: Text('Atrás'),
                       ),
-                      SizedBox(height: 20),
-
-                      // Campo de texto para el nombre del préstamo
-                      TextField(
-                        controller: loanNameController,
-                        decoration: InputDecoration(
-                          labelText: 'Nombre del Préstamo',
-                          border: OutlineInputBorder(),
-                        ),
+                    if (_currentIndex < 1)
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_currentIndex == 0 && _infoGrupoFormKey.currentState!.validate()) {
+                            _tabController.animateTo(_currentIndex + 1);
+                          }
+                        },
+                        child: Text('Siguiente'),
                       ),
-                    ],
-                  ),
+                    if (_currentIndex == 1)
+                      ElevatedButton(
+                        onPressed: _agregarGrupo,
+                        child: Text('Agregar'),
+                      ),
+                  ],
                 ),
               ],
             ),
           ],
         ),
       ),
-      actions: [
-        ElevatedButton(
-          onPressed: () {
-            // Lógica para aceptar
-            Navigator.of(context).pop();
-          },
-          child: Text('Aceptar'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            // Lógica para cancelar
-            Navigator.of(context).pop();
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.grey,
-          ),
-          child: Text('Cancelar'),
-        ),
-      ],
     );
   }
-}
 
-// Función para mostrar el diálogo
-void showAddGroupDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AddGroupDialog();
-    },
-  );
+  Widget _paginaInfoGrupo() {
+    return Form(
+      key: _infoGrupoFormKey,
+      child: Column(
+        children: [
+          TextFormField(
+            controller: nombreGrupoController,
+            decoration: InputDecoration(labelText: 'Nombre del Grupo'),
+            validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+          ),
+          TextFormField(
+            controller: descripcionController,
+            decoration: InputDecoration(labelText: 'Descripción'),
+            validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+          ),
+          TextFormField(
+            controller: liderGrupoController,
+            decoration: InputDecoration(labelText: 'Líder del Grupo'),
+            validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _paginaMiembros() {
+    return Form(
+      key: _miembrosFormKey,
+      child: Column(
+        children: [
+          TextFormField(
+            controller: miembrosController,
+            decoration: InputDecoration(labelText: 'Miembros del Grupo'),
+            validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+          ),
+          // Puedes añadir más campos para agregar detalles específicos de los miembros
+        ],
+      ),
+    );
+  }
+
+  void _agregarGrupo() {
+    if (_infoGrupoFormKey.currentState!.validate() && _miembrosFormKey.currentState!.validate()) {
+      widget.onGrupoAgregado();
+      Navigator.of(context).pop();
+    }
+  }
 }
