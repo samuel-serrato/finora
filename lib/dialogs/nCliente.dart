@@ -40,6 +40,11 @@ class _nClienteDialogState extends State<nClienteDialog>
   final TextEditingController parentescoPropietarioController =
       TextEditingController();
 
+  final TextEditingController nombrePropietarioRefController =
+      TextEditingController();
+  final TextEditingController parentescoRefPropController =
+      TextEditingController();
+
   final TextEditingController ocupacionController = TextEditingController();
   final TextEditingController depEconomicosController = TextEditingController();
 
@@ -54,6 +59,9 @@ class _nClienteDialogState extends State<nClienteDialog>
   String? selectedTipoCliente;
   DateTime? selectedDate;
   String? selectedTipoDomicilio;
+  String? selectedTipoDomicilioRef;
+
+  bool _isLoading = false; // Estado para controlar el CircularProgressIndicator
 
   final List<String> sexos = ['Masculino', 'Femenino'];
   final List<String> estadosCiviles = [
@@ -66,6 +74,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   final List<String> tiposClientes = [
     'Asalariado',
     'Independiente',
+    'Comerciante',
     'Jubilado'
   ];
 
@@ -75,6 +84,16 @@ class _nClienteDialogState extends State<nClienteDialog>
     'Credito con otras financieras',
     'Aportaciones del esposo',
     'Otras aportaciones'
+  ];
+
+  // Lista de bancos
+  final List<String> _bancos = [
+    "BBVA",
+    "Santander",
+    "Banorte",
+    "HSBC",
+    "Citibanamex",
+    "Scotiabank"
   ];
 
   // Mapa para asociar tipos con sus respectivos IDs
@@ -103,13 +122,22 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _personalFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _cuentaBancariaFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _ingresosEgresosFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _referenciasFormKey = GlobalKey<FormState>();
+
+  bool _noCuentaBancaria = false;
+  // Controladores de texto para los campos
+  final TextEditingController _numCuentaController = TextEditingController();
+  final TextEditingController _numTarjetaController = TextEditingController();
+
+  // Variables para manejar el banco seleccionado
+  String? _nombreBanco; // Almacena el nombre del banco seleccionado
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       setState(() {
         _currentIndex = _tabController.index;
@@ -128,96 +156,125 @@ class _nClienteDialogState extends State<nClienteDialog>
         width: width,
         height: height,
         padding: EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              'Agregar Cliente',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 10),
-            TabBar(
-              controller: _tabController,
-              labelColor: Color(0xFFFB2056),
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Color(0xFFFB2056),
-              tabs: [
-                Tab(text: 'Información Personal'),
-                Tab(text: 'Ingresos y Egresos'),
-                Tab(text: 'Referencias'),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        right: 30, top: 10, bottom: 10, left: 0),
-                    child: _paginaInfoPersonal(),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        right: 30, top: 10, bottom: 10, left: 0),
-                    child: _paginaIngresosEgresos(),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        right: 30, top: 10, bottom: 10, left: 0),
-                    child: _paginaReferencias(),
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text('Cancelar'),
-                ),
-                Row(
-                  children: [
-                    if (_currentIndex > 0)
-                      TextButton(
-                        onPressed: () {
-                          _tabController.animateTo(_currentIndex - 1);
-                        },
-                        child: Text('Atrás'),
+        child:
+            _isLoading // Si está cargando, muestra el CircularProgressIndicator
+                ? Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : Column(
+                    children: [
+                      Text(
+                        'Agregar Cliente',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
                       ),
-                    if (_currentIndex < 2)
-                      ElevatedButton(
-                        onPressed: () {
-                          // Validar según el índice actual
-                          if (_currentIndex == 0 &&
-                              _personalFormKey.currentState!.validate()) {
-                            _tabController.animateTo(_currentIndex + 1);
-                          } else if (_currentIndex == 1 &&
-                              _ingresosEgresosFormKey.currentState!
-                                  .validate()) {
-                            _tabController.animateTo(_currentIndex + 1);
-                          }
-                        },
-                        child: Text('Siguiente'),
+                      SizedBox(height: 10),
+                      TabBar(
+                        controller: _tabController,
+                        labelColor: Color(0xFFFB2056),
+                        unselectedLabelColor: Colors.grey,
+                        indicatorColor: Color(0xFFFB2056),
+                        tabs: [
+                          Tab(text: 'Información Personal'),
+                          Tab(text: 'Cuenta Bancaria'),
+                          Tab(text: 'Ingresos y Egresos'),
+                          Tab(text: 'Referencias'),
+                        ],
                       ),
-                    if (_currentIndex == 2)
-                      ElevatedButton(
-                        onPressed: _agregarCliente,
-                        child: Text('Agregar'),
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  right: 30, top: 10, bottom: 10, left: 0),
+                              child: _paginaInfoPersonal(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  right: 30, top: 10, bottom: 10, left: 0),
+                              child: _paginaCuentaBancaria(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  right: 30, top: 10, bottom: 10, left: 0),
+                              child: _paginaIngresosEgresos(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  right: 30, top: 10, bottom: 10, left: 0),
+                              child: _paginaReferencias(),
+                            ),
+                          ],
+                        ),
                       ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.grey,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text('Cancelar'),
+                          ),
+                          Row(
+                            children: [
+                              if (_currentIndex > 0)
+                                TextButton(
+                                  onPressed: () {
+                                    _tabController.animateTo(_currentIndex - 1);
+                                  },
+                                  child: Text('Atrás'),
+                                ),
+                              if (_currentIndex < 2)
+                                ElevatedButton(
+                                  onPressed: () {
+                                    // Validar según el índice actual
+                                    if (_currentIndex == 0 &&
+                                        _personalFormKey.currentState != null &&
+                                        _personalFormKey.currentState!
+                                            .validate()) {
+                                      _tabController
+                                          .animateTo(_currentIndex + 1);
+                                    } else if (_currentIndex == 1 &&
+                                        _cuentaBancariaFormKey.currentState !=
+                                            null &&
+                                        _cuentaBancariaFormKey.currentState!
+                                            .validate()) {
+                                      // Cambia a _cuentaBancariaFormKey
+                                      _tabController
+                                          .animateTo(_currentIndex + 1);
+                                    } else if (_currentIndex == 2 &&
+                                        _ingresosEgresosFormKey.currentState !=
+                                            null &&
+                                        _ingresosEgresosFormKey.currentState!
+                                            .validate()) {
+                                      _tabController
+                                          .animateTo(_currentIndex + 1);
+                                    } else if (_currentIndex == 3 &&
+                                        _referenciasFormKey.currentState !=
+                                            null &&
+                                        _referenciasFormKey.currentState!
+                                            .validate()) {
+                                      _agregarCliente(); // Llama a agregar cliente si es la última página
+                                    }
+                                  },
+                                  child: Text(_currentIndex == 3
+                                      ? 'Agregar'
+                                      : 'Siguiente'),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
       ),
     );
   }
@@ -293,11 +350,15 @@ class _nClienteDialogState extends State<nClienteDialog>
                 SizedBox(height: 20),
 
                 // Paso 2
-                _buildPasoItem(2, "Ingresos y Egresos", pasoActual == 2),
+                _buildPasoItem(2, "Cuenta Bancaria", pasoActual == 2),
                 SizedBox(height: 20),
 
                 // Paso 3
-                _buildPasoItem(3, "Referencias", pasoActual == 3),
+                _buildPasoItem(3, "Ingresos y Egresos", pasoActual == 3),
+                SizedBox(height: 20),
+
+                // Paso 4
+                _buildPasoItem(4, "Referencias", pasoActual == 4),
               ],
             ),
           ),
@@ -591,7 +652,6 @@ class _nClienteDialogState extends State<nClienteDialog>
                         ),
                     ],
                   ),
-                  SizedBox(height: verticalSpacing),
                   // Sección de Domicilio
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -867,8 +927,127 @@ class _nClienteDialogState extends State<nClienteDialog>
     );
   }
 
+  Widget _paginaCuentaBancaria() {
+    int pasoActual = 2; // Paso actual en la página de "Cuenta Bancaria"
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Contenedor azul a la izquierda para los pasos
+        Container(
+          decoration: BoxDecoration(
+            color: Color(0xFFFB2056),
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+          width: 250,
+          height: 500,
+          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              // Paso 1
+              _buildPasoItem(1, "Información Personal", pasoActual == 1),
+              SizedBox(height: 20),
+
+              // Paso 2
+              _buildPasoItem(2, "Cuenta Bancaria", pasoActual == 2),
+              SizedBox(height: 20),
+
+              // Paso 3
+              _buildPasoItem(3, "Ingresos y Egresos", pasoActual == 3),
+              SizedBox(height: 20),
+
+              // Paso 4
+              _buildPasoItem(4, "Referencias", pasoActual == 4),
+            ],
+          ),
+        ),
+        SizedBox(width: 50), // Espacio entre el contenedor azul y la lista
+
+        // Contenido principal: Formulario de cuenta bancaria
+        Expanded(
+          child: Form(
+            key: _cuentaBancariaFormKey, // Usar el GlobalKey aquí
+            child: Column(
+              children: [
+                SizedBox(
+                    height: 20), // Espacio entre el contenedor azul y la lista
+                // Opción de "No tiene cuenta bancaria"
+                CheckboxListTile(
+                  title: Text("No tiene cuenta bancaria"),
+                  value: _noCuentaBancaria,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      _noCuentaBancaria = value ?? false;
+                      // Limpiar los campos si se selecciona "No tiene cuenta bancaria"
+                      if (_noCuentaBancaria) {
+                        _nombreBanco = null;
+                        _numCuentaController.clear();
+                        _numTarjetaController.clear();
+                      }
+                    });
+                  },
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.symmetric(
+                      horizontal: 0), // Eliminar padding horizontal
+                  visualDensity: VisualDensity.compact,
+                ),
+
+                SizedBox(height: 20),
+                if (!_noCuentaBancaria) ...[
+                  _buildDropdown(
+                    value: _nombreBanco,
+                    hint: 'Seleccione un Banco',
+                    items: _bancos,
+                    onChanged: (value) {
+                      setState(() {
+                        _nombreBanco = value; // Asigna el banco seleccionado
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Por favor seleccione un banco';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 10), // Espacio entre los campos
+                  _buildTextField(
+                    controller: _numCuentaController,
+                    label: 'Número de Cuenta',
+                    icon: Icons.account_balance,
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor ingrese el número de cuenta';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 10), // Espacio entre los campos
+                  _buildTextField(
+                    controller: _numTarjetaController,
+                    label: 'Número de Tarjeta',
+                    icon: Icons.credit_card,
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor ingrese el número de tarjeta';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _paginaIngresosEgresos() {
-    int pasoActual = 2; // Paso actual en la página de "Ingresos y Egresos"
+    int pasoActual = 3; // Paso actual en la página de "Ingresos y Egresos"
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -890,11 +1069,15 @@ class _nClienteDialogState extends State<nClienteDialog>
               SizedBox(height: 20),
 
               // Paso 2
-              _buildPasoItem(2, "Ingresos y Egresos", pasoActual == 2),
+              _buildPasoItem(2, "Cuenta Bancaria", pasoActual == 2),
               SizedBox(height: 20),
 
               // Paso 3
-              _buildPasoItem(3, "Referencias", pasoActual == 3),
+              _buildPasoItem(3, "Ingresos y Egresos", pasoActual == 3),
+              SizedBox(height: 20),
+
+              // Paso 4
+              _buildPasoItem(4, "Referencias", pasoActual == 4),
             ],
           ),
         ),
@@ -919,7 +1102,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           children: [
                             Text('${item['tipo']} - \$${item['monto']}'),
                             Text(
-                                'Años en Actividad- \$${item['añosenActividad']}'),
+                                'Años en Actividad - ${item['añosenActividad']}'),
                           ],
                         ),
                         trailing: Row(
@@ -957,7 +1140,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Widget _paginaReferencias() {
-    int pasoActual = 3; // Paso actual en la página de "Ingresos y Egresos"
+    int pasoActual = 4; // Paso actual en la página de "Ingresos y Egresos"
 
     return Row(
       children: [
@@ -978,11 +1161,15 @@ class _nClienteDialogState extends State<nClienteDialog>
               SizedBox(height: 20),
 
               // Paso 2
-              _buildPasoItem(2, "Ingresos y Egresos", pasoActual == 2),
+              _buildPasoItem(2, "Cuenta Bancaria", pasoActual == 2),
               SizedBox(height: 20),
 
               // Paso 3
-              _buildPasoItem(3, "Referencias", pasoActual == 3),
+              _buildPasoItem(3, "Ingresos y Egresos", pasoActual == 3),
+              SizedBox(height: 20),
+
+              // Paso 4
+              _buildPasoItem(4, "Referencias", pasoActual == 4),
             ],
           ),
         ),
@@ -999,25 +1186,94 @@ class _nClienteDialogState extends State<nClienteDialog>
                       margin: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
                       child: ListTile(
                         title: Text(
-                          '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}',
+                          '${referencia['nombresRef']} ${referencia['apellidoPRef']} ${referencia['apellidoMRef']}',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Parentesco: ${referencia['parentesco']}'),
-                            Text('Teléfono: ${referencia['telefono']}'),
-                            Text(
-                                'Tiempo de conocer: ${referencia['tiempoConocer']}'),
-                            Text('Calle: ${referencia['calle']}'),
-                            Text('Num Ext: ${referencia['nExt']}'),
-                            Text('Num Ext: ${referencia['nInt']}'),
-                            Text('Entre calles: ${referencia['entreCalle']}'),
-                            Text('Colonia: ${referencia['colonia']}'),
-                            Text('CP: ${referencia['cp']}'),
-                            Text('Estado: ${referencia['estado']}'),
-                            Text('Municipio: ${referencia['municipio']}'),
-                            Text(
-                                'Tiempo viviendo: ${referencia['tiempoViviendo']}'),
+                            // Datos de la referencia
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                    'Parentesco: ${referencia['parentescoRef']}'),
+                                Text('Teléfono: ${referencia['telefonoRef']}'),
+                                Text(
+                                    'Tiempo de conocer: ${referencia['tiempoConocerRef']}'),
+                              ],
+                            ),
+
+                            SizedBox(height: 10), // Separador
+
+                            // Datos del domicilio de la referencia
+                            Text('Domicilio',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                    child: Text(
+                                        'Tipo: ${referencia['tipoDomicilioRef']}')),
+                                Expanded(
+                                    child: Text(
+                                        'Propietario: ${referencia['nombrePropietarioRef']}')),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                    child: Text(
+                                        'Parentesco con propietario: ${referencia['parentescoRefProp']}')),
+                                Expanded(
+                                    child: Text(
+                                        'Calle: ${referencia['calleRef']}')),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                    child: Text(
+                                        'Num Ext: ${referencia['nExtRef']}')),
+                                Expanded(
+                                    child: Text(
+                                        'Num Int: ${referencia['nIntRef']}')),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Expanded(
+                                    child: Text(
+                                        'Entre calles: ${referencia['entreCalleRef']}')),
+                                Expanded(
+                                  child: Text(
+                                      'Tiempo viviendo: ${referencia['tiempoViviendoRef']}'),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                Expanded(
+                                    child: Text(
+                                        'Colonia: ${referencia['coloniaRef']}')),
+                                Expanded(
+                                    child: Text('CP: ${referencia['cpRef']}')),
+                              ],
+                            ),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                    child: Text(
+                                        'Estado: ${referencia['estadoRef']}')),
+                                Expanded(
+                                    child: Text(
+                                        'Municipio: ${referencia['municipioRef']}')),
+                              ],
+                            ),
                           ],
                         ),
                         trailing: Row(
@@ -1058,35 +1314,46 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogReferencia({int? index, Map<String, dynamic>? item}) {
-// Asignación inicial para dropdowns
-    String? selectedParentesco = item?['parentesco'];
+    // Asignación inicial para dropdowns
+    String? selectedParentesco = item?['parentescoRef'];
+    String? selectedTipoDomicilioRef = item?['tipoDomicilioRef'];
 
-    final tiempoConocerController =
-        TextEditingController(text: item?['tiempoConocer'] ?? '');
-    final tiempoViviendoController =
-        TextEditingController(text: item?['tiempoViviendo'] ?? '');
-    final nombresController =
-        TextEditingController(text: item?['nombres'] ?? '');
-    final apellidoPController =
-        TextEditingController(text: item?['apellidoP'] ?? '');
-    final apellidoMController =
-        TextEditingController(text: item?['apellidoM'] ?? '');
+    // Controladores
+    final parentescoRefPropController =
+        TextEditingController(text: item?['parentescoRefProp'] ?? '');
+    final nombrePropietarioRefController =
+        TextEditingController(text: item?['nombrePropietarioRef'] ?? '');
+    final tiempoConocerRefController =
+        TextEditingController(text: item?['tiempoConocerRef'] ?? '');
+    final nombresRefController =
+        TextEditingController(text: item?['nombresRef'] ?? '');
+    final apellidoPRefController =
+        TextEditingController(text: item?['apellidoPRef'] ?? '');
+    final apellidoMRefController =
+        TextEditingController(text: item?['apellidoMRef'] ?? '');
+    final telefonoRefController =
+        TextEditingController(text: item?['telefonoRef'] ?? '');
 
-    final telefonoController =
-        TextEditingController(text: item?['telefono'] ?? '');
+    // Controladores de domicilio de referencia
+    final calleRefController =
+        TextEditingController(text: item?['calleRef'] ?? '');
+    final nExtRefController =
+        TextEditingController(text: item?['nExtRef'] ?? '');
+    final nIntRefController =
+        TextEditingController(text: item?['nIntRef'] ?? '');
+    final entreCalleRefController =
+        TextEditingController(text: item?['entreCalleRef'] ?? '');
+    final coloniaRefController =
+        TextEditingController(text: item?['coloniaRef'] ?? '');
+    final cpRefController = TextEditingController(text: item?['cpRef'] ?? '');
+    final estadoRefController =
+        TextEditingController(text: item?['estadoRef'] ?? '');
+    final municipioRefController =
+        TextEditingController(text: item?['municipioRef'] ?? '');
+    final tiempoViviendoRefController =
+        TextEditingController(text: item?['tiempoViviendoRef'] ?? '');
 
-    final calleController = TextEditingController(text: item?['calle'] ?? '');
-    final entreCalleController =
-        TextEditingController(text: item?['entreCalle'] ?? '');
-    final coloniaController =
-        TextEditingController(text: item?['colonia'] ?? '');
-    final cpController = TextEditingController(text: item?['cp'] ?? '');
-    final nExtController = TextEditingController(text: item?['nExt'] ?? '');
-    final nIntController = TextEditingController(text: item?['nInt'] ?? '');
-    final estadoController = TextEditingController(text: item?['estado'] ?? '');
-    final municipioController =
-        TextEditingController(text: item?['municipio'] ?? '');
-
+    // Configuración del diálogo
     final width = MediaQuery.of(context).size.width * 0.7;
     final height = MediaQuery.of(context).size.height * 0.6;
 
@@ -1101,337 +1368,359 @@ class _nClienteDialogState extends State<nClienteDialog>
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
         ),
-        content: Container(
-          width: width,
-          height: height,
-          child: SingleChildScrollView(
-            child: Form(
-              key: _referenciasFormKey, // Asigna la clave al formulario
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Información de la persona de referencia',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+        content: StatefulBuilder(
+          builder: (context, setState) => Container(
+            width: width,
+            height: height,
+            child: SingleChildScrollView(
+              child: Form(
+                key: _referenciasFormKey,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Información de la persona de referencia',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600),
                             ),
-                          ),
-                          Divider(color: Colors.grey[300]),
-                          SizedBox(height: 10),
-                          _buildTextField(
-                            controller: nombresController,
-                            label: 'Nombres',
-                            icon: Icons.person,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, ingrese su nombre';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 10),
-                          _buildTextField(
-                            controller: apellidoPController,
-                            label: 'Apellido Paterno',
-                            icon: Icons.person_outline,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, ingrese su apellido paterno';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 10),
-                          _buildTextField(
-                            controller: apellidoMController,
-                            label: 'Apellido Materno',
-                            icon: Icons.person_outline,
-                          ),
-                          SizedBox(height: 10),
-                          _buildDropdown(
-                            value: selectedParentesco,
-                            hint: 'Parentesco',
-                            items: [
-                              'Padre',
-                              'Madre',
-                              'Hermano/a',
-                              'Amigo/a',
-                              'Vecino',
-                              'Otro'
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                selectedParentesco = value;
-                              });
-                            },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, seleccione el parentesco';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 10),
-                          _buildTextField(
-                            controller: telefonoController,
-                            label: 'Teléfono',
-                            icon: Icons.phone,
-                            keyboardType: TextInputType.phone,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, ingrese su teléfono';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 10),
-                          _buildTextField(
-                            controller: tiempoConocerController,
-                            label: 'Tiempo de conocer',
-                            icon: Icons.timelapse_rounded,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, ingrese el tiempo de conocer';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
+                            Divider(color: Colors.grey[300]),
+                            SizedBox(height: 10),
+                            _buildTextField(
+                              controller: nombresRefController,
+                              label: 'Nombres',
+                              icon: Icons.person,
+                              validator: (value) => value?.isEmpty == true
+                                  ? 'Por favor, ingrese su nombre'
+                                  : null,
+                            ),
+                            SizedBox(height: 10),
+                            _buildTextField(
+                              controller: apellidoPRefController,
+                              label: 'Apellido Paterno',
+                              icon: Icons.person_outline,
+                              validator: (value) => value?.isEmpty == true
+                                  ? 'Por favor, ingrese su apellido paterno'
+                                  : null,
+                            ),
+                            SizedBox(height: 10),
+                            _buildTextField(
+                              controller: apellidoMRefController,
+                              label: 'Apellido Materno',
+                              icon: Icons.person_outline,
+                            ),
+                            SizedBox(height: 10),
+                            _buildDropdown(
+                              value: selectedParentesco,
+                              hint: 'Parentesco',
+                              items: [
+                                'Padre',
+                                'Madre',
+                                'Hermano/a',
+                                'Amigo/a',
+                                'Vecino',
+                                'Otro'
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  selectedParentesco = value;
+                                });
+                              },
+                              validator: (value) => value == null
+                                  ? 'Por favor, seleccione el parentesco'
+                                  : null,
+                            ),
+                            SizedBox(height: 10),
+                            _buildTextField(
+                              controller: telefonoRefController,
+                              label: 'Teléfono',
+                              icon: Icons.phone,
+                              keyboardType: TextInputType.phone,
+                              validator: (value) => value?.isEmpty == true
+                                  ? 'Por favor, ingrese su teléfono'
+                                  : null,
+                            ),
+                            SizedBox(height: 10),
+                            _buildTextField(
+                              controller: tiempoConocerRefController,
+                              label: 'Tiempo de conocer',
+                              icon: Icons.timelapse_rounded,
+                              validator: (value) => value?.isEmpty == true
+                                  ? 'Por favor, ingrese el tiempo de conocer'
+                                  : null,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(width: 20),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Datos del domicilio de la referencia',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                    SizedBox(width: 20),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Datos del domicilio de la referencia',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600),
                             ),
-                          ),
-                          Divider(color: Colors.grey[300]),
-                          Text(
-                            'Los datos de domicilio de la referencia son opcionales',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey[700]),
-                          ),
-                          SizedBox(height: 10),
-                          _buildTextField(
-                            controller: calleController,
-                            label: 'Calle',
-                            icon: Icons.location_on,
-                            /*   validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, ingrese la calle';
-                              }
-                              return null;
-                            }, */
-                          ),
-                          SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTextField(
-                                  controller: nExtController,
-                                  label: 'Núm. Ext',
-                                  icon: Icons.house,
-                                  /*  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Por favor, ingrese el número exterior';
-                                    }
-                                    return null;
-                                  }, */
+                            Divider(color: Colors.grey[300]),
+                            Text(
+                              'Los datos de domicilio de la referencia son opcionales',
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey[700]),
+                            ),
+                            SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: _buildDropdown(
+                                    value: selectedTipoDomicilioRef,
+                                    hint: 'Tipo Domicilio',
+                                    items: [
+                                      'Propio',
+                                      'Alquilado',
+                                      'Prestado',
+                                      'Otro'
+                                    ],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        selectedTipoDomicilioRef = value;
+                                        // Imprimir en consola para verificar el valor seleccionado
+                                        print(
+                                            "selectedTipoDomicilioRef: $selectedTipoDomicilioRef");
+                                      });
+                                    },
+                                  ),
                                 ),
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: _buildTextField(
-                                  controller: nIntController,
-                                  label: 'Núm. Int',
-                                  icon: Icons.house,
-                                  /*  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Por favor, ingrese el número interior';
-                                    }
-                                    return null;
-                                  }, */
+                                SizedBox(width: 10),
+                                Expanded(
+                                  flex: 6,
+                                  child: _buildTextField(
+                                    controller: calleRefController,
+                                    label: 'Calle',
+                                    icon: Icons.location_on,
+                                    /*   validator: (value) => value?.isEmpty == true
+                                        ? 'Por favor, ingrese Calle'
+                                        : null, */
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 10),
-                          _buildTextField(
-                            controller: entreCalleController,
-                            label: 'Entre Calle',
-                            icon: Icons.location_on,
-                          ),
-                          SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildTextField(
-                                  controller: coloniaController,
-                                  label: 'Colonia',
-                                  icon: Icons.location_city,
-                                  /*   validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Por favor, ingrese la colonia';
-                                    }
-                                    return null;
-                                  }, */
-                                ),
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: _buildTextField(
-                                  controller: cpController,
-                                  label: 'Código Postal',
-                                  icon: Icons.mail,
-                                  keyboardType: TextInputType.number,
-                                  /*    validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Por favor, ingrese el código postal';
-                                    }
-                                    return null;
-                                  }, */
-                                ),
+                              ],
+                            ),
+
+                            // Mostrar los campos adicionales solo si selectedTipoDomicilioRef es diferente de Propio
+                            if (selectedTipoDomicilioRef != null &&
+                                selectedTipoDomicilioRef != 'Propio') ...[
+                              SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 4,
+                                    child: _buildTextField(
+                                      controller:
+                                          nombrePropietarioRefController,
+                                      label: 'Nombre del Propietario',
+                                      icon: Icons.person,
+                                    ),
+                                  ),
+                                  SizedBox(width: 10),
+                                  Expanded(
+                                    flex: 4,
+                                    child: _buildTextField(
+                                      controller: parentescoRefPropController,
+                                      label: 'Parentesco con propietario',
+                                      icon: Icons.family_restroom,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                          SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildDropdown(
-                                  value: estadoController.text.isNotEmpty
-                                      ? estadoController.text
-                                      : null,
-                                  hint: 'Estado',
-                                  items: ['Guerrero'],
-                                  onChanged: (newValue) {
-                                    if (newValue != null) {
-                                      estadoController.text =
-                                          newValue; // Actualiza el controlador
-                                    }
-                                  },
-                                  /*  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Por favor, seleccione el estado';
-                                    }
-                                    return null;
-                                  }, */
+
+                            SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: _buildTextField(
+                                    controller: nExtRefController,
+                                    label: 'No. Ext',
+                                    icon: Icons.house,
+                                    keyboardType: TextInputType.number,
+                                    /*  validator: (value) => value?.isEmpty == true
+                                        ? 'Por favor, ingrese No. Ext'
+                                        : null, */
+                                  ),
                                 ),
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: _buildTextField(
-                                  controller: municipioController,
-                                  label: 'Municipio',
-                                  icon: Icons.map,
-                                  /* validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Por favor, ingrese el municipio';
-                                    }
-                                    return null;
-                                  }, */
+                                SizedBox(width: 10),
+                                Expanded(
+                                  flex: 2,
+                                  child: _buildTextField(
+                                    controller: nIntRefController,
+                                    label: 'No. Int',
+                                    icon: Icons.house,
+                                    keyboardType: TextInputType.number,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: 10),
-                          _buildTextField(
-                            controller: tiempoViviendoController,
-                            label: 'Tiempo viviendo',
-                            icon: Icons.access_time,
-                            /*     validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, ingrese el tiempo viviendo';
-                              }
-                              return null;
-                            }, */
-                          ),
-                        ],
+                              ],
+                            ),
+                            SizedBox(height: 10),
+                            _buildTextField(
+                              controller: entreCalleRefController,
+                              label: 'Entre Calle',
+                              icon: Icons.location_on,
+                            ),
+                            SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildTextField(
+                                    controller: coloniaRefController,
+                                    label: 'Colonia',
+                                    icon: Icons.location_city,
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildTextField(
+                                    controller: cpRefController,
+                                    label: 'Código Postal',
+                                    icon: Icons.mail,
+                                    keyboardType: TextInputType.number,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildDropdown(
+                                    value: estadoRefController.text.isNotEmpty
+                                        ? estadoRefController.text
+                                        : null,
+                                    hint: 'Estado',
+                                    items: ['Guerrero'],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        estadoRefController.text = value ?? '';
+                                      });
+                                    },
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildTextField(
+                                    controller: municipioRefController,
+                                    label: 'Municipio',
+                                    icon: Icons.map,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 10),
+                            _buildTextField(
+                              controller: tiempoViviendoRefController,
+                              label: 'Tiempo Viviendo',
+                              icon: Icons.timelapse,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
             child: Text('Cancelar'),
           ),
-          ElevatedButton(
+          TextButton(
             onPressed: () {
               if (_referenciasFormKey.currentState!.validate()) {
-                setState(() {
-                  Map<String, String> nuevaReferencia = {
-                    'nombres': nombresController.text.isNotEmpty
-                        ? nombresController.text
-                        : '',
-                    'apellidoP': apellidoPController.text.isNotEmpty
-                        ? apellidoPController.text
-                        : '',
-                    'apellidoM': apellidoMController.text.isNotEmpty
-                        ? apellidoMController.text
-                        : '',
-                    'parentesco': selectedParentesco ??
-                        '', // Proporciona un valor por defecto
-                    'telefono': telefonoController.text.isNotEmpty
-                        ? telefonoController.text
-                        : '',
-                    'tiempoConocer': tiempoConocerController.text.isNotEmpty
-                        ? tiempoConocerController.text
-                        : '',
-                    'calle': calleController.text.isNotEmpty
-                        ? calleController.text
-                        : '',
-                    'entreCalle': entreCalleController.text.isNotEmpty
-                        ? entreCalleController.text
-                        : '',
-                    'colonia': coloniaController.text.isNotEmpty
-                        ? coloniaController.text
-                        : '',
-                    'cp': cpController.text.isNotEmpty ? cpController.text : '',
-                    'nExt': nExtController.text.isNotEmpty
-                        ? nExtController.text
-                        : '',
-                    'nInt': nIntController.text.isNotEmpty
-                        ? nIntController.text
-                        : '',
-                    'estado': estadoController.text.isNotEmpty
-                        ? estadoController.text
-                        : '',
-                    'municipio': municipioController.text.isNotEmpty
-                        ? municipioController.text
-                        : '',
-                    'tiempoViviendo': tiempoViviendoController.text.isNotEmpty
-                        ? tiempoViviendoController.text
-                        : '',
-                  };
+                // Recoger los datos de los controladores
+                final nuevaReferencia = {
+                  'nombresRef': nombresRefController.text.isNotEmpty
+                      ? nombresRefController.text
+                      : '',
+                  'apellidoPRef': apellidoPRefController.text.isNotEmpty
+                      ? apellidoPRefController.text
+                      : '',
+                  'apellidoMRef': apellidoMRefController.text.isNotEmpty
+                      ? apellidoMRefController.text
+                      : '',
+                  'parentescoRef': selectedParentesco ?? '',
+                  'telefonoRef': telefonoRefController.text.isNotEmpty
+                      ? telefonoRefController.text
+                      : '',
+                  'tiempoConocerRef': tiempoConocerRefController.text.isNotEmpty
+                      ? tiempoConocerRefController.text
+                      : '',
+                  'tipoDomicilioRef': selectedTipoDomicilioRef ?? '',
+                  'calleRef': calleRefController.text.isNotEmpty
+                      ? calleRefController.text
+                      : '',
+                  'nExtRef': nExtRefController.text.isNotEmpty
+                      ? nExtRefController.text
+                      : '',
+                  'nIntRef': nIntRefController.text.isNotEmpty
+                      ? nIntRefController.text
+                      : '',
+                  'entreCalleRef': entreCalleRefController.text.isNotEmpty
+                      ? entreCalleRefController.text
+                      : '',
+                  'coloniaRef': coloniaRefController.text.isNotEmpty
+                      ? coloniaRefController.text
+                      : '',
+                  'cpRef': cpRefController.text.isNotEmpty
+                      ? cpRefController.text
+                      : '',
+                  'estadoRef': estadoRefController.text.isNotEmpty
+                      ? estadoRefController.text
+                      : '',
+                  'municipioRef': municipioRefController.text.isNotEmpty
+                      ? municipioRefController.text
+                      : '',
+                  'tiempoViviendoRef':
+                      tiempoViviendoRefController.text.isNotEmpty
+                          ? tiempoViviendoRefController.text
+                          : '',
+                  if (selectedTipoDomicilioRef != 'Propio')
+                    'nombrePropietarioRef':
+                        nombrePropietarioRefController.text.isNotEmpty
+                            ? nombrePropietarioRefController.text
+                            : '',
+                  if (selectedTipoDomicilioRef != 'Propio')
+                    'parentescoRefProp':
+                        parentescoRefPropController.text.isNotEmpty
+                            ? parentescoRefPropController.text
+                            : '',
+                };
 
+                // Lógica para agregar o actualizar la referencia
+                setState(() {
                   if (index == null) {
-                    referencias.add(nuevaReferencia);
+                    referencias
+                        .add(nuevaReferencia); // Agregar nueva referencia
                   } else {
-                    referencias[index] = nuevaReferencia;
+                    referencias[index] =
+                        nuevaReferencia; // Actualizar referencia existente
                   }
                 });
-                Navigator.pop(context);
+
+                Navigator.pop(context); // Cerrar el formulario
               }
             },
             child: Text(index == null ? 'Añadir' : 'Guardar'),
@@ -1641,7 +1930,12 @@ class _nClienteDialogState extends State<nClienteDialog>
     );
   }
 
+  // Método modificado para agregar el cliente
   void _agregarCliente() async {
+    setState(() {
+      _isLoading = true; // Activa el indicador de carga
+    });
+
     final clienteResponse = await _enviarCliente();
     if (clienteResponse != null) {
       final idCliente = clienteResponse["idclientes"];
@@ -1659,12 +1953,27 @@ class _nClienteDialogState extends State<nClienteDialog>
 
         // Paso 5: Crear referencias
         await _enviarReferencias(idCliente);
+
+        // Llama al callback para refrescar la lista de clientes
+        widget.onClienteAgregado();
+
+        // Muestra el SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cliente agregado correctamente')),
+        );
+
+        // Cierra el diálogo
+        Navigator.of(context).pop();
       } else {
         print("Error: idCliente es nulo.");
       }
     } else {
       print("Error: clienteResponse es nulo.");
     }
+
+    setState(() {
+      _isLoading = false; // Desactiva el indicador de carga
+    });
   }
 
   Future<Map<String, dynamic>?> _enviarCliente() async {
@@ -1716,38 +2025,27 @@ class _nClienteDialogState extends State<nClienteDialog>
   Future<void> _enviarDomicilio(String idCliente) async {
     final url = Uri.parse("http://192.168.0.108:3000/api/v1/domicilios");
 
-    final datosDomicilio = {
-      "idclientes": idCliente,
-      "tipo_domicilio": selectedTipoDomicilio ?? "",
-      "nombre_propietario": nombrePropietarioController.text,
-      "parentesco": parentescoPropietarioController.text,
-      "calle": calleController.text,
-      "nExt": nExtController.text,
-      "nInt": nIntController.text,
-      "entreCalle": entreCalleController.text,
-      "colonia": coloniaController.text,
-      "cp": cpController.text,
-      "estado": estadoController.text,
-      "municipio": municipioController.text,
-      "tiempoViviendo": tiempoViviendoController.text
-    };
+    // Convertir los datos en un array que contiene un solo map
+    final datosDomicilio = [
+      {
+        "idclientes": idCliente,
+        "tipo_domicilio": selectedTipoDomicilio ?? "",
+        "nombre_propietario": nombrePropietarioController.text,
+        "parentesco": parentescoPropietarioController.text,
+        "calle": calleController.text,
+        "nExt": nExtController.text,
+        "nInt": nIntController.text,
+        "entreCalle": entreCalleController.text,
+        "colonia": coloniaController.text,
+        "cp": cpController.text,
+        "estado": estadoController.text,
+        "municipio": municipioController.text,
+        "tiempoViviendo": tiempoViviendoController.text
+      }
+    ];
 
-    print('IMPRESION domicilio!');
-    print(jsonEncode({
-      "idclientes": idCliente,
-      "tipo_domicilio": selectedTipoDomicilio ?? "",
-      "nombre_propietario": nombrePropietarioController.text,
-      "parentesco": parentescoPropietarioController.text,
-      "calle": calleController.text,
-      "nExt": nExtController.text,
-      "nInt": nIntController.text,
-      "entreCalle": entreCalleController.text,
-      "colonia": coloniaController.text,
-      "cp": cpController.text,
-      "estado": estadoController.text,
-      "municipio": municipioController.text,
-      "tiempoViviendo": tiempoViviendoController.text
-    }));
+    print('IMPRESION domicilio en array!');
+    print(jsonEncode(datosDomicilio));
 
     try {
       final response = await http.post(
@@ -1844,21 +2142,25 @@ class _nClienteDialogState extends State<nClienteDialog>
     final referenciasData = referencias
         .map((referencia) => {
               "idclientes": idCliente,
-              "nombres": referencia['nombres'] ?? "",
-              "apellidoP": referencia['apellidoP'] ?? "",
-              "apellidoM": referencia['apellidoM'] ?? "",
-              "parentesco": referencia['parentesco'] ?? "",
-              "telefono": referencia['telefono'] ?? "",
-              "tiempoConocer": referencia['tiempoConocer'] ?? "",
-              "calle": referencia['calle'] ?? "",
-              "nExt": referencia['nExt'] ?? "",
-              "nInt": referencia['nInt'] ?? "",
-              "entreCalle": referencia['entreCalle'] ?? "",
-              "colonia": referencia['colonia'] ?? "",
-              "cp": referencia['cp'] ?? "",
-              "estado": referencia['estado'] ?? "",
-              "municipio": referencia['municipio'] ?? "",
-              "tiempoViviendo": referencia['tiempoViviendo'] ?? ""
+              "nombres": referencia['nombresRef'] ?? "",
+              "apellidoP": referencia['apellidoPRef'] ?? "",
+              "apellidoM": referencia['apellidoMRef'] ?? "",
+              "parentesco": referencia['parentescoRef'] ?? "",
+              "telefono": referencia['telefonoRef'] ?? "",
+              "tiempoConocer": referencia['tiempoConocerRef'] ?? "",
+              //DOMICILIO
+              "tipo_domicilio": referencia['tipoDomicilioRef'] ?? "",
+              "nombre_propietario": referencia['nombrePropietarioRef'] ?? "",
+              "parentescoRefProp": referencia['parentescoRefProp'] ?? "",
+              "calle": referencia['calleRef'] ?? "",
+              "nExt": referencia['nExtRef'] ?? "",
+              "nInt": referencia['nIntRef'] ?? "",
+              "entreCalle": referencia['entreCalleRef'] ?? "",
+              "colonia": referencia['coloniaRef'] ?? "",
+              "cp": referencia['cpRef'] ?? "",
+              "estado": referencia['estadoRef'] ?? "",
+              "municipio": referencia['municipioRef'] ?? "",
+              "tiempoViviendo": referencia['tiempoViviendoRef'] ?? ""
             })
         .toList(growable: false);
     print("Datos a enviar para referencias:");

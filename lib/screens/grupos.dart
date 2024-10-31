@@ -38,11 +38,13 @@ class _GruposScreenState extends State<GruposScreen> {
   }
 
   // Define el tamaño de texto aquí
+  final double textHeaderTableSize = 12.0;
   final double textTableSize = 10.0;
 
   Future<void> obtenerGrupos() async {
     try {
-      final response = await http.get(Uri.parse('http://192.168.0.108:3000/api/v1/grupos'));
+      final response =
+          await http.get(Uri.parse('http://192.168.0.108:3000/api/v1/grupos'));
 
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -124,10 +126,12 @@ class _GruposScreenState extends State<GruposScreen> {
             ),
             child: TextField(
               decoration: InputDecoration(
-                contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
-                  borderSide: BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
+                  borderSide:
+                      BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
                 ),
                 prefixIcon: Icon(Icons.search),
                 filled: true,
@@ -164,13 +168,17 @@ class _GruposScreenState extends State<GruposScreen> {
                   children: [
                     Text(
                       'Lista de Grupos',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                     ),
                     ElevatedButton(
                       style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
-                        foregroundColor: MaterialStateProperty.all(Colors.white),
-                        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                        backgroundColor:
+                            MaterialStateProperty.all(Color(0xFFFB2056)),
+                        foregroundColor:
+                            MaterialStateProperty.all(Colors.white),
+                        shape:
+                            MaterialStateProperty.all<RoundedRectangleBorder>(
                           RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -195,23 +203,45 @@ class _GruposScreenState extends State<GruposScreen> {
                         ),
                         child: DataTable(
                           showCheckboxColumn: false,
-                          headingRowColor: MaterialStateProperty.resolveWith((states) => Color(0xFFDFE7F5)),
+                          headingRowColor: MaterialStateProperty.resolveWith(
+                              (states) => Color(0xFFDFE7F5)),
                           dataRowHeight: 50,
                           columnSpacing: 30,
-                          headingTextStyle: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
-                          columns: const [
-                            DataColumn(label: Text('ID Grupo')),
-                            DataColumn(label: Text('Nombre')),
-                            DataColumn(label: Text('Detalles')),
-                            DataColumn(label: Text('Fecha Creación')),
+                          headingTextStyle: TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.black),
+                          columns: [
+                            DataColumn(
+                                label: Text(
+                              'ID Grupo',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Nombre',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Detalles',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Fecha Creación',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
                           ],
                           rows: listaGrupos.map((grupo) {
                             return DataRow(
                               cells: [
-                                DataCell(Text(grupo.idTipoGrupo.toString(), style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(grupo.nombre, style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(grupo.detalles, style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(formatDate(grupo.fechaCreacion), style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(grupo.idTipoGrupo.toString(),
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(grupo.nombre,
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(grupo.detalles,
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(formatDate(grupo.fechaCreacion),
+                                    style: TextStyle(fontSize: textTableSize))),
                               ],
                               onSelectChanged: (isSelected) {
                                 setState(() {
@@ -221,7 +251,8 @@ class _GruposScreenState extends State<GruposScreen> {
                               color: MaterialStateColor.resolveWith((states) {
                                 if (states.contains(MaterialState.selected)) {
                                   return Colors.blue.withOpacity(0.1);
-                                } else if (states.contains(MaterialState.hovered)) {
+                                } else if (states
+                                    .contains(MaterialState.hovered)) {
                                   return Colors.blue.withOpacity(0.2);
                                 }
                                 return Colors.transparent;
@@ -254,10 +285,7 @@ class _GruposScreenState extends State<GruposScreen> {
       },
     );
   }
-  
 }
-
-
 
 class Grupo {
   final int idTipoGrupo;

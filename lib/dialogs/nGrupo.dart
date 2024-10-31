@@ -9,7 +9,8 @@ class nGrupoDialog extends StatefulWidget {
   _nGrupoDialogState createState() => _nGrupoDialogState();
 }
 
-class _nGrupoDialogState extends State<nGrupoDialog> with SingleTickerProviderStateMixin {
+class _nGrupoDialogState extends State<nGrupoDialog>
+    with SingleTickerProviderStateMixin {
   final TextEditingController nombreGrupoController = TextEditingController();
   final TextEditingController descripcionController = TextEditingController();
   final TextEditingController liderGrupoController = TextEditingController();
@@ -66,11 +67,13 @@ class _nGrupoDialogState extends State<nGrupoDialog> with SingleTickerProviderSt
                 controller: _tabController,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 10),
                     child: _paginaInfoGrupo(),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 10),
                     child: _paginaMiembros(),
                   ),
                 ],
@@ -103,7 +106,8 @@ class _nGrupoDialogState extends State<nGrupoDialog> with SingleTickerProviderSt
                     if (_currentIndex < 1)
                       ElevatedButton(
                         onPressed: () {
-                          if (_currentIndex == 0 && _infoGrupoFormKey.currentState!.validate()) {
+                          if (_currentIndex == 0 &&
+                              _infoGrupoFormKey.currentState!.validate()) {
                             _tabController.animateTo(_currentIndex + 1);
                           }
                         },
@@ -166,7 +170,8 @@ class _nGrupoDialogState extends State<nGrupoDialog> with SingleTickerProviderSt
   }
 
   void _agregarGrupo() {
-    if (_infoGrupoFormKey.currentState!.validate() && _miembrosFormKey.currentState!.validate()) {
+    if (_infoGrupoFormKey.currentState!.validate() &&
+        _miembrosFormKey.currentState!.validate()) {
       widget.onGrupoAgregado();
       Navigator.of(context).pop();
     }

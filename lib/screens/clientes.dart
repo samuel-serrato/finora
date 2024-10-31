@@ -22,6 +22,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   // Define el tamaño de texto aquí
+  final double textHeaderTableSize = 12.0;
   final double textTableSize = 10.0; // Tamaño de texto más pequeño
 
   Future<void> obtenerClientes() async {
@@ -196,18 +197,62 @@ class _ClientesScreenState extends State<ClientesScreen> {
                           columnSpacing: 30,
                           headingTextStyle: TextStyle(
                               fontWeight: FontWeight.bold, color: Colors.black),
-                          columns: const [
-                            DataColumn(label: Text('ID')),
-                            DataColumn(label: Text('Tipo Cliente')),
-                            DataColumn(label: Text('Nombres')),
-                            DataColumn(label: Text('Apellido P')),
-                            DataColumn(label: Text('Apellido M')),
-                            DataColumn(label: Text('F. Nac')),
-                            DataColumn(label: Text('Sexo')),
-                            DataColumn(label: Text('Teléfono')),
-                            DataColumn(label: Text('Email')),
-                            DataColumn(label: Text('E. Civil')),
-                            DataColumn(label: Text('F. Creación')),
+                          columns: [
+                            DataColumn(
+                                label: Text(
+                              'ID',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Tipo Cliente',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Nombres',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Apellido P',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Apellido M',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'F. Nac',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Sexo',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Teléfono',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'Email',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'E. Civil',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
+                            DataColumn(
+                                label: Text(
+                              'F. Creación',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
                           ],
                           rows: listaClientes.map((cliente) {
                             return DataRow(
@@ -268,7 +313,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
   void mostrarDialogoAgregarCliente() {
     showDialog(
-      barrierDismissible: false, // Evita que se cierre al tocar fuera
+      barrierDismissible: false, // No se puede cerrar tocando fuera
       context: context,
       builder: (context) {
         return nClienteDialog(
