@@ -36,7 +36,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
       body: Row(
         children: [
           Container(
-            width: isMenuOpen ? 200 : 110,
+            width: isMenuOpen ? 180 : 110,
             child: SideMenu(
               controller: sideMenu,
               showToggle: false,
@@ -45,8 +45,8 @@ class _NavigationScreenState extends State<NavigationScreen> {
                     ? SideMenuDisplayMode.open
                     : SideMenuDisplayMode.compact,
                 hoverColor: Colors.blue[100],
-                selectedHoverColor: Color.fromARGB(255, 0, 58, 117),
-                selectedColor: Color(0xFF001F3F),
+                selectedHoverColor: Color.fromARGB(255, 172, 17, 56),
+                selectedColor: Color(0xFFFB2056),
                 selectedTitleTextStyle: const TextStyle(color: Colors.white),
                 selectedIconColor: Colors.white,
                 unselectedTitleTextStyle: TextStyle(color: Colors.black),
@@ -60,7 +60,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                 child: Row(
                   children: [
                     SizedBox(
-                      width: isMenuOpen ? 150 : 70,
+                      width: isMenuOpen ? 140 : 70,
                       height: isMenuOpen
                           ? 100
                           : 70, // Ajusta la altura cuando el menú esté abierto

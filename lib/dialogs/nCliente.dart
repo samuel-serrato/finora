@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -232,37 +233,26 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   },
                                   child: Text('Atrás'),
                                 ),
-                              if (_currentIndex < 2)
+                              if (_currentIndex <= 3)
                                 ElevatedButton(
                                   onPressed: () {
-                                    // Validar según el índice actual
-                                    if (_currentIndex == 0 &&
-                                        _personalFormKey.currentState != null &&
-                                        _personalFormKey.currentState!
-                                            .validate()) {
-                                      _tabController
-                                          .animateTo(_currentIndex + 1);
-                                    } else if (_currentIndex == 1 &&
-                                        _cuentaBancariaFormKey.currentState !=
-                                            null &&
-                                        _cuentaBancariaFormKey.currentState!
-                                            .validate()) {
-                                      // Cambia a _cuentaBancariaFormKey
-                                      _tabController
-                                          .animateTo(_currentIndex + 1);
-                                    } else if (_currentIndex == 2 &&
-                                        _ingresosEgresosFormKey.currentState !=
-                                            null &&
-                                        _ingresosEgresosFormKey.currentState!
-                                            .validate()) {
-                                      _tabController
-                                          .animateTo(_currentIndex + 1);
+                                    if (_currentIndex < 3) {
+                                      if (_validarFormularioActual()) {
+                                        print(
+                                            "Validación exitosa para la pestaña $_currentIndex");
+                                        _tabController
+                                            .animateTo(_currentIndex + 1);
+                                      } else {
+                                        print(
+                                            "Validación fallida en la pestaña $_currentIndex");
+                                      }
                                     } else if (_currentIndex == 3 &&
-                                        _referenciasFormKey.currentState !=
-                                            null &&
-                                        _referenciasFormKey.currentState!
-                                            .validate()) {
-                                      _agregarCliente(); // Llama a agregar cliente si es la última página
+                                        _validarFormularioActual()) {
+                                      print("Llamando a _agregarCliente");
+                                      _agregarCliente();
+                                    } else {
+                                      print(
+                                          "Error en la validación de la pestaña final");
                                     }
                                   },
                                   child: Text(_currentIndex == 3
@@ -277,6 +267,19 @@ class _nClienteDialogState extends State<nClienteDialog>
                   ),
       ),
     );
+  }
+
+  bool _validarFormularioActual() {
+    if (_currentIndex == 0) {
+      return _personalFormKey.currentState?.validate() ?? false;
+    } else if (_currentIndex == 1) {
+      return _cuentaBancariaFormKey.currentState?.validate() ?? false;
+    } else if (_currentIndex == 2) {
+      return _ingresosEgresosFormKey.currentState?.validate() ?? false;
+    } else if (_currentIndex == 3) {
+      return _referenciasFormKey.currentState?.validate() ?? false;
+    }
+    return false;
   }
 
   // Función que crea cada paso con el círculo y el texto
@@ -1017,24 +1020,31 @@ class _nClienteDialogState extends State<nClienteDialog>
                     label: 'Número de Cuenta',
                     icon: Icons.account_balance,
                     keyboardType: TextInputType.number,
+                    maxLength: 11, // Especificar la longitud máxima aquí
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Por favor ingrese el número de cuenta';
+                      } else if (value.length != 11) {
+                        return 'El número de cuenta debe tener exactamente 11 dígitos';
                       }
-                      return null;
+                      return null; // Si es válido
                     },
                   ),
+
                   SizedBox(height: 10), // Espacio entre los campos
                   _buildTextField(
                     controller: _numTarjetaController,
                     label: 'Número de Tarjeta',
                     icon: Icons.credit_card,
                     keyboardType: TextInputType.number,
+                    maxLength: 16, // Especificar la longitud máxima aquí
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Por favor ingrese el número de tarjeta';
+                        return 'Por favor ingrese el número de cuenta';
+                      } else if (value.length != 16) {
+                        return 'El número de cuenta debe tener exactamente 16 dígitos';
                       }
-                      return null;
+                      return null; // Si es válido
                     },
                   ),
                 ],
@@ -1175,138 +1185,150 @@ class _nClienteDialogState extends State<nClienteDialog>
         ),
         SizedBox(width: 50), // Espacio entre el contenedor rojo y la lista
         Expanded(
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  itemCount: referencias.length,
-                  itemBuilder: (context, index) {
-                    final referencia = referencias[index];
-                    return Card(
-                      margin: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                      child: ListTile(
-                        title: Text(
-                          '${referencia['nombresRef']} ${referencia['apellidoPRef']} ${referencia['apellidoMRef']}',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Datos de la referencia
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                    'Parentesco: ${referencia['parentescoRef']}'),
-                                Text('Teléfono: ${referencia['telefonoRef']}'),
-                                Text(
-                                    'Tiempo de conocer: ${referencia['tiempoConocerRef']}'),
-                              ],
-                            ),
+          child: Form(
+            key: _referenciasFormKey,
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: referencias.length,
+                    itemBuilder: (context, index) {
+                      final referencia = referencias[index];
+                      return Card(
+                        margin:
+                            EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                        child: ListTile(
+                          title: Text(
+                            '${referencia['nombresRef']} ${referencia['apellidoPRef']} ${referencia['apellidoMRef']}',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Datos de la referencia
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                      'Parentesco: ${referencia['parentescoRef']}'),
+                                  Text(
+                                      'Teléfono: ${referencia['telefonoRef']}'),
+                                  Text(
+                                      'Tiempo de conocer: ${referencia['tiempoConocerRef']}'),
+                                ],
+                              ),
 
-                            SizedBox(height: 10), // Separador
+                              SizedBox(height: 10), // Separador
 
-                            // Datos del domicilio de la referencia
-                            Text('Domicilio',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
+                              // Datos del domicilio de la referencia
+                              Text('Domicilio',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                      child: Text(
+                                          'Tipo: ${referencia['tipoDomicilioRef']}')),
+                                  Expanded(
+                                      child: Text(
+                                          'Propietario: ${referencia['nombrePropietarioRef']}')),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                      child: Text(
+                                          'Parentesco con propietario: ${referencia['parentescoRefProp']}')),
+                                  Expanded(
+                                      child: Text(
+                                          'Calle: ${referencia['calleRef']}')),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                      child: Text(
+                                          'Num Ext: ${referencia['nExtRef']}')),
+                                  Expanded(
+                                      child: Text(
+                                          'Num Int: ${referencia['nIntRef']}')),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                      child: Text(
+                                          'Entre calles: ${referencia['entreCalleRef']}')),
+                                  Expanded(
                                     child: Text(
-                                        'Tipo: ${referencia['tipoDomicilioRef']}')),
-                                Expanded(
-                                    child: Text(
-                                        'Propietario: ${referencia['nombrePropietarioRef']}')),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                    child: Text(
-                                        'Parentesco con propietario: ${referencia['parentescoRefProp']}')),
-                                Expanded(
-                                    child: Text(
-                                        'Calle: ${referencia['calleRef']}')),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                    child: Text(
-                                        'Num Ext: ${referencia['nExtRef']}')),
-                                Expanded(
-                                    child: Text(
-                                        'Num Int: ${referencia['nIntRef']}')),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                Expanded(
-                                    child: Text(
-                                        'Entre calles: ${referencia['entreCalleRef']}')),
-                                Expanded(
-                                  child: Text(
-                                      'Tiempo viviendo: ${referencia['tiempoViviendoRef']}'),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                Expanded(
-                                    child: Text(
-                                        'Colonia: ${referencia['coloniaRef']}')),
-                                Expanded(
-                                    child: Text('CP: ${referencia['cpRef']}')),
-                              ],
-                            ),
+                                        'Tiempo viviendo: ${referencia['tiempoViviendoRef']}'),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                      child: Text(
+                                          'Colonia: ${referencia['coloniaRef']}')),
+                                  Expanded(
+                                      child:
+                                          Text('CP: ${referencia['cpRef']}')),
+                                ],
+                              ),
 
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                    child: Text(
-                                        'Estado: ${referencia['estadoRef']}')),
-                                Expanded(
-                                    child: Text(
-                                        'Municipio: ${referencia['municipioRef']}')),
-                              ],
-                            ),
-                          ],
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                      child: Text(
+                                          'Estado: ${referencia['estadoRef']}')),
+                                  Expanded(
+                                      child: Text(
+                                          'Municipio: ${referencia['municipioRef']}')),
+                                ],
+                              ),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _mostrarDialogReferencia(
+                                    index: index, item: referencia),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () {
+                                  setState(() {
+                                    referencias.removeAt(index);
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _mostrarDialogReferencia(
-                                  index: index, item: referencia),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
-                              onPressed: () {
-                                setState(() {
-                                  referencias.removeAt(index);
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-              Container(
-                margin: EdgeInsets.only(top: 10),
-                child: ElevatedButton(
-                  onPressed: _mostrarDialogReferencia,
-                  child: Text('Añadir Referencia'),
+                Container(
+                  margin: EdgeInsets.only(top: 10),
+                  child: ElevatedButton(
+                    onPressed: _mostrarDialogReferencia,
+                    child: Text('Añadir Referencia'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -1869,6 +1891,7 @@ class _nClienteDialogState extends State<nClienteDialog>
     TextInputType keyboardType = TextInputType.text,
     String? Function(String?)? validator,
     double fontSize = 12.0, // Tamaño de fuente por defecto
+    int? maxLength, // Longitud máxima opcional
   }) {
     return TextFormField(
       controller: controller,
@@ -1881,6 +1904,11 @@ class _nClienteDialogState extends State<nClienteDialog>
         labelStyle: TextStyle(fontSize: fontSize),
       ),
       validator: validator, // Asignar el validador
+      inputFormatters: maxLength != null
+          ? [
+              LengthLimitingTextInputFormatter(maxLength)
+            ] // Limita a la longitud especificada
+          : [], // Sin limitación si maxLength es null
     );
   }
 
@@ -1930,7 +1958,6 @@ class _nClienteDialogState extends State<nClienteDialog>
     );
   }
 
-  // Método modificado para agregar el cliente
   void _agregarCliente() async {
     setState(() {
       _isLoading = true; // Activa el indicador de carga
@@ -1942,16 +1969,19 @@ class _nClienteDialogState extends State<nClienteDialog>
       print("ID del cliente creado: $idCliente");
 
       if (idCliente != null) {
-        // Paso 2: Crear domicilio
+        // Paso 2: Crear cuenta bancaria
+        await _enviarCuentaBanco(idCliente);
+
+        // Paso 3: Crear domicilio
         await _enviarDomicilio(idCliente);
 
-        // Paso 3: Crear datos adicionales
+        // Paso 4: Crear datos adicionales
         await _enviarDatosAdicionales(idCliente);
 
-        // Paso 4: Crear ingresos
+        // Paso 5: Crear ingresos
         await _enviarIngresos(idCliente);
 
-        // Paso 5: Crear referencias
+        // Paso 6: Crear referencias
         await _enviarReferencias(idCliente);
 
         // Llama al callback para refrescar la lista de clientes
@@ -2020,6 +2050,37 @@ class _nClienteDialogState extends State<nClienteDialog>
       print("Error al enviar cliente: $e");
     }
     return null;
+  }
+
+  Future<void> _enviarCuentaBanco(String idCliente) async {
+    final url = Uri.parse("http://192.168.0.108:3000/api/v1/cuentabanco");
+
+    final datosCuentaBanco = {
+      "idclientes": idCliente,
+      "iddetallegrupos": "",
+      "nombreBanco": _nombreBanco ?? "",
+      "numCuenta": _numCuentaController.text,
+      "numTarjeta": _numTarjetaController.text
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(datosCuentaBanco),
+      );
+      print(
+          "Código de estado de la respuesta de cuenta bancaria: ${response.statusCode}");
+      print("Cuerpo de la respuesta de cuenta bancaria: ${response.body}");
+
+      if (response.statusCode == 201) {
+        print("Cuenta bancaria creada correctamente");
+      } else {
+        print("Error al crear cuenta bancaria: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error al enviar cuenta bancaria: $e");
+    }
   }
 
   Future<void> _enviarDomicilio(String idCliente) async {

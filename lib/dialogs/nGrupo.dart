@@ -37,7 +37,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.8;
-    final height = MediaQuery.of(context).size.height * 0.6;
+    final height = MediaQuery.of(context).size.height * 0.7;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -128,25 +128,103 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     );
   }
 
+  // Función que crea cada paso con el círculo y el texto
+  Widget _buildPasoItem(int numeroPaso, String titulo, bool isActive) {
+    return Row(
+      children: [
+        // Círculo numerado para el paso
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isActive
+                ? Colors.white
+                : Colors.transparent, // Fondo blanco solo si está activo
+            border: Border.all(
+                color: Colors.white,
+                width: 2), // Borde blanco en todos los casos
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            numeroPaso.toString(),
+            style: TextStyle(
+              color: isActive
+                  ? Color(0xFFFB2056)
+                  : Colors.white, // Texto rojo si está activo, blanco si no
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        SizedBox(width: 10),
+
+        // Texto del paso
+        Expanded(
+          child: Text(
+            titulo,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _paginaInfoGrupo() {
+    int pasoActual = 1; // Paso actual que queremos marcar como activo
+
     return Form(
       key: _infoGrupoFormKey,
-      child: Column(
+      child: Row(
         children: [
-          TextFormField(
-            controller: nombreGrupoController,
-            decoration: InputDecoration(labelText: 'Nombre del Grupo'),
-            validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+          Container(
+            decoration: BoxDecoration(
+                color: Color(0xFFFB2056),
+                borderRadius: BorderRadius.all(Radius.circular(20))),
+            width: 250,
+            height: 500,
+            padding: EdgeInsets.symmetric(
+                vertical: 20, horizontal: 10), // Espaciado vertical
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // Paso 1
+                _buildPasoItem(1, "Informacion del grupo", pasoActual == 1),
+                SizedBox(height: 20),
+
+                // Paso 2
+                _buildPasoItem(2, "Integrantes del grupo", pasoActual == 2),
+                SizedBox(height: 20),
+              ],
+            ),
           ),
-          TextFormField(
-            controller: descripcionController,
-            decoration: InputDecoration(labelText: 'Descripción'),
-            validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
-          ),
-          TextFormField(
-            controller: liderGrupoController,
-            decoration: InputDecoration(labelText: 'Líder del Grupo'),
-            validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+          SizedBox(width: 50), // Espacio entre la columna y el formulario
+          Expanded(
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: nombreGrupoController,
+                  decoration: InputDecoration(labelText: 'Nombre del Grupo'),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Campo requerido' : null,
+                ),
+                TextFormField(
+                  controller: descripcionController,
+                  decoration: InputDecoration(labelText: 'Descripción'),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Campo requerido' : null,
+                ),
+                TextFormField(
+                  controller: liderGrupoController,
+                  decoration: InputDecoration(labelText: 'Líder del Grupo'),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Campo requerido' : null,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -154,16 +232,47 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   Widget _paginaMiembros() {
+    int pasoActual = 2; // Paso actual que queremos marcar como activo
+
     return Form(
       key: _miembrosFormKey,
-      child: Column(
+      child: Row(
         children: [
-          TextFormField(
-            controller: miembrosController,
-            decoration: InputDecoration(labelText: 'Miembros del Grupo'),
-            validator: (value) => value!.isEmpty ? 'Campo requerido' : null,
+          Container(
+            decoration: BoxDecoration(
+                color: Color(0xFFFB2056),
+                borderRadius: BorderRadius.all(Radius.circular(20))),
+            width: 250,
+            height: 500,
+            padding: EdgeInsets.symmetric(
+                vertical: 20, horizontal: 10), // Espaciado vertical
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // Paso 1
+                _buildPasoItem(1, "Informacion del grupo", pasoActual == 1),
+                SizedBox(height: 20),
+
+                // Paso 2
+                _buildPasoItem(2, "Integrantes del grupo", pasoActual == 2),
+                SizedBox(height: 20),
+              ],
+            ),
           ),
-          // Puedes añadir más campos para agregar detalles específicos de los miembros
+          SizedBox(width: 50), // Espacio entre la columna y el formulario
+          Expanded(
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: miembrosController,
+                  decoration: InputDecoration(labelText: 'Miembros del Grupo'),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Campo requerido' : null,
+                ),
+                // Puedes añadir más campos para agregar detalles específicos de los miembros
+              ],
+            ),
+          ),
         ],
       ),
     );
