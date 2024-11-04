@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class nGrupoDialog extends StatefulWidget {
   final VoidCallback onGrupoAgregado;
@@ -15,6 +16,12 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   final TextEditingController descripcionController = TextEditingController();
   final TextEditingController liderGrupoController = TextEditingController();
   final TextEditingController miembrosController = TextEditingController();
+
+   List<String> tiposGrupo = [
+    'Grupal',
+    'Individual',
+    'Selecto',
+  ];
 
   late TabController _tabController;
   int _currentIndex = 0;
@@ -37,7 +44,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.8;
-    final height = MediaQuery.of(context).size.height * 0.7;
+    final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -175,6 +182,9 @@ class _nGrupoDialogState extends State<nGrupoDialog>
 
   Widget _paginaInfoGrupo() {
     int pasoActual = 1; // Paso actual que queremos marcar como activo
+    const double verticalSpacing = 20.0; // Variable para el espaciado vertical
+
+    String? selectedTipo;
 
     return Form(
       key: _infoGrupoFormKey,
@@ -203,27 +213,70 @@ class _nGrupoDialogState extends State<nGrupoDialog>
           ),
           SizedBox(width: 50), // Espacio entre la columna y el formulario
           Expanded(
-            child: Column(
-              children: [
-                TextFormField(
-                  controller: nombreGrupoController,
-                  decoration: InputDecoration(labelText: 'Nombre del Grupo'),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Campo requerido' : null,
-                ),
-                TextFormField(
-                  controller: descripcionController,
-                  decoration: InputDecoration(labelText: 'Descripción'),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Campo requerido' : null,
-                ),
-                TextFormField(
-                  controller: liderGrupoController,
-                  decoration: InputDecoration(labelText: 'Líder del Grupo'),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Campo requerido' : null,
-                ),
-              ],
+            child: Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: Column(
+                children: [
+                  // Contenedor circular de fondo rojo con el ícono
+                  Container(
+                    width: 120, // Ajustar tamaño del contenedor
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFB2056), // Color de fondo rojo
+                      shape: BoxShape.circle, // Forma circular
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.group,
+                        size: 80, // Tamaño del ícono
+                        color: Colors.white, // Color del ícono
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: verticalSpacing), // Espacio debajo del ícono
+                  _buildTextField(
+                    controller: nombreGrupoController,
+                    label: 'Nombres del grupo',
+                    icon: Icons.person,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Campo requerido';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: verticalSpacing),
+                  _buildDropdown(
+                      value: selectedTipo,
+                      hint: 'Tipo',
+                      items: tiposGrupo,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedTipo = value;
+                        });
+                      },
+                      fontSize: 14.0,
+                      validator: (value) {
+                        if (value == null) {
+                          return 'Por favor, seleccione el tipo';
+                        }
+                        return null;
+                      },
+                    ),
+                  SizedBox(height: verticalSpacing),
+                  _buildTextField(
+                    controller: descripcionController,
+                    label: 'Descripción',
+                    icon: Icons.person,
+                   /*  validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Campo requerido';
+                      }
+                      return null;
+                    }, */
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -285,4 +338,78 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       Navigator.of(context).pop();
     }
   }
+}
+
+Widget _buildTextField({
+  required TextEditingController controller,
+  required String label,
+  required IconData icon,
+  TextInputType keyboardType = TextInputType.text,
+  String? Function(String?)? validator,
+  double fontSize = 12.0, // Tamaño de fuente por defecto
+  int? maxLength, // Longitud máxima opcional
+}) {
+  return TextFormField(
+    controller: controller,
+    keyboardType: keyboardType,
+    style: TextStyle(fontSize: fontSize),
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      labelStyle: TextStyle(fontSize: fontSize),
+    ),
+    validator: validator, // Asignar el validador
+    inputFormatters: maxLength != null
+        ? [
+            LengthLimitingTextInputFormatter(maxLength)
+          ] // Limita a la longitud especificada
+        : [], // Sin limitación si maxLength es null
+  );
+}
+
+Widget _buildDropdown({
+  required String? value,
+  required String hint,
+  required List<String> items,
+  required void Function(String?) onChanged,
+  double fontSize = 12.0,
+  String? Function(String?)? validator,
+}) {
+  return DropdownButtonFormField<String>(
+    value: value,
+    hint: value == null
+        ? Text(
+            hint,
+            style: TextStyle(fontSize: fontSize, color: Colors.black),
+          )
+        : null,
+    items: items.map((item) {
+      return DropdownMenuItem(
+        value: item,
+        child: Text(
+          item,
+          style: TextStyle(fontSize: fontSize, color: Colors.black),
+        ),
+      );
+    }).toList(),
+    onChanged: onChanged,
+    validator: validator, // Validación para el Dropdown
+    decoration: InputDecoration(
+      labelText: value != null ? hint : null,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.black),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade700),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.black),
+      ),
+    ),
+    style: TextStyle(fontSize: fontSize, color: Colors.black),
+  );
 }

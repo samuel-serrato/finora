@@ -149,7 +149,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.8;
-    final height = MediaQuery.of(context).size.height * 0.9;
+    final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1336,6 +1336,9 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogReferencia({int? index, Map<String, dynamic>? item}) {
+     final GlobalKey<FormState> dialogAddReferenciasFormKey = GlobalKey<FormState>();
+
+
     // Asignación inicial para dropdowns
     String? selectedParentesco = item?['parentescoRef'];
     String? selectedTipoDomicilioRef = item?['tipoDomicilioRef'];
@@ -1396,7 +1399,7 @@ class _nClienteDialogState extends State<nClienteDialog>
             height: height,
             child: SingleChildScrollView(
               child: Form(
-                key: _referenciasFormKey,
+                key: dialogAddReferenciasFormKey,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1763,7 +1766,7 @@ class _nClienteDialogState extends State<nClienteDialog>
         TextEditingController(text: item?['añosenActividad']?.toString() ?? '');
 
     // Crea un nuevo GlobalKey para el formulario del diálogo
-    final GlobalKey<FormState> dialogFormKey = GlobalKey<FormState>();
+    final GlobalKey<FormState> dialogAddIngresosEgresosFormKey = GlobalKey<FormState>();
 
     final width = MediaQuery.of(context).size.width * 0.4;
     final height = MediaQuery.of(context).size.height * 0.5;
@@ -1780,7 +1783,7 @@ class _nClienteDialogState extends State<nClienteDialog>
               width: width,
               height: height,
               child: Form(
-                key: dialogFormKey, // Usar el nuevo GlobalKey aquí
+                key: dialogAddIngresosEgresosFormKey, // Usar el nuevo GlobalKey aquí
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1859,7 +1862,7 @@ class _nClienteDialogState extends State<nClienteDialog>
           ElevatedButton(
             onPressed: () {
               // Valida el formulario antes de continuar
-              if (dialogFormKey.currentState!.validate() &&
+              if (dialogAddIngresosEgresosFormKey.currentState!.validate() &&
                   selectedTipo != null) {
                 final nuevoItem = {
                   'tipo': selectedTipo,
