@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isMobile = MediaQuery.of(context).size.width <= 600;
 
     return Scaffold(
-      backgroundColor: Color(0xFFEFF5FD),
+      backgroundColor: Color(0xFFF7F8FA),
       body: content(),
       appBar: isMobile
           ? AppBar(

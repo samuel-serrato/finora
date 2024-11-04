@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:money_facil/custom_app_bar.dart';
 import 'package:money_facil/dialogs/infoCliente.dart';
 import 'package:money_facil/dialogs/nCliente.dart';
+import 'dart:async';
 
 class ClientesScreen extends StatefulWidget {
   @override
@@ -15,6 +17,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
   List<Cliente> listaClientes = [];
   bool isLoading = true;
   bool showErrorDialog = false;
+    Timer? _timer; // Usar un Timer que se pueda cancelar
+
 
   @override
   void initState() {
@@ -26,33 +30,103 @@ class _ClientesScreenState extends State<ClientesScreen> {
   final double textHeaderTableSize = 12.0;
   final double textTableSize = 10.0; // Tamaño de texto más pequeño
 
-  Future<void> obtenerClientes() async {
-    try {
-      final response = await http
-          .get(Uri.parse('http://192.168.0.108:3000/api/v1/clientes'));
+   @override
+  void dispose() {
+    print('dispose() called: Cancelling timer if it exists');
+    _timer?.cancel(); // Cancelar el timer si existe
+    super.dispose();
+  }
 
-      print('Response status: ${response.statusCode}');
-      print(
-          'Response body: ${response.body}'); // Agregar esta línea para verificar la respuesta
+    Future<void> obtenerClientes() async {
+    print('obtenerClientes() called');
+    setState(() {
+      isLoading = true;
+    });
 
-      if (response.statusCode == 200) {
-        List<dynamic> data = json.decode(response.body);
+    bool dialogShown = false;
+
+    Future<void> fetchData() async {
+      try {
+        print('Fetching data...');
+        final response = await http.get(Uri.parse('http://192.168.0.108:3000/api/v1/clientes'));
+
+        if (mounted) {
+          print('Response received: ${response.statusCode}');
+          if (response.statusCode == 200) {
+            List<dynamic> data = json.decode(response.body);
+            setState(() {
+              listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
+              isLoading = false;
+              print('Data successfully loaded: ${listaClientes.length} items');
+            });
+          } else {
+            setState(() {
+              isLoading = false;
+              print('Error loading data: ${response.statusCode}');
+            });
+            if (!dialogShown) {
+              dialogShown = true;
+              mostrarDialogoError('Error en la carga de datos. Código de error: ${response.statusCode}');
+            }
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          print('Exception caught: $e');
+          setState(() {
+            isLoading = false;
+          });
+          if (!dialogShown) {
+            dialogShown = true;
+            if (e is SocketException) {
+              mostrarDialogoError('Error de conexión. No se puede acceder al servidor. Verifica tu red.');
+            } else {
+              mostrarDialogoError('Ocurrió un error inesperado: $e');
+            }
+          }
+        }
+      }
+    }
+
+    // Ejecuta la función de búsqueda de datos
+    fetchData();
+
+    // Configurar un temporizador para mostrar el diálogo si no hay respuesta
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && !dialogShown) {
+        print('10 seconds elapsed: Showing timeout dialog');
         setState(() {
-          listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
           isLoading = false;
         });
+        dialogShown = true;
+        mostrarDialogoError('No se pudo conectar al servidor. Por favor, revise su conexión de red.');
       } else {
-        setState(() {
-          showErrorDialog = true;
-        });
+        print('Timer cancelled or dialog already shown before 10 seconds');
       }
-    } catch (e) {
-      setState(() {
-        showErrorDialog = true;
-      });
-      print('Error: $e'); // Mostrar el error en caso de excepción
-    }
+    });
   }
+
+// Función para mostrar el diálogo de error
+void mostrarDialogoError(String mensaje) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Error de conexión'),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('OK'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 
   String formatDate(String dateString) {
     DateTime date = DateTime.parse(dateString);
@@ -70,13 +144,53 @@ class _ClientesScreenState extends State<ClientesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFf7f8fa),
+      backgroundColor: Color(0xFFF7F8FA),
       appBar: CustomAppBar(
         isDarkMode: _isDarkMode,
         toggleDarkMode: _toggleDarkMode,
         title: 'Clientes', // Título específico para esta pantalla
       ),
-      body: content(context),
+      body: isLoading // Si isLoading es true, muestra el indicador
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFFFB2056),
+              ),
+            )
+          : (listaClientes
+                  .isEmpty // Verifica si la lista de clientes está vacía
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(
+                          height: 20), // Espaciado entre el texto y el botón
+                      ElevatedButton(
+                        onPressed: () {
+                          obtenerClientes(); // Llama a la función para recargar los datos
+                        },
+                        child: Text('Recargar'),
+                        style: ButtonStyle(
+                          backgroundColor:
+                              MaterialStateProperty.all(Color(0xFFFB2056)),
+                          foregroundColor:
+                              MaterialStateProperty.all(Colors.white),
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : content(context)), // Si hay clientes, muestra el contenido
     );
   }
 
@@ -145,6 +259,14 @@ class _ClientesScreenState extends State<ClientesScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(15.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1), // Color de la sombra
+                spreadRadius: 0.5, // Expansión de la sombra
+                blurRadius: 5, // Difuminado de la sombra
+                offset: Offset(2, 2), // Posición de la sombra
+              ),
+            ],
           ),
           child: Column(
             children: [

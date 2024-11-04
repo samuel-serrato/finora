@@ -15,10 +15,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   @override
   void initState() {
     super.initState();
-    obtenerusuarios();
+   // obtenerusuarios();
   }
 
-  void obtenerusuarios() async {
+  /* void obtenerusuarios() async {
     setState(() {
       isLoading = true;
     });
@@ -48,11 +48,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         isLoading = false;
       });
     }
-  }
+  } */
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFFF7F8FA),
       body: content(context),
     );
   }
@@ -84,8 +85,6 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 // Fila 1
   Widget filaBienvenida() {
     return Container(
-      /* color: Colors.blue, */
-      color: Color(0xFFEFF5FD),
       padding: EdgeInsets.all(16.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -130,7 +129,6 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
     return Container(
       /* color: Colors.orange, */
-      color: Color(0xFFEFF5FD),
       padding: EdgeInsets.only(bottom: 0, left: 20, right: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -170,7 +168,6 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   Widget filaTabla(BuildContext context) {
     return Expanded(
       child: Container(
-        color: Color(0xFFEFF5FD),
         /* color: Colors.purple, */
         padding: EdgeInsets.all(20),
         child: Center(
@@ -179,6 +176,14 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(15.0),
+              boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1), // Color de la sombra
+                spreadRadius: 0.5, // Expansión de la sombra
+                blurRadius: 5, // Difuminado de la sombra
+                offset: Offset(2, 2), // Posición de la sombra
+              ),
+            ],
             ),
             child: Column(
               children: [
@@ -210,7 +215,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                           ),
                         ),
                         onPressed: () {
-                          obtenerusuarios();
+                        //  obtenerusuarios();
                         },
                         child: Text('Nuevo Cliente'),
                       ),

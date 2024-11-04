@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 class nGrupoDialog extends StatefulWidget {
   final VoidCallback onGrupoAgregado;
@@ -17,7 +18,10 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   final TextEditingController liderGrupoController = TextEditingController();
   final TextEditingController miembrosController = TextEditingController();
 
-   List<String> tiposGrupo = [
+  final List<Person> _selectedPersons = [];
+  final TextEditingController _controller = TextEditingController();
+
+  List<String> tiposGrupo = [
     'Grupal',
     'Individual',
     'Selecto',
@@ -247,28 +251,28 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                   ),
                   SizedBox(height: verticalSpacing),
                   _buildDropdown(
-                      value: selectedTipo,
-                      hint: 'Tipo',
-                      items: tiposGrupo,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedTipo = value;
-                        });
-                      },
-                      fontSize: 14.0,
-                      validator: (value) {
-                        if (value == null) {
-                          return 'Por favor, seleccione el tipo';
-                        }
-                        return null;
-                      },
-                    ),
+                    value: selectedTipo,
+                    hint: 'Tipo',
+                    items: tiposGrupo,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedTipo = value;
+                      });
+                    },
+                    fontSize: 14.0,
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Por favor, seleccione el tipo';
+                      }
+                      return null;
+                    },
+                  ),
                   SizedBox(height: verticalSpacing),
                   _buildTextField(
                     controller: descripcionController,
                     label: 'Descripción',
                     icon: Icons.person,
-                   /*  validator: (value) {
+                    /*  validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Campo requerido';
                       }
@@ -297,8 +301,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                 borderRadius: BorderRadius.all(Radius.circular(20))),
             width: 250,
             height: 500,
-            padding: EdgeInsets.symmetric(
-                vertical: 20, horizontal: 10), // Espaciado vertical
+            padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
@@ -316,13 +319,63 @@ class _nGrupoDialogState extends State<nGrupoDialog>
           Expanded(
             child: Column(
               children: [
-                TextFormField(
-                  controller: miembrosController,
-                  decoration: InputDecoration(labelText: 'Miembros del Grupo'),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Campo requerido' : null,
+                TypeAheadField<Person>(
+                  builder: (context, controller, focusNode) => TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    autofocus: true,
+                    style: TextStyle(),
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      hintText: 'Escribe para buscar',
+                    ),
+                  ),
+                  decorationBuilder: (context, child) => Material(
+                    type: MaterialType.card,
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(10),
+                    child: child,
+                  ),
+                  suggestionsCallback: (search) async {
+                    if (search.isEmpty) {
+                      return [];
+                    }
+                    return await PersonService().find(search);
+                  },
+                  itemBuilder: (context, person) {
+                    return ListTile(
+                      title: Text(person.nombre),
+                      subtitle: Text(
+                          '${person.pais} - Nacimiento: ${person.fechaNacimiento}'),
+                    );
+                  },
+                  onSelected: (person) {
+                    setState(() {
+                      _selectedPersons.add(person);
+                    });
+                    _controller.clear();
+                  },
+                  controller: _controller,
+                  loadingBuilder: (context) => const Text('Cargando...'),
+                  errorBuilder: (context, error) => const Text('Error!'),
+                  emptyBuilder: (context) =>
+                      const Text('No hay coincidencias!'),
                 ),
-                // Puedes añadir más campos para agregar detalles específicos de los miembros
+                const SizedBox(height: 20),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _selectedPersons.length,
+                    itemBuilder: (context, index) {
+                      final person = _selectedPersons[index];
+                      return ListTile(
+                        title: Text(person.nombre),
+                        subtitle: Text(
+                            '${person.pais} - Nacimiento: ${person.fechaNacimiento}'),
+                      );
+                    },
+                  ),
+                ),
+                // Aquí puedes añadir más campos para agregar detalles específicos de los miembros
               ],
             ),
           ),
@@ -412,4 +465,28 @@ Widget _buildDropdown({
     ),
     style: TextStyle(fontSize: fontSize, color: Colors.black),
   );
+}
+
+class Person {
+  final String nombre;
+  final String pais;
+  final String fechaNacimiento;
+
+  Person(this.nombre, this.pais, this.fechaNacimiento);
+}
+
+class PersonService {
+  Future<List<Person>> find(String query) async {
+    List<Person> persons = [
+      Person('Juan Pérez', 'Argentina', '1990-05-14'),
+      Person('María López', 'España', '1985-08-21'),
+      Person('John Smith', 'USA', '1978-12-02'),
+      Person('Yuki Tanaka', 'Japón', '1992-03-15'),
+    ];
+
+    return persons
+        .where((person) =>
+            person.nombre.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+  }
 }

@@ -42,31 +42,38 @@ class _GruposScreenState extends State<GruposScreen> {
   final double textTableSize = 10.0;
 
   Future<void> obtenerGrupos() async {
-    try {
-      final response =
-          await http.get(Uri.parse('http://192.168.0.108:3000/api/v1/grupos'));
+  try {
+    final response =
+        await http.get(Uri.parse('http://192.168.0.108:3000/api/v1/grupos'));
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        List<dynamic> data = json.decode(response.body);
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      if (mounted) { // Verificar si el widget está montado antes de llamar a setState()
         setState(() {
           listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
           isLoading = false;
         });
-      } else {
+      }
+    } else {
+      if (mounted) { // Verificar si el widget está montado antes de llamar a setState()
         setState(() {
           showErrorDialog = true;
         });
       }
-    } catch (e) {
+    }
+  } catch (e) {
+    if (mounted) { // Verificar si el widget está montado antes de llamar a setState()
       setState(() {
         showErrorDialog = true;
       });
-      print('Error: $e');
     }
+    print('Error: $e');
   }
+}
+
 
   String formatDate(String dateString) {
     DateTime date = DateTime.parse(dateString);
@@ -158,6 +165,14 @@ class _GruposScreenState extends State<GruposScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(15.0),
+            boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1), // Color de la sombra
+                  spreadRadius: 0.5, // Expansión de la sombra
+                  blurRadius: 5, // Difuminado de la sombra
+                  offset: Offset(2, 2), // Posición de la sombra
+                ),
+              ],
           ),
           child: Column(
             children: [
