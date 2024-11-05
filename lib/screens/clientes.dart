@@ -8,6 +8,8 @@ import 'package:money_facil/dialogs/infoCliente.dart';
 import 'package:money_facil/dialogs/nCliente.dart';
 import 'dart:async';
 
+import 'package:money_facil/ip.dart';
+
 class ClientesScreen extends StatefulWidget {
   @override
   State<ClientesScreen> createState() => _ClientesScreenState();
@@ -17,8 +19,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
   List<Cliente> listaClientes = [];
   bool isLoading = true;
   bool showErrorDialog = false;
-    Timer? _timer; // Usar un Timer que se pueda cancelar
-
+  Timer? _timer; // Usar un Timer que se pueda cancelar
 
   @override
   void initState() {
@@ -30,14 +31,14 @@ class _ClientesScreenState extends State<ClientesScreen> {
   final double textHeaderTableSize = 12.0;
   final double textTableSize = 10.0; // Tamaño de texto más pequeño
 
-   @override
+  @override
   void dispose() {
     print('dispose() called: Cancelling timer if it exists');
     _timer?.cancel(); // Cancelar el timer si existe
     super.dispose();
   }
 
-    Future<void> obtenerClientes() async {
+  Future<void> obtenerClientes() async {
     print('obtenerClientes() called');
     setState(() {
       isLoading = true;
@@ -48,17 +49,20 @@ class _ClientesScreenState extends State<ClientesScreen> {
     Future<void> fetchData() async {
       try {
         print('Fetching data...');
-        final response = await http.get(Uri.parse('http://192.168.0.108:3000/api/v1/clientes'));
-
+        final response =
+            await http.get(Uri.parse('http://$baseUrl/api/v1/clientes'));
         if (mounted) {
           print('Response received: ${response.statusCode}');
           if (response.statusCode == 200) {
             List<dynamic> data = json.decode(response.body);
             setState(() {
-              listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
+              listaClientes =
+                  data.map((item) => Cliente.fromJson(item)).toList();
               isLoading = false;
               print('Data successfully loaded: ${listaClientes.length} items');
             });
+            _timer?.cancel();
+            print('Timer cancelled after successful data load');
           } else {
             setState(() {
               isLoading = false;
@@ -66,7 +70,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
             });
             if (!dialogShown) {
               dialogShown = true;
-              mostrarDialogoError('Error en la carga de datos. Código de error: ${response.statusCode}');
+              mostrarDialogoError(
+                  'Error en la carga de datos. Código de error: ${response.statusCode}');
             }
           }
         }
@@ -79,7 +84,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
           if (!dialogShown) {
             dialogShown = true;
             if (e is SocketException) {
-              mostrarDialogoError('Error de conexión. No se puede acceder al servidor. Verifica tu red.');
+              mostrarDialogoError(
+                  'Error de conexión. No se puede acceder al servidor. Verifica tu red.');
             } else {
               mostrarDialogoError('Ocurrió un error inesperado: $e');
             }
@@ -99,7 +105,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
           isLoading = false;
         });
         dialogShown = true;
-        mostrarDialogoError('No se pudo conectar al servidor. Por favor, revise su conexión de red.');
+        mostrarDialogoError(
+            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
       } else {
         print('Timer cancelled or dialog already shown before 10 seconds');
       }
@@ -107,26 +114,25 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
 // Función para mostrar el diálogo de error
-void mostrarDialogoError(String mensaje) {
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text('Error de conexión'),
-        content: Text(mensaje),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: Text('OK'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
+  void mostrarDialogoError(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   String formatDate(String dateString) {
     DateTime date = DateTime.parse(dateString);

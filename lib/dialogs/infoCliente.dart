@@ -1,6 +1,11 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+import 'package:money_facil/ip.dart';
 
 class InfoCliente extends StatefulWidget {
   final String idCliente;
@@ -14,27 +19,89 @@ class InfoCliente extends StatefulWidget {
 class _InfoClienteState extends State<InfoCliente> {
   Map<String, dynamic>? clienteData;
   bool isLoading = true;
+  Timer? _timer; // Agrega el temporizador como variable de instancia
+  bool dialogShown = false;
+  late ScrollController _scrollController;
 
   @override
   void initState() {
+    _scrollController = ScrollController();
     super.initState();
     fetchClienteData();
   }
 
-  Future<void> fetchClienteData() async {
-    final response = await http.get(Uri.parse(
-        'http://192.168.0.108:3000/api/v1/clientes/${widget.idCliente}'));
+  @override
+  void dispose() {
+    _timer?.cancel(); // Cancela el temporizador en dispose
+    super.dispose();
+    _scrollController.dispose(); // Asegúrate de llamar a dispose aquí
+  }
 
-    if (response.statusCode == 200) {
-      setState(() {
-        clienteData = json.decode(response.body)[0];
-        isLoading = false;
-      });
-    } else {
-      setState(() {
-        isLoading = false;
-      });
+  Future<void> fetchClienteData() async {
+    // Configura el temporizador para mostrar un diálogo después de 10 segundos si no hay respuesta
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && !dialogShown) {
+        setState(() {
+          isLoading = false;
+        });
+        dialogShown = true;
+        mostrarDialogoError(
+            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
+      }
+    });
+
+    try {
+      final response = await http.get(
+          Uri.parse('http://$baseUrl/api/v1/clientes/${widget.idCliente}'));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          clienteData = json.decode(response.body)[0];
+          isLoading = false;
+        });
+        _timer
+            ?.cancel(); // Cancela el temporizador al completar la carga exitosa
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError(
+              'Error en la carga de datos. Código de error: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError('Error de conexión o inesperado: $e');
+        }
+      }
     }
+  }
+
+  void mostrarDialogoError(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -43,10 +110,11 @@ class _InfoClienteState extends State<InfoCliente> {
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
+      backgroundColor: Color(0xFFF7F8FA),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: EdgeInsets.all(16),
       child: Container(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 50),
         width: width,
         height: height,
         child: isLoading
@@ -57,138 +125,298 @@ class _InfoClienteState extends State<InfoCliente> {
                     children: [
                       // Columna izquierda fija y centrada
                       Expanded(
-                        flex: 1,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.account_circle,
-                              size: 150,
+                        flex: 25,
+                        child: Container(
+                          decoration: BoxDecoration(
                               color: Color(0xFFFB2056),
-                            ),
-                            SizedBox(height: 16),
-                            _buildSectionTitle('Información General'),
-                            _buildDetailRow('ID:', clienteData!['idclientes']),
-                            _buildDetailRow('Nombre:',
-                                '${clienteData!['nombres']} ${clienteData!['apellidoP']} ${clienteData!['apellidoM']}'),
-                            _buildDetailRow(
-                                'Fecha de Nac:', clienteData!['fechaNac']),
-                            _buildDetailRow(
-                                'Tipo Cliente:', clienteData!['tipo_cliente']),
-                            _buildDetailRow('Sexo:', clienteData!['sexo']),
-                            _buildDetailRow(
-                                'Ocupación:', clienteData!['ocupacion']),
-                            _buildDetailRow(
-                                'Teléfono:', clienteData!['telefono']),
-                            _buildDetailRow(
-                                'Estado Civil:', clienteData!['eCivil']),
-                            _buildDetailRow('Dependientes Económicos:',
-                                clienteData!['dependientes_economicos']),
-                            _buildDetailRow('Email:', clienteData!['email']),
-                          ],
+                              borderRadius:
+                                  BorderRadius.all(Radius.circular(20))),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.account_circle,
+                                size: 150,
+                                color: Colors.white,
+                              ),
+                              SizedBox(height: 16),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8.0),
+                                child: Text(
+                                  'Información General',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white),
+                                ),
+                              ),
+                              /*   _buildDetailRow(
+                                  'ID:', clienteData!['idclientes']), */
+                              _buildDetailRowIG('Nombre:',
+                                  '${clienteData!['nombres']} ${clienteData!['apellidoP']} ${clienteData!['apellidoM']}'),
+                              _buildDetailRowIG(
+                                  'Fecha de Nac:', clienteData!['fechaNac']),
+                              _buildDetailRowIG('Tipo Cliente:',
+                                  clienteData!['tipo_cliente']),
+                              _buildDetailRowIG('Sexo:', clienteData!['sexo']),
+                              _buildDetailRowIG(
+                                  'Ocupación:', clienteData!['ocupacion']),
+                              _buildDetailRowIG(
+                                  'Teléfono:', clienteData!['telefono']),
+                              _buildDetailRowIG(
+                                  'Estado Civil:', clienteData!['eCivil']),
+                              _buildDetailRowIG('Dependientes Económicos:',
+                                  clienteData!['dependientes_economicos']),
+                              _buildDetailRowIG(
+                                  'Email:', clienteData!['email']),
+                            ],
+                          ),
                         ),
                       ),
                       SizedBox(width: 16),
-
                       // Columna derecha deslizable
                       Expanded(
-                        flex: 2,
+                        flex: 75,
                         child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Fila para Cuentas de Banco y Domicilios
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // Columna para Cuentas de Banco y Domicilios
-                                      Expanded(
-                                        flex:
-                                            2, // Mantén un tamaño mayor para esta columna
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _buildSectionTitle(
-                                                'Cuentas de Banco'),
-                                            if (clienteData!['cuentabanco']
-                                                is List)
-                                              for (var cuenta in clienteData![
-                                                  'cuentabanco']) ...[
-                                                _buildDetailRow('Banco:',
-                                                    cuenta['nombreBanco']),
-                                                _buildDetailRow(
-                                                    'Número de Cuenta:',
-                                                    cuenta['numCuenta']),
-                                                _buildDetailRow(
-                                                    'Número de Tarjeta:',
-                                                    cuenta['numTarjeta']),
-                                                SizedBox(height: 16),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Fila para Cuentas de Banco y Domicilios
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment
+                                      .spaceEvenly, // Distribuye los elementos con espacio uniforme
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Columna para Cuentas de Banco
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _buildSectionTitle(
+                                              'Cuentas de Banco'),
+                                          Container(
+                                            height:
+                                                150, // Ajusta la altura al tamaño deseado
+                                            width: double.infinity,
+                                            padding: EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black26,
+                                                  blurRadius: 3,
+                                                  offset: Offset(0, 1),
+                                                ),
                                               ],
-                                            _buildSectionTitle('Domicilio'),
-                                            if (clienteData!['domicilios']
-                                                is List)
-                                              for (var domicilio
-                                                  in clienteData![
-                                                      'domicilios']) ...[
-                                                _buildAddresses(domicilio),
-                                                SizedBox(height: 16),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                if (clienteData!['cuentabanco']
+                                                    is List)
+                                                  for (var cuenta
+                                                      in clienteData![
+                                                          'cuentabanco']) ...[
+                                                    _buildDetailRow('Banco:',
+                                                        cuenta['nombreBanco']),
+                                                    _buildDetailRow(
+                                                        'Núm. de Cuenta:',
+                                                        cuenta['numCuenta']),
+                                                    _buildDetailRow(
+                                                        'Núm. de Tarjeta:',
+                                                        cuenta['numTarjeta']),
+                                                    SizedBox(height: 16),
+                                                  ],
                                               ],
-                                          ],
-                                        ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                    ),
+                                    SizedBox(width: 10),
 
-                                      // Elimina el espaciado entre las columnas
-                                      Expanded(
-                                        flex:
-                                            2, // Ajusta el tamaño según sea necesario
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _buildSectionTitle(
-                                                'Datos Adicionales'),
-                                            if (clienteData!['adicionales']
-                                                is List)
-                                              for (var adicional
-                                                  in clienteData![
-                                                      'adicionales']) ...[
-                                                _buildDetailRow(
-                                                    'CURP:', adicional['curp']),
-                                                _buildDetailRow(
-                                                    'RFC:', adicional['rfc']),
-                                                _buildDetailRow(
-                                                    'Fecha de Creación:',
-                                                    adicional['fCreacion']),
-                                                SizedBox(height: 16),
+                                    // Columna para Datos Adicionales
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _buildSectionTitle(
+                                              'Datos Adicionales'),
+                                          Container(
+                                            height:
+                                                150, // Ajusta la altura al tamaño deseado
+                                            width: double.infinity,
+                                            padding: EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black26,
+                                                  blurRadius: 3,
+                                                  offset: Offset(0, 1),
+                                                ),
                                               ],
-                                          ],
-                                        ),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                if (clienteData!['adicionales']
+                                                    is List)
+                                                  for (var adicional
+                                                      in clienteData![
+                                                          'adicionales']) ...[
+                                                    _buildDetailRow('CURP:',
+                                                        adicional['curp']),
+                                                    _buildDetailRow('RFC:',
+                                                        adicional['rfc']),
+                                                    _buildDetailRow(
+                                                        'Fecha de Creación:',
+                                                        adicional['fCreacion']),
+                                                    SizedBox(height: 16),
+                                                  ],
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  )
-                                ],
-                              ),
-                              SizedBox(height: 16),
+                                    ),
+                                    SizedBox(width: 10),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _buildSectionTitle(
+                                              'Inf. del Cónyuge'),
+                                          Container(
+                                            height:
+                                                150, // Ajusta la altura al tamaño deseados
+                                            width: double.infinity,
+                                            padding: EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black26,
+                                                  blurRadius: 3,
+                                                  offset: Offset(0, 1),
+                                                ),
+                                              ],
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                _buildDetailRow(
+                                                    'Nombre:',
+                                                    clienteData![
+                                                        'nombreConyuge']),
+                                                _buildDetailRow(
+                                                    'Teléfono:',
+                                                    clienteData![
+                                                        'telefonoConyuge']),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
 
-                              _buildSectionTitle('Ingresos y Egresos'),
-                              if (clienteData!['ingresos_egresos'] is List)
-                                _buildIncomeInfo(
-                                    clienteData!['ingresos_egresos']),
-                              _buildSectionTitle('Referencias'),
-                              if (clienteData!['referencias'] is List)
-                                _buildReferences(clienteData!['referencias']),
-                            ],
+                                SizedBox(height: 16),
+
+                                // Sección de Domicilio ocupando ambas columnas
+                                _buildSectionTitle('Domicilio'),
+                                if (clienteData!['domicilios'] is List)
+                                  Container(
+                                    padding: EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black26,
+                                          blurRadius: 3,
+                                          offset: Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        for (var domicilio
+                                            in clienteData!['domicilios']) ...[
+                                          _buildAddresses(domicilio),
+                                          SizedBox(height: 16),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                SizedBox(height: 16),
+
+                                _buildSectionTitle('Ingresos y Egresos'),
+                                if (clienteData!['ingresos_egresos'] is List)
+                                  _buildIncomeInfo(
+                                      clienteData!['ingresos_egresos']),
+                                SizedBox(height: 16),
+                                _buildSectionTitle('Referencias'),
+                                if (clienteData!['referencias'] is List)
+                                  _buildReferences(clienteData!['referencias']),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ],
                   )
-                : Text('Error al cargar datos del cliente'),
+                : Center(
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                        Text('Error al cargar datos del cliente'),
+                        SizedBox(
+                            height: 20), // Espaciado entre el texto y el botón
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              isLoading =
+                                  true; // Indica que la recarga ha comenzado
+                            });
+                            fetchClienteData(); // Llama a la función para recargar los datos
+                          },
+                          child: Text('Recargar'),
+                          style: ButtonStyle(
+                            backgroundColor:
+                                MaterialStateProperty.all(Color(0xFFFB2056)),
+                            foregroundColor:
+                                MaterialStateProperty.all(Colors.white),
+                            shape: MaterialStateProperty.all<
+                                RoundedRectangleBorder>(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ])),
       ),
     );
   }
@@ -206,58 +434,230 @@ class _InfoClienteState extends State<InfoCliente> {
   Widget _buildDetailRow(String title, String? value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Text('$title $value', style: TextStyle(fontSize: 14)),
+      child: Text('$title $value',
+          style: TextStyle(
+            fontSize: 12,
+          )),
+    );
+  }
+
+  Widget _buildDetailRowIG(String title, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Text('$title $value',
+          style: TextStyle(fontSize: 12, color: Colors.white)),
     );
   }
 
   Widget _buildIncomeInfo(List<dynamic> ingresos) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: ingresos.map<Widget>((ingreso) {
-        return Card(
-          margin: EdgeInsets.symmetric(vertical: 4.0),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDetailRow('Tipo de Info:', ingreso['tipo_info']),
-                _buildDetailRow(
-                    'Años de Actividad:', ingreso['años_actividad']),
-                _buildDetailRow('Descripción:', ingreso['descripcion']),
-                _buildDetailRow('Monto Semanal:', ingreso['monto_semanal']),
-                _buildDetailRow('Fecha Creación:', ingreso['fCreacion']),
-              ],
-            ),
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          physics: ClampingScrollPhysics(), // Física adecuada para escritorio
+          child: Row(
+            children: ingresos.map<Widget>((ingreso) {
+              return Container(
+                margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                decoration: BoxDecoration(
+                  color: Colors.white, // Color de fondo
+                  borderRadius: BorderRadius.circular(8), // Bordes redondeados
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 3,
+                      offset: Offset(0, 2), // Dirección de la sombra
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(
+                    8.0), // Padding directamente en el Container
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min, // Permitir que se ajuste al contenido
+                  children: [
+                    _buildDetailRow('Tipo de Info:', ingreso['tipo_info']),
+                    _buildDetailRow(
+                        'Años de Actividad:', ingreso['años_actividad']),
+                    _buildDetailRow('Descripción:', ingreso['descripcion']),
+                    _buildDetailRow('Monto Semanal:', ingreso['monto_semanal']),
+                    _buildDetailRow('Fecha Creación:', ingreso['fCreacion']),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
-        );
-      }).toList(),
+        ),
+        // Fila de iconos para deslizar
+        Positioned(
+          left: 0,
+          top: 50, // Ajusta la posición vertical según sea necesario
+          child: IconButton(
+            icon:
+                Icon(Icons.arrow_back_ios, color: Color(0xFFFB2056), size: 20),
+            onPressed: () {
+              // Desplazar a la izquierda
+              if (_scrollController.hasClients) {
+                _scrollController.jumpTo(
+                  _scrollController.position.pixels -
+                      100, // Desplazar 100 píxeles a la izquierda
+                );
+              }
+            },
+          ),
+        ),
+        Positioned(
+          right: 0,
+          top: 50, // Ajusta la posición vertical según sea necesario
+          child: IconButton(
+            icon: Icon(Icons.arrow_forward_ios,
+                color: Color(0xFFFB2056), size: 20),
+            onPressed: () {
+              // Desplazar a la derecha
+              if (_scrollController.hasClients) {
+                _scrollController.jumpTo(
+                  _scrollController.position.pixels +
+                      100, // Desplazar 100 píxeles a la derecha
+                );
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildReferences(List<dynamic> referencias) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: referencias.map<Widget>((referencia) {
-        return Card(
-          margin: EdgeInsets.symmetric(vertical: 4.0),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDetailRow('Nombre:',
-                    '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}'),
-                _buildDetailRow('Parentesco:', referencia['parentesco']),
-                _buildDetailRow('Teléfono:', referencia['telefono']),
-                _buildDetailRow(
-                    'Tiempo de Conocimiento:', referencia['timepoCo']),
-                _buildDetailRow('Fecha Creación:', referencia['fCreacion']),
-              ],
-            ),
+    final ScrollController _scrollController = ScrollController();
+
+    return Stack(
+      children: [
+        // Quitamos el Listener que detecta eventos de desplazamiento
+        SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          physics:
+              NeverScrollableScrollPhysics(), // Desactiva el scroll con mouse/trackpad
+          child: Row(
+            children: referencias.map<Widget>((referencia) {
+              return Container(
+                width:
+                    650, // Establece un ancho fijo o deseado para cada referencia
+                margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                decoration: BoxDecoration(
+                  color: Colors.white, // Color de fondo
+                  borderRadius: BorderRadius.circular(8), // Bordes redondeados
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 3,
+                      offset: Offset(0, 2), // Dirección de la sombra
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(
+                    8.0), // Padding directamente en el Container
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min, // Permitir que se ajuste al contenido
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDetailRow(
+                            'Parentesco:',
+                            referencia['parentesco'],
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildDetailRow(
+                            'Teléfono:',
+                            referencia['telefono'],
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildDetailRow(
+                            'Tiempo de Conocer:',
+                            referencia['timepoCo'],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'Domicilio',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (referencia['domicilio_ref'] is List)
+                      for (var domicilio in referencia['domicilio_ref']) ...[
+                        _buildAddresses(domicilio),
+                        SizedBox(height: 16), // Espacio entre domicilios
+                      ],
+                  ],
+                ),
+              );
+            }).toList(),
           ),
-        );
-      }).toList(),
+        ),
+        // Fila de iconos para deslizar
+        Positioned(
+          left: 0,
+          top: 80, // Ajusta la posición vertical según sea necesario
+          child: IconButton(
+            icon:
+                Icon(Icons.arrow_back_ios, color: Color(0xFFFB2056), size: 20),
+            onPressed: () {
+              // Desplazar a la izquierda
+              if (_scrollController.hasClients) {
+                _scrollController.jumpTo(
+                  _scrollController.position.pixels -
+                      600, // Desplazar 100 píxeles a la izquierda
+                );
+              }
+            },
+          ),
+        ),
+        Positioned(
+          right: 0,
+          top: 80, // Ajusta la posición vertical según sea necesario
+          child: IconButton(
+            icon: Icon(Icons.arrow_forward_ios,
+                color: Color(0xFFFB2056), size: 20),
+            onPressed: () {
+              // Desplazar a la derecha
+              if (_scrollController.hasClients) {
+                _scrollController.jumpTo(
+                  _scrollController.position.pixels +
+                      600, // Desplazar 100 píxeles a la derecha
+                );
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -291,15 +691,18 @@ class _InfoClienteState extends State<InfoCliente> {
         Row(
           children: [
             Expanded(child: _buildDetailRow('Colonia:', domicilio['colonia'])),
+            Expanded(child: _buildDetailRow('Estado:', domicilio['estado'])),
             Expanded(
                 child: _buildDetailRow('Municipio:', domicilio['municipio'])),
-            Expanded(child: _buildDetailRow('Estado:', domicilio['estado'])),
           ],
         ),
         // Fila para el código postal y tiempo de residencia
         Row(
           children: [
             Expanded(child: _buildDetailRow('Código Postal:', domicilio['cp'])),
+            Expanded(
+                child:
+                    _buildDetailRow('Entre Calles:', domicilio['entrecalle'])),
             Expanded(
                 child: _buildDetailRow(
                     'Tiempo Viviendo:', domicilio['tiempoViviendo'])),

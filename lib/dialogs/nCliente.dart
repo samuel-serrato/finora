@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:money_facil/ip.dart';
 
 class nClienteDialog extends StatefulWidget {
   final VoidCallback onClienteAgregado;
@@ -895,9 +896,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                               .account_box, // Ícono de identificación más relevante
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese CURP';
+                              return 'Por favor ingrese el CURP';
+                            } else if (value.length != 18) {
+                              return 'El dato tener exactamente 18 dígitos';
                             }
-                            return null;
+                            return null; // Si es válido
                           },
                         ),
                       ),
@@ -905,18 +908,20 @@ class _nClienteDialogState extends State<nClienteDialog>
                       Expanded(
                         flex: 2,
                         child: _buildTextField(
-                          controller: rfcController,
-                          label: 'RFC',
-                          icon: Icons
-                              .assignment_ind, // Ícono de archivo/identificación
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese RFC';
-                            }
-                            return null;
-                          },
-                        ),
+                            controller: rfcController,
+                            label: 'RFC',
+                            icon: Icons
+                                .assignment_ind, // Ícono de archivo/identificación
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor ingrese el RFC';
+                              } else if (value.length != 12 &&
+                                  value.length != 13) {
+                                return 'El RFC debe tener 12 o 13 caracteres';
+                              }
+                              return null;
+                            }),
                       ),
                     ],
                   ),
@@ -1336,8 +1341,8 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogReferencia({int? index, Map<String, dynamic>? item}) {
-     final GlobalKey<FormState> dialogAddReferenciasFormKey = GlobalKey<FormState>();
-
+    final GlobalKey<FormState> dialogAddReferenciasFormKey =
+        GlobalKey<FormState>();
 
     // Asignación inicial para dropdowns
     String? selectedParentesco = item?['parentescoRef'];
@@ -1380,7 +1385,7 @@ class _nClienteDialogState extends State<nClienteDialog>
 
     // Configuración del diálogo
     final width = MediaQuery.of(context).size.width * 0.7;
-    final height = MediaQuery.of(context).size.height * 0.6;
+    final height = MediaQuery.of(context).size.height * 0.55;
 
     showDialog(
       barrierDismissible: false,
@@ -1766,7 +1771,8 @@ class _nClienteDialogState extends State<nClienteDialog>
         TextEditingController(text: item?['añosenActividad']?.toString() ?? '');
 
     // Crea un nuevo GlobalKey para el formulario del diálogo
-    final GlobalKey<FormState> dialogAddIngresosEgresosFormKey = GlobalKey<FormState>();
+    final GlobalKey<FormState> dialogAddIngresosEgresosFormKey =
+        GlobalKey<FormState>();
 
     final width = MediaQuery.of(context).size.width * 0.4;
     final height = MediaQuery.of(context).size.height * 0.5;
@@ -1783,7 +1789,8 @@ class _nClienteDialogState extends State<nClienteDialog>
               width: width,
               height: height,
               child: Form(
-                key: dialogAddIngresosEgresosFormKey, // Usar el nuevo GlobalKey aquí
+                key:
+                    dialogAddIngresosEgresosFormKey, // Usar el nuevo GlobalKey aquí
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1992,7 +1999,10 @@ class _nClienteDialogState extends State<nClienteDialog>
 
         // Muestra el SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cliente agregado correctamente')),
+          SnackBar(
+            content: Text('Cliente agregado correctamente'),
+            backgroundColor: Colors.green,
+          ),
         );
 
         // Cierra el diálogo
@@ -2010,7 +2020,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Future<Map<String, dynamic>?> _enviarCliente() async {
-    final url = Uri.parse("http://192.168.0.108:3000/api/v1/clientes");
+    final url = Uri.parse("http://$baseUrl/api/v1/clientes");
 
     final datosCliente = {
       "tipoclientes": selectedTipoCliente ?? "",
@@ -2056,7 +2066,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Future<void> _enviarCuentaBanco(String idCliente) async {
-    final url = Uri.parse("http://192.168.0.108:3000/api/v1/cuentabanco");
+    final url = Uri.parse("http://$baseUrl/api/v1/cuentabanco");
 
     final datosCuentaBanco = {
       "idclientes": idCliente,
@@ -2087,7 +2097,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Future<void> _enviarDomicilio(String idCliente) async {
-    final url = Uri.parse("http://192.168.0.108:3000/api/v1/domicilios");
+    final url = Uri.parse("http://$baseUrl/api/v1/domicilios");
 
     // Convertir los datos en un array que contiene un solo map
     final datosDomicilio = [
@@ -2129,21 +2139,16 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Future<void> _enviarDatosAdicionales(String idCliente) async {
-    final url = Uri.parse("http://192.168.0.108:3000/api/v1/datosadicionales");
+    final url = Uri.parse("http://$baseUrl/api/v1/datosadicionales");
 
     final datosAdicionales = {
       "idclientes": idCliente,
-      "NombreCliente":
-          "${nombresController.text} ${apellidoPController.text} ${apellidoMController.text}",
       "curp": curpController.text,
       "rfc": rfcController.text,
     };
 
     print('IMPRESION datos adicionales!');
     print(jsonEncode({
-      "idclientes": idCliente,
-      "NombreCliente":
-          "${nombresController.text} ${apellidoPController.text} ${apellidoMController.text}",
       "curp": curpController.text,
       "rfc": rfcController.text,
     }));
@@ -2166,7 +2171,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Future<void> _enviarIngresos(String idCliente) async {
-    final url = Uri.parse("http://192.168.0.108:3000/api/v1/ingresos");
+    final url = Uri.parse("http://$baseUrl/api/v1/ingresos");
 
     final ingresosData = ingresosEgresos
         .map((item) => {
@@ -2201,7 +2206,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Future<void> _enviarReferencias(String idCliente) async {
-    final url = Uri.parse("http://192.168.0.108:3000/api/v1/referencia");
+    final url = Uri.parse("http://$baseUrl/api/v1/referencia");
 
     final referenciasData = referencias
         .map((referencia) => {
