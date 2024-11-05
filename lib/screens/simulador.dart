@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:money_facil/custom_app_bar.dart';
 import 'package:money_facil/screens/simGrupal.dart';
 import 'package:money_facil/widgets/CardUserWidget.dart';
+import 'package:money_facil/formateador.dart';
 
 class SimuladorScreen extends StatefulWidget {
   @override
@@ -207,21 +208,21 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
     }
 
     void recalcular() {
-  setState(() {
-    monto = parseAmount(montoController.text);
-    
-    // Verificar si se seleccionó "Otro" y usar el valor del TextField
-    if (tasaInteresMensualSeleccionada == 0.0) {
-      // Convierte el valor del TextField a un double
-      interesMensual = double.tryParse(otroValor!) ?? 0; // Si no se puede parsear, usar 0
-    } else {
-      interesMensual = tasaInteresMensualSeleccionada ?? 0;
+      setState(() {
+        monto = parseAmount(montoController.text);
+
+        // Verificar si se seleccionó "Otro" y usar el valor del TextField
+        if (tasaInteresMensualSeleccionada == 0.0) {
+          // Convierte el valor del TextField a un double
+          interesMensual = double.tryParse(otroValor!) ??
+              0; // Si no se puede parsear, usar 0
+        } else {
+          interesMensual = tasaInteresMensualSeleccionada ?? 0;
+        }
+
+        plazoSemanas = plazoSeleccionado ?? 0; // Usar la opción seleccionada
+      });
     }
-
-    plazoSemanas = plazoSeleccionado ?? 0; // Usar la opción seleccionada
-  });
-}
-
 
     void selectDate(BuildContext context) async {
       final DateTime? picked = await showDatePicker(
@@ -284,6 +285,15 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                   ),
                                   keyboardType: TextInputType.number,
                                   style: TextStyle(fontSize: 14.0),
+                                  onChanged: (value) {
+                                    // Llama a la función de formateo directamente aquí
+                                    String formatted = formatMonto(value);
+                                    montoController.value = TextEditingValue(
+                                      text: formatted,
+                                      selection: TextSelection.collapsed(
+                                          offset: formatted.length),
+                                    );
+                                  },
                                 ),
                               ),
                             ),

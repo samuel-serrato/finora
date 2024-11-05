@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:http/http.dart' as http;
 
 class nGrupoDialog extends StatefulWidget {
   final VoidCallback onGrupoAgregado;
@@ -18,8 +21,10 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   final TextEditingController liderGrupoController = TextEditingController();
   final TextEditingController miembrosController = TextEditingController();
 
-  final List<Person> _selectedPersons = [];
+  final List<Map<String, dynamic>> _selectedPersons = [];
   final TextEditingController _controller = TextEditingController();
+
+  String? selectedTipo;
 
   List<String> tiposGrupo = [
     'Grupal',
@@ -43,6 +48,18 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         _currentIndex = _tabController.index;
       });
     });
+  }
+
+  Future<List<Map<String, dynamic>>> findPersons(String query) async {
+    final url = Uri.parse('http://192.168.1.21:3000/api/v1/clientes/$query');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      return List<Map<String, dynamic>>.from(data);
+    } else {
+      throw Exception('Error al cargar los datos: ${response.statusCode}');
+    }
   }
 
   @override
@@ -188,8 +205,6 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     int pasoActual = 1; // Paso actual que queremos marcar como activo
     const double verticalSpacing = 20.0; // Variable para el espaciado vertical
 
-    String? selectedTipo;
-
     return Form(
       key: _infoGrupoFormKey,
       child: Row(
@@ -319,7 +334,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
           Expanded(
             child: Column(
               children: [
-                TypeAheadField<Person>(
+                TypeAheadField<Map<String, dynamic>>(
                   builder: (context, controller, focusNode) => TextField(
                     controller: controller,
                     focusNode: focusNode,
@@ -340,13 +355,45 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                     if (search.isEmpty) {
                       return [];
                     }
-                    return await PersonService().find(search);
+                    return await findPersons(search);
                   },
                   itemBuilder: (context, person) {
                     return ListTile(
-                      title: Text(person.nombre),
-                      subtitle: Text(
-                          '${person.pais} - Nacimiento: ${person.fechaNacimiento}'),
+                      title: Row(
+                        children: [
+                          Text(
+                            '${person['nombres'] ?? ''} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                            style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          SizedBox(width: 10),
+                          Text('Sexo: ${person['sexo'] ?? ''}',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey[700])),
+                          SizedBox(width: 10),
+                          Text('-  Nacimiento: ${person['fechaNac'] ?? ''}',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey[700])),
+                          SizedBox(width: 10),
+                          Text('-  Teléfono: ${person['telefono'] ?? ''}',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey[700])),
+                        ],
+                      ),
+                      /*  subtitle: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          
+                        ],
+                      ), */
                     );
                   },
                   onSelected: (person) {
@@ -357,25 +404,36 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                   },
                   controller: _controller,
                   loadingBuilder: (context) => const Text('Cargando...'),
-                  errorBuilder: (context, error) => const Text('Error!'),
+                  errorBuilder: (context, error) =>
+                      const Text('Error al cargar los datos!'),
                   emptyBuilder: (context) =>
                       const Text('No hay coincidencias!'),
                 ),
                 const SizedBox(height: 20),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: _selectedPersons.length,
-                    itemBuilder: (context, index) {
-                      final person = _selectedPersons[index];
-                      return ListTile(
-                        title: Text(person.nombre),
-                        subtitle: Text(
-                            '${person.pais} - Nacimiento: ${person.fechaNacimiento}'),
-                      );
-                    },
-                  ),
+                      itemCount: _selectedPersons.length,
+                      itemBuilder: (context, index) {
+                        final person = _selectedPersons[index];
+                        return ListTile(
+                          title: Text(
+                            '${person['nombres'] ?? ''} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Sexo: ${person['sexo'] ?? ''}'),
+                              SizedBox(width: 10), // Espacio entre los textos
+                              Text('Teléfono: ${person['telefono'] ?? ''}'),
+                              SizedBox(width: 10),
+                              Text(
+                                  'Fecha de Nacimiento: ${person['fechaNac'] ?? ''}'),
+                            ],
+                          ),
+                        );
+                      }),
                 ),
-                // Aquí puedes añadir más campos para agregar detalles específicos de los miembros
               ],
             ),
           ),
@@ -447,7 +505,7 @@ Widget _buildDropdown({
       );
     }).toList(),
     onChanged: onChanged,
-    validator: validator, // Validación para el Dropdown
+    validator: validator,
     decoration: InputDecoration(
       labelText: value != null ? hint : null,
       border: OutlineInputBorder(
@@ -465,28 +523,4 @@ Widget _buildDropdown({
     ),
     style: TextStyle(fontSize: fontSize, color: Colors.black),
   );
-}
-
-class Person {
-  final String nombre;
-  final String pais;
-  final String fechaNacimiento;
-
-  Person(this.nombre, this.pais, this.fechaNacimiento);
-}
-
-class PersonService {
-  Future<List<Person>> find(String query) async {
-    List<Person> persons = [
-      Person('Juan Pérez', 'Argentina', '1990-05-14'),
-      Person('María López', 'España', '1985-08-21'),
-      Person('John Smith', 'USA', '1978-12-02'),
-      Person('Yuki Tanaka', 'Japón', '1992-03-15'),
-    ];
-
-    return persons
-        .where((person) =>
-            person.nombre.toLowerCase().contains(query.toLowerCase()))
-        .toList();
-  }
 }

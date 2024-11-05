@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:money_facil/formateador.dart';
 
 class simuladorGrupal extends StatefulWidget {
   @override
@@ -133,6 +134,15 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                       ),
                                       keyboardType: TextInputType.number,
                                       style: TextStyle(fontSize: 12.0),
+                                      onChanged: (value) {
+                                    // Llama a la función de formateo directamente aquí
+                                    String formatted = formatMonto(value);
+                                    montoController.value = TextEditingValue(
+                                      text: formatted,
+                                      selection: TextSelection.collapsed(
+                                          offset: formatted.length),
+                                    );
+                                  },
                                     ),
                                   ),
                                   SizedBox(height: 20),

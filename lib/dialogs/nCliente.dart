@@ -484,7 +484,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           icon: Icons.work,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese el teléfono';
+                              return 'Por favor, ingrese la ocupación';
                             }
                             return null;
                           },
@@ -496,12 +496,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: depEconomicosController,
                           label: 'Dependientes económicos',
                           icon: Icons.family_restroom,
-                          validator: (value) {
+                          /*    validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese el correo electrónico';
+                              return 'Por favor, ingrese el dato';
                             }
                             return null;
-                          },
+                          }, */
                         ),
                       ),
                     ],
@@ -516,9 +516,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                           icon: Icons.phone,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese el teléfono';
+                              return 'Por favor ingrese el Teléfono';
+                            } else if (value.length != 10) {
+                              return 'Debe tener 10 dígitos';
                             }
-                            return null;
+                            return null; // Si es válido
                           },
                         ),
                       ),
@@ -795,9 +797,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                           keyboardType: TextInputType.number,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese Código Postal';
+                              return 'Por favor ingrese el Código Postal';
+                            } else if (value.length != 5) {
+                              return 'Debe tener 5 dígitos';
                             }
-                            return null;
+                            return null; // Si es válido
                           },
                         ),
                       ),
@@ -1344,9 +1348,20 @@ class _nClienteDialogState extends State<nClienteDialog>
     final GlobalKey<FormState> dialogAddReferenciasFormKey =
         GlobalKey<FormState>();
 
-    // Asignación inicial para dropdowns
-    String? selectedParentesco = item?['parentescoRef'];
-    String? selectedTipoDomicilioRef = item?['tipoDomicilioRef'];
+    // Inicialización de los valores del dropdown
+    String? selectedParentesco = (item != null &&
+            item['parentescoRef'] != null &&
+            ['Padre', 'Madre', 'Hermano/a', 'Amigo/a', 'Vecino', 'Otro']
+                .contains(item['parentescoRef']))
+        ? item['parentescoRef']
+        : null; // Asignar null si el valor no es válido
+
+    String? selectedTipoDomicilioRef = (item != null &&
+            item['tipoDomicilioRef'] != null &&
+            ['Propio', 'Alquilado', 'Prestado', 'Otro']
+                .contains(item['tipoDomicilioRef']))
+        ? item['tipoDomicilioRef']
+        : null; // Asignar null si el valor no es válido
 
     // Controladores
     final parentescoRefPropController =
@@ -1425,24 +1440,36 @@ class _nClienteDialogState extends State<nClienteDialog>
                               controller: nombresRefController,
                               label: 'Nombres',
                               icon: Icons.person,
-                              validator: (value) => value?.isEmpty == true
-                                  ? 'Por favor, ingrese su nombre'
-                                  : null,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor, ingrese el nombre';
+                                }
+                                return null;
+                              },
                             ),
                             SizedBox(height: 10),
                             _buildTextField(
                               controller: apellidoPRefController,
                               label: 'Apellido Paterno',
                               icon: Icons.person_outline,
-                              validator: (value) => value?.isEmpty == true
-                                  ? 'Por favor, ingrese su apellido paterno'
-                                  : null,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor, ingrese el apellido paterno';
+                                }
+                                return null;
+                              },
                             ),
                             SizedBox(height: 10),
                             _buildTextField(
                               controller: apellidoMRefController,
                               label: 'Apellido Materno',
                               icon: Icons.person_outline,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor, ingrese el apellido materno';
+                                }
+                                return null;
+                              },
                             ),
                             SizedBox(height: 10),
                             _buildDropdown(
@@ -1461,9 +1488,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   selectedParentesco = value;
                                 });
                               },
-                              validator: (value) => value == null
-                                  ? 'Por favor, seleccione el parentesco'
-                                  : null,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor, seleccione el parentesco';
+                                }
+                                return null;
+                              },
                             ),
                             SizedBox(height: 10),
                             _buildTextField(
@@ -1471,18 +1501,26 @@ class _nClienteDialogState extends State<nClienteDialog>
                               label: 'Teléfono',
                               icon: Icons.phone,
                               keyboardType: TextInputType.phone,
-                              validator: (value) => value?.isEmpty == true
-                                  ? 'Por favor, ingrese su teléfono'
-                                  : null,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor ingrese el teléfono';
+                                } else if (value.length != 10) {
+                                  return 'Debe tener 10 dígitos';
+                                }
+                                return null; // Si es válido
+                              },
                             ),
                             SizedBox(height: 10),
                             _buildTextField(
                               controller: tiempoConocerRefController,
                               label: 'Tiempo de conocer',
                               icon: Icons.timelapse_rounded,
-                              validator: (value) => value?.isEmpty == true
-                                  ? 'Por favor, ingrese el tiempo de conocer'
-                                  : null,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor, ingrese el tiempo de conocer';
+                                }
+                                return null;
+                              },
                             ),
                           ],
                         ),
@@ -1623,6 +1661,14 @@ class _nClienteDialogState extends State<nClienteDialog>
                                     label: 'Código Postal',
                                     icon: Icons.mail,
                                     keyboardType: TextInputType.number,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty) {
+                                        return 'Por favor ingrese el Código Postal';
+                                      } else if (value.length != 5) {
+                                        return 'Debe tener 5 dígitos';
+                                      }
+                                      return null; // Si es válido
+                                    },
                                   ),
                                 ),
                               ],
@@ -1679,7 +1725,7 @@ class _nClienteDialogState extends State<nClienteDialog>
           ),
           TextButton(
             onPressed: () {
-              if (_referenciasFormKey.currentState!.validate()) {
+              if (dialogAddReferenciasFormKey.currentState!.validate()) {
                 // Recoger los datos de los controladores
                 final nuevaReferencia = {
                   'nombresRef': nombresRefController.text.isNotEmpty
