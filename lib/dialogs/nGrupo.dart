@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
+import 'package:money_facil/ip.dart';
 
 class nGrupoDialog extends StatefulWidget {
   final VoidCallback onGrupoAgregado;
@@ -51,7 +52,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   Future<List<Map<String, dynamic>>> findPersons(String query) async {
-    final url = Uri.parse('http://192.168.1.21:3000/api/v1/clientes/$query');
+    final url = Uri.parse('http://$baseUrl/api/v1/clientes/$query');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -369,13 +370,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                                 fontWeight: FontWeight.w600),
                           ),
                           SizedBox(width: 10),
-                          Text('Sexo: ${person['sexo'] ?? ''}',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700])),
-                          SizedBox(width: 10),
-                          Text('-  Nacimiento: ${person['fechaNac'] ?? ''}',
+                          Text('-  F. Nacimiento: ${person['fechaNac'] ?? ''}',
                               style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
@@ -423,8 +418,6 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                           subtitle: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Sexo: ${person['sexo'] ?? ''}'),
-                              SizedBox(width: 10), // Espacio entre los textos
                               Text('Teléfono: ${person['telefono'] ?? ''}'),
                               SizedBox(width: 10),
                               Text(

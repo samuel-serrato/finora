@@ -135,14 +135,15 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                       keyboardType: TextInputType.number,
                                       style: TextStyle(fontSize: 12.0),
                                       onChanged: (value) {
-                                    // Llama a la función de formateo directamente aquí
-                                    String formatted = formatMonto(value);
-                                    montoController.value = TextEditingValue(
-                                      text: formatted,
-                                      selection: TextSelection.collapsed(
-                                          offset: formatted.length),
-                                    );
-                                  },
+                                        // Llama a la función de formateo directamente aquí
+                                        String formatted = formatMonto(value);
+                                        montoController.value =
+                                            TextEditingValue(
+                                          text: formatted,
+                                          selection: TextSelection.collapsed(
+                                              offset: formatted.length),
+                                        );
+                                      },
                                     ),
                                   ),
                                   SizedBox(height: 20),

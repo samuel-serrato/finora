@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,9 +9,11 @@ import 'package:http/http.dart' as http;
 import 'package:money_facil/ip.dart';
 
 class nClienteDialog extends StatefulWidget {
-  final VoidCallback onClienteAgregado;
+  final VoidCallback? onClienteAgregado; // Cambia a opcional
+  final String? idCliente; // Parámetro opcional para modo de edición
 
-  nClienteDialog({required this.onClienteAgregado});
+  nClienteDialog(
+      {this.onClienteAgregado, this.idCliente}); // No requiere `required`
 
   @override
   _nClienteDialogState createState() => _nClienteDialogState();
@@ -63,7 +66,13 @@ class _nClienteDialogState extends State<nClienteDialog>
   String? selectedTipoDomicilio;
   String? selectedTipoDomicilioRef;
 
-  bool _isLoading = false; // Estado para controlar el CircularProgressIndicator
+  final _fechaController = TextEditingController();
+
+  bool _isLoading = true; // Estado para controlar el CircularProgressIndicator
+
+  bool dialogShown = false;
+  dynamic clienteData; // Almacena los datos del cliente
+  Timer? _timer;
 
   final List<String> sexos = ['Masculino', 'Femenino'];
   final List<String> estadosCiviles = [
@@ -116,7 +125,7 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   final List<Map<String, dynamic>> ingresosEgresos = [];
 
-  List<Map<String, String>> referencias =
+  List<Map<String, dynamic>> referencias =
       []; // Lista para almacenar referencias
 
   late TabController _tabController;
@@ -135,7 +144,6 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   // Variables para manejar el banco seleccionado
   String? _nombreBanco; // Almacena el nombre del banco seleccionado
-
   @override
   void initState() {
     super.initState();
@@ -145,6 +153,227 @@ class _nClienteDialogState extends State<nClienteDialog>
         _currentIndex = _tabController.index;
       });
     });
+
+    // Imprime el idCliente en la consola
+    print("ID del cliente: ${widget.idCliente}");
+
+    // Llama a fetchClienteData solo si idCliente no es nulo
+    if (widget.idCliente != null) {
+      fetchClienteData();
+    } else {
+      _isLoading = false; // Si no estamos editando, cambia el estado de carga
+    }
+  }
+
+  Future<void> fetchClienteData() async {
+    // Configura el temporizador para mostrar un diálogo después de 10 segundos si no hay respuesta
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && !dialogShown) {
+        setState(() {
+          _isLoading = false;
+        });
+        dialogShown = true;
+        mostrarDialogoError(
+            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
+      }
+    });
+
+    try {
+      final response = await http.get(
+          Uri.parse('http://$baseUrl/api/v1/clientes/${widget.idCliente}'));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          clienteData = json.decode(response.body)[0];
+
+          // Datos básicos del cliente
+          nombresController.text = clienteData['nombres'] ?? '';
+          apellidoPController.text = clienteData['apellidoP'] ?? '';
+          apellidoMController.text = clienteData['apellidoM'] ?? '';
+          selectedTipoCliente = clienteData['tipo_cliente'] ?? '';
+          selectedSexo = clienteData['sexo'] ?? '';
+          ocupacionController.text = clienteData['ocupacion'] ?? '';
+          depEconomicosController.text =
+              clienteData['dependientes_economicos'] ?? '';
+          telefonoClienteController.text = clienteData['telefono'] ?? '';
+          emailClientecontroller.text = clienteData['email'] ?? '';
+
+          // Información adicional del cliente
+          selectedECivil = clienteData['eCivil'] ?? '';
+          _fechaController.text = clienteData['fechaNac'] ?? '';
+
+// Si hay una fecha válida, establece también el selectedDate
+          if (clienteData['fechaNac'] != null &&
+              clienteData['fechaNac'].isNotEmpty) {
+            selectedDate = DateTime.parse(clienteData['fechaNac']);
+          }
+
+          nombreConyugeController.text = clienteData['nombreConyuge'] ?? '';
+          telefonoConyugeController.text = clienteData['telefonoConyuge'] ?? '';
+          ocupacionConyugeController.text =
+              clienteData['ocupacionConyuge'] ?? '';
+
+          // Información de domicilio del cliente
+          if (clienteData['domicilios'] != null &&
+              clienteData['domicilios'].isNotEmpty) {
+            var domicilio = clienteData['domicilios'][0];
+            calleController.text = domicilio['calle'] ?? '';
+            entreCalleController.text = domicilio['entrecalle'] ?? '';
+            coloniaController.text = domicilio['colonia'] ?? '';
+            cpController.text = domicilio['cp'] ?? '';
+            nExtController.text = domicilio['next'] ?? '';
+            nIntController.text = domicilio['nInt'] ?? '';
+            estadoController.text = domicilio['estado'] ?? '';
+            municipioController.text = domicilio['municipio'] ?? '';
+            selectedTipoDomicilio = domicilio['tipo_domicilio'] ?? '';
+            nombrePropietarioController.text =
+                domicilio['nombre_propietario'] ?? '';
+            parentescoPropietarioController.text =
+                domicilio['parentesco'] ?? '';
+            tiempoViviendoController.text = domicilio['tiempoViviendo'] ?? '';
+          }
+
+          // Información adicional
+          if (clienteData['adicionales'] != null &&
+              clienteData['adicionales'].isNotEmpty) {
+            curpController.text = clienteData['adicionales'][0]['curp'] ?? '';
+            rfcController.text = clienteData['adicionales'][0]['rfc'] ?? '';
+          }
+
+          // Información de cuenta bancaria
+          if (clienteData['cuentabanco'] != null &&
+              clienteData['cuentabanco'].isNotEmpty) {
+            _numCuentaController.text =
+                clienteData['cuentabanco'][0]['numCuenta'] ?? '';
+            _numTarjetaController.text =
+                clienteData['cuentabanco'][0]['numTarjeta'] ?? '';
+            _nombreBanco = clienteData['cuentabanco'][0]['nombreBanco'] ?? '';
+          }
+
+          // Inicialización de ingresos y egresos
+          ingresosEgresos.clear();
+          if (clienteData['ingresos_egresos'] != null) {
+            for (var ingresoEgreso in clienteData['ingresos_egresos']) {
+              ingresosEgresos.add({
+                'tipo_info': ingresoEgreso['tipo_info'] ?? '',
+                'años_actividad': ingresoEgreso['años_actividad'] ?? '',
+                'descripcion': ingresoEgreso['descripcion'] ?? '',
+                'monto_semanal': ingresoEgreso['monto_semanal'] ?? '',
+              });
+            }
+          }
+
+          // Inicialización de referencias
+          referencias.clear();
+          if (clienteData['referencias'] != null) {
+            for (var referencia in clienteData['referencias']) {
+              var domicilioRef = referencia['domicilio_ref'];
+
+              // Verifica si la lista de domicilios no está vacía antes de acceder a ella
+              String tipoDomicilio = domicilioRef.isNotEmpty
+                  ? domicilioRef[0]['tipo_domicilio'] ?? ''
+                  : '';
+              String nombrePropietario = domicilioRef.isNotEmpty
+                  ? domicilioRef[0]['nombre_propietario'] ?? ''
+                  : '';
+              String parentescoRefProp = domicilioRef.isNotEmpty
+                  ? domicilioRef[0]['parentesco'] ?? ''
+                  : '';
+              String calle =
+                  domicilioRef.isNotEmpty ? domicilioRef[0]['calle'] ?? '' : '';
+              String entreCalle = domicilioRef.isNotEmpty
+                  ? domicilioRef[0]['entrecalle'] ?? ''
+                  : '';
+              String colonia = domicilioRef.isNotEmpty
+                  ? domicilioRef[0]['colonia'] ?? ''
+                  : '';
+              String cp =
+                  domicilioRef.isNotEmpty ? domicilioRef[0]['cp'] ?? '' : '';
+              String nExt =
+                  domicilioRef.isNotEmpty ? domicilioRef[0]['next'] ?? '' : '';
+              String nInt =
+                  domicilioRef.isNotEmpty ? domicilioRef[0]['nInt'] ?? '' : '';
+              String estado = domicilioRef.isNotEmpty
+                  ? domicilioRef[0]['estado'] ?? ''
+                  : '';
+              String municipio = domicilioRef.isNotEmpty
+                  ? domicilioRef[0]['municipio'] ?? ''
+                  : '';
+              String tiempoViviendo = domicilioRef.isNotEmpty
+                  ? domicilioRef[0]['tiempoViviendo'] ?? ''
+                  : '';
+
+              // Ahora agregamos la referencia a la lista
+              referencias.add({
+                'nombresRef': referencia['nombres'] ?? '',
+                'apellidoPRef': referencia['apellidoP'] ?? '',
+                'apellidoMRef': referencia['apellidoM'] ?? '',
+                'parentescoRef': referencia['parentescoRefProp'] ?? '',
+                'telefonoRef': referencia['telefono'] ?? '',
+                'tiempoConocerRef': referencia['timepoCo'] ?? '',
+
+                // Datos del domicilio de la referencia
+                'tipoDomicilioRef': tipoDomicilio,
+                'nombrePropietarioRef': nombrePropietario,
+                'parentescoRefProp': parentescoRefProp,
+                'calleRef': calle,
+                'entreCalleRef': entreCalle,
+                'coloniaRef': colonia,
+                'cpRef': cp,
+                'nExtRef': nExt,
+                'nIntRef': nInt,
+                'estadoRef': estado,
+                'municipioRef': municipio,
+                'tiempoViviendoRef': tiempoViviendo,
+              });
+            }
+          }
+
+          _isLoading = false; // Cambiar el estado de carga a false
+        });
+        _timer
+            ?.cancel(); // Cancela el temporizador al completar la carga exitosa
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError(
+              'Error en la carga de datos. Código de error: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError('Error de conexión o inesperado: $e');
+        }
+      }
+    }
+  }
+
+  void mostrarDialogoError(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error'),
+          content: Text(mensaje),
+          actions: <Widget>[
+            TextButton(
+              child: Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -158,118 +387,162 @@ class _nClienteDialogState extends State<nClienteDialog>
         width: width,
         height: height,
         padding: EdgeInsets.all(20),
-        child:
-            _isLoading // Si está cargando, muestra el CircularProgressIndicator
-                ? Center(
-                    child: CircularProgressIndicator(),
-                  )
-                : Column(
-                    children: [
-                      Text(
-                        'Agregar Cliente',
-                        style: TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 10),
-                      TabBar(
-                        controller: _tabController,
-                        labelColor: Color(0xFFFB2056),
-                        unselectedLabelColor: Colors.grey,
-                        indicatorColor: Color(0xFFFB2056),
-                        tabs: [
-                          Tab(text: 'Información Personal'),
-                          Tab(text: 'Cuenta Bancaria'),
-                          Tab(text: 'Ingresos y Egresos'),
-                          Tab(text: 'Referencias'),
-                        ],
-                      ),
-                      Expanded(
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                  right: 30, top: 10, bottom: 10, left: 0),
-                              child: _paginaInfoPersonal(),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                  right: 30, top: 10, bottom: 10, left: 0),
-                              child: _paginaCuentaBancaria(),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                  right: 30, top: 10, bottom: 10, left: 0),
-                              child: _paginaIngresosEgresos(),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                  right: 30, top: 10, bottom: 10, left: 0),
-                              child: _paginaReferencias(),
-                            ),
-                          ],
+        child: _isLoading
+            ? Center(
+                child: CircularProgressIndicator(),
+              )
+            : Column(
+                children: [
+                  Text(
+                    'Agregar Cliente',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 10),
+                  TabBar(
+                    controller: _tabController,
+                    labelColor: Color(0xFFFB2056),
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: Color(0xFFFB2056),
+                    tabs: [
+                      Tab(text: 'Información Personal'),
+                      Tab(text: 'Cuenta Bancaria'),
+                      Tab(text: 'Ingresos y Egresos'),
+                      Tab(text: 'Referencias'),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              right: 30, top: 10, bottom: 10, left: 0),
+                          child: _paginaInfoPersonal(),
                         ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              right: 30, top: 10, bottom: 10, left: 0),
+                          child: _paginaCuentaBancaria(),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              right: 30, top: 10, bottom: 10, left: 0),
+                          child: _paginaIngresosEgresos(),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              right: 30, top: 10, bottom: 10, left: 0),
+                          child: _paginaReferencias(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.grey,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text('Cancelar'),
                       ),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.grey,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+                          if (_currentIndex > 0)
+                            TextButton(
+                              onPressed: () {
+                                _tabController.animateTo(_currentIndex - 1);
+                              },
+                              child: Text('Atrás'),
                             ),
-                            child: Text('Cancelar'),
-                          ),
-                          Row(
-                            children: [
-                              if (_currentIndex > 0)
-                                TextButton(
-                                  onPressed: () {
-                                    _tabController.animateTo(_currentIndex - 1);
-                                  },
-                                  child: Text('Atrás'),
-                                ),
-                              if (_currentIndex <= 3)
-                                ElevatedButton(
-                                  onPressed: () {
-                                    if (_currentIndex < 3) {
-                                      if (_validarFormularioActual()) {
-                                        print(
-                                            "Validación exitosa para la pestaña $_currentIndex");
-                                        _tabController
-                                            .animateTo(_currentIndex + 1);
-                                      } else {
-                                        print(
-                                            "Validación fallida en la pestaña $_currentIndex");
-                                      }
-                                    } else if (_currentIndex == 3 &&
-                                        _validarFormularioActual()) {
-                                      print("Llamando a _agregarCliente");
-                                      _agregarCliente();
-                                    } else {
-                                      print(
-                                          "Error en la validación de la pestaña final");
-                                    }
-                                  },
-                                  child: Text(_currentIndex == 3
-                                      ? 'Agregar'
-                                      : 'Siguiente'),
-                                ),
-                            ],
-                          ),
+                          if (_currentIndex <= 3)
+                            ElevatedButton(
+                              onPressed: () {
+                                if (_currentIndex < 3) {
+                                  if (_currentIndex == 2 &&
+                                      ingresosEgresos.isEmpty) {
+                                    // Verifica si está en la pestaña de Ingresos y Egresos y la lista está vacía
+                                    _showErrorDialog(
+                                      "No se puede avanzar",
+                                      "Por favor, agregue al menos un ingreso o egreso.",
+                                    );
+                                    return;
+                                  }
+
+                                  if (_validarFormularioActual()) {
+                                    _tabController.animateTo(_currentIndex + 1);
+                                  } else {
+                                    print(
+                                        "Validación fallida en la pestaña $_currentIndex");
+                                  }
+                                } else if (_currentIndex == 3) {
+                                  // Validación final antes de agregar el cliente
+                                  if (referencias.isEmpty) {
+                                    _showErrorDialog(
+                                      "No se puede agregar el cliente",
+                                      "Por favor, agregue al menos una referencia.",
+                                    );
+                                    return;
+                                  }
+
+                                  if (ingresosEgresos.isEmpty) {
+                                    _showErrorDialog(
+                                      "No se puede avanzar",
+                                      "Por favor, agregue al menos un ingreso o egreso.",
+                                    );
+                                    return;
+                                  }
+
+                                  if (_validarFormularioActual()) {
+                                    _agregarCliente();
+                                  } else {
+                                    _showErrorDialog(
+                                      "No se puede agregar el cliente",
+                                      "Por favor, complete todos los campos requeridos.",
+                                    );
+                                  }
+                                }
+                              },
+                              child: Text(
+                                  _currentIndex == 3 ? 'Agregar' : 'Siguiente'),
+                            ),
                         ],
                       ),
                     ],
                   ),
+                ],
+              ),
       ),
     );
   }
 
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cerrar el diálogo
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Modifica el método _validarFormularioActual para solo comprobar el estado de la fecha
   bool _validarFormularioActual() {
     if (_currentIndex == 0) {
       return _personalFormKey.currentState?.validate() ?? false;
@@ -281,6 +554,26 @@ class _nClienteDialogState extends State<nClienteDialog>
       return _referenciasFormKey.currentState?.validate() ?? false;
     }
     return false;
+  }
+
+  void _mostrarDialogoErrorFecha() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error'),
+          content: Text('Por favor, selecciona una fecha de nacimiento.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cerrar el diálogo
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Función que crea cada paso con el círculo y el texto
@@ -556,54 +849,21 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   selectedECivil = value;
                                 });
                               },
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Por favor, seleccione estado civil';
+                                }
+                                return null;
+                              },
                             ),
                           ),
                           SizedBox(width: 10),
                           Expanded(
-                            child: Container(
-                              height: 50, // Disminuir altura
-                              color: Colors.transparent,
-                              child: TextButton(
-                                onPressed: () async {
-                                  DateTime? pickedDate = await showDatePicker(
-                                    context: context,
-                                    initialDate: selectedDate ?? DateTime.now(),
-                                    firstDate: DateTime(1900),
-                                    lastDate: DateTime.now(),
-                                  );
-                                  if (pickedDate != null) {
-                                    setState(() {
-                                      selectedDate = pickedDate;
-                                    });
-                                  }
-                                },
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(
-                                      vertical: 10,
-                                      horizontal: 10), // Disminuir padding
-                                  side: BorderSide(
-                                      color: Colors.grey.shade800, width: 1.0),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  backgroundColor: Colors.transparent,
-                                ),
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    selectedDate != null
-                                        ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
-                                        : 'Selecciona una fecha de nacimiento',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w400,
-                                      color: selectedDate != null
-                                          ? Colors.grey.shade800
-                                          : Colors.grey.shade800,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 10.0),
+                              child:
+                                  _buildFechaNacimientoField(), // Llama a la función que crea el campo de fecha
                             ),
                           ),
                         ],
@@ -682,6 +942,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                             setState(() {
                               selectedTipoDomicilio = value;
                             });
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, seleccione Tipo de domicilio';
+                            }
+                            return null;
                           },
                         ),
                       ),
@@ -1119,9 +1385,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${item['tipo']} - \$${item['monto']}'),
                             Text(
-                                'Años en Actividad - ${item['añosenActividad']}'),
+                                '${item['tipo_info']} - \$${item['monto_semanal']}'),
+                            Text(
+                                'Años en Actividad - ${item['años_actividad']}'),
                           ],
                         ),
                         trailing: Row(
@@ -1662,15 +1929,18 @@ class _nClienteDialogState extends State<nClienteDialog>
                                     icon: Icons.mail,
                                     keyboardType: TextInputType.number,
                                     validator: (value) {
+                                      // Verificamos si el campo está vacío
                                       if (value == null || value.isEmpty) {
-                                        return 'Por favor ingrese el Código Postal';
-                                      } else if (value.length != 5) {
+                                        return null; // No se valida si está vacío
+                                      }
+                                      // Validamos si tiene exactamente 5 dígitos cuando hay algo escrito
+                                      if (value.length != 5) {
                                         return 'Debe tener 5 dígitos';
                                       }
                                       return null; // Si es válido
                                     },
                                   ),
-                                ),
+                                )
                               ],
                             ),
                             SizedBox(height: 10),
@@ -1807,14 +2077,14 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogIngresoEgreso({int? index, Map<String, dynamic>? item}) {
-    String? selectedTipo = item?['tipo'];
+    String? selectedTipo = item?['tipo_info'];
     final descripcionController =
         TextEditingController(text: item?['descripcion'] ?? '');
     final montoController =
-        TextEditingController(text: item?['monto']?.toString() ?? '');
+        TextEditingController(text: item?['monto_semanal']?.toString() ?? '');
 
     final anosenActividadController =
-        TextEditingController(text: item?['añosenActividad']?.toString() ?? '');
+        TextEditingController(text: item?['años_actividad']?.toString() ?? '');
 
     // Crea un nuevo GlobalKey para el formulario del diálogo
     final GlobalKey<FormState> dialogAddIngresosEgresosFormKey =
@@ -1918,10 +2188,10 @@ class _nClienteDialogState extends State<nClienteDialog>
               if (dialogAddIngresosEgresosFormKey.currentState!.validate() &&
                   selectedTipo != null) {
                 final nuevoItem = {
-                  'tipo': selectedTipo,
+                  'tipo_info': selectedTipo,
                   'descripcion': descripcionController.text,
-                  'monto': montoController.text,
-                  'añosenActividad': anosenActividadController.text,
+                  'monto_semanal': montoController.text,
+                  'años_actividad': anosenActividadController.text,
                 };
                 setState(() {
                   if (index == null) {
@@ -1937,6 +2207,26 @@ class _nClienteDialogState extends State<nClienteDialog>
           ),
         ],
       ),
+    );
+  }
+
+  void _mostrarAlerta(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Error'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cerrar el diálogo
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -2014,6 +2304,52 @@ class _nClienteDialogState extends State<nClienteDialog>
     );
   }
 
+  // El widget para el campo de fecha
+  Widget _buildFechaNacimientoField() {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click, // Cambiar el cursor a una mano
+      child: GestureDetector(
+        // Añadir GestureDetector para manejar la interacción
+        onTap: () async {
+          DateTime? pickedDate = await showDatePicker(
+            context: context,
+            initialDate: selectedDate ?? DateTime.now(),
+            firstDate: DateTime(1900),
+            lastDate: DateTime.now(),
+          );
+          if (pickedDate != null) {
+            setState(() {
+              selectedDate = pickedDate;
+              _fechaController.text =
+                  "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}";
+            });
+          }
+        },
+        child: AbsorbPointer(
+          // Evitar que el TextFormField reciba foco
+          child: TextFormField(
+            controller: _fechaController,
+            style: TextStyle(fontSize: 12),
+            decoration: InputDecoration(
+              labelText: 'Fecha de Nacimiento',
+              labelStyle: TextStyle(fontSize: 12),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              hintText: 'Selecciona una fecha',
+            ),
+            validator: (value) {
+              // Validar que se haya seleccionado una fecha
+              if (selectedDate == null) {
+                return 'Por favor, selecciona una fecha de nacimiento';
+              }
+              return null; // Si la fecha es válida, retorna null
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   void _agregarCliente() async {
     setState(() {
       _isLoading = true; // Activa el indicador de carga
@@ -2041,7 +2377,7 @@ class _nClienteDialogState extends State<nClienteDialog>
         await _enviarReferencias(idCliente);
 
         // Llama al callback para refrescar la lista de clientes
-        widget.onClienteAgregado();
+        widget.onClienteAgregado!();
 
         // Muestra el SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
