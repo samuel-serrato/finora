@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:money_facil/formateador.dart';
 
@@ -316,6 +317,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                         SizedBox(height: 10),
 
                         // Cantidad de usuarios y montos por usuario
+                        // Tu Row con los TextFields formateados
                         Row(
                           children: [
                             Text('Cantidad de usuarios:',
@@ -342,7 +344,6 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                               child: Listener(
                                 onPointerSignal: (pointerSignal) {
                                   if (pointerSignal is PointerScrollEvent) {
-                                    // Deslizar horizontalmente usando la rueda del mouse.
                                     _scrollController.jumpTo(
                                       _scrollController.offset +
                                           pointerSignal.scrollDelta.dy,
@@ -350,42 +351,32 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                   }
                                 },
                                 child: SizedBox(
-                                  width:
-                                      100, // Ajusta el ancho de la barra de desplazamiento aquí.
+                                  width: 100,
                                   child: Scrollbar(
-                                    controller:
-                                        _scrollController, // Conecta el ScrollController al Scrollbar.
-                                    thumbVisibility:
-                                        true, // Para que la barra de desplazamiento siempre esté visible.
-                                    thickness:
-                                        8.0, // Ajusta el grosor de la barra de desplazamiento aquí.
-                                    radius: Radius.circular(
-                                        10), // Opcional: agregar esquinas redondeadas.
+                                    controller: _scrollController,
+                                    thumbVisibility: true,
+                                    thickness: 8.0,
+                                    radius: Radius.circular(10),
                                     child: SingleChildScrollView(
-                                      controller:
-                                          _scrollController, // Conecta el ScrollController al SingleChildScrollView.
+                                      controller: _scrollController,
                                       scrollDirection: Axis.horizontal,
-                                      physics:
-                                          ClampingScrollPhysics(), // Física adecuada para escritorio.
+                                      physics: ClampingScrollPhysics(),
                                       child: Row(
                                         children: List.generate(numeroUsuarios,
                                             (index) {
                                           return Container(
-                                            height:
-                                                55, // Aumenta la altura del contenedor para mayor espacio.
-                                            width:
-                                                150, // Ancho mínimo para los campos de texto.
+                                            height: 55,
+                                            width: 150,
                                             margin: EdgeInsets.symmetric(
                                                 horizontal: 5),
                                             padding: EdgeInsets.symmetric(
-                                                vertical:
-                                                    10), // Agrega padding adicional.
+                                                vertical: 10),
                                             child: TextField(
                                               controller:
                                                   montoPorUsuarioControllers[
                                                       index],
-                                              textAlignVertical: TextAlignVertical
-                                                  .center, // Alinea el texto verticalmente.
+                                              textAlignVertical:
+                                                  TextAlignVertical.center,
                                               decoration: InputDecoration(
                                                 labelText:
                                                     'Usuario ${index + 1}',
@@ -415,12 +406,14 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                                 contentPadding:
                                                     EdgeInsets.symmetric(
                                                         vertical: 15.0,
-                                                        horizontal:
-                                                            10.0), // Ajusta el padding aquí.
+                                                        horizontal: 10.0),
                                               ),
                                               keyboardType:
                                                   TextInputType.number,
                                               style: TextStyle(fontSize: 12.0),
+                                              inputFormatters: [
+                                                NumberFormatter(), // Aplica el formateo de comas
+                                              ],
                                             ),
                                           );
                                         }),
@@ -640,18 +633,38 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                 // Si hay errores, salimos de la ejecución sin calcular la tabla
                                 if (hayErrores) return;
 
+                                // Función para limpiar las comas y convertir a número
+                                double parseAmountWithoutCommas(String text) {
+                                  // Elimina las comas y convierte el texto a double
+                                  String cleanText = text.replaceAll(',', '');
+                                  return double.tryParse(cleanText) ?? 0.0;
+                                }
+
                                 // Calculamos el total del préstamo ingresado por cada usuario
                                 double totalPrestamo =
                                     montoPorUsuarioControllers.fold(
                                   0.0,
                                   (sum, controller) =>
                                       sum +
-                                      (double.tryParse(controller.text) ?? 0.0),
+                                      parseAmountWithoutCommas(controller
+                                          .text), // Limpiamos las comas
                                 );
 
                                 // Obtenemos el monto total ingresado por el usuario
-                                double montoTotal =
-                                    parseAmount(montoController.text);
+                                double montoTotal = parseAmountWithoutCommas(
+                                    montoController
+                                        .text); // Limpiamos las comas
+
+                                // Imprimir cada monto ingresado por los usuarios en consola
+                                for (int i = 0;
+                                    i < montoPorUsuarioControllers.length;
+                                    i++) {
+                                  double montoUsuario =
+                                      parseAmountWithoutCommas(
+                                          montoPorUsuarioControllers[i].text);
+                                  print(
+                                      'Monto del Usuario ${i + 1}: \$${montoUsuario.toStringAsFixed(2)}');
+                                }
 
                                 // Verificamos si la suma coincide con el monto total
                                 if (totalPrestamo != montoTotal) {
@@ -738,81 +751,81 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
     }
   }
 
+  // Función que limpia las comas y convierte el texto a double
+double parseAmountWithoutCommas(String text) {
+  // Elimina las comas y convierte el texto a double
+  String cleanText = text.replaceAll(',', '');  // Elimina las comas
+  return double.tryParse(cleanText) ?? 0.0;     // Convierte a double o devuelve 0.0 si falla
+}
+
+
   List<UsuarioPrestamo> calcularTabla() {
-    List<UsuarioPrestamo> listaUsuarios = [];
+  List<UsuarioPrestamo> listaUsuarios = [];
 
-    // Interés semanal calculado a partir del interés mensual dividido entre 4 semanas
-    double interesSemanal = tasaInteresMensual / 4;
+  // Interés semanal calculado a partir del interés mensual dividido entre 4 semanas
+  double interesSemanal = tasaInteresMensual / 4;
 
-    // Asegúrate de que plazoSeleccionado no sea null
-    int plazo =
-        plazoSeleccionado ?? 0; // Asigna 0 o algún valor por defecto si es null
+  int plazo = plazoSeleccionado ?? 0;
 
-    // Verifica que el plazo sea mayor que 0 antes de continuar
-    if (plazo <= 0) {
-      print(
-          'El plazo debe ser mayor que 0'); // Manejo de error, puedes lanzar una excepción o manejarlo como quieras
-      return listaUsuarios; // Retorna la lista vacía
-    }
-
-    // Variables para almacenar los totales
-    double totalMontoIndividual = 0.0;
-    double totalCapitalSemanal = 0.0;
-    double totalInteresIndividualSemanal = 0.0;
-    double totalTotalIntereses = 0.0;
-    double totalPagoIndSemanal = 0.0;
-    double totalPagoIndTotal = 0.0;
-
-    for (var controller in montoPorUsuarioControllers) {
-      double montoIndividual = double.tryParse(controller.text) ?? 0.0;
-
-      // Calcular el capital semanal multiplicando el monto individual por el plazo
-      double capitalSemanal = montoIndividual / plazo;
-
-      // Calcular el interés individual semanal
-      double interesIndividualSemanal =
-          (montoIndividual * (interesSemanal / 100));
-
-      // Calcular el total de intereses multiplicando el interés semanal por el plazo
-      double totalIntereses = interesIndividualSemanal * plazo;
-
-      // Calcular el pago individual semanal sumando el capital semanal y el interés semanal
-      double pagoIndSemanal = capitalSemanal + interesIndividualSemanal;
-
-      // Calcular el pago individual total multiplicando el pago semanal por el plazo
-      double pagoIndTotal = pagoIndSemanal * plazo;
-
-      // Agregar los valores a la lista de usuarios
-      listaUsuarios.add(UsuarioPrestamo(
-        montoIndividual: montoIndividual,
-        capitalSemanal: capitalSemanal,
-        interesIndividualSemanal: interesIndividualSemanal,
-        totalIntereses: totalIntereses,
-        pagoIndSemanal: pagoIndSemanal,
-        pagoIndTotal: pagoIndTotal,
-      ));
-
-      // Sumar los totales
-      totalMontoIndividual += montoIndividual;
-      totalCapitalSemanal += capitalSemanal;
-      totalInteresIndividualSemanal += interesIndividualSemanal;
-      totalTotalIntereses += totalIntereses;
-      totalPagoIndSemanal += pagoIndSemanal;
-      totalPagoIndTotal += pagoIndTotal;
-    }
-
-    // Agregar la fila de totales
-    listaUsuarios.add(UsuarioPrestamo(
-      montoIndividual: totalMontoIndividual,
-      capitalSemanal: totalCapitalSemanal,
-      interesIndividualSemanal: totalInteresIndividualSemanal,
-      totalIntereses: totalTotalIntereses,
-      pagoIndSemanal: totalPagoIndSemanal,
-      pagoIndTotal: totalPagoIndTotal,
-    ));
-
+  if (plazo <= 0) {
+    print('El plazo debe ser mayor que 0');
     return listaUsuarios;
   }
+
+  double totalMontoIndividual = 0.0;
+  double totalCapitalSemanal = 0.0;
+  double totalInteresIndividualSemanal = 0.0;
+  double totalTotalIntereses = 0.0;
+  double totalPagoIndSemanal = 0.0;
+  double totalPagoIndTotal = 0.0;
+  double totalCapitalTotal = 0.0;  // Nuevo acumulador para total capital
+
+  for (var controller in montoPorUsuarioControllers) {
+    double montoIndividual = parseAmountWithoutCommas(controller.text);
+
+    double capitalSemanal = montoIndividual / plazo;
+    double interesIndividualSemanal = (montoIndividual * (interesSemanal / 100));
+    double totalIntereses = interesIndividualSemanal * plazo;
+    double pagoIndSemanal = capitalSemanal + interesIndividualSemanal;
+    double pagoIndTotal = pagoIndSemanal * plazo;
+
+    // Nuevo cálculo para el total capital (capital + intereses)
+    double totalCapital = capitalSemanal * plazo;
+
+    listaUsuarios.add(UsuarioPrestamo(
+      montoIndividual: montoIndividual,
+      capitalSemanal: capitalSemanal,
+      interesIndividualSemanal: interesIndividualSemanal,
+      totalIntereses: totalIntereses,
+      pagoIndSemanal: pagoIndSemanal,
+      pagoIndTotal: pagoIndTotal,
+      totalCapital: totalCapital,  // Agregar este valor al objeto
+    ));
+
+    totalMontoIndividual += montoIndividual;
+    totalCapitalSemanal += capitalSemanal;
+    totalInteresIndividualSemanal += interesIndividualSemanal;
+    totalTotalIntereses += totalIntereses;
+    totalPagoIndSemanal += pagoIndSemanal;
+    totalPagoIndTotal += pagoIndTotal;
+    totalCapitalTotal += totalCapital;  // Acumular el total capital
+  }
+
+  listaUsuarios.add(UsuarioPrestamo(
+    montoIndividual: totalMontoIndividual,
+    capitalSemanal: totalCapitalSemanal,
+    interesIndividualSemanal: totalInteresIndividualSemanal,
+    totalIntereses: totalTotalIntereses,
+    pagoIndSemanal: totalPagoIndSemanal,
+    pagoIndTotal: totalPagoIndTotal,
+    totalCapital: totalCapitalTotal,  // Agregar total capital a la fila de totales
+  ));
+
+  return listaUsuarios;
+}
+
+
+
 }
 
 // Nuevo widget para mostrar la tabla
@@ -826,57 +839,37 @@ class TablaResultados extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: SingleChildScrollView(
-        scrollDirection: Axis.vertical, // Solo scroll vertical
+        scrollDirection: Axis.vertical,
         child: SizedBox(
-          width: double
-              .infinity, // Hace que la tabla ocupe todo el ancho disponible
+          width: double.infinity,
           child: DataTable(
             border: TableBorder(
               horizontalInside: BorderSide(color: Colors.grey, width: 1),
             ),
             dataRowHeight: 30,
-            columnSpacing: 0, // Espacio entre las columnas
+            columnSpacing: 0,
             columns: const [
               DataColumn(
-                  label: Text(
-                'Integrantes',
-                style: TextStyle(fontSize: 12),
-              )),
+                  label: Text('Integrantes', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text(
-                'Monto individual',
-                style: TextStyle(fontSize: 12),
-              )),
+                  label: Text('Monto individual', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text(
-                'Capital Semanal',
-                style: TextStyle(fontSize: 12),
-              )),
+                  label: Text('Capital Semanal', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text(
-                'Interés Ind. Sem.',
-                style: TextStyle(fontSize: 12),
-              )),
+                  label: Text('Interés Semanal', style: TextStyle(fontSize: 12))),
+                  DataColumn(
+                  label: Text('Total Capital', style: TextStyle(fontSize: 12))), // Nueva columna
               DataColumn(
-                  label: Text(
-                'Total Intereses',
-                style: TextStyle(fontSize: 12),
-              )),
+                  label: Text('Total Intereses', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text(
-                'Pago Ind. Sem.',
-                style: TextStyle(fontSize: 12),
-              )),
+                  label: Text('Pago Ind. Sem.', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text(
-                'Pago Ind. Total',
-                style: TextStyle(fontSize: 12),
-              )),
+                  label: Text('Pago Ind. Total', style: TextStyle(fontSize: 12))),
+              
             ],
             rows: List<DataRow>.generate(listaUsuarios.length, (index) {
               final usuario = listaUsuarios[index];
 
-              // Verifica si es la fila de totales
               bool isTotalRow = index == listaUsuarios.length - 1;
 
               return DataRow(cells: [
@@ -909,6 +902,13 @@ class TablaResultados extends StatelessWidget {
                       fontSize: 12),
                 )),
                 DataCell(Text(
+                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.totalCapital)}',  // Nueva celda
+                  style: TextStyle(
+                      fontWeight:
+                          isTotalRow ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12),
+                )),
+                DataCell(Text(
                   '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.totalIntereses)}',
                   style: TextStyle(
                       fontWeight:
@@ -929,6 +929,7 @@ class TablaResultados extends StatelessWidget {
                           isTotalRow ? FontWeight.bold : FontWeight.normal,
                       fontSize: 12),
                 )),
+                
               ]);
             }),
           ),
@@ -937,6 +938,7 @@ class TablaResultados extends StatelessWidget {
     );
   }
 }
+
 
 List<String> generarFechasDePago(DateTime fechaInicial, int semanas) {
   List<String> fechas = [];
@@ -1041,6 +1043,7 @@ class UsuarioPrestamo {
   final double montoIndividual;
   final double capitalSemanal;
   final double interesIndividualSemanal;
+  final double  totalCapital;
   final double totalIntereses;
   final double pagoIndSemanal;
   final double pagoIndTotal;
@@ -1049,8 +1052,35 @@ class UsuarioPrestamo {
     required this.montoIndividual,
     required this.capitalSemanal,
     required this.interesIndividualSemanal,
+    required this.totalCapital,
     required this.totalIntereses,
     required this.pagoIndSemanal,
     required this.pagoIndTotal,
   });
+}
+
+// Formato para el texto con comas
+class NumberFormatter extends TextInputFormatter {
+  final NumberFormat numberFormat = NumberFormat("#,###");
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    // Elimina las comas antes de hacer cualquier cálculo
+    String valueWithoutCommas = newValue.text.replaceAll(',', '');
+    double parsedValue = double.tryParse(valueWithoutCommas) ?? 0;
+
+    // Formatea el número con comas
+    String formattedValue = numberFormat.format(parsedValue);
+
+    // Devuelve el nuevo valor con formato
+    return TextEditingValue(
+      text: formattedValue,
+      selection: TextSelection.collapsed(offset: formattedValue.length),
+    );
+  }
 }

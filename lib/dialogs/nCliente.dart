@@ -142,6 +142,8 @@ class _nClienteDialogState extends State<nClienteDialog>
   final TextEditingController _numCuentaController = TextEditingController();
   final TextEditingController _numTarjetaController = TextEditingController();
 
+  bool isEditing = false; // Variable que indica si estamos editando
+
   // Variables para manejar el banco seleccionado
   String? _nombreBanco; // Almacena el nombre del banco seleccionado
   @override
@@ -157,8 +159,11 @@ class _nClienteDialogState extends State<nClienteDialog>
     // Imprime el idCliente en la consola
     print("ID del cliente: ${widget.idCliente}");
 
-    // Llama a fetchClienteData solo si idCliente no es nulo
-    if (widget.idCliente != null) {
+    // Determinar si estamos en modo edición o agregando un cliente
+    isEditing = widget.idCliente != null && widget.idCliente!.isNotEmpty;
+
+    // Llama a fetchClienteData solo si idCliente no es nulo (si estamos editando)
+    if (isEditing) {
       fetchClienteData();
     } else {
       _isLoading = false; // Si no estamos editando, cambia el estado de carga
@@ -394,7 +399,7 @@ class _nClienteDialogState extends State<nClienteDialog>
             : Column(
                 children: [
                   Text(
-                    'Agregar Cliente',
+                    isEditing ? 'Editar Cliente' : 'Agregar Cliente',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
@@ -510,7 +515,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                                 }
                               },
                               child: Text(
-                                  _currentIndex == 3 ? 'Agregar' : 'Siguiente'),
+                                  _currentIndex == 3 ? 'Guardar' : 'Siguiente'),
                             ),
                         ],
                       ),
