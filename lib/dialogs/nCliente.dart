@@ -74,6 +74,8 @@ class _nClienteDialogState extends State<nClienteDialog>
   dynamic clienteData; // Almacena los datos del cliente
   Timer? _timer;
 
+  Map<String, dynamic> originalData = {};
+
   final List<String> sexos = ['Masculino', 'Femenino'];
   final List<String> estadosCiviles = [
     'Soltero',
@@ -146,6 +148,7 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   // Variables para manejar el banco seleccionado
   String? _nombreBanco; // Almacena el nombre del banco seleccionado
+
   @override
   void initState() {
     super.initState();
@@ -190,6 +193,143 @@ class _nClienteDialogState extends State<nClienteDialog>
       if (response.statusCode == 200) {
         setState(() {
           clienteData = json.decode(response.body)[0];
+
+          originalData = {
+            // Datos personales del cliente
+            'nombres': clienteData['nombres'],
+            'apellidoP': clienteData['apellidoP'],
+            'apellidoM': clienteData['apellidoM'],
+            'sexo': clienteData['sexo'],
+            'tipo_cliente': clienteData['tipo_cliente'],
+            'ocupacion': clienteData['ocupacion'],
+            'dependientes_economicos': clienteData['dependientes_economicos'],
+            'telefono': clienteData['telefono'],
+            'email': clienteData['email'],
+            'eCivil': clienteData['eCivil'],
+            'fechaNac': clienteData['fechaNac'],
+            'nombreConyuge': clienteData['nombreConyuge'],
+            'telefonoConyuge': clienteData['telefonoConyuge'],
+            'ocupacionConyuge': clienteData['ocupacionConyuge'],
+
+            // Datos del domicilio del cliente
+            'calle': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['calle']
+                : '',
+            'entrecalle': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['entrecalle']
+                : '',
+            'colonia': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['colonia']
+                : '',
+            'cp': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['cp']
+                : '',
+            'next': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['next']
+                : '',
+            'nInt': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['nInt']
+                : '',
+            'estado': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['estado']
+                : '',
+            'municipio': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['municipio']
+                : '',
+            'tipo_domicilio': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['tipo_domicilio']
+                : '',
+            'nombre_propietario': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['nombre_propietario']
+                : '',
+            'parentesco': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['parentesco']
+                : '',
+            'tiempoViviendo': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['tiempoViviendo']
+                : '',
+
+            // Datos adicionales del cliente (como CURP, RFC)
+            'curp': clienteData['adicionales']?.isNotEmpty == true
+                ? clienteData['adicionales'][0]['curp']
+                : '',
+            'rfc': clienteData['adicionales']?.isNotEmpty == true
+                ? clienteData['adicionales'][0]['rfc']
+                : '',
+
+            // Datos de la cuenta bancaria
+            'numCuenta': clienteData['cuentabanco']?.isNotEmpty == true
+                ? clienteData['cuentabanco'][0]['numCuenta']
+                : '',
+            'numTarjeta': clienteData['cuentabanco']?.isNotEmpty == true
+                ? clienteData['cuentabanco'][0]['numTarjeta']
+                : '',
+            'nombreBanco': clienteData['cuentabanco']?.isNotEmpty == true
+                ? clienteData['cuentabanco'][0]['nombreBanco']
+                : '',
+
+            // Datos de ingresos y egresos
+            'ingresos_egresos': clienteData['ingresos_egresos']
+                    ?.map((ingresoEgreso) => {
+                          'tipo_info': ingresoEgreso['tipo_info'],
+                          'años_actividad': ingresoEgreso['años_actividad'],
+                          'descripcion': ingresoEgreso['descripcion'],
+                          'monto_semanal': ingresoEgreso['monto_semanal'],
+                        })
+                    .toList() ??
+                [],
+
+            // Datos de referencias
+            'referencias': clienteData['referencias']?.map((referencia) {
+                  var domicilioRef = referencia['domicilio_ref'];
+                  return {
+                    'nombresRef': referencia['nombres'],
+                    'apellidoPRef': referencia['apellidoP'],
+                    'apellidoMRef': referencia['apellidoM'],
+                    'parentescoRef': referencia['parentescoRefProp'],
+                    'telefonoRef': referencia['telefono'],
+                    'tiempoConocerRef': referencia['timepoCo'],
+                    'tipoDomicilioRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['tipo_domicilio']
+                        : '',
+                    'nombrePropietarioRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['nombre_propietario']
+                        : '',
+                    'parentescoRefProp': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['parentescoRefProp']
+                        : '',
+                    'calleRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['calle']
+                        : '',
+                    'entreCalleRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['entrecalle']
+                        : '',
+                    'coloniaRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['colonia']
+                        : '',
+                    'cpRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['cp']
+                        : '',
+                    'nExtRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['next']
+                        : '',
+                    'nIntRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['nInt']
+                        : '',
+                    'estadoRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['estado']
+                        : '',
+                    'municipioRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['municipio']
+                        : '',
+                    'tiempoViviendoRef': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['tiempoViviendo']
+                        : '',
+                  };
+                }).toList() ??
+                [],
+          };
+          //print(originalData);
 
           // Datos básicos del cliente
           nombresController.text = clienteData['nombres'] ?? '';
@@ -361,6 +501,314 @@ class _nClienteDialogState extends State<nClienteDialog>
     }
   }
 
+  void compareAndPrintEditedFields() {
+    Map<String, dynamic> editedFields = {};
+
+    // Compara y agrega los campos editados a la lista
+    bool isEdited(String field, String originalField) {
+      return (field?.trim() ?? '') != (originalField?.trim() ?? '');
+    }
+
+    // Comparar datos y almacenar solo los que han cambiado
+
+    // Datos personales
+    if ((nombresController.text ?? '') != (originalData['nombres'] ?? '')) {
+      editedFields['nombres'] = nombresController.text;
+    }
+    if ((apellidoPController.text ?? '') != (originalData['apellidoP'] ?? '')) {
+      editedFields['apellidoP'] = apellidoPController.text;
+    }
+    if ((apellidoMController.text ?? '') != (originalData['apellidoM'] ?? '')) {
+      editedFields['apellidoM'] = apellidoMController.text;
+    }
+    if ((selectedSexo ?? '') != (originalData['sexo'] ?? '')) {
+      editedFields['sexo'] = selectedSexo;
+    }
+    if ((selectedTipoCliente ?? '') != (originalData['tipo_cliente'] ?? '')) {
+      editedFields['tipo_cliente'] = selectedTipoCliente;
+    }
+    if ((ocupacionController.text ?? '') != (originalData['ocupacion'] ?? '')) {
+      editedFields['ocupacion'] = ocupacionController.text;
+    }
+    if ((depEconomicosController.text ?? '') !=
+        (originalData['dependientes_economicos'] ?? '')) {
+      editedFields['dependientes_economicos'] = depEconomicosController.text;
+    }
+    if ((telefonoClienteController.text ?? '') !=
+        (originalData['telefono'] ?? '')) {
+      editedFields['telefono'] = telefonoClienteController.text;
+    }
+    if ((emailClientecontroller.text ?? '') != (originalData['email'] ?? '')) {
+      editedFields['email'] = emailClientecontroller.text;
+    }
+
+// Estado civil y fecha de nacimiento
+    if ((selectedECivil ?? '') != (originalData['eCivil'] ?? '')) {
+      editedFields['eCivil'] = selectedECivil;
+    }
+    if ((_fechaController.text ?? '') != (originalData['fechaNac'] ?? '')) {
+      editedFields['fechaNac'] = _fechaController.text;
+    }
+
+// Datos del cónyuge
+    if ((nombreConyugeController.text ?? '') !=
+        (originalData['nombreConyuge'] ?? '')) {
+      editedFields['nombreConyuge'] = nombreConyugeController.text;
+    }
+    if ((telefonoConyugeController.text ?? '') !=
+        (originalData['telefonoConyuge'] ?? '')) {
+      editedFields['telefonoConyuge'] = telefonoConyugeController.text;
+    }
+    if ((ocupacionConyugeController.text ?? '') !=
+        (originalData['ocupacionConyuge'] ?? '')) {
+      editedFields['ocupacionConyuge'] = ocupacionConyugeController.text;
+    }
+
+    // Datos de domicilio
+    if ((calleController.text ?? '') != (originalData['calle'] ?? '')) {
+      editedFields['calle'] = calleController.text;
+    }
+    if ((entreCalleController.text ?? '') !=
+        (originalData['entrecalle'] ?? '')) {
+      editedFields['entrecalle'] = entreCalleController.text;
+    }
+    if ((coloniaController.text ?? '') != (originalData['colonia'] ?? '')) {
+      editedFields['colonia'] = coloniaController.text;
+    }
+    if ((cpController.text ?? '') != (originalData['cp'] ?? '')) {
+      editedFields['cp'] = cpController.text;
+    }
+    if ((nExtController.text ?? '') != (originalData['next'] ?? '')) {
+      editedFields['next'] = nExtController.text;
+    }
+    if ((nIntController.text ?? '') != (originalData['nInt'] ?? '')) {
+      editedFields['nInt'] = nIntController.text;
+    }
+    if ((estadoController.text ?? '') != (originalData['estado'] ?? '')) {
+      editedFields['estado'] = estadoController.text;
+    }
+    if ((municipioController.text ?? '') != (originalData['municipio'] ?? '')) {
+      editedFields['municipio'] = municipioController.text;
+    }
+    if ((selectedTipoDomicilio ?? '') !=
+        (originalData['tipo_domicilio'] ?? '')) {
+      editedFields['tipo_domicilio'] = selectedTipoDomicilio;
+    }
+    if ((nombrePropietarioController.text ?? '') !=
+        (originalData['nombre_propietario'] ?? '')) {
+      editedFields['nombre_propietario'] = nombrePropietarioController.text;
+    }
+    if ((parentescoPropietarioController.text ?? '') !=
+        (originalData['parentesco'] ?? '')) {
+      editedFields['parentesco'] = parentescoPropietarioController.text;
+    }
+    if ((tiempoViviendoController.text ?? '') !=
+        (originalData['tiempoViviendo'] ?? '')) {
+      editedFields['tiempoViviendo'] = tiempoViviendoController.text;
+    }
+
+// Datos adicionales (CURP, RFC)
+    if ((curpController.text ?? '') != (originalData['curp'] ?? '')) {
+      editedFields['curp'] = curpController.text;
+    }
+    if ((rfcController.text ?? '') != (originalData['rfc'] ?? '')) {
+      editedFields['rfc'] = rfcController.text;
+    }
+
+// Datos de cuenta bancaria
+    if ((_numCuentaController.text ?? '') !=
+        (originalData['numCuenta'] ?? '')) {
+      editedFields['numCuenta'] = _numCuentaController.text;
+    }
+    if ((_numTarjetaController.text ?? '') !=
+        (originalData['numTarjeta'] ?? '')) {
+      editedFields['numTarjeta'] = _numTarjetaController.text;
+    }
+    if ((_nombreBanco ?? '') != (originalData['nombreBanco'] ?? '')) {
+      editedFields['nombreBanco'] = _nombreBanco;
+    }
+
+    // Ingresos y egresos (comparar todos los campos relevantes)
+    for (int i = 0; i < ingresosEgresos.length; i++) {
+      var ingresoEgreso = ingresosEgresos[i];
+      var originalIngresoEgreso = originalData['ingresos_egresos'][i];
+
+      // Comparar tipo_info
+      if (ingresoEgreso['tipo_info'] != originalIngresoEgreso['tipo_info']) {
+        editedFields['ingresos_egresos_${i}_tipo_info'] =
+            ingresoEgreso['tipo_info'];
+      }
+
+      // Comparar años_actividad
+      if (ingresoEgreso['años_actividad'] !=
+          originalIngresoEgreso['años_actividad']) {
+        editedFields['ingresos_egresos_${i}_años_actividad'] =
+            ingresoEgreso['años_actividad'];
+      }
+
+      // Comparar descripcion
+      if (ingresoEgreso['descripcion'] !=
+          originalIngresoEgreso['descripcion']) {
+        editedFields['ingresos_egresos_${i}_descripcion'] =
+            ingresoEgreso['descripcion'];
+      }
+
+      // Comparar monto_semanal
+      if (ingresoEgreso['monto_semanal'] !=
+          originalIngresoEgreso['monto_semanal']) {
+        editedFields['ingresos_egresos_${i}_monto_semanal'] =
+            ingresoEgreso['monto_semanal'];
+      }
+    }
+
+    // Referencias
+    for (int i = 0; i < referencias.length; i++) {
+      var ref = referencias[i];
+      var originalRef = originalData['referencias'][i];
+
+      // Comparar campos de referencia
+      if ((ref['nombresRef'] ?? '') != (originalRef['nombresRef'] ?? '')) {
+        editedFields['referencias_${i}_nombresRef'] = ref['nombresRef'];
+      }
+      if ((ref['apellidoPRef'] ?? '') != (originalRef['apellidoPRef'] ?? '')) {
+        editedFields['referencias_${i}_apellidoPRef'] = ref['apellidoPRef'];
+      }
+      if ((ref['apellidoMRef'] ?? '') != (originalRef['apellidoMRef'] ?? '')) {
+        editedFields['referencias_${i}_apellidoMRef'] = ref['apellidoMRef'];
+      }
+      if ((ref['telefonoRef'] ?? '') != (originalRef['telefonoRef'] ?? '')) {
+        editedFields['referencias_${i}_telefonoRef'] = ref['telefonoRef'];
+      }
+      if ((ref['parentescoRefProp'] ?? '') !=
+          (originalRef['parentescoRefProp'] ?? '')) {
+        editedFields['referencias_${i}_parentescoRefProp'] =
+            ref['parentescoRefProp'];
+      }
+      if ((ref['calleRef'] ?? '') != (originalRef['calleRef'] ?? '')) {
+        editedFields['referencias_${i}_calleRef'] = ref['calleRef'];
+      }
+      if ((ref['coloniaRef'] ?? '') != (originalRef['coloniaRef'] ?? '')) {
+        editedFields['referencias_${i}_coloniaRef'] = ref['coloniaRef'];
+      }
+
+      // Nuevos campos agregados de domicilio
+      if ((ref['tipoDomicilioRef'] ?? '') !=
+          (originalRef['tipoDomicilioRef'] ?? '')) {
+        editedFields['referencias_${i}_tipoDomicilioRef'] =
+            ref['tipoDomicilioRef'];
+      }
+      if ((ref['nombrePropietarioRef'] ?? '') !=
+          (originalRef['nombrePropietarioRef'] ?? '')) {
+        editedFields['referencias_${i}_nombrePropietarioRef'] =
+            ref['nombrePropietarioRef'];
+      }
+      if ((ref['parentescoRefProp'] ?? '') !=
+          (originalRef['parentescoRefProp'] ?? '')) {
+        editedFields['referencias_${i}_parentescoRefProp'] =
+            ref['parentescoRefProp'];
+      }
+      if ((ref['tiempoViviendoRef'] ?? '') !=
+          (originalRef['tiempoViviendoRef'] ?? '')) {
+        editedFields['referencias_${i}_tiempoViviendoRef'] =
+            ref['tiempoViviendoRef'];
+      }
+      if ((ref['cpRef'] ?? '') != (originalRef['cpRef'] ?? '')) {
+        editedFields['referencias_${i}_cpRef'] = ref['cpRef'];
+      }
+      if ((ref['nExtRef'] ?? '') != (originalRef['nExtRef'] ?? '')) {
+        editedFields['referencias_${i}_nExtRef'] = ref['nExtRef'];
+      }
+      if ((ref['nIntRef'] ?? '') != (originalRef['nIntRef'] ?? '')) {
+        editedFields['referencias_${i}_nIntRef'] = ref['nIntRef'];
+      }
+      if ((ref['estadoRef'] ?? '') != (originalRef['estadoRef'] ?? '')) {
+        editedFields['referencias_${i}_estadoRef'] = ref['estadoRef'];
+      }
+      if ((ref['municipioRef'] ?? '') != (originalRef['municipioRef'] ?? '')) {
+        editedFields['referencias_${i}_municipioRef'] = ref['municipioRef'];
+      }
+      if ((ref['tiempoViviendoRef'] ?? '') !=
+          (originalRef['tiempoViviendoRef'] ?? '')) {
+        editedFields['referencias_${i}_tiempoViviendoRef'] =
+            ref['tiempoViviendoRef'];
+      }
+    }
+
+    // Imprimir los campos editados
+    if (editedFields.isNotEmpty) {
+      print("Campos editados:");
+      editedFields.forEach((key, value) {
+        print("$key: $value");
+
+        // Llamar a la función de validación para determinar el endpoint
+        switch (key) {
+          case 'nombres':
+          case 'apellidoP':
+          case 'apellidoM':
+          case 'fechaNac':
+          case 'sexo':
+          case 'ocupacion':
+          case 'telefono':
+          case 'eCivil':
+          case 'email':
+          case 'dependientes_economicos':
+          case 'nombreConyuge':
+          case 'telefonoConyuge':
+          case 'ocupacionConyuge':
+            print("Endpoint: Cliente");
+            break;
+
+          case 'nombreBanco':
+          case 'numCuenta':
+          case 'numTarjeta':
+            print("Endpoint: Cuenta Banco");
+            break;
+
+          case 'tipo_domicilio':
+          case 'nombre_propietario':
+          case 'parentesco':
+          case 'calle':
+          case 'nExt':
+          case 'nInt':
+          case 'entreCalle':
+          case 'colonia':
+          case 'cp':
+          case 'estado':
+          case 'municipio':
+          case 'tiempoViviendo':
+            print("Endpoint: Domicilio");
+            break;
+
+          case 'curp':
+          case 'rfc':
+            print("Endpoint: Datos Adicionales");
+            break;
+
+          case 'monto_semanal':
+          case 'años_actividad':
+          case 'descripcion':
+            print("Endpoint: Ingresos");
+            break;
+
+          case 'nombresRef':
+          case 'apellidoPRef':
+          case 'apellidoMRef':
+          case 'parentescoRef':
+          case 'telefonoRef':
+          case 'tiempoConocerRef':
+            print("Endpoint: Referencias");
+            break;
+
+          default:
+            print("Campo desconocido: $key");
+            break;
+        }
+      });
+    } else {
+      print("No se han realizado cambios.");
+    }
+  }
+
   void mostrarDialogoError(String mensaje) {
     showDialog(
       context: context,
@@ -472,7 +920,6 @@ class _nClienteDialogState extends State<nClienteDialog>
                                 if (_currentIndex < 3) {
                                   if (_currentIndex == 2 &&
                                       ingresosEgresos.isEmpty) {
-                                    // Verifica si está en la pestaña de Ingresos y Egresos y la lista está vacía
                                     _showErrorDialog(
                                       "No se puede avanzar",
                                       "Por favor, agregue al menos un ingreso o egreso.",
@@ -487,7 +934,6 @@ class _nClienteDialogState extends State<nClienteDialog>
                                         "Validación fallida en la pestaña $_currentIndex");
                                   }
                                 } else if (_currentIndex == 3) {
-                                  // Validación final antes de agregar el cliente
                                   if (referencias.isEmpty) {
                                     _showErrorDialog(
                                       "No se puede agregar el cliente",
@@ -505,7 +951,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   }
 
                                   if (_validarFormularioActual()) {
-                                    _agregarCliente();
+                                    if (isEditing) {
+                                      print('Se va a editar');
+                                      compareAndPrintEditedFields();
+                                    } else {
+                                      _agregarCliente();
+                                    }
                                   } else {
                                     _showErrorDialog(
                                       "No se puede agregar el cliente",
@@ -2563,11 +3014,11 @@ class _nClienteDialogState extends State<nClienteDialog>
     final ingresosData = ingresosEgresos
         .map((item) => {
               "idclientes": idCliente,
-              "idinfo": tiposIngresoEgresoIds[item['tipo']] ??
+              "idinfo": tiposIngresoEgresoIds[item['tipo_info']] ??
                   0, // Obtener el ID en lugar del texto
-              "años_actividad": item['añosenActividad'] ?? 0,
+              "años_actividad": item['años_actividad'] ?? 0,
               "descripcion": item['descripcion'] ?? "",
-              "monto_semanal": item['monto'] ?? 0
+              "monto_semanal": item['monto_semanal'] ?? 0
             })
         .toList();
 
@@ -2680,7 +3131,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                 "descripcion": item['descripcion'] ?? "",
                 "tipo": item['tipo'] ?? "",
                 "monto": item['monto'] ?? 0,
-                "añosenActividad": item['añosenActividad'] ?? 0
+                "añosenActividad": item['años_actividad'] ?? 0
               })
           .toList(),
       "Referencias": referencias

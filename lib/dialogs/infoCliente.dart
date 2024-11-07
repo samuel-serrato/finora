@@ -200,7 +200,8 @@ class _InfoClienteState extends State<InfoCliente> {
                                           _buildSectionTitle(
                                               'Cuentas de Banco'),
                                           Container(
-                                            margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                                            margin: EdgeInsets.symmetric(
+                                                horizontal: 4.0, vertical: 4.0),
                                             height:
                                                 150, // Ajusta la altura al tamaño deseado
                                             width: double.infinity,
@@ -254,7 +255,8 @@ class _InfoClienteState extends State<InfoCliente> {
                                           _buildSectionTitle(
                                               'Datos Adicionales'),
                                           Container(
-                                            margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                                            margin: EdgeInsets.symmetric(
+                                                horizontal: 4.0, vertical: 4.0),
                                             height:
                                                 150, // Ajusta la altura al tamaño deseado
                                             width: double.infinity,
@@ -305,7 +307,8 @@ class _InfoClienteState extends State<InfoCliente> {
                                           _buildSectionTitle(
                                               'Inf. del Cónyuge'),
                                           Container(
-                                            margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                                            margin: EdgeInsets.symmetric(
+                                                horizontal: 4.0, vertical: 4.0),
                                             height:
                                                 150, // Ajusta la altura al tamaño deseados
                                             width: double.infinity,
@@ -349,7 +352,8 @@ class _InfoClienteState extends State<InfoCliente> {
                                 _buildSectionTitle('Domicilio'),
                                 if (clienteData!['domicilios'] is List)
                                   Container(
-                                    margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                                    margin: EdgeInsets.symmetric(
+                                        horizontal: 4.0, vertical: 4.0),
                                     padding: EdgeInsets.all(16),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
@@ -560,7 +564,9 @@ class _InfoClienteState extends State<InfoCliente> {
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16), // Padding directamente en el Container
+                padding: const EdgeInsets.symmetric(
+                    vertical: 8.0,
+                    horizontal: 16), // Padding directamente en el Container
                 child: Column(
                   mainAxisSize:
                       MainAxisSize.min, // Permitir que se ajuste al contenido
@@ -583,7 +589,7 @@ class _InfoClienteState extends State<InfoCliente> {
                         Expanded(
                           child: _buildDetailRow(
                             'Parentesco:',
-                            referencia['parentesco'],
+                            referencia['parentescoRefProp'],
                           ),
                         ),
                         Expanded(
