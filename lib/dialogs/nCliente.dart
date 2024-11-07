@@ -259,36 +259,49 @@ class _nClienteDialogState extends State<nClienteDialog>
 
             // Datos de la cuenta bancaria
             'numCuenta': clienteData['cuentabanco']?.isNotEmpty == true
-                ? clienteData['cuentabanco'][0]['numCuenta']
-                : '',
-            'numTarjeta': clienteData['cuentabanco']?.isNotEmpty == true
-                ? clienteData['cuentabanco'][0]['numTarjeta']
-                : '',
-            'nombreBanco': clienteData['cuentabanco']?.isNotEmpty == true
-                ? clienteData['cuentabanco'][0]['nombreBanco']
-                : '',
+                ? clienteData['cuentabanco'][0]['numCuenta'] ?? 'No asignado'
+                : 'No asignado',
 
-            // Datos de ingresos y egresos
-            'ingresos_egresos': clienteData['ingresos_egresos']
-                    ?.map((ingresoEgreso) => {
-                          'tipo_info': ingresoEgreso['tipo_info'],
-                          'años_actividad': ingresoEgreso['años_actividad'],
-                          'descripcion': ingresoEgreso['descripcion'],
-                          'monto_semanal': ingresoEgreso['monto_semanal'],
-                        })
-                    .toList() ??
-                [],
+            'numTarjeta': clienteData['cuentabanco']?.isNotEmpty == true
+                ? clienteData['cuentabanco'][0]['numTarjeta'] ?? 'No asignado'
+                : 'No asignado',
+
+            'nombreBanco': clienteData['cuentabanco']?.isNotEmpty == true
+                ? clienteData['cuentabanco'][0]['nombreBanco'] ?? 'No asignado'
+                : 'No asignado',
+
+            'ingresos_egresos':
+                clienteData['ingresos_egresos']?.map((ingresoEgreso) {
+                      return {
+                        'tipo_info':
+                            ingresoEgreso['tipo_info'] ?? 'No asignado',
+                        'años_actividad':
+                            ingresoEgreso['años_actividad'] ?? 'No asignado',
+                        'descripcion':
+                            ingresoEgreso['descripcion'] ?? 'No asignado',
+                        'monto_semanal':
+                            ingresoEgreso['monto_semanal'] ?? 'No asignado',
+                      };
+                    }).toList() ??
+                    [],
 
             // Datos de referencias
             'referencias': clienteData['referencias']?.map((referencia) {
+                  if (referencia['datos'] == 'No asignado') {
+                    return {
+                      'datos': 'No asignado',
+                      // Si 'datos' es 'No asignado', puedes incluir algún valor por defecto aquí si quieres
+                    };
+                  }
+
                   var domicilioRef = referencia['domicilio_ref'];
                   return {
-                    'nombresRef': referencia['nombres'],
-                    'apellidoPRef': referencia['apellidoP'],
-                    'apellidoMRef': referencia['apellidoM'],
-                    'parentescoRef': referencia['parentescoRefProp'],
-                    'telefonoRef': referencia['telefono'],
-                    'tiempoConocerRef': referencia['timepoCo'],
+                    'nombresRef': referencia['nombres'] ?? '',
+                    'apellidoPRef': referencia['apellidoP'] ?? '',
+                    'apellidoMRef': referencia['apellidoM'] ?? '',
+                    'parentescoRef': referencia['parentescoRef'] ?? '',
+                    'telefonoRef': referencia['telefono'] ?? '',
+                    'tiempoConocerRef': referencia['timepoCo'] ?? '',
                     'tipoDomicilioRef': domicilioRef?.isNotEmpty == true
                         ? domicilioRef[0]['tipo_domicilio']
                         : '',
@@ -329,7 +342,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                 }).toList() ??
                 [],
           };
-          //print(originalData);
+          print(originalData);
 
           // Datos básicos del cliente
           nombresController.text = clienteData['nombres'] ?? '';
@@ -347,7 +360,7 @@ class _nClienteDialogState extends State<nClienteDialog>
           selectedECivil = clienteData['eCivil'] ?? '';
           _fechaController.text = clienteData['fechaNac'] ?? '';
 
-// Si hay una fecha válida, establece también el selectedDate
+          // Si hay una fecha válida, establece también el selectedDate
           if (clienteData['fechaNac'] != null &&
               clienteData['fechaNac'].isNotEmpty) {
             selectedDate = DateTime.parse(clienteData['fechaNac']);
@@ -386,24 +399,36 @@ class _nClienteDialogState extends State<nClienteDialog>
           }
 
           // Información de cuenta bancaria
-          if (clienteData['cuentabanco'] != null &&
-              clienteData['cuentabanco'].isNotEmpty) {
-            _numCuentaController.text =
-                clienteData['cuentabanco'][0]['numCuenta'] ?? '';
-            _numTarjetaController.text =
-                clienteData['cuentabanco'][0]['numTarjeta'] ?? '';
-            _nombreBanco = clienteData['cuentabanco'][0]['nombreBanco'] ?? '';
-          }
+          if (clienteData['cuentabanco'] != null && clienteData['cuentabanco'].isNotEmpty) {
+  setState(() {
+    _numCuentaController.text =
+        clienteData['cuentabanco'][0]['numCuenta'] ?? 'No asignado';
+    _numTarjetaController.text =
+        clienteData['cuentabanco'][0]['numTarjeta'] ?? 'No asignado';
+    _nombreBanco = clienteData['cuentabanco'][0]['nombreBanco'] ?? 'No asignado';
+  });
+}
+
 
           // Inicialización de ingresos y egresos
           ingresosEgresos.clear();
           if (clienteData['ingresos_egresos'] != null) {
             for (var ingresoEgreso in clienteData['ingresos_egresos']) {
+              // Verifica si algún campo tiene el valor 'No asignado' y asigna 'No asignado'
               ingresosEgresos.add({
-                'tipo_info': ingresoEgreso['tipo_info'] ?? '',
-                'años_actividad': ingresoEgreso['años_actividad'] ?? '',
-                'descripcion': ingresoEgreso['descripcion'] ?? '',
-                'monto_semanal': ingresoEgreso['monto_semanal'] ?? '',
+                'tipo_info': ingresoEgreso['tipo_info'] == 'No asignado'
+                    ? 'No asignado'
+                    : ingresoEgreso['tipo_info'] ?? 'No asignado',
+                'años_actividad':
+                    ingresoEgreso['años_actividad'] == 'No asignado'
+                        ? 'No asignado'
+                        : ingresoEgreso['años_actividad'] ?? 'No asignado',
+                'descripcion': ingresoEgreso['descripcion'] == 'No asignado'
+                    ? 'No asignado'
+                    : ingresoEgreso['descripcion'] ?? 'No asignado',
+                'monto_semanal': ingresoEgreso['monto_semanal'] == 'No asignado'
+                    ? 'No asignado'
+                    : ingresoEgreso['monto_semanal'] ?? 'No asignado',
               });
             }
           }
@@ -412,65 +437,94 @@ class _nClienteDialogState extends State<nClienteDialog>
           referencias.clear();
           if (clienteData['referencias'] != null) {
             for (var referencia in clienteData['referencias']) {
-              var domicilioRef = referencia['domicilio_ref'];
+              // Verifica si la referencia tiene el valor 'No asignado'
+              if (referencia['datos'] == 'No asignado') {
+                // Si 'datos' es 'No asignado', se agrega una referencia con ese valor
+                referencias.add({
+                  'nombresRef': 'No asignado',
+                  'apellidoPRef': 'No asignado',
+                  'apellidoMRef': 'No asignado',
+                  'parentescoRef': 'No asignado',
+                  'telefonoRef': 'No asignado',
+                  'tiempoConocerRef': 'No asignado',
+                  // Datos del domicilio de la referencia
+                  'tipoDomicilioRef': 'No asignado',
+                  'nombrePropietarioRef': 'No asignado',
+                  'parentescoRefProp': 'No asignado',
+                  'calleRef': 'No asignado',
+                  'entreCalleRef': 'No asignado',
+                  'coloniaRef': 'No asignado',
+                  'cpRef': 'No asignado',
+                  'nExtRef': 'No asignado',
+                  'nIntRef': 'No asignado',
+                  'estadoRef': 'No asignado',
+                  'municipioRef': 'No asignado',
+                  'tiempoViviendoRef': 'No asignado',
+                });
+              } else {
+                var domicilioRef = referencia['domicilio_ref'];
 
-              // Verifica si la lista de domicilios no está vacía antes de acceder a ella
-              String tipoDomicilio = domicilioRef.isNotEmpty
-                  ? domicilioRef[0]['tipo_domicilio'] ?? ''
-                  : '';
-              String nombrePropietario = domicilioRef.isNotEmpty
-                  ? domicilioRef[0]['nombre_propietario'] ?? ''
-                  : '';
-              String parentescoRefProp = domicilioRef.isNotEmpty
-                  ? domicilioRef[0]['parentesco'] ?? ''
-                  : '';
-              String calle =
-                  domicilioRef.isNotEmpty ? domicilioRef[0]['calle'] ?? '' : '';
-              String entreCalle = domicilioRef.isNotEmpty
-                  ? domicilioRef[0]['entrecalle'] ?? ''
-                  : '';
-              String colonia = domicilioRef.isNotEmpty
-                  ? domicilioRef[0]['colonia'] ?? ''
-                  : '';
-              String cp =
-                  domicilioRef.isNotEmpty ? domicilioRef[0]['cp'] ?? '' : '';
-              String nExt =
-                  domicilioRef.isNotEmpty ? domicilioRef[0]['next'] ?? '' : '';
-              String nInt =
-                  domicilioRef.isNotEmpty ? domicilioRef[0]['nInt'] ?? '' : '';
-              String estado = domicilioRef.isNotEmpty
-                  ? domicilioRef[0]['estado'] ?? ''
-                  : '';
-              String municipio = domicilioRef.isNotEmpty
-                  ? domicilioRef[0]['municipio'] ?? ''
-                  : '';
-              String tiempoViviendo = domicilioRef.isNotEmpty
-                  ? domicilioRef[0]['tiempoViviendo'] ?? ''
-                  : '';
+                // Verifica si la lista de domicilios no está vacía antes de acceder a ella
+                String tipoDomicilio = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['tipo_domicilio'] ?? ''
+                    : '';
+                String nombrePropietario = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['nombre_propietario'] ?? ''
+                    : '';
+                String parentescoRefProp = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['parentescoRefProp'] ?? ''
+                    : '';
+                String calle = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['calle'] ?? ''
+                    : '';
+                String entreCalle = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['entrecalle'] ?? ''
+                    : '';
+                String colonia = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['colonia'] ?? ''
+                    : '';
+                String cp =
+                    domicilioRef.isNotEmpty ? domicilioRef[0]['cp'] ?? '' : '';
+                String nExt = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['next'] ?? ''
+                    : '';
+                String nInt = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['nInt'] ?? ''
+                    : '';
+                String estado = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['estado'] ?? ''
+                    : '';
+                String municipio = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['municipio'] ?? ''
+                    : '';
+                String tiempoViviendo = domicilioRef.isNotEmpty
+                    ? domicilioRef[0]['tiempoViviendo'] ?? ''
+                    : '';
 
-              // Ahora agregamos la referencia a la lista
-              referencias.add({
-                'nombresRef': referencia['nombres'] ?? '',
-                'apellidoPRef': referencia['apellidoP'] ?? '',
-                'apellidoMRef': referencia['apellidoM'] ?? '',
-                'parentescoRef': referencia['parentescoRefProp'] ?? '',
-                'telefonoRef': referencia['telefono'] ?? '',
-                'tiempoConocerRef': referencia['timepoCo'] ?? '',
+                // Ahora agregamos la referencia a la lista
+                referencias.add({
+                  'nombresRef': referencia['nombres'] ?? '',
+                  'apellidoPRef': referencia['apellidoP'] ?? '',
+                  'apellidoMRef': referencia['apellidoM'] ?? '',
+                  'parentescoRef': referencia['parentescoRef'] ?? '',
+                  'telefonoRef': referencia['telefono'] ?? '',
+                  'tiempoConocerRef': referencia['timepoCo'] ?? '',
 
-                // Datos del domicilio de la referencia
-                'tipoDomicilioRef': tipoDomicilio,
-                'nombrePropietarioRef': nombrePropietario,
-                'parentescoRefProp': parentescoRefProp,
-                'calleRef': calle,
-                'entreCalleRef': entreCalle,
-                'coloniaRef': colonia,
-                'cpRef': cp,
-                'nExtRef': nExt,
-                'nIntRef': nInt,
-                'estadoRef': estado,
-                'municipioRef': municipio,
-                'tiempoViviendoRef': tiempoViviendo,
-              });
+                  // Datos del domicilio de la referencia
+                  'tipoDomicilioRef': tipoDomicilio,
+                  'nombrePropietarioRef': nombrePropietario,
+                  'parentescoRefProp': parentescoRefProp,
+                  'calleRef': calle,
+                  'entreCalleRef': entreCalle,
+                  'coloniaRef': colonia,
+                  'cpRef': cp,
+                  'nExtRef': nExt,
+                  'nIntRef': nInt,
+                  'estadoRef': estado,
+                  'municipioRef': municipio,
+                  'tiempoViviendoRef': tiempoViviendo,
+                });
+              }
             }
           }
 
@@ -661,12 +715,10 @@ class _nClienteDialogState extends State<nClienteDialog>
       }
     }
 
-    // Referencias
     for (int i = 0; i < referencias.length; i++) {
       var ref = referencias[i];
       var originalRef = originalData['referencias'][i];
 
-      // Comparar campos de referencia
       if ((ref['nombresRef'] ?? '') != (originalRef['nombresRef'] ?? '')) {
         editedFields['referencias_${i}_nombresRef'] = ref['nombresRef'];
       }
@@ -675,6 +727,10 @@ class _nClienteDialogState extends State<nClienteDialog>
       }
       if ((ref['apellidoMRef'] ?? '') != (originalRef['apellidoMRef'] ?? '')) {
         editedFields['referencias_${i}_apellidoMRef'] = ref['apellidoMRef'];
+      }
+      if ((ref['parentescoRef'] ?? '') !=
+          (originalRef['parentescoRef'] ?? '')) {
+        editedFields['referencias_${i}_parentescoRef'] = ref['parentescoRef'];
       }
       if ((ref['telefonoRef'] ?? '') != (originalRef['telefonoRef'] ?? '')) {
         editedFields['referencias_${i}_telefonoRef'] = ref['telefonoRef'];
@@ -690,8 +746,6 @@ class _nClienteDialogState extends State<nClienteDialog>
       if ((ref['coloniaRef'] ?? '') != (originalRef['coloniaRef'] ?? '')) {
         editedFields['referencias_${i}_coloniaRef'] = ref['coloniaRef'];
       }
-
-      // Nuevos campos agregados de domicilio
       if ((ref['tipoDomicilioRef'] ?? '') !=
           (originalRef['tipoDomicilioRef'] ?? '')) {
         editedFields['referencias_${i}_tipoDomicilioRef'] =
@@ -701,11 +755,6 @@ class _nClienteDialogState extends State<nClienteDialog>
           (originalRef['nombrePropietarioRef'] ?? '')) {
         editedFields['referencias_${i}_nombrePropietarioRef'] =
             ref['nombrePropietarioRef'];
-      }
-      if ((ref['parentescoRefProp'] ?? '') !=
-          (originalRef['parentescoRefProp'] ?? '')) {
-        editedFields['referencias_${i}_parentescoRefProp'] =
-            ref['parentescoRefProp'];
       }
       if ((ref['tiempoViviendoRef'] ?? '') !=
           (originalRef['tiempoViviendoRef'] ?? '')) {
@@ -726,11 +775,6 @@ class _nClienteDialogState extends State<nClienteDialog>
       }
       if ((ref['municipioRef'] ?? '') != (originalRef['municipioRef'] ?? '')) {
         editedFields['referencias_${i}_municipioRef'] = ref['municipioRef'];
-      }
-      if ((ref['tiempoViviendoRef'] ?? '') !=
-          (originalRef['tiempoViviendoRef'] ?? '')) {
-        editedFields['referencias_${i}_tiempoViviendoRef'] =
-            ref['tiempoViviendoRef'];
       }
     }
 
@@ -1662,133 +1706,171 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Widget _paginaCuentaBancaria() {
-    int pasoActual = 2; // Paso actual en la página de "Cuenta Bancaria"
+  int pasoActual = 2; // Paso actual en la página de "Cuenta Bancaria"
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Contenedor azul a la izquierda para los pasos
-        Container(
-          decoration: BoxDecoration(
-            color: Color(0xFFFB2056),
-            borderRadius: BorderRadius.all(Radius.circular(20)),
-          ),
-          width: 250,
-          height: 500,
-          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+  // Verificar si clienteData no es null y contiene la clave 'cuentabanco'
+  if (clienteData != null && clienteData.containsKey('cuentabanco') && clienteData['cuentabanco'] != null && clienteData['cuentabanco'].isNotEmpty) {
+    var cuentaBanco = clienteData['cuentabanco'][0]; // Extraemos la primera cuenta bancaria
+    _numCuentaController.text = cuentaBanco['numCuenta'] == 'No asignado'
+        ? ''  // Deja vacío el campo si es "No asignado"
+        : cuentaBanco['numCuenta'] ?? '';  // Si tiene un valor, lo asigna
+
+    _numTarjetaController.text = cuentaBanco['numTarjeta'] == 'No asignado'
+        ? ''  // Deja vacío el campo si es "No asignado"
+        : cuentaBanco['numTarjeta'] ?? '';  // Si tiene un valor, lo asigna
+  } else {
+    // Si 'cuentabanco' es null o vacío, puedes limpiar los controladores o asignar valores predeterminados
+   // _numCuentaController.clear();
+   // _numTarjetaController.clear();
+  }
+
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Contenedor azul a la izquierda para los pasos
+      Container(
+        decoration: BoxDecoration(
+          color: Color(0xFFFB2056),
+          borderRadius: BorderRadius.all(Radius.circular(20)),
+        ),
+        width: 250,
+        height: 500,
+        padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            _buildPasoItem(1, "Información Personal", pasoActual == 1),
+            SizedBox(height: 20),
+            _buildPasoItem(2, "Cuenta Bancaria", pasoActual == 2),
+            SizedBox(height: 20),
+            _buildPasoItem(3, "Ingresos y Egresos", pasoActual == 3),
+            SizedBox(height: 20),
+            _buildPasoItem(4, "Referencias", pasoActual == 4),
+          ],
+        ),
+      ),
+      SizedBox(width: 50), // Espacio entre el contenedor azul y la lista
+
+      // Contenido principal: Formulario de cuenta bancaria
+      Expanded(
+        child: Form(
+          key: _cuentaBancariaFormKey, // Usar el GlobalKey aquí
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Paso 1
-              _buildPasoItem(1, "Información Personal", pasoActual == 1),
               SizedBox(height: 20),
+              CheckboxListTile(
+  title: Text("No tiene cuenta bancaria"),
+  value: _noCuentaBancaria,
+  onChanged: (bool? value) {
+    setState(() {
+      _noCuentaBancaria = value ?? false;
+      if (_noCuentaBancaria) {
+        _nombreBanco = 'No asignado';  // Internamente 'No asignado'
+        _numCuentaController.clear();
+        _numTarjetaController.clear();
+      } else {
+        // Si es false, vuelve a asignar los valores previos si es necesario
+        _nombreBanco = 'No asignado';  // Puedes poner el valor predeterminado si lo deseas
+      }
+    });
+  },
+  controlAffinity: ListTileControlAffinity.leading,
+  contentPadding: EdgeInsets.symmetric(horizontal: 0),
+  visualDensity: VisualDensity.compact,
+),
 
-              // Paso 2
-              _buildPasoItem(2, "Cuenta Bancaria", pasoActual == 2),
               SizedBox(height: 20),
-
-              // Paso 3
-              _buildPasoItem(3, "Ingresos y Egresos", pasoActual == 3),
-              SizedBox(height: 20),
-
-              // Paso 4
-              _buildPasoItem(4, "Referencias", pasoActual == 4),
+              if (!_noCuentaBancaria) ...[
+                // Dropdown que no mostrará 'No asignado'
+                _buildDropdown(
+                  value: _nombreBanco == 'No asignado' ? null : _nombreBanco,  // Ignora 'No asignado'
+                  hint: 'Seleccione un Banco',
+                  items: _bancos
+                      .where((item) => item != 'No asignado') // Filtra 'No asignado' de las opciones
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _nombreBanco = value ?? 'No asignado'; // Asigna 'No asignado' si es null
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null) {
+                      return 'Por favor seleccione un banco';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 10),
+                _buildTextField(
+                  controller: _numCuentaController,
+                  label: 'Número de Cuenta',
+                  icon: Icons.account_balance,
+                  keyboardType: TextInputType.number,
+                  maxLength: 11, // Especificar la longitud máxima aquí
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor ingrese el número de cuenta';
+                    } else if (value.length != 11) {
+                      return 'El número de cuenta debe tener exactamente 11 dígitos';
+                    }
+                    return null; // Si es válido
+                  },
+                ),
+                SizedBox(height: 10),
+                _buildTextField(
+                  controller: _numTarjetaController,
+                  label: 'Número de Tarjeta',
+                  icon: Icons.credit_card,
+                  keyboardType: TextInputType.number,
+                  maxLength: 16, // Especificar la longitud máxima aquí
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor ingrese el número de tarjeta';
+                    } else if (value.length != 16) {
+                      return 'El número de tarjeta debe tener exactamente 16 dígitos';
+                    }
+                    return null; // Si es válido
+                  },
+                ),
+              ],
             ],
           ),
         ),
-        SizedBox(width: 50), // Espacio entre el contenedor azul y la lista
+      ),
+    ],
+  );
+}
 
-        // Contenido principal: Formulario de cuenta bancaria
-        Expanded(
-          child: Form(
-            key: _cuentaBancariaFormKey, // Usar el GlobalKey aquí
-            child: Column(
-              children: [
-                SizedBox(
-                    height: 20), // Espacio entre el contenedor azul y la lista
-                // Opción de "No tiene cuenta bancaria"
-                CheckboxListTile(
-                  title: Text("No tiene cuenta bancaria"),
-                  value: _noCuentaBancaria,
-                  onChanged: (bool? value) {
-                    setState(() {
-                      _noCuentaBancaria = value ?? false;
-                      // Limpiar los campos si se selecciona "No tiene cuenta bancaria"
-                      if (_noCuentaBancaria) {
-                        _nombreBanco = null;
-                        _numCuentaController.clear();
-                        _numTarjetaController.clear();
-                      }
-                    });
-                  },
-                  controlAffinity: ListTileControlAffinity.leading,
-                  contentPadding: EdgeInsets.symmetric(
-                      horizontal: 0), // Eliminar padding horizontal
-                  visualDensity: VisualDensity.compact,
-                ),
 
-                SizedBox(height: 20),
-                if (!_noCuentaBancaria) ...[
-                  _buildDropdown(
-                    value: _nombreBanco,
-                    hint: 'Seleccione un Banco',
-                    items: _bancos,
-                    onChanged: (value) {
-                      setState(() {
-                        _nombreBanco = value; // Asigna el banco seleccionado
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null) {
-                        return 'Por favor seleccione un banco';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 10), // Espacio entre los campos
-                  _buildTextField(
-                    controller: _numCuentaController,
-                    label: 'Número de Cuenta',
-                    icon: Icons.account_balance,
-                    keyboardType: TextInputType.number,
-                    maxLength: 11, // Especificar la longitud máxima aquí
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingrese el número de cuenta';
-                      } else if (value.length != 11) {
-                        return 'El número de cuenta debe tener exactamente 11 dígitos';
-                      }
-                      return null; // Si es válido
-                    },
-                  ),
-
-                  SizedBox(height: 10), // Espacio entre los campos
-                  _buildTextField(
-                    controller: _numTarjetaController,
-                    label: 'Número de Tarjeta',
-                    icon: Icons.credit_card,
-                    keyboardType: TextInputType.number,
-                    maxLength: 16, // Especificar la longitud máxima aquí
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingrese el número de cuenta';
-                      } else if (value.length != 16) {
-                        return 'El número de cuenta debe tener exactamente 16 dígitos';
-                      }
-                      return null; // Si es válido
-                    },
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _paginaIngresosEgresos() {
     int pasoActual = 3; // Paso actual en la página de "Ingresos y Egresos"
+
+    // Función para manejar 'No asignado' y mostrar un texto más adecuado
+    String _getIngresoEgresoData(String data) {
+      print(
+          "Valor de data en _getIngresoEgresoData: $data"); // Imprimir el valor
+      return data == 'No asignado' ? 'No asignado' : data ?? 'No asignado';
+    }
+
+    // Función que verifica si el ingreso/egreso tiene datos válidos
+    bool _isIngresoEgresoValido(Map ingresoEgreso) {
+      print(
+          "Ingreso/Egreso a evaluar: $ingresoEgreso"); // Imprimir el objeto a evaluar
+
+      // Verificamos si los campos clave tienen valores válidos
+      bool isValid = ingresoEgreso['tipo_info'] != 'No asignado' &&
+          ingresoEgreso['años_actividad'] != 'No asignado' &&
+          ingresoEgreso['descripcion'] != 'No asignado' &&
+          ingresoEgreso['monto_semanal'] != 'No asignado';
+
+      print(
+          "Es ingreso/egreso válido: $isValid"); // Imprimir el resultado de la validación
+      return isValid;
+    }
+
+    print(
+        "Número de ingresos y egresos: ${ingresosEgresos.length}"); // Ver cuántos elementos hay
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1805,19 +1887,12 @@ class _nClienteDialogState extends State<nClienteDialog>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Paso 1
               _buildPasoItem(1, "Información Personal", pasoActual == 1),
               SizedBox(height: 20),
-
-              // Paso 2
               _buildPasoItem(2, "Cuenta Bancaria", pasoActual == 2),
               SizedBox(height: 20),
-
-              // Paso 3
               _buildPasoItem(3, "Ingresos y Egresos", pasoActual == 3),
               SizedBox(height: 20),
-
-              // Paso 4
               _buildPasoItem(4, "Referencias", pasoActual == 4),
             ],
           ),
@@ -1827,51 +1902,74 @@ class _nClienteDialogState extends State<nClienteDialog>
         // Contenido principal: Lista de ingresos y egresos
         Expanded(
           child: Form(
-            // Asegúrate de envolver esto en un Form
             key: _ingresosEgresosFormKey, // Usar el GlobalKey aquí
             child: Column(
               children: [
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: ingresosEgresos.length,
-                    itemBuilder: (context, index) {
-                      final item = ingresosEgresos[index];
-                      return ListTile(
-                        title: Text(item['descripcion']),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                '${item['tipo_info']} - \$${item['monto_semanal']}'),
-                            Text(
-                                'Años en Actividad - ${item['años_actividad']}'),
-                          ],
+                  child: ingresosEgresos.isEmpty ||
+                          !ingresosEgresos.any(_isIngresoEgresoValido)
+                      ? Center(
+                          child: Text(
+                            'No hay ingresos o egresos agregados',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: ingresosEgresos.length,
+                          itemBuilder: (context, index) {
+                            final item = ingresosEgresos[index];
+
+                            // Si el ingreso/egreso no es válido, no mostrar la tarjeta
+                            if (!_isIngresoEgresoValido(item)) {
+                              return SizedBox.shrink(); // No muestra nada
+                            }
+
+                            return Card(
+                              margin: EdgeInsets.symmetric(
+                                  vertical: 5, horizontal: 10),
+                              child: ListTile(
+                                title: Text(item['descripcion']),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        '${_getIngresoEgresoData(item['tipo_info'])} - \$${_getIngresoEgresoData(item['monto_semanal'])}'),
+                                    Text(
+                                        'Años en Actividad - ${_getIngresoEgresoData(item['años_actividad'])}'),
+                                  ],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () =>
+                                          _mostrarDialogIngresoEgreso(
+                                              index: index, item: item),
+                                    ),
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () {
+                                        setState(() {
+                                          ingresosEgresos.removeAt(index);
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _mostrarDialogIngresoEgreso(
-                                  index: index, item: item),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
-                              onPressed: () {
-                                setState(() {
-                                  ingresosEgresos.removeAt(index);
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
                 ),
-                ElevatedButton(
-                  onPressed: () => _mostrarDialogIngresoEgreso(),
-                  child: Text('Añadir Ingreso/Egreso'),
+                Container(
+                  margin: EdgeInsets.only(top: 10),
+                  child: ElevatedButton(
+                    onPressed: _mostrarDialogIngresoEgreso,
+                    child: Text('Añadir Ingreso/Egreso'),
+                  ),
                 ),
               ],
             ),
@@ -1883,6 +1981,23 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   Widget _paginaReferencias() {
     int pasoActual = 4; // Paso actual en la página de "Ingresos y Egresos"
+
+    // Función para manejar 'No asignado' y mostrar un texto más adecuado
+    String _getReferenciaData(String data) {
+      return data == 'No asignado' ? 'No asignado' : data ?? 'No asignado';
+    }
+
+    // Función que verifica si la referencia tiene datos válidos
+    bool _isReferenciaValida(Map referencia) {
+      // Verificamos si los campos clave tienen valores válidos
+      return referencia['nombresRef'] != 'No asignado' &&
+          referencia['apellidoPRef'] != 'No asignado' &&
+          referencia['telefonoRef'] != 'No asignado' &&
+          referencia['tiempoConocerRef'] != 'No asignado' &&
+          referencia['parentescoRef'] != 'No asignado' &&
+          referencia['tipoDomicilioRef'] != 'No asignado' &&
+          referencia['nombrePropietarioRef'] != 'No asignado';
+    }
 
     return Row(
       children: [
@@ -1922,135 +2037,147 @@ class _nClienteDialogState extends State<nClienteDialog>
             child: Column(
               children: [
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: referencias.length,
-                    itemBuilder: (context, index) {
-                      final referencia = referencias[index];
-                      return Card(
-                        margin:
-                            EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                        child: ListTile(
-                          title: Text(
-                            '${referencia['nombresRef']} ${referencia['apellidoPRef']} ${referencia['apellidoMRef']}',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Datos de la referencia
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                      'Parentesco: ${referencia['parentescoRef']}'),
-                                  Text(
-                                      'Teléfono: ${referencia['telefonoRef']}'),
-                                  Text(
-                                      'Tiempo de conocer: ${referencia['tiempoConocerRef']}'),
-                                ],
-                              ),
+                  child: referencias.isEmpty ||
+                          !referencias.any(_isReferenciaValida)
+                      ? Center(child:  Text(
+                            'No hay referencias agregadas',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),)
+                      : ListView.builder(
+                          itemCount: referencias.length,
+                          itemBuilder: (context, index) {
+                            final referencia = referencias[index];
 
-                              SizedBox(height: 10), // Separador
+                            // Si la referencia no es válida, no mostrar la tarjeta
+                            if (!_isReferenciaValida(referencia)) {
+                              return SizedBox.shrink(); // No muestra nada
+                            }
 
-                              // Datos del domicilio de la referencia
-                              Text('Domicilio',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                      child: Text(
-                                          'Tipo: ${referencia['tipoDomicilioRef']}')),
-                                  Expanded(
-                                      child: Text(
-                                          'Propietario: ${referencia['nombrePropietarioRef']}')),
-                                ],
-                              ),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                      child: Text(
-                                          'Parentesco con propietario: ${referencia['parentescoRefProp']}')),
-                                  Expanded(
-                                      child: Text(
-                                          'Calle: ${referencia['calleRef']}')),
-                                ],
-                              ),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                      child: Text(
-                                          'Num Ext: ${referencia['nExtRef']}')),
-                                  Expanded(
-                                      child: Text(
-                                          'Num Int: ${referencia['nIntRef']}')),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  Expanded(
-                                      child: Text(
-                                          'Entre calles: ${referencia['entreCalleRef']}')),
-                                  Expanded(
-                                    child: Text(
-                                        'Tiempo viviendo: ${referencia['tiempoViviendoRef']}'),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  Expanded(
-                                      child: Text(
-                                          'Colonia: ${referencia['coloniaRef']}')),
-                                  Expanded(
-                                      child:
-                                          Text('CP: ${referencia['cpRef']}')),
-                                ],
-                              ),
+                            return Card(
+                              margin: EdgeInsets.symmetric(
+                                  vertical: 5, horizontal: 10),
+                              child: ListTile(
+                                title: Text(
+                                  '${_getReferenciaData(referencia['nombresRef'])} ${_getReferenciaData(referencia['apellidoPRef'])} ${_getReferenciaData(referencia['apellidoMRef'])}',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Datos de la referencia
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                            'Parentesco: ${_getReferenciaData(referencia['parentescoRef'])}'),
+                                        Text(
+                                            'Teléfono: ${_getReferenciaData(referencia['telefonoRef'])}'),
+                                        Text(
+                                            'Tiempo de conocer: ${_getReferenciaData(referencia['tiempoConocerRef'])}'),
+                                      ],
+                                    ),
 
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                      child: Text(
-                                          'Estado: ${referencia['estadoRef']}')),
-                                  Expanded(
-                                      child: Text(
-                                          'Municipio: ${referencia['municipioRef']}')),
-                                ],
+                                    SizedBox(height: 10), // Separador
+
+                                    // Datos del domicilio de la referencia
+                                    Text('Domicilio',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                            child: Text(
+                                                'Tipo: ${_getReferenciaData(referencia['tipoDomicilioRef'])}')),
+                                        Expanded(
+                                            child: Text(
+                                                'Propietario: ${_getReferenciaData(referencia['nombrePropietarioRef'])}')),
+                                      ],
+                                    ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                            child: Text(
+                                                'Parentesco con propietario: ${_getReferenciaData(referencia['parentescoRefProp'])}')),
+                                        Expanded(
+                                            child: Text(
+                                                'Calle: ${_getReferenciaData(referencia['calleRef'])}')),
+                                      ],
+                                    ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                            child: Text(
+                                                'Num Ext: ${_getReferenciaData(referencia['nExtRef'])}')),
+                                        Expanded(
+                                            child: Text(
+                                                'Num Int: ${_getReferenciaData(referencia['nIntRef'])}')),
+                                      ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                            child: Text(
+                                                'Entre calles: ${_getReferenciaData(referencia['entreCalleRef'])}')),
+                                        Expanded(
+                                            child: Text(
+                                                'Tiempo viviendo: ${_getReferenciaData(referencia['tiempoViviendoRef'])}')),
+                                      ],
+                                    ),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                            child: Text(
+                                                'Colonia: ${_getReferenciaData(referencia['coloniaRef'])}')),
+                                        Expanded(
+                                            child: Text(
+                                                'CP: ${_getReferenciaData(referencia['cpRef'])}')),
+                                      ],
+                                    ),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Expanded(
+                                            child: Text(
+                                                'Estado: ${_getReferenciaData(referencia['estadoRef'])}')),
+                                        Expanded(
+                                            child: Text(
+                                                'Municipio: ${_getReferenciaData(referencia['municipioRef'])}')),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () => _mostrarDialogReferencia(
+                                          index: index, item: referencia),
+                                    ),
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () {
+                                        setState(() {
+                                          referencias.removeAt(index);
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _mostrarDialogReferencia(
-                                    index: index, item: referencia),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete, color: Colors.red),
-                                onPressed: () {
-                                  setState(() {
-                                    referencias.removeAt(index);
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
                 ),
                 Container(
                   margin: EdgeInsets.only(top: 10),
@@ -2533,7 +2660,21 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogIngresoEgreso({int? index, Map<String, dynamic>? item}) {
+    // Ajustar el valor seleccionado
     String? selectedTipo = item?['tipo_info'];
+
+    // Imprimir el valor original de selectedTipo
+    print("Valor original de selectedTipo: $selectedTipo");
+
+    // Si el valor es 'No asignado', asignamos null para no mostrarlo en el dropdown
+    if (selectedTipo == 'No asignado') {
+      selectedTipo = null;
+    }
+
+    // Imprimir el valor de selectedTipo después de la comprobación
+    print(
+        "Valor de selectedTipo después de comprobar 'No asignado': $selectedTipo");
+
     final descripcionController =
         TextEditingController(text: item?['descripcion'] ?? '');
     final montoController =
@@ -2549,6 +2690,9 @@ class _nClienteDialogState extends State<nClienteDialog>
     final width = MediaQuery.of(context).size.width * 0.4;
     final height = MediaQuery.of(context).size.height * 0.5;
 
+    // Imprimir la lista original de tipos de ingreso/egreso
+    print("Lista original de tiposIngresoEgreso: $tiposIngresoEgreso");
+
     showDialog(
       barrierDismissible: false,
       context: context,
@@ -2557,19 +2701,26 @@ class _nClienteDialogState extends State<nClienteDialog>
             index == null ? 'Nuevo Ingreso/Egreso' : 'Editar Ingreso/Egreso'),
         content: StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
+            // Filtrar 'No asignado' de la lista
+            List<String> tiposFiltrados = tiposIngresoEgreso
+                .where((item) => item != 'No asignado')
+                .toList();
+
+            // Imprimir la lista filtrada
+            print("Lista filtrada de tiposIngresoEgreso: $tiposFiltrados");
+
             return Container(
               width: width,
               height: height,
               child: Form(
-                key:
-                    dialogAddIngresosEgresosFormKey, // Usar el nuevo GlobalKey aquí
+                key: dialogAddIngresosEgresosFormKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildDropdown(
                       value: selectedTipo,
                       hint: 'Tipo',
-                      items: tiposIngresoEgreso,
+                      items: tiposFiltrados, // Usamos la lista filtrada
                       onChanged: (value) {
                         setState(() {
                           selectedTipo = value;
@@ -2640,7 +2791,6 @@ class _nClienteDialogState extends State<nClienteDialog>
           ),
           ElevatedButton(
             onPressed: () {
-              // Valida el formulario antes de continuar
               if (dialogAddIngresosEgresosFormKey.currentState!.validate() &&
                   selectedTipo != null) {
                 final nuevoItem = {
@@ -2913,6 +3063,9 @@ class _nClienteDialogState extends State<nClienteDialog>
       "numCuenta": _numCuentaController.text,
       "numTarjeta": _numTarjetaController.text
     };
+
+     print('IMPRESION domicilio en array!');
+    print(jsonEncode(datosCuentaBanco));
 
     try {
       final response = await http.post(

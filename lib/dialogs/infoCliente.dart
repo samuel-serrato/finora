@@ -227,14 +227,18 @@ class _InfoClienteState extends State<InfoCliente> {
                                                   for (var cuenta
                                                       in clienteData![
                                                           'cuentabanco']) ...[
-                                                    _buildDetailRow('Banco:',
-                                                        cuenta['nombreBanco']),
+                                                    _buildDetailRow(
+                                                        'Banco:',
+                                                        cuenta['nombreBanco'] ??
+                                                            'No asignado'),
                                                     _buildDetailRow(
                                                         'Núm. de Cuenta:',
-                                                        cuenta['numCuenta']),
+                                                        cuenta['numCuenta'] ??
+                                                            'No asignado'),
                                                     _buildDetailRow(
                                                         'Núm. de Tarjeta:',
-                                                        cuenta['numTarjeta']),
+                                                        cuenta['numTarjeta'] ??
+                                                            'No asignado'),
                                                     SizedBox(height: 16),
                                                   ],
                                               ],
@@ -243,6 +247,7 @@ class _InfoClienteState extends State<InfoCliente> {
                                         ],
                                       ),
                                     ),
+
                                     SizedBox(width: 10),
 
                                     // Columna para Datos Adicionales
@@ -330,13 +335,51 @@ class _InfoClienteState extends State<InfoCliente> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 _buildDetailRow(
-                                                    'Nombre:',
-                                                    clienteData![
-                                                        'nombreConyuge']),
+                                                  'Nombre:',
+                                                  clienteData != null &&
+                                                          clienteData!
+                                                              .containsKey(
+                                                                  'nombreConyuge')
+                                                      ? (clienteData!['nombreConyuge'] ==
+                                                                  null ||
+                                                              clienteData![
+                                                                      'nombreConyuge'] ==
+                                                                  "null"
+                                                          ? 'No asignado'
+                                                          : clienteData![
+                                                              'nombreConyuge'])
+                                                      : 'No asignado',
+                                                ),
                                                 _buildDetailRow(
-                                                    'Teléfono:',
-                                                    clienteData![
-                                                        'telefonoConyuge']),
+                                                  'Teléfono:',
+                                                  clienteData != null &&
+                                                          clienteData!.containsKey(
+                                                              'telefonoConyuge')
+                                                      ? (clienteData!['telefonoConyuge'] ==
+                                                                  null ||
+                                                              clienteData![
+                                                                      'telefonoConyuge'] ==
+                                                                  "null"
+                                                          ? 'No asignado'
+                                                          : clienteData![
+                                                              'telefonoConyuge'])
+                                                      : 'No asignado',
+                                                ),
+                                                _buildDetailRow(
+                                                  'Ocupacion:',
+                                                  clienteData != null &&
+                                                          clienteData!.containsKey(
+                                                              'ocupacionConyuge')
+                                                      ? (clienteData!['ocupacionConyuge'] ==
+                                                                  null ||
+                                                              clienteData![
+                                                                      'ocupacionConyuge'] ==
+                                                                  "null"
+                                                          ? 'No asignado'
+                                                          : clienteData![
+                                                              'ocupacionConyuge'])
+                                                      : 'No asignado',
+                                                ),
                                               ],
                                             ),
                                           ),
@@ -458,32 +501,50 @@ class _InfoClienteState extends State<InfoCliente> {
   }
 
   Widget _buildIncomeInfo(List<dynamic> ingresos) {
+    // Filtrar la lista para eliminar elementos nulos o vacíos
+    final List<dynamic> ingresosValidos = ingresos.where((ingreso) {
+      return ingreso != null &&
+          (ingreso['tipo_info'] != null ||
+              ingreso['años_actividad'] != null ||
+              ingreso['descripcion'] != null ||
+              ingreso['monto_semanal'] != null ||
+              ingreso['fCreacion'] != null);
+    }).toList();
+
+    // Mostrar un mensaje si no hay ingresos válidos
+    if (ingresosValidos.isEmpty) {
+      return Center(
+        child: Text(
+          'No hay ingresos disponibles',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
     return Stack(
       children: [
         SingleChildScrollView(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
-          physics: ClampingScrollPhysics(), // Física adecuada para escritorio
+          physics: ClampingScrollPhysics(),
           child: Row(
-            children: ingresos.map<Widget>((ingreso) {
+            children: ingresosValidos.map<Widget>((ingreso) {
               return Container(
                 margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
                 decoration: BoxDecoration(
-                  color: Colors.white, // Color de fondo
-                  borderRadius: BorderRadius.circular(8), // Bordes redondeados
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black26,
                       blurRadius: 3,
-                      offset: Offset(0, 2), // Dirección de la sombra
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.all(
-                    8.0), // Padding directamente en el Container
+                padding: const EdgeInsets.all(8.0),
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min, // Permitir que se ajuste al contenido
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildDetailRow('Tipo de Info:', ingreso['tipo_info']),
                     _buildDetailRow(
@@ -497,19 +558,16 @@ class _InfoClienteState extends State<InfoCliente> {
             }).toList(),
           ),
         ),
-        // Fila de iconos para deslizar
         Positioned(
           left: 0,
-          top: 50, // Ajusta la posición vertical según sea necesario
+          top: 50,
           child: IconButton(
             icon:
                 Icon(Icons.arrow_back_ios, color: Color(0xFFFB2056), size: 20),
             onPressed: () {
-              // Desplazar a la izquierda
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
-                  _scrollController.position.pixels -
-                      100, // Desplazar 100 píxeles a la izquierda
+                  _scrollController.position.pixels - 100,
                 );
               }
             },
@@ -517,16 +575,14 @@ class _InfoClienteState extends State<InfoCliente> {
         ),
         Positioned(
           right: 0,
-          top: 50, // Ajusta la posición vertical según sea necesario
+          top: 50,
           child: IconButton(
             icon: Icon(Icons.arrow_forward_ios,
                 color: Color(0xFFFB2056), size: 20),
             onPressed: () {
-              // Desplazar a la derecha
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
-                  _scrollController.position.pixels +
-                      100, // Desplazar 100 píxeles a la derecha
+                  _scrollController.position.pixels + 100,
                 );
               }
             },
@@ -539,37 +595,55 @@ class _InfoClienteState extends State<InfoCliente> {
   Widget _buildReferences(List<dynamic> referencias) {
     final ScrollController _scrollController = ScrollController();
 
+    // Filtrar la lista para eliminar elementos nulos o vacíos
+    final List<dynamic> referenciasValidas = referencias.where((referencia) {
+      return referencia != null &&
+          (referencia['nombres'] != null ||
+              referencia['apellidoP'] != null ||
+              referencia['apellidoM'] != null ||
+              referencia['parentescoRefProp'] != null ||
+              referencia['telefono'] != null ||
+              referencia['timepoCo'] != null ||
+              (referencia['domicilio_ref'] is List &&
+                  referencia['domicilio_ref'].isNotEmpty));
+    }).toList();
+
+    // Mostrar un mensaje si no hay referencias válidas
+    if (referenciasValidas.isEmpty) {
+      return Center(
+        child: Text(
+          'No hay referencias disponibles',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
     return Stack(
       children: [
-        // Quitamos el Listener que detecta eventos de desplazamiento
         SingleChildScrollView(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
-          physics:
-              NeverScrollableScrollPhysics(), // Desactiva el scroll con mouse/trackpad
+          physics: NeverScrollableScrollPhysics(),
           child: Row(
-            children: referencias.map<Widget>((referencia) {
+            children: referenciasValidas.map<Widget>((referencia) {
               return Container(
-                width:
-                    650, // Establece un ancho fijo o deseado para cada referencia
+                width: 650,
                 margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
                 decoration: BoxDecoration(
-                  color: Colors.white, // Color de fondo
-                  borderRadius: BorderRadius.circular(8), // Bordes redondeados
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black26,
                       blurRadius: 3,
-                      offset: Offset(0, 2), // Dirección de la sombra
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
-                padding: const EdgeInsets.symmetric(
-                    vertical: 8.0,
-                    horizontal: 16), // Padding directamente en el Container
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min, // Permitir que se ajuste al contenido
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       children: [
@@ -623,7 +697,7 @@ class _InfoClienteState extends State<InfoCliente> {
                     if (referencia['domicilio_ref'] is List)
                       for (var domicilio in referencia['domicilio_ref']) ...[
                         _buildAddresses(domicilio),
-                        SizedBox(height: 16), // Espacio entre domicilios
+                        SizedBox(height: 16),
                       ],
                   ],
                 ),
@@ -631,19 +705,16 @@ class _InfoClienteState extends State<InfoCliente> {
             }).toList(),
           ),
         ),
-        // Fila de iconos para deslizar
         Positioned(
           left: 0,
-          top: 80, // Ajusta la posición vertical según sea necesario
+          top: 80,
           child: IconButton(
             icon:
                 Icon(Icons.arrow_back_ios, color: Color(0xFFFB2056), size: 20),
             onPressed: () {
-              // Desplazar a la izquierda
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
-                  _scrollController.position.pixels -
-                      600, // Desplazar 100 píxeles a la izquierda
+                  _scrollController.position.pixels - 600,
                 );
               }
             },
@@ -651,16 +722,14 @@ class _InfoClienteState extends State<InfoCliente> {
         ),
         Positioned(
           right: 0,
-          top: 80, // Ajusta la posición vertical según sea necesario
+          top: 80,
           child: IconButton(
             icon: Icon(Icons.arrow_forward_ios,
                 color: Color(0xFFFB2056), size: 20),
             onPressed: () {
-              // Desplazar a la derecha
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
-                  _scrollController.position.pixels +
-                      600, // Desplazar 100 píxeles a la derecha
+                  _scrollController.position.pixels + 600,
                 );
               }
             },
