@@ -399,16 +399,17 @@ class _nClienteDialogState extends State<nClienteDialog>
           }
 
           // Información de cuenta bancaria
-          if (clienteData['cuentabanco'] != null && clienteData['cuentabanco'].isNotEmpty) {
-  setState(() {
-    _numCuentaController.text =
-        clienteData['cuentabanco'][0]['numCuenta'] ?? 'No asignado';
-    _numTarjetaController.text =
-        clienteData['cuentabanco'][0]['numTarjeta'] ?? 'No asignado';
-    _nombreBanco = clienteData['cuentabanco'][0]['nombreBanco'] ?? 'No asignado';
-  });
-}
-
+          if (clienteData['cuentabanco'] != null &&
+              clienteData['cuentabanco'].isNotEmpty) {
+            setState(() {
+              _numCuentaController.text =
+                  clienteData['cuentabanco'][0]['numCuenta'] ?? 'No asignado';
+              _numTarjetaController.text =
+                  clienteData['cuentabanco'][0]['numTarjeta'] ?? 'No asignado';
+              _nombreBanco =
+                  clienteData['cuentabanco'][0]['nombreBanco'] ?? 'No asignado';
+            });
+          }
 
           // Inicialización de ingresos y egresos
           ingresosEgresos.clear();
@@ -1706,142 +1707,149 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Widget _paginaCuentaBancaria() {
-  int pasoActual = 2; // Paso actual en la página de "Cuenta Bancaria"
+    @override
+void initState() {
+  super.initState();
 
-  // Verificar si clienteData no es null y contiene la clave 'cuentabanco'
-  if (clienteData != null && clienteData.containsKey('cuentabanco') && clienteData['cuentabanco'] != null && clienteData['cuentabanco'].isNotEmpty) {
-    var cuentaBanco = clienteData['cuentabanco'][0]; // Extraemos la primera cuenta bancaria
-    _numCuentaController.text = cuentaBanco['numCuenta'] == 'No asignado'
-        ? ''  // Deja vacío el campo si es "No asignado"
-        : cuentaBanco['numCuenta'] ?? '';  // Si tiene un valor, lo asigna
+  // Listener para el número de cuenta
+  _numCuentaController.addListener(() {
+    if (clienteData != null && clienteData.containsKey('cuentabanco')) {
+      clienteData['cuentabanco'][0]['numCuenta'] = _numCuentaController.text;
+    }
+  });
 
-    _numTarjetaController.text = cuentaBanco['numTarjeta'] == 'No asignado'
-        ? ''  // Deja vacío el campo si es "No asignado"
-        : cuentaBanco['numTarjeta'] ?? '';  // Si tiene un valor, lo asigna
-  } else {
-    // Si 'cuentabanco' es null o vacío, puedes limpiar los controladores o asignar valores predeterminados
-   // _numCuentaController.clear();
-   // _numTarjetaController.clear();
-  }
+  // Listener para el número de tarjeta
+  _numTarjetaController.addListener(() {
+    if (clienteData != null && clienteData.containsKey('cuentabanco')) {
+      clienteData['cuentabanco'][0]['numTarjeta'] = _numTarjetaController.text;
+    }
+  });
+}
 
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // Contenedor azul a la izquierda para los pasos
-      Container(
-        decoration: BoxDecoration(
-          color: Color(0xFFFB2056),
-          borderRadius: BorderRadius.all(Radius.circular(20)),
-        ),
-        width: 250,
-        height: 500,
-        padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            _buildPasoItem(1, "Información Personal", pasoActual == 1),
-            SizedBox(height: 20),
-            _buildPasoItem(2, "Cuenta Bancaria", pasoActual == 2),
-            SizedBox(height: 20),
-            _buildPasoItem(3, "Ingresos y Egresos", pasoActual == 3),
-            SizedBox(height: 20),
-            _buildPasoItem(4, "Referencias", pasoActual == 4),
-          ],
-        ),
-      ),
-      SizedBox(width: 50), // Espacio entre el contenedor azul y la lista
+    int pasoActual = 2; // Paso actual en la página de "Cuenta Bancaria"
 
-      // Contenido principal: Formulario de cuenta bancaria
-      Expanded(
-        child: Form(
-          key: _cuentaBancariaFormKey, // Usar el GlobalKey aquí
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Contenedor azul a la izquierda para los pasos
+        Container(
+          decoration: BoxDecoration(
+            color: Color(0xFFFB2056),
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+          width: 250,
+          height: 500,
+          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
+              _buildPasoItem(1, "Información Personal", pasoActual == 1),
               SizedBox(height: 20),
-              CheckboxListTile(
-  title: Text("No tiene cuenta bancaria"),
-  value: _noCuentaBancaria,
-  onChanged: (bool? value) {
-    setState(() {
-      _noCuentaBancaria = value ?? false;
-      if (_noCuentaBancaria) {
-        _nombreBanco = 'No asignado';  // Internamente 'No asignado'
-        _numCuentaController.clear();
-        _numTarjetaController.clear();
-      } else {
-        // Si es false, vuelve a asignar los valores previos si es necesario
-        _nombreBanco = 'No asignado';  // Puedes poner el valor predeterminado si lo deseas
-      }
-    });
-  },
-  controlAffinity: ListTileControlAffinity.leading,
-  contentPadding: EdgeInsets.symmetric(horizontal: 0),
-  visualDensity: VisualDensity.compact,
-),
-
+              _buildPasoItem(2, "Cuenta Bancaria", pasoActual == 2),
               SizedBox(height: 20),
-              if (!_noCuentaBancaria) ...[
-                // Dropdown que no mostrará 'No asignado'
-                _buildDropdown(
-                  value: _nombreBanco == 'No asignado' ? null : _nombreBanco,  // Ignora 'No asignado'
-                  hint: 'Seleccione un Banco',
-                  items: _bancos
-                      .where((item) => item != 'No asignado') // Filtra 'No asignado' de las opciones
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _nombreBanco = value ?? 'No asignado'; // Asigna 'No asignado' si es null
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Por favor seleccione un banco';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 10),
-                _buildTextField(
-                  controller: _numCuentaController,
-                  label: 'Número de Cuenta',
-                  icon: Icons.account_balance,
-                  keyboardType: TextInputType.number,
-                  maxLength: 11, // Especificar la longitud máxima aquí
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingrese el número de cuenta';
-                    } else if (value.length != 11) {
-                      return 'El número de cuenta debe tener exactamente 11 dígitos';
-                    }
-                    return null; // Si es válido
-                  },
-                ),
-                SizedBox(height: 10),
-                _buildTextField(
-                  controller: _numTarjetaController,
-                  label: 'Número de Tarjeta',
-                  icon: Icons.credit_card,
-                  keyboardType: TextInputType.number,
-                  maxLength: 16, // Especificar la longitud máxima aquí
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingrese el número de tarjeta';
-                    } else if (value.length != 16) {
-                      return 'El número de tarjeta debe tener exactamente 16 dígitos';
-                    }
-                    return null; // Si es válido
-                  },
-                ),
-              ],
+              _buildPasoItem(3, "Ingresos y Egresos", pasoActual == 3),
+              SizedBox(height: 20),
+              _buildPasoItem(4, "Referencias", pasoActual == 4),
             ],
           ),
         ),
-      ),
-    ],
-  );
-}
+        SizedBox(width: 50), // Espacio entre el contenedor azul y la lista
 
-
+        // Contenido principal: Formulario de cuenta bancaria
+        Expanded(
+          child: Form(
+            key: _cuentaBancariaFormKey, // Usar el GlobalKey aquí
+            child: Column(
+              children: [
+                SizedBox(height: 20),
+                CheckboxListTile(
+                  title: Text("No tiene cuenta bancaria"),
+                  value: _noCuentaBancaria,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      _noCuentaBancaria = value ?? false;
+                      if (_noCuentaBancaria) {
+                        _nombreBanco =
+                            'No asignado'; // Internamente 'No asignado'
+                        _numCuentaController.clear();
+                        _numTarjetaController.clear();
+                      } else {
+                        // Si es false, vuelve a asignar los valores previos si es necesario
+                        _nombreBanco =
+                            'No asignado'; // Puedes poner el valor predeterminado si lo deseas
+                      }
+                    });
+                  },
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 0),
+                  visualDensity: VisualDensity.compact,
+                ),
+                SizedBox(height: 20),
+                if (!_noCuentaBancaria) ...[
+                  // Dropdown que no mostrará 'No asignado'
+                  _buildDropdown(
+                    value: _nombreBanco == 'No asignado'
+                        ? null
+                        : _nombreBanco, // Ignora 'No asignado'
+                    hint: 'Seleccione un Banco',
+                    items: _bancos
+                        .where((item) =>
+                            item !=
+                            'No asignado') // Filtra 'No asignado' de las opciones
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _nombreBanco = value ??
+                            'No asignado'; // Asigna 'No asignado' si es null
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Por favor seleccione un banco';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  _buildTextField(
+                    controller: _numCuentaController,
+                    label: 'Número de Cuenta',
+                    icon: Icons.account_balance,
+                    keyboardType: TextInputType.number,
+                    maxLength: 11, // Especificar la longitud máxima aquí
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor ingrese el número de cuenta';
+                      } else if (value.length != 11) {
+                        return 'El número de cuenta debe tener exactamente 11 dígitos';
+                      }
+                      return null; // Si es válido
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  _buildTextField(
+                    controller: _numTarjetaController,
+                    label: 'Número de Tarjeta',
+                    icon: Icons.credit_card,
+                    keyboardType: TextInputType.number,
+                    maxLength: 16, // Especificar la longitud máxima aquí
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor ingrese el número de tarjeta';
+                      } else if (value.length != 16) {
+                        return 'El número de tarjeta debe tener exactamente 16 dígitos';
+                      }
+                      return null; // Si es válido
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _paginaIngresosEgresos() {
     int pasoActual = 3; // Paso actual en la página de "Ingresos y Egresos"
@@ -1979,13 +1987,12 @@ class _nClienteDialogState extends State<nClienteDialog>
     );
   }
 
+  String _getReferenciaData(String? data) {
+    return data == null || data == 'No asignado' ? 'No asignado' : data;
+  }
+
   Widget _paginaReferencias() {
     int pasoActual = 4; // Paso actual en la página de "Ingresos y Egresos"
-
-    // Función para manejar 'No asignado' y mostrar un texto más adecuado
-    String _getReferenciaData(String data) {
-      return data == 'No asignado' ? 'No asignado' : data ?? 'No asignado';
-    }
 
     // Función que verifica si la referencia tiene datos válidos
     bool _isReferenciaValida(Map referencia) {
@@ -2039,10 +2046,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                 Expanded(
                   child: referencias.isEmpty ||
                           !referencias.any(_isReferenciaValida)
-                      ? Center(child:  Text(
+                      ? Center(
+                          child: Text(
                             'No hay referencias agregadas',
                             style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),)
+                          ),
+                        )
                       : ListView.builder(
                           itemCount: referencias.length,
                           itemBuilder: (context, index) {
@@ -2092,8 +2101,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                                             child: Text(
                                                 'Tipo: ${_getReferenciaData(referencia['tipoDomicilioRef'])}')),
                                         Expanded(
-                                            child: Text(
-                                                'Propietario: ${_getReferenciaData(referencia['nombrePropietarioRef'])}')),
+                                          child: Text(
+                                              'Propietario: ${_getReferenciaData(referencia['nombrePropietarioRef'])}'),
+                                        ),
                                       ],
                                     ),
                                     Row(
@@ -2214,12 +2224,6 @@ class _nClienteDialogState extends State<nClienteDialog>
         : null; // Asignar null si el valor no es válido
 
     // Controladores
-    final parentescoRefPropController =
-        TextEditingController(text: item?['parentescoRefProp'] ?? '');
-    final nombrePropietarioRefController =
-        TextEditingController(text: item?['nombrePropietarioRef'] ?? '');
-    final tiempoConocerRefController =
-        TextEditingController(text: item?['tiempoConocerRef'] ?? '');
     final nombresRefController =
         TextEditingController(text: item?['nombresRef'] ?? '');
     final apellidoPRefController =
@@ -2228,8 +2232,12 @@ class _nClienteDialogState extends State<nClienteDialog>
         TextEditingController(text: item?['apellidoMRef'] ?? '');
     final telefonoRefController =
         TextEditingController(text: item?['telefonoRef'] ?? '');
+    final tiempoConocerRefController =
+        TextEditingController(text: item?['tiempoConocerRef'] ?? '');
 
     // Controladores de domicilio de referencia
+    final nombrePropietarioRefController =
+        TextEditingController(text: item?['nombrePropietarioRef'] ?? '');
     final calleRefController =
         TextEditingController(text: item?['calleRef'] ?? '');
     final nExtRefController =
@@ -2238,6 +2246,8 @@ class _nClienteDialogState extends State<nClienteDialog>
         TextEditingController(text: item?['nIntRef'] ?? '');
     final entreCalleRefController =
         TextEditingController(text: item?['entreCalleRef'] ?? '');
+    final parentescoRefPropController =
+        TextEditingController(text: item?['parentescoRefProp'] ?? '');
     final coloniaRefController =
         TextEditingController(text: item?['coloniaRef'] ?? '');
     final cpRefController = TextEditingController(text: item?['cpRef'] ?? '');
@@ -3064,7 +3074,7 @@ class _nClienteDialogState extends State<nClienteDialog>
       "numTarjeta": _numTarjetaController.text
     };
 
-     print('IMPRESION domicilio en array!');
+    print('IMPRESION domicilio en array!');
     print(jsonEncode(datosCuentaBanco));
 
     try {
