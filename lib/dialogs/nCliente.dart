@@ -10,10 +10,13 @@ import 'package:money_facil/ip.dart';
 
 class nClienteDialog extends StatefulWidget {
   final VoidCallback? onClienteAgregado; // Cambia a opcional
+  final VoidCallback? onClienteEditado; // Cambia a opcional
   final String? idCliente; // Parámetro opcional para modo de edición
 
   nClienteDialog(
-      {this.onClienteAgregado, this.idCliente}); // No requiere `required`
+      {this.onClienteAgregado,
+      this.onClienteEditado,
+      this.idCliente}); // No requiere `required`
 
   @override
   _nClienteDialogState createState() => _nClienteDialogState();
@@ -65,6 +68,9 @@ class _nClienteDialogState extends State<nClienteDialog>
   DateTime? selectedDate;
   String? selectedTipoDomicilio;
   String? selectedTipoDomicilioRef;
+  String? idcuantabank;
+  int? iddomicilios;
+  int? idingegr;
 
   final _fechaController = TextEditingController();
 
@@ -75,6 +81,9 @@ class _nClienteDialogState extends State<nClienteDialog>
   Timer? _timer;
 
   Map<String, dynamic> originalData = {};
+
+  List<int> idingegrList = [];
+  List<int> idreferenciasList = [];
 
   final List<String> sexos = ['Masculino', 'Femenino'];
   final List<String> estadosCiviles = [
@@ -132,6 +141,27 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   late TabController _tabController;
   int _currentIndex = 0;
+
+  // Mapa para almacenar todos los datos por endpoint
+  // Mapa para almacenar todos los datos por endpoint
+  Map<String, Map<String, dynamic>> allFieldsByEndpoint = {
+    "Cliente": {},
+    "Cuenta Banco": {},
+    "Domicilio": {},
+    "Datos Adicionales": {},
+    "Ingresos": {},
+    "Referencias": {}
+  };
+
+  // Mapa para rastrear si un endpoint fue editado
+  Map<String, bool> isEndpointEdited = {
+    "Cliente": false,
+    "Cuenta Banco": false,
+    "Domicilio": false,
+    "Datos Adicionales": false,
+    "Ingresos": false,
+    "Referencias": false
+  };
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _personalFormKey = GlobalKey<FormState>();
@@ -212,11 +242,15 @@ class _nClienteDialogState extends State<nClienteDialog>
             'ocupacionConyuge': clienteData['ocupacionConyuge'],
 
             // Datos del domicilio del cliente
+            // Agregar el iddomicilios si está disponible en clienteData['domicilios']
+            'iddomicilios': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['iddomicilios'] ?? 'No asignado'
+                : 'No asignado',
             'calle': clienteData['domicilios']?.isNotEmpty == true
                 ? clienteData['domicilios'][0]['calle']
                 : '',
-            'entrecalle': clienteData['domicilios']?.isNotEmpty == true
-                ? clienteData['domicilios'][0]['entrecalle']
+            'entreCalle': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['entreCalle']
                 : '',
             'colonia': clienteData['domicilios']?.isNotEmpty == true
                 ? clienteData['domicilios'][0]['colonia']
@@ -224,8 +258,8 @@ class _nClienteDialogState extends State<nClienteDialog>
             'cp': clienteData['domicilios']?.isNotEmpty == true
                 ? clienteData['domicilios'][0]['cp']
                 : '',
-            'next': clienteData['domicilios']?.isNotEmpty == true
-                ? clienteData['domicilios'][0]['next']
+            'nExt': clienteData['domicilios']?.isNotEmpty == true
+                ? clienteData['domicilios'][0]['nExt']
                 : '',
             'nInt': clienteData['domicilios']?.isNotEmpty == true
                 ? clienteData['domicilios'][0]['nInt']
@@ -262,6 +296,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                 ? clienteData['cuentabanco'][0]['numCuenta'] ?? 'No asignado'
                 : 'No asignado',
 
+            // Agrega el idcuentabanco (si está disponible en clienteData['cuentabanco'])
+            'idcuantabank': clienteData['cuentabanco']?.isNotEmpty == true
+                ? clienteData['cuentabanco'][0]['idcuantabank'] ?? 'No asignado'
+                : 'No asignado',
+
             'numTarjeta': clienteData['cuentabanco']?.isNotEmpty == true
                 ? clienteData['cuentabanco'][0]['numTarjeta'] ?? 'No asignado'
                 : 'No asignado',
@@ -270,9 +309,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                 ? clienteData['cuentabanco'][0]['nombreBanco'] ?? 'No asignado'
                 : 'No asignado',
 
+            // Datos del cliente en ingresos y egresos
             'ingresos_egresos':
                 clienteData['ingresos_egresos']?.map((ingresoEgreso) {
                       return {
+                        'idingegr': ingresoEgreso['idingegr'] ?? 'No asignado',
                         'tipo_info':
                             ingresoEgreso['tipo_info'] ?? 'No asignado',
                         'años_actividad':
@@ -296,6 +337,7 @@ class _nClienteDialogState extends State<nClienteDialog>
 
                   var domicilioRef = referencia['domicilio_ref'];
                   return {
+                    'idreferencias': referencia['idreferencias'],
                     'nombresRef': referencia['nombres'] ?? '',
                     'apellidoPRef': referencia['apellidoP'] ?? '',
                     'apellidoMRef': referencia['apellidoM'] ?? '',
@@ -315,7 +357,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                         ? domicilioRef[0]['calle']
                         : '',
                     'entreCalleRef': domicilioRef?.isNotEmpty == true
-                        ? domicilioRef[0]['entrecalle']
+                        ? domicilioRef[0]['entreCalle']
                         : '',
                     'coloniaRef': domicilioRef?.isNotEmpty == true
                         ? domicilioRef[0]['colonia']
@@ -324,7 +366,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                         ? domicilioRef[0]['cp']
                         : '',
                     'nExtRef': domicilioRef?.isNotEmpty == true
-                        ? domicilioRef[0]['next']
+                        ? domicilioRef[0]['nExt']
                         : '',
                     'nIntRef': domicilioRef?.isNotEmpty == true
                         ? domicilioRef[0]['nInt']
@@ -343,6 +385,28 @@ class _nClienteDialogState extends State<nClienteDialog>
                 [],
           };
           print(originalData);
+          idcuantabank = originalData['idcuantabank'];
+          // Después de crear el originalData, puedes guardar el valor en una variable separada
+          iddomicilios = originalData['iddomicilios'];
+          // Imprime el valor de `idingegr` para cada elemento en `ingresos_egresos`
+          // Aquí debes asignar el valor de 'idingegr' a la variable externa
+          // Recorrer los elementos de ingresos_egresos y guardar los idingegr
+          originalData['ingresos_egresos'].forEach((ingresoEgreso) {
+            int idingegr = ingresoEgreso['idingegr'];
+            idingegrList.add(idingegr); // Agregar el idingegr a la lista
+            print('idingegrAA: $idingegr');
+          });
+          //print('Referencias: ${originalData['referencias']}');
+
+          originalData['referencias'].forEach((referencia) {
+            if (referencia.containsKey('idreferencias')) {
+              int idreferencias = referencia['idreferencias'];
+              idreferenciasList.add(idreferencias);
+              //   print('idreferencias: $idreferencias');
+            } else {
+              //  print('idreferencias no encontrado');
+            }
+          });
 
           // Datos básicos del cliente
           nombresController.text = clienteData['nombres'] ?? '';
@@ -376,10 +440,10 @@ class _nClienteDialogState extends State<nClienteDialog>
               clienteData['domicilios'].isNotEmpty) {
             var domicilio = clienteData['domicilios'][0];
             calleController.text = domicilio['calle'] ?? '';
-            entreCalleController.text = domicilio['entrecalle'] ?? '';
+            entreCalleController.text = domicilio['entreCalle'] ?? '';
             coloniaController.text = domicilio['colonia'] ?? '';
             cpController.text = domicilio['cp'] ?? '';
-            nExtController.text = domicilio['next'] ?? '';
+            nExtController.text = domicilio['nExt'] ?? '';
             nIntController.text = domicilio['nInt'] ?? '';
             estadoController.text = domicilio['estado'] ?? '';
             municipioController.text = domicilio['municipio'] ?? '';
@@ -479,7 +543,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                     ? domicilioRef[0]['calle'] ?? ''
                     : '';
                 String entreCalle = domicilioRef.isNotEmpty
-                    ? domicilioRef[0]['entrecalle'] ?? ''
+                    ? domicilioRef[0]['entreCalle'] ?? ''
                     : '';
                 String colonia = domicilioRef.isNotEmpty
                     ? domicilioRef[0]['colonia'] ?? ''
@@ -487,7 +551,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                 String cp =
                     domicilioRef.isNotEmpty ? domicilioRef[0]['cp'] ?? '' : '';
                 String nExt = domicilioRef.isNotEmpty
-                    ? domicilioRef[0]['next'] ?? ''
+                    ? domicilioRef[0]['nExt'] ?? ''
                     : '';
                 String nInt = domicilioRef.isNotEmpty
                     ? domicilioRef[0]['nInt'] ?? ''
@@ -556,302 +620,353 @@ class _nClienteDialogState extends State<nClienteDialog>
     }
   }
 
-  void compareAndPrintEditedFields() {
-    Map<String, dynamic> editedFields = {};
+  void compareAndPrintEditedEndpointFields() {
+    // Función para agregar un campo a un endpoint específico
+    void addFieldToEndpoint(
+        String endpoint, String key, dynamic value, dynamic originalValue) {
+      // Asegurarse de que el valor sea un mapa adecuado
+      if (allFieldsByEndpoint[endpoint] is Map<String, dynamic>) {
+        allFieldsByEndpoint[endpoint]![key] = value;
+      }
 
-    // Compara y agrega los campos editados a la lista
-    bool isEdited(String field, String originalField) {
-      return (field?.trim() ?? '') != (originalField?.trim() ?? '');
-    }
-
-    // Comparar datos y almacenar solo los que han cambiado
-
-    // Datos personales
-    if ((nombresController.text ?? '') != (originalData['nombres'] ?? '')) {
-      editedFields['nombres'] = nombresController.text;
-    }
-    if ((apellidoPController.text ?? '') != (originalData['apellidoP'] ?? '')) {
-      editedFields['apellidoP'] = apellidoPController.text;
-    }
-    if ((apellidoMController.text ?? '') != (originalData['apellidoM'] ?? '')) {
-      editedFields['apellidoM'] = apellidoMController.text;
-    }
-    if ((selectedSexo ?? '') != (originalData['sexo'] ?? '')) {
-      editedFields['sexo'] = selectedSexo;
-    }
-    if ((selectedTipoCliente ?? '') != (originalData['tipo_cliente'] ?? '')) {
-      editedFields['tipo_cliente'] = selectedTipoCliente;
-    }
-    if ((ocupacionController.text ?? '') != (originalData['ocupacion'] ?? '')) {
-      editedFields['ocupacion'] = ocupacionController.text;
-    }
-    if ((depEconomicosController.text ?? '') !=
-        (originalData['dependientes_economicos'] ?? '')) {
-      editedFields['dependientes_economicos'] = depEconomicosController.text;
-    }
-    if ((telefonoClienteController.text ?? '') !=
-        (originalData['telefono'] ?? '')) {
-      editedFields['telefono'] = telefonoClienteController.text;
-    }
-    if ((emailClientecontroller.text ?? '') != (originalData['email'] ?? '')) {
-      editedFields['email'] = emailClientecontroller.text;
+      // Verificar si el campo fue editado comparando con el valor original
+      if ((value?.trim() ?? '') != (originalValue?.trim() ?? '')) {
+        isEndpointEdited[endpoint] = true;
+      }
     }
 
-// Estado civil y fecha de nacimiento
-    if ((selectedECivil ?? '') != (originalData['eCivil'] ?? '')) {
-      editedFields['eCivil'] = selectedECivil;
-    }
-    if ((_fechaController.text ?? '') != (originalData['fechaNac'] ?? '')) {
-      editedFields['fechaNac'] = _fechaController.text;
-    }
+    // Recolectar datos y verificar si fueron editados
+    addFieldToEndpoint("Cliente", "nombres", nombresController.text ?? '',
+        originalData['nombres']);
+    addFieldToEndpoint("Cliente", "apellidoP", apellidoPController.text ?? '',
+        originalData['apellidoP']);
+    addFieldToEndpoint("Cliente", "apellidoM", apellidoMController.text ?? '',
+        originalData['apellidoM']);
+    addFieldToEndpoint(
+        "Cliente", "sexo", selectedSexo ?? '', originalData['sexo']);
+    addFieldToEndpoint("Cliente", "tipo_cliente", selectedTipoCliente ?? '',
+        originalData['tipo_cliente']);
+    addFieldToEndpoint("Cliente", "ocupacion", ocupacionController.text ?? '',
+        originalData['ocupacion']);
+    addFieldToEndpoint(
+        "Cliente",
+        "dependientes_economicos",
+        depEconomicosController.text ?? '',
+        originalData['dependientes_economicos']);
+    addFieldToEndpoint("Cliente", "telefono",
+        telefonoClienteController.text ?? '', originalData['telefono']);
+    addFieldToEndpoint("Cliente", "email", emailClientecontroller.text ?? '',
+        originalData['email']);
+    addFieldToEndpoint(
+        "Cliente", "eCivil", selectedECivil ?? '', originalData['eCivil']);
+    addFieldToEndpoint("Cliente", "fechaNac", _fechaController.text ?? '',
+        originalData['fechaNac']);
+    addFieldToEndpoint("Cliente", "nombreConyuge",
+        nombreConyugeController.text ?? '', originalData['nombreConyuge']);
+    addFieldToEndpoint("Cliente", "telefonoConyuge",
+        telefonoConyugeController.text ?? '', originalData['telefonoConyuge']);
+    addFieldToEndpoint(
+        "Cliente",
+        "ocupacionConyuge",
+        ocupacionConyugeController.text ?? '',
+        originalData['ocupacionConyuge']);
 
-// Datos del cónyuge
-    if ((nombreConyugeController.text ?? '') !=
-        (originalData['nombreConyuge'] ?? '')) {
-      editedFields['nombreConyuge'] = nombreConyugeController.text;
-    }
-    if ((telefonoConyugeController.text ?? '') !=
-        (originalData['telefonoConyuge'] ?? '')) {
-      editedFields['telefonoConyuge'] = telefonoConyugeController.text;
-    }
-    if ((ocupacionConyugeController.text ?? '') !=
-        (originalData['ocupacionConyuge'] ?? '')) {
-      editedFields['ocupacionConyuge'] = ocupacionConyugeController.text;
-    }
+    addFieldToEndpoint("Cuenta Banco", "numCuenta",
+        _numCuentaController.text ?? '', originalData['numCuenta']);
+    addFieldToEndpoint("Cuenta Banco", "numTarjeta",
+        _numTarjetaController.text ?? '', originalData['numTarjeta']);
+    addFieldToEndpoint("Cuenta Banco", "nombreBanco", _nombreBanco ?? '',
+        originalData['nombreBanco']);
 
-    // Datos de domicilio
-    if ((calleController.text ?? '') != (originalData['calle'] ?? '')) {
-      editedFields['calle'] = calleController.text;
-    }
-    if ((entreCalleController.text ?? '') !=
-        (originalData['entrecalle'] ?? '')) {
-      editedFields['entrecalle'] = entreCalleController.text;
-    }
-    if ((coloniaController.text ?? '') != (originalData['colonia'] ?? '')) {
-      editedFields['colonia'] = coloniaController.text;
-    }
-    if ((cpController.text ?? '') != (originalData['cp'] ?? '')) {
-      editedFields['cp'] = cpController.text;
-    }
-    if ((nExtController.text ?? '') != (originalData['next'] ?? '')) {
-      editedFields['next'] = nExtController.text;
-    }
-    if ((nIntController.text ?? '') != (originalData['nInt'] ?? '')) {
-      editedFields['nInt'] = nIntController.text;
-    }
-    if ((estadoController.text ?? '') != (originalData['estado'] ?? '')) {
-      editedFields['estado'] = estadoController.text;
-    }
-    if ((municipioController.text ?? '') != (originalData['municipio'] ?? '')) {
-      editedFields['municipio'] = municipioController.text;
-    }
-    if ((selectedTipoDomicilio ?? '') !=
-        (originalData['tipo_domicilio'] ?? '')) {
-      editedFields['tipo_domicilio'] = selectedTipoDomicilio;
-    }
-    if ((nombrePropietarioController.text ?? '') !=
-        (originalData['nombre_propietario'] ?? '')) {
-      editedFields['nombre_propietario'] = nombrePropietarioController.text;
-    }
-    if ((parentescoPropietarioController.text ?? '') !=
-        (originalData['parentesco'] ?? '')) {
-      editedFields['parentesco'] = parentescoPropietarioController.text;
-    }
-    if ((tiempoViviendoController.text ?? '') !=
-        (originalData['tiempoViviendo'] ?? '')) {
-      editedFields['tiempoViviendo'] = tiempoViviendoController.text;
-    }
+    addFieldToEndpoint("Domicilio", "calle", calleController.text ?? '',
+        originalData['calle']);
+    addFieldToEndpoint("Domicilio", "entreCalle",
+        entreCalleController.text ?? '', originalData['entreCalle']);
+    addFieldToEndpoint("Domicilio", "colonia", coloniaController.text ?? '',
+        originalData['colonia']);
+    addFieldToEndpoint(
+        "Domicilio", "cp", cpController.text ?? '', originalData['cp']);
+    addFieldToEndpoint(
+        "Domicilio", "nExt", nExtController.text ?? '', originalData['nExt']);
+    addFieldToEndpoint(
+        "Domicilio", "nInt", nIntController.text ?? '', originalData['nInt']);
+    addFieldToEndpoint("Domicilio", "estado", estadoController.text ?? '',
+        originalData['estado']);
+    addFieldToEndpoint("Domicilio", "municipio", municipioController.text ?? '',
+        originalData['municipio']);
+    addFieldToEndpoint("Domicilio", "tipo_domicilio",
+        selectedTipoDomicilio ?? '', originalData['tipo_domicilio']);
+    addFieldToEndpoint(
+        "Domicilio",
+        "nombre_propietario",
+        nombrePropietarioController.text ?? '',
+        originalData['nombre_propietario']);
+    addFieldToEndpoint("Domicilio", "parentesco",
+        parentescoPropietarioController.text ?? '', originalData['parentesco']);
+    addFieldToEndpoint("Domicilio", "tiempoViviendo",
+        tiempoViviendoController.text ?? '', originalData['tiempoViviendo']);
 
-// Datos adicionales (CURP, RFC)
-    if ((curpController.text ?? '') != (originalData['curp'] ?? '')) {
-      editedFields['curp'] = curpController.text;
-    }
-    if ((rfcController.text ?? '') != (originalData['rfc'] ?? '')) {
-      editedFields['rfc'] = rfcController.text;
-    }
+    addFieldToEndpoint("Datos Adicionales", "curp", curpController.text ?? '',
+        originalData['curp']);
+    addFieldToEndpoint("Datos Adicionales", "rfc", rfcController.text ?? '',
+        originalData['rfc']);
 
-// Datos de cuenta bancaria
-    if ((_numCuentaController.text ?? '') !=
-        (originalData['numCuenta'] ?? '')) {
-      editedFields['numCuenta'] = _numCuentaController.text;
-    }
-    if ((_numTarjetaController.text ?? '') !=
-        (originalData['numTarjeta'] ?? '')) {
-      editedFields['numTarjeta'] = _numTarjetaController.text;
-    }
-    if ((_nombreBanco ?? '') != (originalData['nombreBanco'] ?? '')) {
-      editedFields['nombreBanco'] = _nombreBanco;
-    }
-
-    // Ingresos y egresos (comparar todos los campos relevantes)
+    // Ingresos y egresos
     for (int i = 0; i < ingresosEgresos.length; i++) {
       var ingresoEgreso = ingresosEgresos[i];
       var originalIngresoEgreso = originalData['ingresos_egresos'][i];
-
-      // Comparar tipo_info
-      if (ingresoEgreso['tipo_info'] != originalIngresoEgreso['tipo_info']) {
-        editedFields['ingresos_egresos_${i}_tipo_info'] =
-            ingresoEgreso['tipo_info'];
-      }
-
-      // Comparar años_actividad
-      if (ingresoEgreso['años_actividad'] !=
-          originalIngresoEgreso['años_actividad']) {
-        editedFields['ingresos_egresos_${i}_años_actividad'] =
-            ingresoEgreso['años_actividad'];
-      }
-
-      // Comparar descripcion
-      if (ingresoEgreso['descripcion'] !=
-          originalIngresoEgreso['descripcion']) {
-        editedFields['ingresos_egresos_${i}_descripcion'] =
-            ingresoEgreso['descripcion'];
-      }
-
-      // Comparar monto_semanal
-      if (ingresoEgreso['monto_semanal'] !=
-          originalIngresoEgreso['monto_semanal']) {
-        editedFields['ingresos_egresos_${i}_monto_semanal'] =
-            ingresoEgreso['monto_semanal'];
-      }
+      addFieldToEndpoint("Ingresos", "ingresos_egresos_${i}_tipo_info",
+          ingresoEgreso['tipo_info'], originalIngresoEgreso['tipo_info']);
+      addFieldToEndpoint(
+          "Ingresos",
+          "ingresos_egresos_${i}_años_actividad",
+          ingresoEgreso['años_actividad'],
+          originalIngresoEgreso['años_actividad']);
+      addFieldToEndpoint("Ingresos", "ingresos_egresos_${i}_descripcion",
+          ingresoEgreso['descripcion'], originalIngresoEgreso['descripcion']);
+      addFieldToEndpoint(
+          "Ingresos",
+          "ingresos_egresos_${i}_monto_semanal",
+          ingresoEgreso['monto_semanal'],
+          originalIngresoEgreso['monto_semanal']);
     }
 
+    // Referencias
     for (int i = 0; i < referencias.length; i++) {
       var ref = referencias[i];
       var originalRef = originalData['referencias'][i];
-
-      if ((ref['nombresRef'] ?? '') != (originalRef['nombresRef'] ?? '')) {
-        editedFields['referencias_${i}_nombresRef'] = ref['nombresRef'];
-      }
-      if ((ref['apellidoPRef'] ?? '') != (originalRef['apellidoPRef'] ?? '')) {
-        editedFields['referencias_${i}_apellidoPRef'] = ref['apellidoPRef'];
-      }
-      if ((ref['apellidoMRef'] ?? '') != (originalRef['apellidoMRef'] ?? '')) {
-        editedFields['referencias_${i}_apellidoMRef'] = ref['apellidoMRef'];
-      }
-      if ((ref['parentescoRef'] ?? '') !=
-          (originalRef['parentescoRef'] ?? '')) {
-        editedFields['referencias_${i}_parentescoRef'] = ref['parentescoRef'];
-      }
-      if ((ref['telefonoRef'] ?? '') != (originalRef['telefonoRef'] ?? '')) {
-        editedFields['referencias_${i}_telefonoRef'] = ref['telefonoRef'];
-      }
-      if ((ref['parentescoRefProp'] ?? '') !=
-          (originalRef['parentescoRefProp'] ?? '')) {
-        editedFields['referencias_${i}_parentescoRefProp'] =
-            ref['parentescoRefProp'];
-      }
-      if ((ref['calleRef'] ?? '') != (originalRef['calleRef'] ?? '')) {
-        editedFields['referencias_${i}_calleRef'] = ref['calleRef'];
-      }
-      if ((ref['coloniaRef'] ?? '') != (originalRef['coloniaRef'] ?? '')) {
-        editedFields['referencias_${i}_coloniaRef'] = ref['coloniaRef'];
-      }
-      if ((ref['tipoDomicilioRef'] ?? '') !=
-          (originalRef['tipoDomicilioRef'] ?? '')) {
-        editedFields['referencias_${i}_tipoDomicilioRef'] =
-            ref['tipoDomicilioRef'];
-      }
-      if ((ref['nombrePropietarioRef'] ?? '') !=
-          (originalRef['nombrePropietarioRef'] ?? '')) {
-        editedFields['referencias_${i}_nombrePropietarioRef'] =
-            ref['nombrePropietarioRef'];
-      }
-      if ((ref['tiempoViviendoRef'] ?? '') !=
-          (originalRef['tiempoViviendoRef'] ?? '')) {
-        editedFields['referencias_${i}_tiempoViviendoRef'] =
-            ref['tiempoViviendoRef'];
-      }
-      if ((ref['cpRef'] ?? '') != (originalRef['cpRef'] ?? '')) {
-        editedFields['referencias_${i}_cpRef'] = ref['cpRef'];
-      }
-      if ((ref['nExtRef'] ?? '') != (originalRef['nExtRef'] ?? '')) {
-        editedFields['referencias_${i}_nExtRef'] = ref['nExtRef'];
-      }
-      if ((ref['nIntRef'] ?? '') != (originalRef['nIntRef'] ?? '')) {
-        editedFields['referencias_${i}_nIntRef'] = ref['nIntRef'];
-      }
-      if ((ref['estadoRef'] ?? '') != (originalRef['estadoRef'] ?? '')) {
-        editedFields['referencias_${i}_estadoRef'] = ref['estadoRef'];
-      }
-      if ((ref['municipioRef'] ?? '') != (originalRef['municipioRef'] ?? '')) {
-        editedFields['referencias_${i}_municipioRef'] = ref['municipioRef'];
-      }
+      addFieldToEndpoint("Referencias", "referencias_${i}_nombresRef",
+          ref['nombresRef'], originalRef['nombresRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_apellidoPRef",
+          ref['apellidoPRef'], originalRef['apellidoPRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_apellidoMRef",
+          ref['apellidoMRef'], originalRef['apellidoMRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_parentescoRef",
+          ref['parentescoRef'], originalRef['parentescoRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_telefonoRef",
+          ref['telefonoRef'], originalRef['telefonoRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_calleRef",
+          ref['calleRef'], originalRef['calleRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_coloniaRef",
+          ref['coloniaRef'], originalRef['coloniaRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_tipoDomicilioRef",
+          ref['tipoDomicilioRef'], originalRef['tipoDomicilioRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_nombrePropietarioRef",
+          ref['nombrePropietarioRef'], originalRef['nombrePropietarioRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_tiempoViviendoRef",
+          ref['tiempoViviendoRef'], originalRef['tiempoViviendoRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_cpRef", ref['cpRef'],
+          originalRef['cpRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_nExtRef",
+          ref['nExtRef'], originalRef['nExtRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_nIntRef",
+          ref['nIntRef'], originalRef['nIntRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_estadoRef",
+          ref['estadoRef'], originalRef['estadoRef']);
+      addFieldToEndpoint("Referencias", "referencias_${i}_municipioRef",
+          ref['municipioRef'], originalRef['municipioRef']);
     }
 
-    // Imprimir los campos editados
-    if (editedFields.isNotEmpty) {
-      print("Campos editados:");
-      editedFields.forEach((key, value) {
-        print("$key: $value");
+    // Imprimir solo los campos del endpoint editado
+    isEndpointEdited.forEach((endpoint, wasEdited) {
+      if (wasEdited) {
+        print("Endpoint editado: $endpoint");
+        allFieldsByEndpoint[endpoint]?.forEach((key, value) {
+          print("$key: $value");
+        });
+      }
+    });
+  }
 
-        // Llamar a la función de validación para determinar el endpoint
-        switch (key) {
-          case 'nombres':
-          case 'apellidoP':
-          case 'apellidoM':
-          case 'fechaNac':
-          case 'sexo':
-          case 'ocupacion':
-          case 'telefono':
-          case 'eCivil':
-          case 'email':
-          case 'dependientes_economicos':
-          case 'nombreConyuge':
-          case 'telefonoConyuge':
-          case 'ocupacionConyuge':
-            print("Endpoint: Cliente");
-            break;
+  Future<void> sendEditedData(
+      BuildContext context,
+      String clientId,
+      String idcuantabank,
+      int iddomicilios,
+      List<int> idingegr,
+      List<int> idreferencias) async {
+    print('idcuentabank dentro de sendedited: $idcuantabank');
+    idingegr.forEach((idingegr) {
+      print('idingegr dentro de sendedited: $idingegr');
+    });
 
-          case 'nombreBanco':
-          case 'numCuenta':
-          case 'numTarjeta':
-            print("Endpoint: Cuenta Banco");
-            break;
+    idreferencias.forEach((idreferencias) {
+      print('idreferencias dentro de sendedited: $idreferencias');
+    });
 
-          case 'tipo_domicilio':
-          case 'nombre_propietario':
-          case 'parentesco':
-          case 'calle':
-          case 'nExt':
-          case 'nInt':
-          case 'entreCalle':
-          case 'colonia':
-          case 'cp':
-          case 'estado':
-          case 'municipio':
-          case 'tiempoViviendo':
-            print("Endpoint: Domicilio");
-            break;
+    Map<String, String> endpointUrls = {
+      "Cliente": "http://$baseUrl/api/v1/clientes/$clientId",
+      "Cuenta Banco": "http://$baseUrl/api/v1/cuentabanco/$idcuantabank",
+      "Domicilio": "http://$baseUrl/api/v1/domicilios/$clientId",
+      "Datos Adicionales": "http://$baseUrl/api/v1/datosadicionales/$clientId",
+      "Ingresos": "http://$baseUrl/api/v1/ingresos/$clientId",
+      "Referencias": "http://$baseUrl/api/v1/referencia/$clientId",
+    };
 
-          case 'curp':
-          case 'rfc':
-            print("Endpoint: Datos Adicionales");
-            break;
+    bool anyErrors = false;
 
-          case 'monto_semanal':
-          case 'años_actividad':
-          case 'descripcion':
-            print("Endpoint: Ingresos");
-            break;
+    // Preparar los datos de "Ingresos"
+    List<Map<String, dynamic>> ingresosList = [];
+    for (int i = 0; i < ingresosEgresos.length; i++) {
+      var ingresoEgreso = ingresosEgresos[i];
+      int idInfo = tiposIngresoEgresoIds[ingresoEgreso['tipo_info']] ?? 0;
 
-          case 'nombresRef':
-          case 'apellidoPRef':
-          case 'apellidoMRef':
-          case 'parentescoRef':
-          case 'telefonoRef':
-          case 'tiempoConocerRef':
-            print("Endpoint: Referencias");
-            break;
+      var ingresoData = {
+        "idingegr": idingegr[i],
+        "idinfo": idInfo,
+        "años_actividad": ingresoEgreso['años_actividad'],
+        "descripcion": ingresoEgreso['descripcion'],
+        "monto_semanal": ingresoEgreso['monto_semanal']
+      };
+      ingresosList.add(ingresoData);
+    }
 
-          default:
-            print("Campo desconocido: $key");
-            break;
+    // Cambiar dataToSend para "Referencias"
+    List<Map<String, dynamic>> referenciasList = [];
+    if (isEndpointEdited["Referencias"] ?? false) {
+      for (int i = 0; i < referencias.length; i++) {
+        var ref = referencias[i];
+        var originalRef = originalData['referencias'][i];
+
+        var referenceMap = {
+          "idreferencias": idreferencias[i],
+          "nombres": ref['nombresRef'] ?? "",
+          "apellidoP": ref['apellidoPRef'] ?? "",
+          "apellidoM": ref['apellidoMRef'] ?? "",
+          "parentescoRefProp": ref['parentescoRef'] ?? "",
+          "telefono": ref['telefonoRef'] ?? "",
+          "tiempoConocer": ref['tiempoConocerRef'] ?? "",
+          //DOMICILIO
+          /* "tipoDomicilio": ref['tipoDomicilioRef'] ?? "",
+          "calle": ref['calleRef'] ?? "",
+          "nombrePropietario": ref['nombrePropietarioRef'] ?? "",
+          "parentescoRefProp": ref['parentescoRefProp'] ?? "",
+          "nExt": ref['nExtRef'] ?? "",
+          "nInt": ref['nIntRef'] ?? "",
+          "entreCalle": ref['entreCalle'] ?? "",
+          "colonia": ref['coloniaRef'] ?? "",
+          "cp": ref['cpRef'] ?? "",
+          "estado": ref['estadoRef'] ?? "",
+          "municipio": ref['municipioRef'] ?? "",
+          "tiempoViviendo": ref['tiempoViviendoRef'] ?? "", */
+        };
+
+        bool isEdited = referenceMap.keys.any((key) {
+          var originalValue = originalRef[key];
+          var newValue = referenceMap[key];
+
+          // Verifica si ambos valores son cadenas antes de llamar a trim
+          if (originalValue is String && newValue is String) {
+            originalValue = originalValue.trim();
+            newValue = newValue.trim();
+          }
+
+          print(
+              "Comparando $key: original = $originalValue, nuevo = $newValue");
+          return newValue != originalValue;
+        });
+
+        if (isEdited) {
+          print("Referencia editada: ${jsonEncode(referenceMap)}");
+          referenciasList.add(referenceMap);
         }
-      });
-    } else {
-      print("No se han realizado cambios.");
+      }
     }
+
+    // Enviar los datos para cada endpoint editado
+    for (var entry in isEndpointEdited.entries) {
+      String endpoint = entry.key;
+      bool wasEdited = entry.value;
+
+      if (wasEdited) {
+        String? url = endpointUrls[endpoint];
+        if (url != null) {
+          dynamic dataToSendEndpoint; // Variable específica para cada endpoint
+
+          if (endpoint == "Referencias") {
+            dataToSendEndpoint =
+                referenciasList.isNotEmpty ? referenciasList : [];
+            print(
+                "Datos de referencias a enviar: ${jsonEncode(dataToSendEndpoint)}");
+          } else if (endpoint == "Ingresos") {
+            dataToSendEndpoint = ingresosList;
+            print("Datos de ingresos a enviar: ${jsonEncode(ingresosList)}");
+          } else {
+            dataToSendEndpoint = allFieldsByEndpoint[endpoint]!;
+          }
+
+          if (endpoint == "Cuenta Banco") {
+            dataToSendEndpoint["iddetallegrupos"] = "";
+            if (!dataToSendEndpoint.containsKey("idclientes")) {
+              dataToSendEndpoint["idclientes"] = clientId;
+            }
+          }
+
+          if (endpoint == "Domicilio") {
+            dataToSendEndpoint["iddomicilios"] = iddomicilios;
+          }
+
+          final body = endpoint == "Domicilio"
+              ? [dataToSendEndpoint]
+              : dataToSendEndpoint;
+
+          print("Datos a enviar para $endpoint: ${jsonEncode(body)}");
+
+          try {
+            final response = await http.put(
+              Uri.parse(url),
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: jsonEncode(body),
+            );
+
+            print("Respuesta de $endpoint: ${response.body}");
+
+            if (response.statusCode == 200) {
+              _showSnackbar(context,
+                  "Datos enviados correctamente para $endpoint", Colors.green);
+            } else {
+              anyErrors = true;
+              _showSnackbar(
+                  context,
+                  "Error al enviar datos para $endpoint: ${response.statusCode}",
+                  Colors.red);
+            }
+          } catch (e) {
+            anyErrors = true;
+            _showSnackbar(context,
+                "Excepción al enviar datos para $endpoint: $e", Colors.red);
+          }
+        } else {
+          anyErrors = true;
+          _showSnackbar(context, "URL no definida para el endpoint $endpoint",
+              Colors.red);
+        }
+      }
+    }
+
+    if (!anyErrors) {
+      _showSnackbar(context, "Todos los datos fueron enviados correctamente",
+          Colors.green);
+      Navigator.pop(context);
+
+      if (widget.onClienteEditado != null) {
+        widget.onClienteEditado!();
+      }
+    } else {
+      _showSnackbar(
+          context, "Hubo errores al enviar algunos datos", Colors.red);
+    }
+  }
+
+  void _showSnackbar(BuildContext context, String message, Color color) {
+    final snackBar = SnackBar(
+      content: Text(message),
+      backgroundColor: color,
+      duration: Duration(seconds: 3),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
   void mostrarDialogoError(String mensaje) {
@@ -998,7 +1113,14 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   if (_validarFormularioActual()) {
                                     if (isEditing) {
                                       print('Se va a editar');
-                                      compareAndPrintEditedFields();
+                                      compareAndPrintEditedEndpointFields();
+                                      sendEditedData(
+                                          context,
+                                          widget.idCliente!,
+                                          idcuantabank!,
+                                          iddomicilios!,
+                                          idingegrList,
+                                          idreferenciasList);
                                     } else {
                                       _agregarCliente();
                                     }
@@ -1127,6 +1249,17 @@ class _nClienteDialogState extends State<nClienteDialog>
     //const double fontSize = 12.0; // Tamaño de fuente más pequeño
     int pasoActual = 1; // Paso actual que queremos marcar como activo
 
+    // Asigna valores a los controladores, convirtiendo "null" en cadena vacía
+    /* nombreConyugeController.text = clienteData['nombreConyuge'] == "null"
+        ? ''
+        : clienteData['nombreConyuge'];
+    telefonoConyugeController.text = clienteData['telefonoConyuge'] == "null"
+        ? ''
+        : clienteData['telefonoConyuge'];
+    ocupacionConyugeController.text = clienteData['ocupacionConyuge'] == "null"
+        ? ''
+        : clienteData['ocupacionConyuge'];
+ */
     return Form(
       key: _personalFormKey, // Asignar la clave al formulario
       child: Row(
@@ -1308,6 +1441,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: telefonoClienteController,
                           label: 'Teléfono',
                           icon: Icons.phone,
+                          maxLength: 10, // Especificar la longitud máxima aquí
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor ingrese el Teléfono';
@@ -1419,6 +1553,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                         ),
                     ],
                   ),
+                  SizedBox(height: verticalSpacing),
                   // Sección de Domicilio
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -1665,6 +1800,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           label: 'CURP',
                           icon: Icons
                               .account_box, // Ícono de identificación más relevante
+                              maxLength: 18, // Especificar la longitud máxima aquí
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor ingrese el CURP';
@@ -1684,6 +1820,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                             icon: Icons
                                 .assignment_ind, // Ícono de archivo/identificación
                             keyboardType: TextInputType.number,
+                            maxLength: 13, // Especificar la longitud máxima aquí
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor ingrese el RFC';
@@ -1708,23 +1845,25 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   Widget _paginaCuentaBancaria() {
     @override
-void initState() {
-  super.initState();
+    void initState() {
+      super.initState();
 
-  // Listener para el número de cuenta
-  _numCuentaController.addListener(() {
-    if (clienteData != null && clienteData.containsKey('cuentabanco')) {
-      clienteData['cuentabanco'][0]['numCuenta'] = _numCuentaController.text;
-    }
-  });
+      // Listener para el número de cuenta
+      _numCuentaController.addListener(() {
+        if (clienteData != null && clienteData.containsKey('cuentabanco')) {
+          clienteData['cuentabanco'][0]['numCuenta'] =
+              _numCuentaController.text;
+        }
+      });
 
-  // Listener para el número de tarjeta
-  _numTarjetaController.addListener(() {
-    if (clienteData != null && clienteData.containsKey('cuentabanco')) {
-      clienteData['cuentabanco'][0]['numTarjeta'] = _numTarjetaController.text;
+      // Listener para el número de tarjeta
+      _numTarjetaController.addListener(() {
+        if (clienteData != null && clienteData.containsKey('cuentabanco')) {
+          clienteData['cuentabanco'][0]['numTarjeta'] =
+              _numTarjetaController.text;
+        }
+      });
     }
-  });
-}
 
     int pasoActual = 2; // Paso actual en la página de "Cuenta Bancaria"
 
@@ -2361,6 +2500,7 @@ void initState() {
                               label: 'Teléfono',
                               icon: Icons.phone,
                               keyboardType: TextInputType.phone,
+                              maxLength: 10, // Especificar la longitud máxima aquí
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Por favor ingrese el teléfono';
@@ -2521,6 +2661,7 @@ void initState() {
                                     label: 'Código Postal',
                                     icon: Icons.mail,
                                     keyboardType: TextInputType.number,
+                                    maxLength: 5, // Especificar la longitud máxima aquí
                                     validator: (value) {
                                       // Verificamos si el campo está vacío
                                       if (value == null || value.isEmpty) {

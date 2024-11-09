@@ -593,151 +593,158 @@ class _InfoClienteState extends State<InfoCliente> {
   }
 
   Widget _buildReferences(List<dynamic> referencias) {
-    final ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
-    // Filtrar la lista para eliminar elementos nulos o vacíos
-    final List<dynamic> referenciasValidas = referencias.where((referencia) {
-      return referencia != null &&
-          (referencia['nombres'] != null ||
-              referencia['apellidoP'] != null ||
-              referencia['apellidoM'] != null ||
-              referencia['parentescoRefProp'] != null ||
-              referencia['telefono'] != null ||
-              referencia['timepoCo'] != null ||
-              (referencia['domicilio_ref'] is List &&
-                  referencia['domicilio_ref'].isNotEmpty));
-    }).toList();
+  // Filtrar la lista para eliminar elementos nulos o vacíos
+  final List<dynamic> referenciasValidas = referencias.where((referencia) {
+    return referencia != null &&
+        (referencia['nombres'] != null ||
+            referencia['apellidoP'] != null ||
+            referencia['apellidoM'] != null ||
+            referencia['parentescoRefProp'] != null ||
+            referencia['telefono'] != null ||
+            referencia['timepoCo'] != null ||
+            (referencia['domicilio_ref'] is List &&
+                referencia['domicilio_ref'].isNotEmpty));
+  }).toList();
 
-    // Mostrar un mensaje si no hay referencias válidas
-    if (referenciasValidas.isEmpty) {
-      return Center(
-        child: Text(
-          'No hay referencias disponibles',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        SingleChildScrollView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          physics: NeverScrollableScrollPhysics(),
-          child: Row(
-            children: referenciasValidas.map<Widget>((referencia) {
-              return Container(
-                width: 650,
-                margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 3,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDetailRow(
-                            'Parentesco:',
-                            referencia['parentescoRefProp'],
-                          ),
-                        ),
-                        Expanded(
-                          child: _buildDetailRow(
-                            'Teléfono:',
-                            referencia['telefono'],
-                          ),
-                        ),
-                        Expanded(
-                          child: _buildDetailRow(
-                            'Tiempo de Conocer:',
-                            referencia['timepoCo'],
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(
-                            'Domicilio',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (referencia['domicilio_ref'] is List)
-                      for (var domicilio in referencia['domicilio_ref']) ...[
-                        _buildAddresses(domicilio),
-                        SizedBox(height: 16),
-                      ],
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        Positioned(
-          left: 0,
-          top: 80,
-          child: IconButton(
-            icon:
-                Icon(Icons.arrow_back_ios, color: Color(0xFFFB2056), size: 20),
-            onPressed: () {
-              if (_scrollController.hasClients) {
-                _scrollController.jumpTo(
-                  _scrollController.position.pixels - 600,
-                );
-              }
-            },
-          ),
-        ),
-        Positioned(
-          right: 0,
-          top: 80,
-          child: IconButton(
-            icon: Icon(Icons.arrow_forward_ios,
-                color: Color(0xFFFB2056), size: 20),
-            onPressed: () {
-              if (_scrollController.hasClients) {
-                _scrollController.jumpTo(
-                  _scrollController.position.pixels + 600,
-                );
-              }
-            },
-          ),
-        ),
-      ],
+  // Mostrar un mensaje si no hay referencias válidas
+  if (referenciasValidas.isEmpty) {
+    return Center(
+      child: Text(
+        'No hay referencias disponibles',
+        style: TextStyle(fontSize: 16, color: Colors.grey),
+      ),
     );
   }
+
+  return Stack(
+    children: [
+      SingleChildScrollView(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        physics: NeverScrollableScrollPhysics(),
+        child: Row(
+          children: referenciasValidas.map<Widget>((referencia) {
+            return Container(
+              width: 650,
+              margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 3,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDetailRow(
+                          'Parentesco:',
+                          referencia['parentescoRefProp'],
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildDetailRow(
+                          'Teléfono:',
+                          referencia['telefono'],
+                        ),
+                      ),
+                      Expanded(
+                        child: _buildDetailRow(
+                          'Tiempo de Conocer:',
+                          referencia['timepoCo'],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          'Domicilio',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (referencia['domicilio_ref'] is List &&
+                      referencia['domicilio_ref'].isNotEmpty)
+                    for (var domicilio in referencia['domicilio_ref']) ...[
+                      _buildAddresses(domicilio),
+                      SizedBox(height: 16),
+                    ]
+                  else
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        'No hay domicilio para esta referencia',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+      Positioned(
+        left: 0,
+        top: 80,
+        child: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: Color(0xFFFB2056), size: 20),
+          onPressed: () {
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(
+                _scrollController.position.pixels - 600,
+              );
+            }
+          },
+        ),
+      ),
+      Positioned(
+        right: 0,
+        top: 80,
+        child: IconButton(
+          icon: Icon(Icons.arrow_forward_ios, color: Color(0xFFFB2056), size: 20),
+          onPressed: () {
+            if (_scrollController.hasClients) {
+              _scrollController.jumpTo(
+                _scrollController.position.pixels + 600,
+              );
+            }
+          },
+        ),
+      ),
+    ],
+  );
+}
+
 
   Widget _buildAddresses(Map<String, dynamic> domicilio) {
     return Column(
@@ -761,7 +768,7 @@ class _InfoClienteState extends State<InfoCliente> {
         Row(
           children: [
             Expanded(child: _buildDetailRow('Calle:', domicilio['calle'])),
-            Expanded(child: _buildDetailRow('Número Ext:', domicilio['next'])),
+            Expanded(child: _buildDetailRow('Número Ext:', domicilio['nExt'])),
             Expanded(child: _buildDetailRow('Número Int:', domicilio['nInt'])),
           ],
         ),
@@ -780,7 +787,7 @@ class _InfoClienteState extends State<InfoCliente> {
             Expanded(child: _buildDetailRow('Código Postal:', domicilio['cp'])),
             Expanded(
                 child:
-                    _buildDetailRow('Entre Calles:', domicilio['entrecalle'])),
+                    _buildDetailRow('Entre Calles:', domicilio['entreCalle'])),
             Expanded(
                 child: _buildDetailRow(
                     'Tiempo Viviendo:', domicilio['tiempoViviendo'])),

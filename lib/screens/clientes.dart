@@ -148,79 +148,83 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   // Función para eliminar el cliente
-Future<void> eliminarCliente(BuildContext context, String idCliente) async {
-  // Muestra el diálogo de confirmación
-  bool? confirm = await mostrarDialogoConfirmacion(context);
-  if (confirm == true) {
-    // Muestra el CircularProgressIndicator mientras se realiza la eliminación
-    showDialog(
-      context: context,
-      barrierDismissible: false, // No permite cerrar el diálogo tocando fuera de él
-      builder: (context) => Center(child: CircularProgressIndicator()),
-    );
-
-    // Realiza la solicitud DELETE a la API
-    try {
-      final response = await http.delete(
-        Uri.parse('http://192.168.0.111:3000/api/v1/clientes/$idCliente'),
+  Future<void> eliminarCliente(BuildContext context, String idCliente) async {
+    // Muestra el diálogo de confirmación
+    bool? confirm = await mostrarDialogoConfirmacion(context);
+    if (confirm == true) {
+      // Muestra el CircularProgressIndicator mientras se realiza la eliminación
+      showDialog(
+        context: context,
+        barrierDismissible:
+            false, // No permite cerrar el diálogo tocando fuera de él
+        builder: (context) => Center(child: CircularProgressIndicator()),
       );
 
-      if (response.statusCode == 200) {
-        // Si la eliminación fue exitosa
-        print('Cliente eliminado con éxito. ID: $idCliente'); // Imprime en consola
-        mostrarSnackBar(context, 'Cliente eliminado correctamente'); // Muestra un SnackBar
+      // Realiza la solicitud DELETE a la API
+      try {
+        final response = await http.delete(
+          Uri.parse('http://192.168.0.111:3000/api/v1/clientes/$idCliente'),
+        );
 
-        // Recarga los datos
-        obtenerClientes(); // Asume que esta función recarga la lista de clientes
-      } else {
-        // Si hubo un error, muestra un mensaje
-        mostrarMensajeError(context, 'Error al eliminar el cliente');
+        if (response.statusCode == 200) {
+          // Si la eliminación fue exitosa
+          print(
+              'Cliente eliminado con éxito. ID: $idCliente'); // Imprime en consola
+          mostrarSnackBar(context,
+              'Cliente eliminado correctamente'); // Muestra un SnackBar
+
+          // Recarga los datos
+          obtenerClientes(); // Asume que esta función recarga la lista de clientes
+        } else {
+          // Si hubo un error, muestra un mensaje
+          mostrarMensajeError(context, 'Error al eliminar el cliente');
+        }
+      } catch (e) {
+        // Manejo de errores de red u otros
+        print(
+            'Error al eliminar el cliente: $e'); // Imprime el error en consola
+        mostrarMensajeError(context, 'Error de conexión');
+      } finally {
+        Navigator.pop(context); // Cierra el CircularProgressIndicator
       }
-    } catch (e) {
-      // Manejo de errores de red u otros
-      print('Error al eliminar el cliente: $e'); // Imprime el error en consola
-      mostrarMensajeError(context, 'Error de conexión');
-    } finally {
-      Navigator.pop(context); // Cierra el CircularProgressIndicator
     }
   }
-}
 
 // Función para mostrar un SnackBar con el mensaje de éxito
-void mostrarSnackBar(BuildContext context, String mensaje) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(mensaje)),
-  );
-}
+  void mostrarSnackBar(BuildContext context, String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje)),
+    );
+  }
 
 // Función para mostrar el diálogo de confirmación
-Future<bool?> mostrarDialogoConfirmacion(BuildContext context) {
-  return showDialog<bool>(
-    context: context,
-    barrierDismissible: false, // No cierra el diálogo al tocar fuera de él
-    builder: (context) => AlertDialog(
-      title: Text('¿Confirmar eliminación?'),
-      content: Text('¿Estás seguro de que deseas eliminar este cliente?'),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text('Cancelar'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text('Eliminar'),
-        ),
-      ],
-    ),
-  );
-}
+  Future<bool?> mostrarDialogoConfirmacion(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // No cierra el diálogo al tocar fuera de él
+      builder: (context) => AlertDialog(
+        title: Text('¿Confirmar eliminación?'),
+        content: Text('¿Estás seguro de que deseas eliminar este cliente?'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
 
 // Función para mostrar mensajes de error
-void mostrarMensajeError(BuildContext context, String mensaje) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(mensaje)),
-  );
-}
+  void mostrarMensajeError(BuildContext context, String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -515,14 +519,8 @@ void mostrarMensajeError(BuildContext context, String mensaje) {
                                               icon: Icon(Icons.edit_outlined,
                                                   color: Colors.grey),
                                               onPressed: () {
-                                                showDialog(
-                                                  context: context,
-                                                  builder: (context) =>
-                                                      nClienteDialog(
-                                                    idCliente: cliente
-                                                        .idclientes, // Solo pasas el id del cliente
-                                                  ),
-                                                );
+                                                mostrarDialogoEditarCliente(cliente
+                                                    .idclientes!); // Llama la función para editar el cliente
                                               },
                                             ),
                                             IconButton(
@@ -530,7 +528,8 @@ void mostrarMensajeError(BuildContext context, String mensaje) {
                                                   color: Colors.grey),
                                               onPressed: () {
                                                 // Lógica para eliminar el cliente
-                                                 eliminarCliente(context, cliente.idclientes!);
+                                                eliminarCliente(context,
+                                                    cliente.idclientes!);
                                               },
                                             ),
                                           ],
@@ -585,8 +584,22 @@ void mostrarMensajeError(BuildContext context, String mensaje) {
       },
     );
   }
-}
 
+  void mostrarDialogoEditarCliente(String idCliente) {
+    showDialog(
+      barrierDismissible: false, // No se puede cerrar tocando fuera
+      context: context,
+      builder: (context) {
+        return nClienteDialog(
+          idCliente: idCliente, // Pasa el ID del cliente a editar
+          onClienteEditado: () {
+            obtenerClientes(); // Refresca la lista de clientes después de editar uno
+          },
+        );
+      },
+    );
+  }
+}
 
 class Cliente {
   final String idclientes;
