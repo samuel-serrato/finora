@@ -96,13 +96,13 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                 controller: _tabController,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 30, vertical: 10),
+                    padding: const EdgeInsets.only(
+                       right: 30, top: 10, bottom: 10, left: 0),
                     child: _paginaInfoGrupo(),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 30, vertical: 10),
+                    padding: const EdgeInsets.only(
+                        right: 30, top: 10, bottom: 10, left: 0),
                     child: _paginaMiembros(),
                   ),
                 ],

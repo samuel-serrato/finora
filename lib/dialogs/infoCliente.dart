@@ -674,7 +674,7 @@ class _InfoClienteState extends State<InfoCliente> {
                       Expanded(
                         child: _buildDetailRow(
                           'Tiempo de Conocer:',
-                          referencia['timepoCo'],
+                          referencia['tiempoCo'],
                         ),
                       ),
                     ],

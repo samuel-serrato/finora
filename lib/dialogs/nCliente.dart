@@ -341,9 +341,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                     'nombresRef': referencia['nombres'] ?? '',
                     'apellidoPRef': referencia['apellidoP'] ?? '',
                     'apellidoMRef': referencia['apellidoM'] ?? '',
-                    'parentescoRef': referencia['parentescoRef'] ?? '',
+                    'parentescoRef': referencia['parentescoRefProp'] ?? '',
                     'telefonoRef': referencia['telefono'] ?? '',
-                    'tiempoConocerRef': referencia['timepoCo'] ?? '',
+                    'tiempoConocerRef': referencia['tiempoCo'] ?? '',
                     'tipoDomicilioRef': domicilioRef?.isNotEmpty == true
                         ? domicilioRef[0]['tipo_domicilio']
                         : '',
@@ -351,7 +351,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                         ? domicilioRef[0]['nombre_propietario']
                         : '',
                     'parentescoRefProp': domicilioRef?.isNotEmpty == true
-                        ? domicilioRef[0]['parentescoRefProp']
+                        ? domicilioRef[0]['parentesco']
                         : '',
                     'calleRef': domicilioRef?.isNotEmpty == true
                         ? domicilioRef[0]['calle']
@@ -384,7 +384,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                 }).toList() ??
                 [],
           };
-          print(originalData);
+          //print('OriginalData en Fetch: $originalData');
           idcuantabank = originalData['idcuantabank'];
           // Después de crear el originalData, puedes guardar el valor en una variable separada
           iddomicilios = originalData['iddomicilios'];
@@ -571,9 +571,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                   'nombresRef': referencia['nombres'] ?? '',
                   'apellidoPRef': referencia['apellidoP'] ?? '',
                   'apellidoMRef': referencia['apellidoM'] ?? '',
-                  'parentescoRef': referencia['parentescoRef'] ?? '',
+                  'parentescoRef': referencia['parentescoRefProp'] ?? '',
                   'telefonoRef': referencia['telefono'] ?? '',
-                  'tiempoConocerRef': referencia['timepoCo'] ?? '',
+                  'tiempoConocerRef': referencia['tiempoCo'] ?? '',
 
                   // Datos del domicilio de la referencia
                   'tipoDomicilioRef': tipoDomicilio,
@@ -629,11 +629,18 @@ class _nClienteDialogState extends State<nClienteDialog>
         allFieldsByEndpoint[endpoint]![key] = value;
       }
 
-      // Verificar si el campo fue editado comparando con el valor original
-      if ((value?.trim() ?? '') != (originalValue?.trim() ?? '')) {
+      // Imprimir los valores que se están comparando
+      //print("Comparando $key: original = $originalValue, nuevo = $value");
+
+      // Comparación segura que trata nulls y valores vacíos
+      if ((value?.toString().trim() ?? '') !=
+          (originalValue?.toString().trim() ?? '')) {
+        print("Campo editado: $key");
         isEndpointEdited[endpoint] = true;
       }
     }
+
+    print('original data dentro de compare $originalData');
 
     // Recolectar datos y verificar si fueron editados
     addFieldToEndpoint("Cliente", "nombres", nombresController.text ?? '',
@@ -743,8 +750,13 @@ class _nClienteDialogState extends State<nClienteDialog>
           ref['apellidoMRef'], originalRef['apellidoMRef']);
       addFieldToEndpoint("Referencias", "referencias_${i}_parentescoRef",
           ref['parentescoRef'], originalRef['parentescoRef']);
+
       addFieldToEndpoint("Referencias", "referencias_${i}_telefonoRef",
           ref['telefonoRef'], originalRef['telefonoRef']);
+
+      addFieldToEndpoint("Referencias", "referencias_${i}_tiempoCo",
+          ref['tiempoConocerRef'], originalRef['tiempoConocerRef']);
+
       addFieldToEndpoint("Referencias", "referencias_${i}_calleRef",
           ref['calleRef'], originalRef['calleRef']);
       addFieldToEndpoint("Referencias", "referencias_${i}_coloniaRef",
@@ -835,7 +847,7 @@ class _nClienteDialogState extends State<nClienteDialog>
           "apellidoM": ref['apellidoMRef'] ?? "",
           "parentescoRefProp": ref['parentescoRef'] ?? "",
           "telefono": ref['telefonoRef'] ?? "",
-          "tiempoConocer": ref['tiempoConocerRef'] ?? "",
+          "tiempoCo": ref['tiempoConocerRef'] ?? "",
           //DOMICILIO
           /* "tipoDomicilio": ref['tipoDomicilioRef'] ?? "",
           "calle": ref['calleRef'] ?? "",
@@ -861,8 +873,7 @@ class _nClienteDialogState extends State<nClienteDialog>
             newValue = newValue.trim();
           }
 
-          print(
-              "Comparando $key: original = $originalValue, nuevo = $newValue");
+          //print("Comparando $key: original = $originalValue, nuevo = $newValue");
           return newValue != originalValue;
         });
 
@@ -1800,7 +1811,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           label: 'CURP',
                           icon: Icons
                               .account_box, // Ícono de identificación más relevante
-                              maxLength: 18, // Especificar la longitud máxima aquí
+                          maxLength: 18, // Especificar la longitud máxima aquí
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor ingrese el CURP';
@@ -1820,7 +1831,8 @@ class _nClienteDialogState extends State<nClienteDialog>
                             icon: Icons
                                 .assignment_ind, // Ícono de archivo/identificación
                             keyboardType: TextInputType.number,
-                            maxLength: 13, // Especificar la longitud máxima aquí
+                            maxLength:
+                                13, // Especificar la longitud máxima aquí
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor ingrese el RFC';
@@ -2500,7 +2512,8 @@ class _nClienteDialogState extends State<nClienteDialog>
                               label: 'Teléfono',
                               icon: Icons.phone,
                               keyboardType: TextInputType.phone,
-                              maxLength: 10, // Especificar la longitud máxima aquí
+                              maxLength:
+                                  10, // Especificar la longitud máxima aquí
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Por favor ingrese el teléfono';
@@ -2661,7 +2674,8 @@ class _nClienteDialogState extends State<nClienteDialog>
                                     label: 'Código Postal',
                                     icon: Icons.mail,
                                     keyboardType: TextInputType.number,
-                                    maxLength: 5, // Especificar la longitud máxima aquí
+                                    maxLength:
+                                        5, // Especificar la longitud máxima aquí
                                     validator: (value) {
                                       // Verificamos si el campo está vacío
                                       if (value == null || value.isEmpty) {
@@ -3162,7 +3176,7 @@ class _nClienteDialogState extends State<nClienteDialog>
     final url = Uri.parse("http://$baseUrl/api/v1/clientes");
 
     final datosCliente = {
-      "tipoclientes": selectedTipoCliente ?? "",
+      "tipo_cliente": selectedTipoCliente ?? "",
       "ocupacion": ocupacionController.text,
       "nombres": nombresController.text,
       "apellidoP": apellidoPController.text,

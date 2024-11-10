@@ -115,7 +115,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                             fontSize: 12,
                                             color: Colors.grey[700]),
                                         filled: true,
-                                        fillColor: Colors.grey[100],
+                                        fillColor: Colors.white,
                                         enabledBorder: OutlineInputBorder(
                                           borderRadius:
                                               BorderRadius.circular(15.0),
@@ -151,7 +151,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                   Container(
                                     height: 35,
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[100],
+                                      color: Colors.white,
                                       borderRadius: BorderRadius.circular(15.0),
                                       border: Border.all(
                                           color: Colors.grey[300]!, width: 2.0),
@@ -216,7 +216,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                           padding: EdgeInsets.symmetric(
                                               horizontal: 12, vertical: 0),
                                           decoration: BoxDecoration(
-                                            color: Colors.grey[100],
+                                            color: Colors.white,
                                             border: Border.all(
                                                 color: Colors.grey[300]!,
                                                 width: 2.0),
@@ -266,7 +266,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                   Container(
                                     height: 35,
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[100],
+                                      color: Colors.white,
                                       borderRadius: BorderRadius.circular(15.0),
                                       border: Border.all(
                                         color: Colors.grey[300]!,
@@ -384,7 +384,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                                     fontSize: 12.0,
                                                     color: Colors.grey[700]),
                                                 filled: true,
-                                                fillColor: Colors.grey[100],
+                                                fillColor: Colors.white,
                                                 enabledBorder:
                                                     OutlineInputBorder(
                                                   borderRadius:

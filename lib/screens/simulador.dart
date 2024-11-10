@@ -266,7 +266,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                         fontSize: 12.0,
                                         color: Colors.grey[700]),
                                     filled: true,
-                                    fillColor: Colors.grey[100],
+                                    fillColor: Colors.white,
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(15.0),
                                       borderSide: BorderSide(
@@ -304,7 +304,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 height: 40, // Consistencia en altura
                                 padding: EdgeInsets.symmetric(horizontal: 10),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[100],
+                                  color: Colors.white,
                                   border: Border.all(
                                       color: Colors.grey[300]!, width: 2.0),
                                   borderRadius: BorderRadius.circular(15.0),
@@ -375,7 +375,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                               child: Container(
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[100],
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(15.0),
                                   border: Border.all(
                                     color: Colors.grey[300]!,
@@ -479,7 +479,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                               child: Container(
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[100],
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(15.0),
                                   border: Border.all(
                                       color: Colors.grey[300]!, width: 1.5),

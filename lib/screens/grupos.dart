@@ -108,6 +108,7 @@ class _GruposScreenState extends State<GruposScreen> {
     return Column(
       children: [
         filaSearch(context),
+        filaBotonAgregar(context),
         filaTabla(context),
       ],
     );
@@ -159,6 +160,36 @@ class _GruposScreenState extends State<GruposScreen> {
     );
   }
 
+  Widget filaBotonAgregar(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          'Últimos Clientes',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+        ),
+        ElevatedButton(
+          style: ButtonStyle(
+            backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
+            foregroundColor: MaterialStateProperty.all(Colors.white),
+            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+          onPressed: () {
+            mostrarDialogoAgregarCliente();
+          },
+          child: Text('Agregar Grupo'),
+        ),
+      ],
+    ),
+  );
+}
+
   Widget filaTabla(BuildContext context) {
     return Expanded(
       child: Container(
@@ -179,37 +210,7 @@ class _GruposScreenState extends State<GruposScreen> {
           ),
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Lista de Grupos',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                    ),
-                    ElevatedButton(
-                      style: ButtonStyle(
-                        backgroundColor:
-                            MaterialStateProperty.all(Color(0xFFFB2056)),
-                        foregroundColor:
-                            MaterialStateProperty.all(Colors.white),
-                        shape:
-                            MaterialStateProperty.all<RoundedRectangleBorder>(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      onPressed: () {
-                        mostrarDialogoAgregarCliente();
-                      },
-                      child: Text('Agregar Grupo'),
-                    ),
-                  ],
-                ),
-              ),
+              
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {

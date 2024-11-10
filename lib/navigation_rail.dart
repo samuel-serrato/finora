@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:money_facil/screens/clientes.dart';
 import 'package:money_facil/screens/grupos.dart';
 import 'package:money_facil/screens/home.dart';
-import 'package:money_facil/screens/seguimiento.dart';
+import 'package:money_facil/screens/creditos.dart';
 import 'package:money_facil/screens/simulador.dart';
 
 class NavigationScreen extends StatefulWidget {
@@ -96,9 +96,9 @@ class _NavigationScreenState extends State<NavigationScreen> {
                   icon: const Icon(Icons.home),
                 ),
                 SideMenuItem(
-                  title: 'Seguimiento',
+                  title: 'Créditos',
                   onTap: (index, _) => sideMenu.changePage(1),
-                  icon: const Icon(Icons.content_paste_search),
+                  icon: const Icon(Icons.request_page),
                 ),
                 SideMenuItem(
                   title: 'Grupos',
