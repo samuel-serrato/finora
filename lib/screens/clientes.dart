@@ -313,6 +313,7 @@ Widget build(BuildContext context) {
             : Column(
                 children: [
                   filaSearch(context), // Barra de búsqueda
+                  filaBotonAgregar(context), // Botón de agregar siempre visible
                   listaClientes.isEmpty
                       ? Expanded(
                           child: Center(
