@@ -41,48 +41,64 @@ class _ClientesScreenState extends State<ClientesScreen> {
     super.dispose();
   }
 
+  Future<void> obtenerClientes() async {
+    print('obtenerClientes() called');
+    setState(() {
+      isLoading = true;
+      errorDeConexion =
+          false; // Reinicia el estado de error de conexión al intentar cargar
+    });
 
-Future<void> obtenerClientes() async {
-  print('obtenerClientes() called');
-  setState(() {
-    isLoading = true;
-    errorDeConexion = false; // Reinicia el estado de error de conexión al intentar cargar
-  });
+    bool dialogShown = false;
+    bool noClientsFound =
+        false; // Nuevo control para manejar el caso de "No hay ningun cliente registrado"
 
-  bool dialogShown = false;
-  bool noClientsFound = false;  // Nuevo control para manejar el caso de "No hay ningun cliente registrado"
-
-  Future<void> fetchData() async {
-    try {
-      print('Fetching data...');
-      final response = await http.get(Uri.parse('http://$baseUrl/api/v1/clientes'));
-      if (mounted) {
-        print('Response received: ${response.statusCode}');
-        if (response.statusCode == 200) {
-          List<dynamic> data = json.decode(response.body);
-          setState(() {
-            listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
-            isLoading = false;
-            errorDeConexion = false;
-            print('Data successfully loaded: ${listaClientes.length} items');
-          });
-          _timer?.cancel();
-          print('Timer cancelled after successful data load');
-        } else if (response.statusCode == 400) {
-          // Caso específico para manejar la respuesta 400
-          final errorData = json.decode(response.body);
-          if (errorData["Error"]["Message"] == "No hay ningun cliente registrado") {
-            // Si el mensaje es "No hay ningun cliente registrado", no mostramos el error
+    Future<void> fetchData() async {
+      try {
+        print('Fetching data...');
+        final response =
+            await http.get(Uri.parse('http://$baseUrl/api/v1/clientes'));
+        if (mounted) {
+          print('Response received: ${response.statusCode}');
+          if (response.statusCode == 200) {
+            List<dynamic> data = json.decode(response.body);
             setState(() {
+              listaClientes =
+                  data.map((item) => Cliente.fromJson(item)).toList();
               isLoading = false;
-              listaClientes = []; // Asegura que la lista está vacía
+              errorDeConexion = false;
+              print('Data successfully loaded: ${listaClientes.length} items');
             });
-            noClientsFound = true;  // Marcar que no hay clientes
-            print('No clients found: ${errorData["Error"]["Message"]}');
+            _timer?.cancel();
+            print('Timer cancelled after successful data load');
+          } else if (response.statusCode == 400) {
+            // Caso específico para manejar la respuesta 400
+            final errorData = json.decode(response.body);
+            if (errorData["Error"]["Message"] ==
+                "No hay ningun cliente registrado") {
+              // Si el mensaje es "No hay ningun cliente registrado", no mostramos el error
+              setState(() {
+                isLoading = false;
+                listaClientes = []; // Asegura que la lista está vacía
+              });
+              noClientsFound = true; // Marcar que no hay clientes
+              print('No clients found: ${errorData["Error"]["Message"]}');
+            } else {
+              setState(() {
+                isLoading = false;
+                errorDeConexion = true;
+              });
+              if (!dialogShown) {
+                dialogShown = true;
+                mostrarDialogoError(
+                    'Error en la carga de datos. Código de error: ${response.statusCode}');
+              }
+            }
           } else {
             setState(() {
               isLoading = false;
               errorDeConexion = true;
+              print('Error loading data: ${response.statusCode}');
             });
             if (!dialogShown) {
               dialogShown = true;
@@ -90,65 +106,51 @@ Future<void> obtenerClientes() async {
                   'Error en la carga de datos. Código de error: ${response.statusCode}');
             }
           }
-        } else {
+        }
+      } catch (e) {
+        if (mounted) {
+          print('Exception caught: $e');
           setState(() {
             isLoading = false;
             errorDeConexion = true;
-            print('Error loading data: ${response.statusCode}');
           });
           if (!dialogShown) {
             dialogShown = true;
-            mostrarDialogoError(
-                'Error en la carga de datos. Código de error: ${response.statusCode}');
+            if (e is SocketException) {
+              mostrarDialogoError(
+                  'Error de conexión. No se puede acceder al servidor. Verifica tu red.');
+            } else {
+              mostrarDialogoError('Ocurrió un error inesperado: $e');
+            }
           }
         }
       }
-    } catch (e) {
-      if (mounted) {
-        print('Exception caught: $e');
-        setState(() {
-          isLoading = false;
-          errorDeConexion = true;
-        });
-        if (!dialogShown) {
+    }
+
+    fetchData();
+
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && !dialogShown) {
+        print('10 seconds elapsed: Showing timeout dialog');
+
+        // Solo mostrar el error de conexión si no hemos encontrado la condición de "No hay ningun cliente registrado"
+        if (!noClientsFound) {
+          setState(() {
+            isLoading = false;
+            errorDeConexion = true; // Indica un problema de tiempo de espera
+          });
           dialogShown = true;
-          if (e is SocketException) {
-            mostrarDialogoError(
-                'Error de conexión. No se puede acceder al servidor. Verifica tu red.');
-          } else {
-            mostrarDialogoError('Ocurrió un error inesperado: $e');
-          }
+          mostrarDialogoError(
+              'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
+        } else {
+          // Si no hay clientes, no mostramos el error de conexión
+          print('No clients found, not showing connection error.');
         }
-      }
-    }
-  }
-
-  fetchData();
-
-  _timer = Timer(Duration(seconds: 10), () {
-    if (mounted && !dialogShown) {
-      print('10 seconds elapsed: Showing timeout dialog');
-
-      // Solo mostrar el error de conexión si no hemos encontrado la condición de "No hay ningun cliente registrado"
-      if (!noClientsFound) {
-        setState(() {
-          isLoading = false;
-          errorDeConexion = true; // Indica un problema de tiempo de espera
-        });
-        dialogShown = true;
-        mostrarDialogoError(
-            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
       } else {
-        // Si no hay clientes, no mostramos el error de conexión
-        print('No clients found, not showing connection error.');
+        print('Timer cancelled or dialog already shown before 10 seconds');
       }
-    } else {
-      print('Timer cancelled or dialog already shown before 10 seconds');
-    }
-  });
-}
-
-
+    });
+  }
 
 // Función para mostrar el diálogo de error
   void mostrarDialogoError(String mensaje) {
@@ -264,130 +266,97 @@ Future<void> obtenerClientes() async {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: Color(0xFFF7F8FA),
-    appBar: CustomAppBar(
-      isDarkMode: _isDarkMode,
-      toggleDarkMode: _toggleDarkMode,
-      title: 'Clientes', // Título específico para esta pantalla
-    ),
-    body: isLoading
-        ? Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFFFB2056),
-            ),
-          )
-        : (errorDeConexion
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () {
-                        obtenerClientes();
-                      },
-                      child: Text('Recargar'),
-                      style: ButtonStyle(
-                        backgroundColor:
-                            MaterialStateProperty.all(Color(0xFFFB2056)),
-                        foregroundColor:
-                            MaterialStateProperty.all(Colors.white),
-                        shape:
-                            MaterialStateProperty.all<RoundedRectangleBorder>(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Color(0xFFF7F8FA),
+      appBar: CustomAppBar(
+        isDarkMode: _isDarkMode,
+        toggleDarkMode: _toggleDarkMode,
+        title: 'Clientes', // Título específico para esta pantalla
+      ),
+      body: isLoading
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFFFB2056),
+              ),
+            )
+          : (errorDeConexion
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () {
+                          obtenerClientes();
+                        },
+                        child: Text('Recargar'),
+                        style: ButtonStyle(
+                          backgroundColor:
+                              MaterialStateProperty.all(Color(0xFFFB2056)),
+                          foregroundColor:
+                              MaterialStateProperty.all(Colors.white),
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              )
-            : Column(
-                children: [
-                  filaSearch(context), // Barra de búsqueda
-                  filaBotonAgregar(context), // Botón de agregar siempre visible
-                  listaClientes.isEmpty
-                      ? Expanded(
-                          child: Center(
-                            child: Text(
-                              'No hay clientes para mostrar.',
-                              style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ],
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+/*                     Padding(
+                      padding:
+                          const EdgeInsets.only(top: 10, left: 20, right: 20),
+                      child: Text('Aquí podrás ver los clientes'),
+                    ), */
+                    filaBuscarYAgregar(context),
+                    listaClientes.isEmpty
+                        ? Expanded(
+                            child: Center(
+                              child: Text(
+                                'No hay clientes para mostrar.',
+                                style:
+                                    TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
                             ),
-                          ),
-                        )
-                      : tablaClientes(context), // Muestra la tabla solo si hay clientes
-                ],
-              )),
-  );
-}
-
- /*  Widget content(BuildContext context) {
-    return Column(
-      children: [
-        filaSearch(context),
-        filaTabla(context),
-      ],
+                          )
+                        : tablaClientes(
+                            context), // Muestra la tabla solo si hay clientes
+                  ],
+                )),
     );
-  } */
+  }
 
-  // Botón de "Agregar Clientes"
-Widget filaBotonAgregar(BuildContext context) {
-  return Padding(
-    padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Últimos Clientes',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-        ),
-        ElevatedButton(
-          style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
-            foregroundColor: MaterialStateProperty.all(Colors.white),
-            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          onPressed: () {
-            mostrarDialogoAgregarCliente();
-          },
-          child: Text('Agregar Clientes'),
-        ),
-      ],
-    ),
-  );
-}
-
-  Widget filaSearch(BuildContext context) {
+  Widget filaBuscarYAgregar(BuildContext context) {
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
-    return Container(
-      padding: EdgeInsets.only(top: 10, bottom: 0, left: 20, right: 20),
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // TextField de búsqueda
           Container(
             height: 40,
             constraints: BoxConstraints(maxWidth: maxWidth),
             decoration: BoxDecoration(
-              color: Colors.white, // Fondo blanco del TextField
+              color: Colors.white,
               borderRadius: BorderRadius.circular(20.0),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black26,
                   blurRadius: 8.0,
-                  offset: Offset(
-                      1, 1), // Cambia estos valores para ajustar la dirección
+                  offset: Offset(1, 1),
                 ),
               ],
             ),
@@ -410,187 +379,203 @@ Widget filaBotonAgregar(BuildContext context) {
                 ),
               ),
             ),
-          )
+          ),
+          // Botón de "Agregar Clientes"
+          ElevatedButton(
+            style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
+              foregroundColor: MaterialStateProperty.all(Colors.white),
+              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            onPressed: () {
+              mostrarDialogoAgregarCliente();
+            },
+            child: Text('Agregar Clientes'),
+          ),
         ],
       ),
     );
   }
 
   Widget tablaClientes(BuildContext context) {
-  return Expanded(
-    child: Container(
-      padding: EdgeInsets.all(20),
+    return Expanded(
       child: Container(
-        padding: EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              spreadRadius: 0.5,
-              blurRadius: 5,
-              offset: Offset(2, 2),
-            ),
-          ],
-        ),
-        child: listaClientes.isEmpty
-            ? Center(
-                child: Text(
-                  'No hay clientes para mostrar.',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              )
-            : LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: constraints.maxWidth,
-                      ),
-                      child: DataTable(
-                        showCheckboxColumn: false,
-                        headingRowColor:
-                            MaterialStateProperty.resolveWith(
-                                (states) => Color(0xFFDFE7F5)),
-                        dataRowHeight: 50,
-                        columnSpacing: 30,
-                        headingTextStyle: TextStyle(
-                            fontWeight: FontWeight.bold, color: Colors.black),
-                        columns: [
-                          DataColumn(
-                            label: Text(
-                              'Tipo Cliente',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Nombre',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'F. Nac',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Sexo',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Teléfono',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Email',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'E. Civil',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'F. Creación',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                          DataColumn(
-                            label: Text(
-                              'Acciones',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                        ],
-                        rows: listaClientes.map((cliente) {
-                          return DataRow(
-                            cells: [
-                              DataCell(Text(cliente.tipoclientes ?? 'N/A',
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(
-                                Text(
-                                  '${cliente.nombres ?? 'N/A'} ${cliente.apellidoP ?? 'N/A'} ${cliente.apellidoM ?? 'N/A'}',
-                                  style: TextStyle(fontSize: textTableSize),
-                                ),
-                              ),
-                              DataCell(Text(formatDate(cliente.fechaNac) ?? 'N/A',
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(Text(cliente.sexo ?? 'N/A',
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(Text(cliente.telefono ?? 'N /A',
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(Text(cliente.email ?? 'N/A',
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(Text(cliente.eCilvi ?? 'N/A',
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(Text(
-                                  formatDate(cliente.fCreacion) ?? 'N/A',
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.edit_outlined,
-                                          color: Colors.grey),
-                                      onPressed: () {
-                                        mostrarDialogoEditarCliente(
-                                            cliente.idclientes!); // Llama la función para editar el cliente
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.delete_outline,
-                                          color: Colors.grey),
-                                      onPressed: () {
-                                        // Lógica para eliminar el cliente
-                                        eliminarCliente(
-                                            context, cliente.idclientes!);
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            onSelectChanged: (isSelected) {
-                              if (isSelected!) {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => InfoCliente(
-                                      idCliente: cliente.idclientes!),
-                                );
-                              }
-                            },
-                            color: MaterialStateColor.resolveWith((states) {
-                              if (states.contains(MaterialState.selected)) {
-                                return Colors.blue.withOpacity(0.1);
-                              } else if (states.contains(MaterialState.hovered)) {
-                                return Colors.blue.withOpacity(0.2);
-                              }
-                              return Colors.transparent;
-                            }),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  );
-                },
+        padding: EdgeInsets.all(20),
+        child: Container(
+          padding: EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                spreadRadius: 0.5,
+                blurRadius: 5,
+                offset: Offset(2, 2),
               ),
+            ],
+          ),
+          child: listaClientes.isEmpty
+              ? Center(
+                  child: Text(
+                    'No hay clientes para mostrar.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: constraints.maxWidth,
+                        ),
+                        child: DataTable(
+                          showCheckboxColumn: false,
+                          headingRowColor: MaterialStateProperty.resolveWith(
+                              (states) => Color(0xFFDFE7F5)),
+                          dataRowHeight: 50,
+                          columnSpacing: 30,
+                          headingTextStyle: TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.black),
+                          columns: [
+                            DataColumn(
+                              label: Text(
+                                'Tipo Cliente',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Nombre',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'F. Nac',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Sexo',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Teléfono',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Email',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'E. Civil',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'F. Creación',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
+                            DataColumn(
+                              label: Text(
+                                'Acciones',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
+                          ],
+                          rows: listaClientes.map((cliente) {
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(cliente.tipoclientes ?? 'N/A',
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(
+                                  Text(
+                                    '${cliente.nombres ?? 'N/A'} ${cliente.apellidoP ?? 'N/A'} ${cliente.apellidoM ?? 'N/A'}',
+                                    style: TextStyle(fontSize: textTableSize),
+                                  ),
+                                ),
+                                DataCell(Text(
+                                    formatDate(cliente.fechaNac) ?? 'N/A',
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(cliente.sexo ?? 'N/A',
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(cliente.telefono ?? 'N /A',
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(cliente.email ?? 'N/A',
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(cliente.eCilvi ?? 'N/A',
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(
+                                    formatDate(cliente.fCreacion) ?? 'N/A',
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.edit_outlined,
+                                            color: Colors.grey),
+                                        onPressed: () {
+                                          mostrarDialogoEditarCliente(cliente
+                                              .idclientes!); // Llama la función para editar el cliente
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline,
+                                            color: Colors.grey),
+                                        onPressed: () {
+                                          // Lógica para eliminar el cliente
+                                          eliminarCliente(
+                                              context, cliente.idclientes!);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              onSelectChanged: (isSelected) {
+                                if (isSelected!) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => InfoCliente(
+                                        idCliente: cliente.idclientes!),
+                                  );
+                                }
+                              },
+                              color: MaterialStateColor.resolveWith((states) {
+                                if (states.contains(MaterialState.selected)) {
+                                  return Colors.blue.withOpacity(0.1);
+                                } else if (states
+                                    .contains(MaterialState.hovered)) {
+                                  return Colors.blue.withOpacity(0.2);
+                                }
+                                return Colors.transparent;
+                              }),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 
   void mostrarDialogoAgregarCliente() {
     showDialog(

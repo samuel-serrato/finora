@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -16,65 +18,98 @@ class _GruposScreenState extends State<GruposScreen> {
   List<Grupo> listaGrupos = [];
   bool isLoading = true;
   bool showErrorDialog = false;
+  Timer? _timer;
+  bool errorDeConexion = false;
+  bool noGroupsFound = false;
 
   @override
   void initState() {
     super.initState();
     obtenerGrupos();
-    // Datos de ejemplo para la tabla de grupos
-    listaGrupos = [
-      Grupo(
-          idTipoGrupo: 1,
-          nombre: 'Grupo Alpha',
-          detalles: 'Detalles del grupo Alpha',
-          fechaCreacion: '2023-10-20'),
-      Grupo(
-          idTipoGrupo: 2,
-          nombre: 'Grupo Beta',
-          detalles: 'Detalles del grupo Beta',
-          fechaCreacion: '2023-09-15'),
-      // Puedes agregar más grupos de ejemplo si es necesario
-    ];
-    isLoading = false;
   }
 
-  // Define el tamaño de texto aquí
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
   final double textHeaderTableSize = 12.0;
-  final double textTableSize = 10.0;
+  final double textTableSize = 12.0;
 
   Future<void> obtenerGrupos() async {
-    try {
-      final response =
-          await http.get(Uri.parse('http://$baseUrl/api/v1/grupos'));
+    setState(() {
+      isLoading = true;
+      errorDeConexion = false;
+      noGroupsFound = false;
+    });
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
+    bool dialogShown = false;
 
-      if (response.statusCode == 200) {
-        List<dynamic> data = json.decode(response.body);
+    Future<void> fetchData() async {
+      try {
+        final response =
+            await http.get(Uri.parse('http://$baseUrl/api/v1/grupos'));
+
         if (mounted) {
-          // Verificar si el widget está montado antes de llamar a setState()
-          setState(() {
-            listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
-            isLoading = false;
-          });
+          if (response.statusCode == 200) {
+            List<dynamic> data = json.decode(response.body);
+            setState(() {
+              listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
+              isLoading = false;
+              errorDeConexion = false;
+            });
+            _timer?.cancel();
+          } else if (response.statusCode == 400) {
+            final errorData = json.decode(response.body);
+            if (errorData["Error"]["Message"] ==
+                "No hay ningún grupo registrado") {
+              setState(() {
+                listaGrupos = [];
+                isLoading = false;
+              });
+              noGroupsFound = true;
+            } else {
+              setErrorState(dialogShown);
+            }
+          } else {
+            setErrorState(dialogShown);
+          }
         }
-      } else {
+      } catch (e) {
         if (mounted) {
-          // Verificar si el widget está montado antes de llamar a setState()
-          setState(() {
-            showErrorDialog = true;
-          });
+          setErrorState(dialogShown, e);
         }
       }
-    } catch (e) {
-      if (mounted) {
-        // Verificar si el widget está montado antes de llamar a setState()
+    }
+
+    fetchData();
+
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && !dialogShown && !noGroupsFound) {
         setState(() {
-          showErrorDialog = true;
+          isLoading = false;
+          errorDeConexion = true;
         });
+        dialogShown = true;
+        mostrarDialogoError(
+            'No se pudo conectar al servidor. Verifica tu red.');
       }
-      print('Error: $e');
+    });
+  }
+
+  void setErrorState(bool dialogShown, [dynamic error]) {
+    setState(() {
+      isLoading = false;
+      errorDeConexion = true;
+    });
+    if (!dialogShown) {
+      dialogShown = true;
+      if (error is SocketException) {
+        mostrarDialogoError('Error de conexión. Verifica tu red.');
+      } else {
+        mostrarDialogoError('Ocurrió un error inesperado.');
+      }
     }
   }
 
@@ -100,40 +135,72 @@ class _GruposScreenState extends State<GruposScreen> {
         toggleDarkMode: _toggleDarkMode,
         title: 'Grupos',
       ),
-      body: content(context),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator(color: Color(0xFFFB2056)))
+          : (errorDeConexion
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: obtenerGrupos,
+                        child: Text('Recargar'),
+                        style: ButtonStyle(
+                          backgroundColor:
+                              MaterialStateProperty.all(Color(0xFFFB2056)),
+                          foregroundColor:
+                              MaterialStateProperty.all(Colors.white),
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    filaBuscarYAgregar(context),
+                    listaGrupos.isEmpty
+                        ? Expanded(
+                            child: Center(
+                              child: Text(
+                                'No hay grupos para mostrar.',
+                                style:
+                                    TextStyle(fontSize: 16, color: Colors.grey),
+                              ),
+                            ),
+                          )
+                        : filaTabla(context),
+                  ],
+                )),
     );
   }
 
-  Widget content(BuildContext context) {
-    return Column(
-      children: [
-        filaSearch(context),
-        filaBotonAgregar(context),
-        filaTabla(context),
-      ],
-    );
-  }
-
-  Widget filaSearch(BuildContext context) {
+  Widget filaBuscarYAgregar(BuildContext context) {
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
-    return Container(
-      padding: EdgeInsets.only(top: 10, bottom: 0, left: 20, right: 20),
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
           Container(
             height: 40,
             constraints: BoxConstraints(maxWidth: maxWidth),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 8.0,
-                  offset: Offset(1, 1),
-                ),
-              ],
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
             ),
             child: TextField(
               decoration: InputDecoration(
@@ -154,41 +221,22 @@ class _GruposScreenState extends State<GruposScreen> {
                 ),
               ),
             ),
-          )
+          ),
+          ElevatedButton(
+            style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
+              foregroundColor: MaterialStateProperty.all(Colors.white),
+              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            onPressed: mostrarDialogoAgregarCliente,
+            child: Text('Agregar Grupo'),
+          ),
         ],
       ),
     );
   }
-
-  Widget filaBotonAgregar(BuildContext context) {
-  return Padding(
-    padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Últimos Clientes',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-        ),
-        ElevatedButton(
-          style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
-            foregroundColor: MaterialStateProperty.all(Colors.white),
-            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          onPressed: () {
-            mostrarDialogoAgregarCliente();
-          },
-          child: Text('Agregar Grupo'),
-        ),
-      ],
-    ),
-  );
-}
 
   Widget filaTabla(BuildContext context) {
     return Expanded(
@@ -201,91 +249,83 @@ class _GruposScreenState extends State<GruposScreen> {
             borderRadius: BorderRadius.circular(15.0),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1), // Color de la sombra
-                spreadRadius: 0.5, // Expansión de la sombra
-                blurRadius: 5, // Difuminado de la sombra
-                offset: Offset(2, 2), // Posición de la sombra
-              ),
+                  color: Colors.black.withOpacity(0.1),
+                  spreadRadius: 0.5,
+                  blurRadius: 5)
             ],
           ),
-          child: Column(
-            children: [
-              
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minWidth: constraints.maxWidth,
-                        ),
-                        child: DataTable(
-                          showCheckboxColumn: false,
-                          headingRowColor: MaterialStateProperty.resolveWith(
-                              (states) => Color(0xFFDFE7F5)),
-                          dataRowHeight: 50,
-                          columnSpacing: 30,
-                          headingTextStyle: TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.black),
-                          columns: [
-                            DataColumn(
-                                label: Text(
-                              'ID Grupo',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            )),
-                            DataColumn(
-                                label: Text(
-                              'Nombre',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            )),
-                            DataColumn(
-                                label: Text(
-                              'Detalles',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            )),
-                            DataColumn(
-                                label: Text(
-                              'Fecha Creación',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            )),
-                          ],
-                          rows: listaGrupos.map((grupo) {
-                            return DataRow(
-                              cells: [
-                                DataCell(Text(grupo.idTipoGrupo.toString(),
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(grupo.nombre,
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(grupo.detalles,
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(formatDate(grupo.fechaCreacion),
-                                    style: TextStyle(fontSize: textTableSize))),
-                              ],
-                              onSelectChanged: (isSelected) {
-                                setState(() {
-                                  // Lógica para manejar la selección de fila
-                                });
-                              },
-                              color: MaterialStateColor.resolveWith((states) {
-                                if (states.contains(MaterialState.selected)) {
-                                  return Colors.blue.withOpacity(0.1);
-                                } else if (states
-                                    .contains(MaterialState.hovered)) {
-                                  return Colors.blue.withOpacity(0.2);
-                                }
-                                return Colors.transparent;
-                              }),
-                            );
-                          }).toList(),
-                        ),
+          child: listaGrupos.isEmpty
+              ? Center(
+                  child: Text(
+                    'No hay grupos para mostrar.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                )
+              : LayoutBuilder(builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.vertical,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: constraints.maxWidth, // Ocupa todo el ancho
                       ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+                      child: DataTable(
+                        showCheckboxColumn: false,
+                        headingRowColor: MaterialStateProperty.resolveWith(
+                            (states) => Color(0xFFDFE7F5)),
+                        dataRowHeight: 50,
+                        columnSpacing: 30,
+                        headingTextStyle: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.black),
+                        columns: [
+                          DataColumn(
+                              label: Text('ID Grupo',
+                                  style: TextStyle(
+                                      fontSize: textHeaderTableSize))),
+                          DataColumn(
+                              label: Text('Nombre',
+                                  style: TextStyle(
+                                      fontSize: textHeaderTableSize))),
+                          DataColumn(
+                              label: Text('Detalles',
+                                  style: TextStyle(
+                                      fontSize: textHeaderTableSize))),
+                          DataColumn(
+                              label: Text('Fecha Creación',
+                                  style: TextStyle(
+                                      fontSize: textHeaderTableSize))),
+                        ],
+                        rows: listaGrupos.map((grupo) {
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(grupo.idgrupos.toString(),
+                                  style: TextStyle(fontSize: textTableSize))),
+                              DataCell(Text(grupo.nombreGrupo,
+                                  style: TextStyle(fontSize: textTableSize))),
+                              DataCell(Text(grupo.detalles,
+                                  style: TextStyle(fontSize: textTableSize))),
+                              DataCell(Text(formatDate(grupo.fCreacion),
+                                  style: TextStyle(fontSize: textTableSize))),
+                            ],
+                            onSelectChanged: (isSelected) {
+                              setState(() {
+                                // Lógica para manejar la selección de fila
+                              });
+                            },
+                            color: MaterialStateColor.resolveWith((states) {
+                              if (states.contains(MaterialState.selected)) {
+                                return Colors.blue.withOpacity(0.1);
+                              } else if (states
+                                  .contains(MaterialState.hovered)) {
+                                return Colors.blue.withOpacity(0.2);
+                              }
+                              return Colors.transparent;
+                            }),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  );
+                }),
         ),
       ),
     );
@@ -304,27 +344,51 @@ class _GruposScreenState extends State<GruposScreen> {
       },
     );
   }
+
+  // Función para mostrar el diálogo de error
+  void mostrarDialogoError(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class Grupo {
-  final int idTipoGrupo;
-  final String nombre;
+  final int idgrupos;
+  //final int idTipoGrupo;
+  final String nombreGrupo;
   final String detalles;
-  final String fechaCreacion;
+  final String fCreacion;
 
   Grupo({
-    required this.idTipoGrupo,
-    required this.nombre,
+    required this.idgrupos,
+    //required this.idTipoGrupo,
+    required this.nombreGrupo,
     required this.detalles,
-    required this.fechaCreacion,
+    required this.fCreacion,
   });
 
   factory Grupo.fromJson(Map<String, dynamic> json) {
     return Grupo(
-      idTipoGrupo: json['idTipoGrupo'],
-      nombre: json['nombre'],
+      idgrupos: json['idgrupos'],
+      //idTipoGrupo: json['idTipoGrupo'],
+      nombreGrupo: json['nombreGrupo'],
       detalles: json['detalles'],
-      fechaCreacion: json['fechaCreacion'],
+      fCreacion: json['fCreacion'],
     );
   }
 }

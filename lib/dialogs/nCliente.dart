@@ -71,6 +71,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   String? idcuantabank;
   int? iddomicilios;
   int? idingegr;
+  String? iddomiciliosRef;
 
   final _fechaController = TextEditingController();
 
@@ -344,6 +345,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                     'parentescoRef': referencia['parentescoRefProp'] ?? '',
                     'telefonoRef': referencia['telefono'] ?? '',
                     'tiempoConocerRef': referencia['tiempoCo'] ?? '',
+                    'iddomicilios': domicilioRef?.isNotEmpty == true
+                        ? domicilioRef[0]['iddomicilios']
+                        : '',
                     'tipoDomicilioRef': domicilioRef?.isNotEmpty == true
                         ? domicilioRef[0]['tipo_domicilio']
                         : '',
@@ -384,7 +388,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                 }).toList() ??
                 [],
           };
-          //print('OriginalData en Fetch: $originalData');
+          print('OriginalData en Fetch: $originalData');
           idcuantabank = originalData['idcuantabank'];
           // Después de crear el originalData, puedes guardar el valor en una variable separada
           iddomicilios = originalData['iddomicilios'];
@@ -513,6 +517,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                   'telefonoRef': 'No asignado',
                   'tiempoConocerRef': 'No asignado',
                   // Datos del domicilio de la referencia
+                  'iddomicilios': 'No asignado',
                   'tipoDomicilioRef': 'No asignado',
                   'nombrePropietarioRef': 'No asignado',
                   'parentescoRefProp': 'No asignado',
@@ -528,8 +533,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                 });
               } else {
                 var domicilioRef = referencia['domicilio_ref'];
-
                 // Verifica si la lista de domicilios no está vacía antes de acceder a ella
+                iddomiciliosRef = domicilioRef.isNotEmpty
+                    ? (domicilioRef[0]['iddomicilios'] ?? '').toString()
+                    : '';
+
                 String tipoDomicilio = domicilioRef.isNotEmpty
                     ? domicilioRef[0]['tipo_domicilio'] ?? ''
                     : '';
@@ -537,7 +545,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                     ? domicilioRef[0]['nombre_propietario'] ?? ''
                     : '';
                 String parentescoRefProp = domicilioRef.isNotEmpty
-                    ? domicilioRef[0]['parentescoRefProp'] ?? ''
+                    ? domicilioRef[0]['parentesco'] ?? ''
                     : '';
                 String calle = domicilioRef.isNotEmpty
                     ? domicilioRef[0]['calle'] ?? ''
@@ -576,6 +584,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                   'tiempoConocerRef': referencia['tiempoCo'] ?? '',
 
                   // Datos del domicilio de la referencia
+                  'iddomicilios': iddomicilios,
                   'tipoDomicilioRef': tipoDomicilio,
                   'nombrePropietarioRef': nombrePropietario,
                   'parentescoRefProp': parentescoRefProp,
@@ -629,8 +638,8 @@ class _nClienteDialogState extends State<nClienteDialog>
         allFieldsByEndpoint[endpoint]![key] = value;
       }
 
-      // Imprimir los valores que se están comparando
-      //print("Comparando $key: original = $originalValue, nuevo = $value");
+      // Imprimir los valores originales y los valores nuevos
+      print("Comparando $key: original = $originalValue, nuevo = $value");
 
       // Comparación segura que trata nulls y valores vacíos
       if ((value?.toString().trim() ?? '') !=
@@ -756,27 +765,38 @@ class _nClienteDialogState extends State<nClienteDialog>
 
       addFieldToEndpoint("Referencias", "referencias_${i}_tiempoCo",
           ref['tiempoConocerRef'], originalRef['tiempoConocerRef']);
+    }
 
-      addFieldToEndpoint("Referencias", "referencias_${i}_calleRef",
-          ref['calleRef'], originalRef['calleRef']);
-      addFieldToEndpoint("Referencias", "referencias_${i}_coloniaRef",
-          ref['coloniaRef'], originalRef['coloniaRef']);
-      addFieldToEndpoint("Referencias", "referencias_${i}_tipoDomicilioRef",
-          ref['tipoDomicilioRef'], originalRef['tipoDomicilioRef']);
-      addFieldToEndpoint("Referencias", "referencias_${i}_nombrePropietarioRef",
-          ref['nombrePropietarioRef'], originalRef['nombrePropietarioRef']);
-      addFieldToEndpoint("Referencias", "referencias_${i}_tiempoViviendoRef",
-          ref['tiempoViviendoRef'], originalRef['tiempoViviendoRef']);
-      addFieldToEndpoint("Referencias", "referencias_${i}_cpRef", ref['cpRef'],
-          originalRef['cpRef']);
-      addFieldToEndpoint("Referencias", "referencias_${i}_nExtRef",
-          ref['nExtRef'], originalRef['nExtRef']);
-      addFieldToEndpoint("Referencias", "referencias_${i}_nIntRef",
-          ref['nIntRef'], originalRef['nIntRef']);
-      addFieldToEndpoint("Referencias", "referencias_${i}_estadoRef",
-          ref['estadoRef'], originalRef['estadoRef']);
-      addFieldToEndpoint("Referencias", "referencias_${i}_municipioRef",
+    // DomicilioReferencia: Iterar y comparar los campos de manera similar a las referencias
+    for (int i = 0; i < referencias.length; i++) {
+      var ref = referencias[i];
+      var originalRef = originalData['referencias'][i];
+
+      // Aquí debes comparar los valores correspondientes a 'DomicilioReferencia' de manera similar
+      addFieldToEndpoint("DomicilioReferencia", "calleRef", ref['calleRef'],
+          originalRef['calleRef']);
+      addFieldToEndpoint("DomicilioReferencia", "entreCalleRef",
+          ref['entreCalleRef'], originalRef['entreCalleRef']);
+      addFieldToEndpoint("DomicilioReferencia", "coloniaRef", ref['coloniaRef'],
+          originalRef['coloniaRef']);
+      addFieldToEndpoint(
+          "DomicilioReferencia", "cpRef", ref['cpRef'], originalRef['cpRef']);
+      addFieldToEndpoint("DomicilioReferencia", "nExtRef", ref['nExtRef'],
+          originalRef['nExtRef']);
+      addFieldToEndpoint("DomicilioReferencia", "nIntRef", ref['nIntRef'],
+          originalRef['nIntRef']);
+      addFieldToEndpoint("DomicilioReferencia", "estadoRef", ref['estadoRef'],
+          originalRef['estadoRef']);
+      addFieldToEndpoint("DomicilioReferencia", "municipioRef",
           ref['municipioRef'], originalRef['municipioRef']);
+      addFieldToEndpoint("DomicilioReferencia", "tipoDomicilioRef",
+          ref['tipoDomicilioRef'], originalRef['tipoDomicilioRef']);
+      addFieldToEndpoint("DomicilioReferencia", "nombrePropietarioRef",
+          ref['nombrePropietarioRef'], originalRef['nombrePropietarioRef']);
+      addFieldToEndpoint("DomicilioReferencia", "parentescoRefProp",
+          ref['parentescoRefProp'], originalRef['parentescoRefProp']);
+      addFieldToEndpoint("DomicilioReferencia", "tiempoViviendoRef",
+          ref['tiempoViviendoRef'], originalRef['tiempoViviendoRef']);
     }
 
     // Imprimir solo los campos del endpoint editado
@@ -791,12 +811,14 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Future<void> sendEditedData(
-      BuildContext context,
-      String clientId,
-      String idcuantabank,
-      int iddomicilios,
-      List<int> idingegr,
-      List<int> idreferencias) async {
+    BuildContext context,
+    String clientId,
+    String idcuantabank,
+    int iddomicilios,
+    List<int> idingegr,
+    List<int> idreferencias,
+    String iddomiciliosRef,
+  ) async {
     print('idcuentabank dentro de sendedited: $idcuantabank');
     idingegr.forEach((idingegr) {
       print('idingegr dentro de sendedited: $idingegr');
@@ -806,10 +828,48 @@ class _nClienteDialogState extends State<nClienteDialog>
       print('idreferencias dentro de sendedited: $idreferencias');
     });
 
+    // Preparar los datos de las referencias editadas
+    List<Map<String, dynamic>> referenciasList = [];
+    if (isEndpointEdited["Referencias"] ?? false) {
+      for (int i = 0; i < referencias.length; i++) {
+        var ref = referencias[i];
+        var originalRef = originalData['referencias'][i];
+
+        var referenceMap = {
+          "idreferencias":
+              idreferencias[i], // Aquí obtienes el id de la referencia
+          "nombres": ref['nombresRef'] ?? "",
+          "apellidoP": ref['apellidoPRef'] ?? "",
+          "apellidoM": ref['apellidoMRef'] ?? "",
+          "parentescoRefProp": ref['parentescoRef'] ?? "",
+          "telefono": ref['telefonoRef'] ?? "",
+          "tiempoCo": ref['tiempoConocerRef'] ?? "",
+        };
+
+        bool isEdited = referenceMap.keys.any((key) {
+          var originalValue = originalRef[key];
+          var newValue = referenceMap[key];
+
+          if (originalValue is String && newValue is String) {
+            originalValue = originalValue.trim();
+            newValue = newValue.trim();
+          }
+          return newValue != originalValue;
+        });
+
+        if (isEdited) {
+          print("Referencia editada: ${jsonEncode(referenceMap)}");
+          referenciasList.add(referenceMap);
+        }
+      }
+    }
+
     Map<String, String> endpointUrls = {
       "Cliente": "http://$baseUrl/api/v1/clientes/$clientId",
       "Cuenta Banco": "http://$baseUrl/api/v1/cuentabanco/$idcuantabank",
       "Domicilio": "http://$baseUrl/api/v1/domicilios/$clientId",
+      "DomicilioReferencia":
+          "http://$baseUrl/api/v1/domicilios/${idreferencias[0]}", // Cambiar $clientId por $idreferencia
       "Datos Adicionales": "http://$baseUrl/api/v1/datosadicionales/$clientId",
       "Ingresos": "http://$baseUrl/api/v1/ingresos/$clientId",
       "Referencias": "http://$baseUrl/api/v1/referencia/$clientId",
@@ -833,53 +893,49 @@ class _nClienteDialogState extends State<nClienteDialog>
       ingresosList.add(ingresoData);
     }
 
-    // Cambiar dataToSend para "Referencias"
-    List<Map<String, dynamic>> referenciasList = [];
-    if (isEndpointEdited["Referencias"] ?? false) {
-      for (int i = 0; i < referencias.length; i++) {
+    // Preparar los datos de DomicilioReferencia
+    List<Map<String, dynamic>> domicilioReferenciaList = [];
+    if (isEndpointEdited["DomicilioReferencia"] ?? false) {
+      for (int i = 0; i < idreferencias.length; i++) {
         var ref = referencias[i];
         var originalRef = originalData['referencias'][i];
 
-        var referenceMap = {
-          "idreferencias": idreferencias[i],
-          "nombres": ref['nombresRef'] ?? "",
-          "apellidoP": ref['apellidoPRef'] ?? "",
-          "apellidoM": ref['apellidoMRef'] ?? "",
-          "parentescoRefProp": ref['parentescoRef'] ?? "",
-          "telefono": ref['telefonoRef'] ?? "",
-          "tiempoCo": ref['tiempoConocerRef'] ?? "",
-          //DOMICILIO
-          /* "tipoDomicilio": ref['tipoDomicilioRef'] ?? "",
+        // Aquí cambiamos iddomicilios por el id correspondiente de la referencia
+        var domicilioReferenciaMap = {
+          "idreferencias":
+              idreferencias[i], // Asegúrate de mandar el idreferencias aquí
+          "iddomicilios": iddomiciliosRef ??
+              iddomicilios, // Agregar iddomicilios específico de la referencia
           "calle": ref['calleRef'] ?? "",
-          "nombrePropietario": ref['nombrePropietarioRef'] ?? "",
-          "parentescoRefProp": ref['parentescoRefProp'] ?? "",
-          "nExt": ref['nExtRef'] ?? "",
-          "nInt": ref['nIntRef'] ?? "",
-          "entreCalle": ref['entreCalle'] ?? "",
+          "entreCalle": ref['entreCalleRef'] ?? "",
           "colonia": ref['coloniaRef'] ?? "",
           "cp": ref['cpRef'] ?? "",
+          "nExt": ref['nExtRef'] ?? "",
+          "nInt": ref['nIntRef'] ?? "",
           "estado": ref['estadoRef'] ?? "",
           "municipio": ref['municipioRef'] ?? "",
-          "tiempoViviendo": ref['tiempoViviendoRef'] ?? "", */
+          "tipo_domicilio": ref['tipoDomicilioRef'] ?? "",
+          "nombre_propietario": ref['nombrePropietarioRef'] ?? "",
+          "parentescoRefDomProp": ref['parentescoRefProp'] ?? "",
+          "tiempoViviendo": ref['tiempoViviendoRef'] ?? "",
         };
 
-        bool isEdited = referenceMap.keys.any((key) {
+        bool isEdited = domicilioReferenciaMap.keys.any((key) {
           var originalValue = originalRef[key];
-          var newValue = referenceMap[key];
+          var newValue = domicilioReferenciaMap[key];
 
-          // Verifica si ambos valores son cadenas antes de llamar a trim
           if (originalValue is String && newValue is String) {
             originalValue = originalValue.trim();
             newValue = newValue.trim();
           }
 
-          //print("Comparando $key: original = $originalValue, nuevo = $newValue");
           return newValue != originalValue;
         });
 
         if (isEdited) {
-          print("Referencia editada: ${jsonEncode(referenceMap)}");
-          referenciasList.add(referenceMap);
+          print(
+              "DomicilioReferencia editado: ${jsonEncode(domicilioReferenciaMap)}");
+          domicilioReferenciaList.add(domicilioReferenciaMap);
         }
       }
     }
@@ -894,6 +950,9 @@ class _nClienteDialogState extends State<nClienteDialog>
         if (url != null) {
           dynamic dataToSendEndpoint; // Variable específica para cada endpoint
 
+          // Imprimir la URL antes de enviar la solicitud
+          print("Enviando datos a la URL: $url");
+
           if (endpoint == "Referencias") {
             dataToSendEndpoint =
                 referenciasList.isNotEmpty ? referenciasList : [];
@@ -902,6 +961,36 @@ class _nClienteDialogState extends State<nClienteDialog>
           } else if (endpoint == "Ingresos") {
             dataToSendEndpoint = ingresosList;
             print("Datos de ingresos a enviar: ${jsonEncode(ingresosList)}");
+          } else if (endpoint == "DomicilioReferencia") {
+            // Preparar los datos para DomicilioReferencia
+            List<Map<String, dynamic>> domicilioReferenciaList = [];
+            for (int i = 0; i < idreferencias.length; i++) {
+              var ref = referencias[i];
+              var domicilioReferenciaMap = {
+                "iddomicilios": iddomiciliosRef,
+                "calle": ref['calleRef'] ?? "",
+                "entreCalle": ref['entreCalleRef'] ?? "",
+                "colonia": ref['coloniaRef'] ?? "",
+                "cp": ref['cpRef'] ?? "",
+                "nExt": ref['nExtRef'] ?? "",
+                "nInt": ref['nIntRef'] ?? "",
+                "estado": ref['estadoRef'] ?? "",
+                "municipio": ref['municipioRef'] ?? "",
+                "tipo_domicilio": ref['tipoDomicilioRef'] ?? "",
+                "nombre_propietario": ref['nombrePropietarioRef'] ?? "",
+                "parentescoRefDomProp": ref['parentescoRefProp'] ?? "",
+                "tiempoViviendo": ref['tiempoViviendoRef'] ?? "",
+              };
+
+              // Agregar los datos editados
+              domicilioReferenciaList.add(domicilioReferenciaMap);
+            }
+
+            dataToSendEndpoint = domicilioReferenciaList.isNotEmpty
+                ? domicilioReferenciaList
+                : [];
+            print(
+                "Datos de DomicilioReferencia a enviar: ${jsonEncode(dataToSendEndpoint)}");
           } else {
             dataToSendEndpoint = allFieldsByEndpoint[endpoint]!;
           }
@@ -917,9 +1006,9 @@ class _nClienteDialogState extends State<nClienteDialog>
             dataToSendEndpoint["iddomicilios"] = iddomicilios;
           }
 
-          final body = endpoint == "Domicilio"
-              ? [dataToSendEndpoint]
-              : dataToSendEndpoint;
+          final body = (endpoint == "Domicilio")
+              ? [dataToSendEndpoint] // Enviar con corchetes solo para Domicilio
+              : dataToSendEndpoint; // Enviar sin corchetes para DomicilioReferencia y otros endpoints
 
           print("Datos a enviar para $endpoint: ${jsonEncode(body)}");
 
@@ -1131,7 +1220,8 @@ class _nClienteDialogState extends State<nClienteDialog>
                                           idcuantabank!,
                                           iddomicilios!,
                                           idingegrList,
-                                          idreferenciasList);
+                                          idreferenciasList,
+                                          iddomiciliosRef!);
                                     } else {
                                       _agregarCliente();
                                     }
