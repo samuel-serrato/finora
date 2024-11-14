@@ -1024,8 +1024,7 @@ class _nClienteDialogState extends State<nClienteDialog>
             print("Respuesta de $endpoint: ${response.body}");
 
             if (response.statusCode == 200) {
-              _showSnackbar(context,
-                  "Datos enviados correctamente para $endpoint", Colors.green);
+             // _showSnackbar(context,"Datos enviados correctamente para $endpoint", Colors.green);
             } else {
               anyErrors = true;
               _showSnackbar(
@@ -1047,8 +1046,8 @@ class _nClienteDialogState extends State<nClienteDialog>
     }
 
     if (!anyErrors) {
-      _showSnackbar(context, "Todos los datos fueron enviados correctamente",
-          Colors.green);
+      //_showSnackbar(context, "Todos los datos fueron enviados correctamente", Colors.green);
+      _showSnackbar(context, "Cliente actualizado correctamente", Colors.green);
       Navigator.pop(context);
 
       if (widget.onClienteEditado != null) {

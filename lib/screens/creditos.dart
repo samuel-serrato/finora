@@ -45,36 +45,28 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     return Column(
       children: [
       //  filaBienvenida(),
-        filaSearch(context),
-        filaBotonAgregar(context),
-        filaTabla(context),
+        filaBuscarYAgregar(context),
+        filaTabla(context)
       ],
     );
   }
 
 
 
-// Fila 3
-  Widget filaSearch(BuildContext context) {
+Widget filaBuscarYAgregar(BuildContext context) {
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
-    return Container(
-      padding: EdgeInsets.only(top: 10, bottom: 0, left: 20, right: 20),
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
           Container(
             height: 40,
             constraints: BoxConstraints(maxWidth: maxWidth),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 8.0,
-                  offset: Offset(1, 1),
-                ),
-              ],
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
             ),
             child: TextField(
               decoration: InputDecoration(
@@ -95,41 +87,22 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 ),
               ),
             ),
-          )
+          ),
+          ElevatedButton(
+            style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
+              foregroundColor: MaterialStateProperty.all(Colors.white),
+              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            onPressed: null,
+            child: Text('Agregar Crédito'),
+          ),
         ],
       ),
     );
   }
-
-  Widget filaBotonAgregar(BuildContext context) {
-  return Padding(
-    padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Últimos Clientes',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-        ),
-        ElevatedButton(
-          style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
-            foregroundColor: MaterialStateProperty.all(Colors.white),
-            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-          onPressed: () {
-            //mostrarDialogoAgregarCliente();
-          },
-          child: Text('Agregar Crédito'),
-        ),
-      ],
-    ),
-  );
-}
 
 // Fila 4
   Widget filaTabla(BuildContext context) {

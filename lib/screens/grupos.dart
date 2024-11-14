@@ -51,6 +51,9 @@ class _GruposScreenState extends State<GruposScreen> {
         final response =
             await http.get(Uri.parse('http://$baseUrl/api/v1/grupos'));
 
+        print('Status code: ${response.statusCode}');
+        print('Response body: ${response.body}');
+
         if (mounted) {
           if (response.statusCode == 200) {
             List<dynamic> data = json.decode(response.body);
@@ -62,13 +65,14 @@ class _GruposScreenState extends State<GruposScreen> {
             _timer?.cancel();
           } else if (response.statusCode == 400) {
             final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] ==
-                "No hay ningún grupo registrado") {
+            if (errorData["Error"]["Message"] == "No hay grupos registrados") {
               setState(() {
                 listaGrupos = [];
                 isLoading = false;
+                noGroupsFound = true;
               });
-              noGroupsFound = true;
+              _timer
+                  ?.cancel(); // Detener intentos de reconexión si no hay grupos
             } else {
               setErrorState(dialogShown);
             }
@@ -85,17 +89,19 @@ class _GruposScreenState extends State<GruposScreen> {
 
     fetchData();
 
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && !dialogShown && !noGroupsFound) {
-        setState(() {
-          isLoading = false;
-          errorDeConexion = true;
-        });
-        dialogShown = true;
-        mostrarDialogoError(
-            'No se pudo conectar al servidor. Verifica tu red.');
-      }
-    });
+    if (!noGroupsFound) {
+      _timer = Timer(Duration(seconds: 10), () {
+        if (mounted && !dialogShown && !noGroupsFound) {
+          setState(() {
+            isLoading = false;
+            errorDeConexion = true;
+          });
+          dialogShown = true;
+          mostrarDialogoError(
+              'No se pudo conectar al servidor. Verifica tu red.');
+        }
+      });
+    }
   }
 
   void setErrorState(bool dialogShown, [dynamic error]) {
@@ -110,6 +116,7 @@ class _GruposScreenState extends State<GruposScreen> {
       } else {
         mostrarDialogoError('Ocurrió un error inesperado.');
       }
+      _timer?.cancel(); // Detener intentos de reconexión en caso de error
     }
   }
 
@@ -137,53 +144,54 @@ class _GruposScreenState extends State<GruposScreen> {
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator(color: Color(0xFFFB2056)))
-          : (errorDeConexion
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: obtenerGrupos,
-                        child: Text('Recargar'),
-                        style: ButtonStyle(
-                          backgroundColor:
-                              MaterialStateProperty.all(Color(0xFFFB2056)),
-                          foregroundColor:
-                              MaterialStateProperty.all(Colors.white),
-                          shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                filaBuscarYAgregar(context),
+                Expanded(
+                  child: errorDeConexion
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Center(
+                              child: Text(
+                                'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+                                style:
+                                    TextStyle(fontSize: 16, color: Colors.grey),
+                                textAlign: TextAlign.center,
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    filaBuscarYAgregar(context),
-                    listaGrupos.isEmpty
-                        ? Expanded(
-                            child: Center(
+                            SizedBox(height: 20),
+                            ElevatedButton(
+                              onPressed: obtenerGrupos,
+                              child: Text('Recargar'),
+                              style: ButtonStyle(
+                                backgroundColor: MaterialStateProperty.all(
+                                    Color(0xFFFB2056)),
+                                foregroundColor:
+                                    MaterialStateProperty.all(Colors.white),
+                                shape: MaterialStateProperty.all<
+                                    RoundedRectangleBorder>(
+                                  RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : listaGrupos.isEmpty
+                          ? Center(
                               child: Text(
                                 'No hay grupos para mostrar.',
                                 style:
                                     TextStyle(fontSize: 16, color: Colors.grey),
                               ),
-                            ),
-                          )
-                        : filaTabla(context),
-                  ],
-                )),
+                            )
+                          : filaTabla(context),
+                ),
+              ],
+            ),
     );
   }
 
@@ -230,7 +238,7 @@ class _GruposScreenState extends State<GruposScreen> {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
-            onPressed: mostrarDialogoAgregarCliente,
+            onPressed: mostrarDialogAgregarGrupo,
             child: Text('Agregar Grupo'),
           ),
         ],
@@ -282,6 +290,10 @@ class _GruposScreenState extends State<GruposScreen> {
                                   style: TextStyle(
                                       fontSize: textHeaderTableSize))),
                           DataColumn(
+                              label: Text('Tipo Grupo',
+                                  style: TextStyle(
+                                      fontSize: textHeaderTableSize))),
+                          DataColumn(
                               label: Text('Nombre',
                                   style: TextStyle(
                                       fontSize: textHeaderTableSize))),
@@ -298,6 +310,8 @@ class _GruposScreenState extends State<GruposScreen> {
                           return DataRow(
                             cells: [
                               DataCell(Text(grupo.idgrupos.toString(),
+                                  style: TextStyle(fontSize: textTableSize))),
+                              DataCell(Text(grupo.tipoGrupo.toString(),
                                   style: TextStyle(fontSize: textTableSize))),
                               DataCell(Text(grupo.nombreGrupo,
                                   style: TextStyle(fontSize: textTableSize))),
@@ -331,7 +345,7 @@ class _GruposScreenState extends State<GruposScreen> {
     );
   }
 
-  void mostrarDialogoAgregarCliente() {
+  void mostrarDialogAgregarGrupo() {
     showDialog(
       barrierDismissible: false, // Evita que se cierre al tocar fuera
       context: context,
@@ -369,14 +383,14 @@ class _GruposScreenState extends State<GruposScreen> {
 
 class Grupo {
   final int idgrupos;
-  //final int idTipoGrupo;
+  final String tipoGrupo;
   final String nombreGrupo;
   final String detalles;
   final String fCreacion;
 
   Grupo({
     required this.idgrupos,
-    //required this.idTipoGrupo,
+    required this.tipoGrupo,
     required this.nombreGrupo,
     required this.detalles,
     required this.fCreacion,
@@ -385,7 +399,7 @@ class Grupo {
   factory Grupo.fromJson(Map<String, dynamic> json) {
     return Grupo(
       idgrupos: json['idgrupos'],
-      //idTipoGrupo: json['idTipoGrupo'],
+      tipoGrupo: json['tipoGrupo'],
       nombreGrupo: json['nombreGrupo'],
       detalles: json['detalles'],
       fCreacion: json['fCreacion'],
