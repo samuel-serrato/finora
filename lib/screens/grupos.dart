@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:money_facil/custom_app_bar.dart';
+import 'package:money_facil/dialogs/infoGrupo.dart';
 import 'package:money_facil/dialogs/nCliente.dart';
 import 'package:money_facil/dialogs/nGrupo.dart';
 import 'package:money_facil/ip.dart';
@@ -136,62 +137,73 @@ class _GruposScreenState extends State<GruposScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFf7f8fa),
+      backgroundColor: Color(0xFFF7F8FA),
       appBar: CustomAppBar(
         isDarkMode: _isDarkMode,
         toggleDarkMode: _toggleDarkMode,
-        title: 'Grupos',
+        title: 'Clientes', // Título específico para esta pantalla
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator(color: Color(0xFFFB2056)))
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                filaBuscarYAgregar(context),
-                Expanded(
-                  child: errorDeConexion
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Center(
+          ? Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFFFB2056),
+              ),
+            )
+          : (errorDeConexion
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () {
+                          obtenerGrupos();
+                        },
+                        child: Text('Recargar'),
+                        style: ButtonStyle(
+                          backgroundColor:
+                              MaterialStateProperty.all(Color(0xFFFB2056)),
+                          foregroundColor:
+                              MaterialStateProperty.all(Colors.white),
+                          shape:
+                              MaterialStateProperty.all<RoundedRectangleBorder>(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+/*                     Padding(
+                      padding:
+                          const EdgeInsets.only(top: 10, left: 20, right: 20),
+                      child: Text('Aquí podrás ver los clientes'),
+                    ), */
+                    filaBuscarYAgregar(context),
+                    listaGrupos.isEmpty
+                        ? Expanded(
+                            child: Center(
                               child: Text(
-                                'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+                                'No hay clientes para mostrar.',
                                 style:
                                     TextStyle(fontSize: 16, color: Colors.grey),
-                                textAlign: TextAlign.center,
                               ),
                             ),
-                            SizedBox(height: 20),
-                            ElevatedButton(
-                              onPressed: obtenerGrupos,
-                              child: Text('Recargar'),
-                              style: ButtonStyle(
-                                backgroundColor: MaterialStateProperty.all(
-                                    Color(0xFFFB2056)),
-                                foregroundColor:
-                                    MaterialStateProperty.all(Colors.white),
-                                shape: MaterialStateProperty.all<
-                                    RoundedRectangleBorder>(
-                                  RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : listaGrupos.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No hay grupos para mostrar.',
-                                style:
-                                    TextStyle(fontSize: 16, color: Colors.grey),
-                              ),
-                            )
-                          : filaTabla(context),
-                ),
-              ],
-            ),
+                          )
+                        : filaTabla(
+                            context), // Muestra la tabla solo si hay clientes
+                  ],
+                )),
     );
   }
 
@@ -321,9 +333,13 @@ class _GruposScreenState extends State<GruposScreen> {
                                   style: TextStyle(fontSize: textTableSize))),
                             ],
                             onSelectChanged: (isSelected) {
-                              setState(() {
-                                // Lógica para manejar la selección de fila
-                              });
+                              if (isSelected!) {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => InfoGrupo(
+                                      idGrupo: grupo.idgrupos.toString()),
+                                );
+                              }
                             },
                             color: MaterialStateColor.resolveWith((states) {
                               if (states.contains(MaterialState.selected)) {
@@ -382,7 +398,7 @@ class _GruposScreenState extends State<GruposScreen> {
 }
 
 class Grupo {
-  final int idgrupos;
+  final String idgrupos;
   final String tipoGrupo;
   final String nombreGrupo;
   final String detalles;

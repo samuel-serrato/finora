@@ -1,6 +1,6 @@
 // ip.dart
 //IP OFICINA
-const String baseUrl = '192.168.0.106:3000';
+const String baseUrl = '192.168.0.108:3000';
 //IP CASA
 //const String baseUrl = '192.168.1.21:3000';
 //IP OFICINA PC YO

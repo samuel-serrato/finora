@@ -1024,7 +1024,7 @@ class _nClienteDialogState extends State<nClienteDialog>
             print("Respuesta de $endpoint: ${response.body}");
 
             if (response.statusCode == 200) {
-             // _showSnackbar(context,"Datos enviados correctamente para $endpoint", Colors.green);
+              // _showSnackbar(context,"Datos enviados correctamente para $endpoint", Colors.green);
             } else {
               anyErrors = true;
               _showSnackbar(
@@ -1797,6 +1797,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           label: 'Código Postal',
                           icon: Icons.mail,
                           keyboardType: TextInputType.number,
+                          maxLength: 5, // Especificar la longitud máxima aquí
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor ingrese el Código Postal';

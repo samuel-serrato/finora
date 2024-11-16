@@ -33,7 +33,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     'Selecto',
   ];
 
-  List<String> roles = ['Miembro', 'Líder', 'Administrador'];
+  List<String> roles = ['Miembro', 'Presidente/a', 'Tesorero/a'];
 
   // Agregamos un mapa para guardar el rol de cada persona seleccionada
   Map<String, String> _rolesSeleccionados = {};
@@ -79,21 +79,59 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     }
   }
 
-  // Función para crear el grupo
-  Future<void> crearGrupo(
-      String nombre, String descripcion, String tipo) async {
+  void _agregarGrupo() async {
     setState(() {
-      _isLoading = true; // Inicia la carga
+      _isLoading = true; // Activa el indicador de carga
     });
 
+    // Llamamos a la función que envía los datos
+    final grupoResponse = await _enviarGrupo();
+
+    if (grupoResponse != null) {
+      final idGrupo = grupoResponse["idgrupos"];
+      print("ID del grupo creado: $idGrupo");
+
+      if (idGrupo != null) {
+        // Paso 2: Crear miembros para el grupo
+        await _enviarMiembros(idGrupo);
+
+        // Llama al callback para refrescar la lista de grupos
+        widget.onGrupoAgregado();
+
+        // Muestra el SnackBar de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Grupo agregado correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Cierra el diálogo
+        Navigator.of(context).pop();
+      } else {
+        print("Error: idGrupo es nulo.");
+      }
+    } else {
+      print("Error: grupoResponse es nulo.");
+    }
+
+    setState(() {
+      _isLoading = false; // Desactiva el indicador de carga
+    });
+  }
+
+  Future<Map<String, dynamic>?> _enviarGrupo() async {
     final url = Uri.parse('http://$baseUrl/api/v1/grupos');
     final headers = {'Content-Type': 'application/json'};
 
     final Map<String, dynamic> data = {
-      'nombreGrupo': nombre,
-      'detalles': descripcion,
-      'tipoGrupo': tipo
+      'nombreGrupo': nombreGrupoController.text,
+      'detalles': descripcionController.text,
+      'tipoGrupo': selectedTipo,
     };
+
+    // Imprimir los datos antes de enviarlos
+    print("Datos que se enviarán para crear el grupo: $data");
 
     try {
       final response = await http.post(
@@ -102,32 +140,55 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         body: json.encode(data),
       );
 
-      setState(() {
-        _isLoading = false; // Termina la carga
-      });
+      print("Código de estado de la respuesta: ${response.statusCode}");
+      print("Cuerpo de la respuesta: ${response.body}");
 
       if (response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text("Grupo creado con éxito"),
-              backgroundColor: Colors.green),
-        );
-        widget
-            .onGrupoAgregado(); // Llama al callback si el grupo fue creado exitosamente
-        Navigator.of(context).pop();
+        final responseBody = jsonDecode(response.body);
+        print("Cuerpo decodificado: $responseBody");
+        return responseBody; // Devuelve el objeto completo si la creación fue exitosa
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text("Error al crear el grupo: ${response.statusCode}")),
-        );
+        print("Error en crear grupo: ${response.statusCode}");
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false; // Termina la carga en caso de error
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error en la solicitud: $e")),
-      );
+      print("Error al enviar grupo: $e");
+    }
+
+    return null; // Si algo falla, retorna null
+  }
+
+// Función para enviar los miembros al grupo
+  Future<void> _enviarMiembros(String idGrupo) async {
+    for (var persona in _selectedPersons) {
+      final miembroData = {
+        'idgrupos': idGrupo, // Se pasa el id del grupo creado
+        'idclientes': persona['idclientes'], // El id del cliente seleccionado
+        'idusuarios': '6KNV796U0O', // id de usuario por defecto
+        'nomCargo': _rolesSeleccionados[persona['idclientes']] ??
+            'Miembro', // Rol seleccionado o 'Miembro' por defecto
+      };
+
+      // Imprimir los datos antes de enviarlos
+      print("Datos que se enviarán para agregar el miembro: $miembroData");
+
+      final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/');
+      final headers = {'Content-Type': 'application/json'};
+
+      try {
+        final response = await http.post(
+          url,
+          headers: headers,
+          body: json.encode(miembroData),
+        );
+
+        if (response.statusCode == 201) {
+          print("Miembro agregado con éxito: ${persona['nombres']}");
+        } else {
+          print("Error al agregar miembro: ${response.statusCode}");
+        }
+      } catch (e) {
+        print("Error al enviar miembro: $e");
+      }
     }
   }
 
@@ -548,101 +609,78 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       ),
     );
   }
+}
 
-  void _agregarGrupo() async {
-    final nombre = nombreGrupoController.text;
-    final descripcion = descripcionController.text;
-    final tipo = selectedTipo;
+Widget _buildTextField({
+  required TextEditingController controller,
+  required String label,
+  required IconData icon,
+  TextInputType keyboardType = TextInputType.text,
+  String? Function(String?)? validator,
+  double fontSize = 12.0, // Tamaño de fuente por defecto
+  int? maxLength, // Longitud máxima opcional
+}) {
+  return TextFormField(
+    controller: controller,
+    keyboardType: keyboardType,
+    style: TextStyle(fontSize: fontSize),
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      labelStyle: TextStyle(fontSize: fontSize),
+    ),
+    validator: validator, // Asignar el validador
+    inputFormatters: maxLength != null
+        ? [
+            LengthLimitingTextInputFormatter(maxLength)
+          ] // Limita a la longitud especificada
+        : [], // Sin limitación si maxLength es null
+  );
+}
 
-    // Asegurarnos de que todos los campos tengan datos
-    if (nombre.isEmpty || descripcion.isEmpty || tipo == null) {
-      print("Por favor, complete todos los campos antes de enviar.");
-      return;
-    }
-
-    // Imprimir los datos para ver lo que se está enviando
-    print("Creando grupo con los siguientes datos:");
-    print("Nombre: $nombre, Descripción: $descripcion, Tipo: $tipo");
-
-    // Llamar a la función para crear el grupo
-    await crearGrupo(nombre, descripcion, tipo);
-
-    // Llamar al callback para indicar que el grupo se agregó y cerrar el diálogo
-    widget.onGrupoAgregado();
-    //Navigator.of(context).pop();
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
-    double fontSize = 12.0, // Tamaño de fuente por defecto
-    int? maxLength, // Longitud máxima opcional
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: TextStyle(fontSize: fontSize),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        labelStyle: TextStyle(fontSize: fontSize),
-      ),
-      validator: validator, // Asignar el validador
-      inputFormatters: maxLength != null
-          ? [
-              LengthLimitingTextInputFormatter(maxLength)
-            ] // Limita a la longitud especificada
-          : [], // Sin limitación si maxLength es null
-    );
-  }
-
-  Widget _buildDropdown({
-    required String? value,
-    required String hint,
-    required List<String> items,
-    required void Function(String?) onChanged,
-    double fontSize = 12.0,
-    String? Function(String?)? validator,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      hint: value == null
-          ? Text(
-              hint,
-              style: TextStyle(fontSize: fontSize, color: Colors.black),
-            )
-          : null,
-      items: items.map((item) {
-        return DropdownMenuItem(
-          value: item,
-          child: Text(
-            item,
+Widget _buildDropdown({
+  required String? value,
+  required String hint,
+  required List<String> items,
+  required void Function(String?) onChanged,
+  double fontSize = 12.0,
+  String? Function(String?)? validator,
+}) {
+  return DropdownButtonFormField<String>(
+    value: value,
+    hint: value == null
+        ? Text(
+            hint,
             style: TextStyle(fontSize: fontSize, color: Colors.black),
-          ),
-        );
-      }).toList(),
-      onChanged: onChanged,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: value != null ? hint : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.black),
+          )
+        : null,
+    items: items.map((item) {
+      return DropdownMenuItem(
+        value: item,
+        child: Text(
+          item,
+          style: TextStyle(fontSize: fontSize, color: Colors.black),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade700),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.black),
-        ),
+      );
+    }).toList(),
+    onChanged: onChanged,
+    validator: validator,
+    decoration: InputDecoration(
+      labelText: value != null ? hint : null,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.black),
       ),
-      style: TextStyle(fontSize: fontSize, color: Colors.black),
-    );
-  }
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade700),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.black),
+      ),
+    ),
+    style: TextStyle(fontSize: fontSize, color: Colors.black),
+  );
 }
