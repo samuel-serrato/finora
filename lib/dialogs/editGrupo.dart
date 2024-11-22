@@ -29,6 +29,8 @@ class _editGrupoDialogState extends State<editGrupoDialog>
 
   Map<String, String> _originalCargos = {};
 
+  List<String> _clientesEliminados =
+      []; // Lista para almacenar los IDs de los clientes eliminados
 
   String? selectedTipo;
 
@@ -71,97 +73,98 @@ class _editGrupoDialogState extends State<editGrupoDialog>
 
   // Función para obtener los detalles del grupo
   Future<void> fetchGrupoData() async {
-  print('Ejecutando fetchGrupoData');
-
-  _timer?.cancel();
-
-  setState(() {
-    _isLoading = true;
-  });
-
-  _timer = Timer(Duration(seconds: 10), () {
-    if (mounted && _isLoading) {
-      setState(() {
-        _isLoading = false;
-      });
-      mostrarDialogoError(
-        'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
-      );
-    }
-  });
-
-  try {
-    final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
-    print('URL solicitada: $url');
-    final response = await http.get(Uri.parse(url));
+    print('Ejecutando fetchGrupoData');
 
     _timer?.cancel();
 
-    if (response.statusCode == 200) {
-      print('Respuesta recibida: ${response.body}');
-      final data = json.decode(response.body)[0];
+    setState(() {
+      _isLoading = true;
+    });
 
-      // Lista para almacenar los clientes
-      List<Map<String, dynamic>> clientesActuales = [];
-
-      // Procesamos los datos del grupo
-      setState(() {
-        grupoData = data;
-        _isLoading = false;
-
-        nombreGrupoController.text = data['nombreGrupo'] ?? '';
-        descripcionController.text = data['detalles'] ?? '';
-        selectedTipo = data['tipoGrupo'];
-
-        _selectedPersons.clear();
-        _cargosSeleccionados.clear();
-
-        if (data['clientes'] != null) {
-          clientesActuales = List<Map<String, dynamic>>.from(data['clientes']);
-          _selectedPersons.addAll(clientesActuales);
-
-          for (var cliente in clientesActuales) {
-            String? idCliente = cliente['idclientes'];
-            String? cargo = cliente['cargo'];
-            if (idCliente != null && cargo != null) {
-              _cargosSeleccionados[idCliente] = cargo;
-              _originalCargos[idCliente] = cargo;
-            }
-          }
-        }
-      });
-
-      // Imprimir los nombres de los clientes en consola
-      print('Clientes actuales del grupo:');
-      for (var cliente in clientesActuales) {
-        print('id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}, Cargo: ${cliente['cargo']}');
-      }
-    } else {
-      print('Error en la respuesta: ${response.statusCode}');
-      setState(() {
-        _isLoading = false;
-      });
-      if (!dialogShown) {
-        dialogShown = true;
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && _isLoading) {
+        setState(() {
+          _isLoading = false;
+        });
         mostrarDialogoError(
-          'Error en la carga de datos. Código de error: ${response.statusCode}',
+          'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
         );
       }
-    }
-  } catch (e) {
-    print('Error durante la solicitud: $e');
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (!dialogShown) {
-        dialogShown = true;
-        mostrarDialogoError('Error de conexión o inesperado: $e');
+    });
+
+    try {
+      final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
+      print('URL solicitada: $url');
+      final response = await http.get(Uri.parse(url));
+
+      _timer?.cancel();
+
+      if (response.statusCode == 200) {
+        print('Respuesta recibida: ${response.body}');
+        final data = json.decode(response.body)[0];
+
+        // Lista para almacenar los clientes
+        List<Map<String, dynamic>> clientesActuales = [];
+
+        // Procesamos los datos del grupo
+        setState(() {
+          grupoData = data;
+          _isLoading = false;
+
+          nombreGrupoController.text = data['nombreGrupo'] ?? '';
+          descripcionController.text = data['detalles'] ?? '';
+          selectedTipo = data['tipoGrupo'];
+
+          _selectedPersons.clear();
+          _cargosSeleccionados.clear();
+
+          if (data['clientes'] != null) {
+            clientesActuales =
+                List<Map<String, dynamic>>.from(data['clientes']);
+            _selectedPersons.addAll(clientesActuales);
+
+            for (var cliente in clientesActuales) {
+              String? idCliente = cliente['idclientes'];
+              String? cargo = cliente['cargo'];
+              if (idCliente != null && cargo != null) {
+                _cargosSeleccionados[idCliente] = cargo;
+                _originalCargos[idCliente] = cargo;
+              }
+            }
+          }
+        });
+
+        // Imprimir los nombres de los clientes en consola
+        print('Clientes actuales del grupo:');
+        for (var cliente in clientesActuales) {
+          print(
+              'id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}, Cargo: ${cliente['cargo']}');
+        }
+      } else {
+        print('Error en la respuesta: ${response.statusCode}');
+        setState(() {
+          _isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError(
+            'Error en la carga de datos. Código de error: ${response.statusCode}',
+          );
+        }
+      }
+    } catch (e) {
+      print('Error durante la solicitud: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError('Error de conexión o inesperado: $e');
+        }
       }
     }
   }
-}
-
 
   // Función para mostrar el diálogo de error
   void mostrarDialogoError(String mensaje) {
@@ -205,233 +208,250 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     }
   }
 
-
   Future<void> enviarGrupo() async {
-  print("Se ha llamado a la función enviarGrupo");  // Agregado para verificar que se llama la función
+    print(
+        "Se ha llamado a la función enviarGrupo"); // Agregado para verificar que se llama la función
 
-  // Verifica si los campos están completos
-  if (nombreGrupoController.text.isEmpty ||
-      descripcionController.text.isEmpty ||
-      selectedTipo == null) {
-    mostrarDialogoError("Por favor, completa todos los campos obligatorios.");
-    return;
+    // Verifica si los campos están completos
+    if (nombreGrupoController.text.isEmpty ||
+        descripcionController.text.isEmpty ||
+        selectedTipo == null) {
+      mostrarDialogoError("Por favor, completa todos los campos obligatorios.");
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Construimos el cuerpo de la solicitud
+      Map<String, dynamic> body = {
+        "nombreGrupo": nombreGrupoController.text,
+        "detalles": descripcionController.text,
+        "tipoGrupo": selectedTipo
+      };
+
+      // Imprime los datos que se enviarán
+      print('Datos a enviar para actualizar el grupo:');
+      print('Nombre del grupo: ${nombreGrupoController.text}');
+      print('Descripción: ${descripcionController.text}');
+      print('Tipo de grupo: $selectedTipo');
+
+      // Realizamos la solicitud PUT
+      final response = await http.put(
+        Uri.parse('http://$baseUrl/api/v1/grupos/${widget.idGrupo}'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+
+      // Imprime la respuesta
+      print('Respuesta del servidor: ${response.statusCode}');
+      print('Cuerpo de la respuesta: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Si la actualización es exitosa
+        print("Grupo actualizado exitosamente.");
+        widget.onGrupoEditado(); // Llama al callback para recargar la lista
+
+        // Muestra el SnackBar de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Grupo actualizado correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        //Navigator.of(context).pop(); // Cierra el diálogo
+      } else {
+        // Muestra el error recibido
+        print("Error en la respuesta: ${response.statusCode}");
+        mostrarDialogoError(
+            "Error al actualizar el grupo. Código: ${response.statusCode}");
+      }
+    } catch (e) {
+      print(
+          'Error durante la solicitud PUT: $e'); // Imprime detalles de la excepción
+      mostrarDialogoError("Error de conexión o inesperado: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
-  setState(() {
-    _isLoading = true;
-  });
+  Future<void> _enviarMiembros(String idGrupo) async {
+    for (var persona in _selectedPersons) {
+      final miembroData = {
+        'idgrupos': idGrupo,
+        'idclientes': persona['idclientes'],
+        'idusuarios': '6KNV796U0O', // id de usuario por defecto
+        'nomCargo': _cargosSeleccionados[persona['idclientes']] ??
+            'Miembro', // Cargo seleccionado o 'Miembro' si no está
+      };
 
-  try {
-    // Construimos el cuerpo de la solicitud
-    Map<String, dynamic> body = {
-      "nombreGrupo": nombreGrupoController.text,
-      "detalles": descripcionController.text,
-      "tipoGrupo": selectedTipo
-    };
+      print("Datos que se enviarán para agregar el miembro: $miembroData");
 
-    // Imprime los datos que se enviarán
-    print('Datos a enviar para actualizar el grupo:');
-    print('Nombre del grupo: ${nombreGrupoController.text}');
-    print('Descripción: ${descripcionController.text}');
-    print('Tipo de grupo: $selectedTipo');
+      final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/');
+      final headers = {'Content-Type': 'application/json'};
 
-    // Realizamos la solicitud PUT
-    final response = await http.put(
-      Uri.parse('http://$baseUrl/api/v1/grupos/${widget.idGrupo}'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(body),
-    );
+      try {
+        final response = await http.post(
+          url,
+          headers: headers,
+          body: json.encode(miembroData),
+        );
 
-    // Imprime la respuesta
-    print('Respuesta del servidor: ${response.statusCode}');
-    print('Cuerpo de la respuesta: ${response.body}');
-    
-    if (response.statusCode == 200) {
-      // Si la actualización es exitosa
-      print("Grupo actualizado exitosamente.");
-      widget.onGrupoEditado(); // Llama al callback para recargar la lista
+        if (response.statusCode == 201) {
+          print("Miembro agregado con éxito");
+        } else {
+          print("Error al agregar miembro: ${response.statusCode}");
+          print("Detalles del error: ${response.body}");
+        }
+      } catch (e) {
+        print("Error al enviar miembro: $e");
+      }
+    }
+  }
 
-      // Muestra el SnackBar de éxito
+  Future<void> editarGrupo() async {
+    if (nombreGrupoController.text.isEmpty ||
+        descripcionController.text.isEmpty ||
+        selectedTipo == null) {
+      mostrarDialogoError("Por favor, completa todos los campos obligatorios.");
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Paso 1: Intentar actualizar el grupo
+      await enviarGrupo();
+
+      // Paso 2: Eliminar clientes del grupo
+      await eliminarClienteGrupo(widget.idGrupo);
+
+      // Paso 3: Actualizar cargos (si es necesario)
+      if (_selectedPersons.isNotEmpty) {
+        for (var cliente in _selectedPersons) {
+          String idCliente = cliente['idclientes'];
+          String cargoEditado = _cargosSeleccionados[idCliente] ?? 'Miembro';
+          String cargoOriginal = _originalCargos[idCliente] ?? 'Miembro';
+
+          if (cargoOriginal != cargoEditado) {
+            await actualizarCargo(
+                widget.idGrupo, idCliente, cargoEditado, context);
+          }
+        }
+      }
+
+      // Paso 4: Enviar los miembros después de actualizar los cargos
+      await _enviarMiembros(widget.idGrupo);
+
+      // Muestra el SnackBar de éxito después de todo el proceso
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Grupo actualizado correctamente'),
+          content: Text('Grupo y miembros actualizados correctamente'),
           backgroundColor: Colors.green,
         ),
       );
 
-      //Navigator.of(context).pop(); // Cierra el diálogo
-    } else {
-      // Muestra el error recibido
-      print("Error en la respuesta: ${response.statusCode}");
-      mostrarDialogoError(
-          "Error al actualizar el grupo. Código: ${response.statusCode}");
-    }
-  } catch (e) {
-    print('Error durante la solicitud PUT: $e'); // Imprime detalles de la excepción
-    mostrarDialogoError("Error de conexión o inesperado: $e");
-  } finally {
-    setState(() {
-      _isLoading = false;
-    });
-  }
-}
-
-
-
-
-  Future<void> _enviarMiembros(String idGrupo) async {
-  for (var persona in _selectedPersons) {
-    final miembroData = {
-      'idgrupos': idGrupo,
-      'idclientes': persona['idclientes'],
-      'idusuarios': '6KNV796U0O', // id de usuario por defecto
-      'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro', // Cargo seleccionado o 'Miembro' si no está
-    };
-
-    print("Datos que se enviarán para agregar el miembro: $miembroData");
-
-    final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/');
-    final headers = {'Content-Type': 'application/json'};
-
-    try {
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: json.encode(miembroData),
-      );
-
-      if (response.statusCode == 201) {
-        print("Miembro agregado con éxito");
-      } else {
-        print("Error al agregar miembro: ${response.statusCode}");
-        print("Detalles del error: ${response.body}");
-      }
+      Navigator.of(context).pop(); // Cierra el diálogo
     } catch (e) {
-      print("Error al enviar miembro: $e");
-    }
-  }
-}
-
-
-  Future<void> editarGrupo() async {
-  // Verifica si los campos están completos
-  if (nombreGrupoController.text.isEmpty ||
-      descripcionController.text.isEmpty ||
-      selectedTipo == null) {
-    mostrarDialogoError("Por favor, completa todos los campos obligatorios.");
-    return;
-  }
-
-  setState(() {
-    _isLoading = true;
-  });
-
-  try {
-    // Paso 1: Intentar actualizar el grupo
-    await enviarGrupo(); // Esto funciona bien, como mencionaste
-
-    // Paso 2: Actualizar cargos (si es necesario)
-    if (_selectedPersons.isNotEmpty) {
-      for (var cliente in _selectedPersons) {
-        String idCliente = cliente['idclientes'];
-        String cargoEditado = _cargosSeleccionados[idCliente] ?? 'Miembro'; // Obtiene el cargo editado, por defecto 'Miembro'
-        String cargoOriginal = _originalCargos[idCliente] ?? 'Miembro'; // Obtiene el cargo original
-
-        if (cargoOriginal != cargoEditado) {
-          // Llamar a actualizarCargo solo si el cargo cambió
-          await actualizarCargo(widget.idGrupo, idCliente, cargoEditado, context);
-        }
-      }
-    }
-
-    // Paso 3: Enviar los miembros después de actualizar los cargos
-    await _enviarMiembros(widget.idGrupo);
-
-    // Muestra el SnackBar de éxito después de todo el proceso
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Grupo y miembros actualizados correctamente'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    Navigator.of(context).pop(); // Cierra el diálogo
-  } catch (e) {
-    // Si se produce cualquier error inesperado, muestra el diálogo de error
-    mostrarDialogoError("Error inesperado: $e");
-  } finally {
-    setState(() {
-      _isLoading = false;
-    });
-  }
-}
-
-
-
-
-
-
-  void verificarCambios() {
-  List<Map<String, dynamic>> cambios = [];
-
-  _originalCargos.forEach((idCliente, cargoOriginal) {
-    final cargoEditado = _cargosSeleccionados[idCliente];
-    if (cargoOriginal != cargoEditado) {
-      cambios.add({
-        'idCliente': idCliente,
-        'cargoOriginal': cargoOriginal,
-        'cargoEditado': cargoEditado,
+      mostrarDialogoError("Error inesperado: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
       });
     }
-  });
-
-  if (cambios.isNotEmpty) {
-    print('Cambios detectados:');
-    for (var cambio in cambios) {
-      print(
-          'Cliente: ${cambio['idCliente']}, Cargo Original: ${cambio['cargoOriginal']}, Cargo Editado: ${cambio['cargoEditado']}');
-      
-      // Llamar al método para actualizar el cargo en el servidor
-      actualizarCargo(widget.idGrupo, cambio['idCliente'], cambio['cargoEditado'], context);
-    }
-  } else {
-    print('No hay cambios detectados.');
   }
-}
 
+  Future<void> eliminarClienteGrupo(String idGrupo) async {
+    if (_clientesEliminados.isEmpty) return; // No hay clientes a eliminar
 
+    try {
+      for (String idCliente in _clientesEliminados) {
+        final response = await http.delete(
+          Uri.parse('http://$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente'),
+        );
 
-Future<void> actualizarCargo(String idGrupo, String idCliente, String nuevoCargo, BuildContext context) async {
-  try {
-    print("Llamando a actualizarCargo para el grupo: $idGrupo, cliente: $idCliente, cargo: $nuevoCargo");
+        if (response.statusCode == 200) {
+          print('Cliente $idCliente eliminado correctamente.');
+        } else {
+          print('Error al eliminar el cliente $idCliente: ${response.body}');
+          throw Exception('Error al eliminar cliente $idCliente');
+        }
+      }
+      print('Todos los clientes eliminados correctamente.');
+    } catch (e) {
+      print('Error en eliminarClienteGrupo: $e');
+      throw Exception('Error al eliminar clientes del grupo.');
+    } finally {
+      _clientesEliminados.clear(); // Limpiar la lista después de procesar
+    }
+  }
 
-    final url = 'http://$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente';
-    print('URL solicitada: $url');
+  void verificarCambios() {
+    List<Map<String, dynamic>> cambios = [];
 
-    final body = jsonEncode({
-      'nomCargo': nuevoCargo,
+    _originalCargos.forEach((idCliente, cargoOriginal) {
+      final cargoEditado = _cargosSeleccionados[idCliente];
+      if (cargoOriginal != cargoEditado) {
+        cambios.add({
+          'idCliente': idCliente,
+          'cargoOriginal': cargoOriginal,
+          'cargoEditado': cargoEditado,
+        });
+      }
     });
-    print('Cuerpo de la solicitud: $body');
 
-    final response = await http.put(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: body,
-    );
+    if (cambios.isNotEmpty) {
+      print('Cambios detectados:');
+      for (var cambio in cambios) {
+        print(
+            'Cliente: ${cambio['idCliente']}, Cargo Original: ${cambio['cargoOriginal']}, Cargo Editado: ${cambio['cargoEditado']}');
 
-    if (response.statusCode == 200) {
-      print('Cargo actualizado correctamente');
+        // Llamar al método para actualizar el cargo en el servidor
+        actualizarCargo(widget.idGrupo, cambio['idCliente'],
+            cambio['cargoEditado'], context);
+      }
     } else {
-      print('Error al actualizar el cargo: ${response.statusCode}');
+      print('No hay cambios detectados.');
     }
-  } catch (e) {
-    print('Error al actualizar cargo: $e');
   }
-}
 
+  Future<void> actualizarCargo(String idGrupo, String idCliente,
+      String nuevoCargo, BuildContext context) async {
+    try {
+      print(
+          "Llamando a actualizarCargo para el grupo: $idGrupo, cliente: $idCliente, cargo: $nuevoCargo");
 
+      final url =
+          'http://$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente';
+      print('URL solicitada: $url');
 
+      final body = jsonEncode({
+        'nomCargo': nuevoCargo,
+      });
+      print('Cuerpo de la solicitud: $body');
 
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+
+      if (response.statusCode == 200) {
+        print('Cargo actualizado correctamente');
+      } else {
+        print('Error al actualizar el cargo: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error al actualizar cargo: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -539,7 +559,7 @@ Future<void> actualizarCargo(String idGrupo, String idCliente, String nuevoCargo
                                           false; // Oculta el CircularProgressIndicator
                                     });
                                   }
-                                } 
+                                }
                               },
                               child: _isLoading
                                   ? CircularProgressIndicator(
@@ -740,7 +760,6 @@ Future<void> actualizarCargo(String idGrupo, String idCliente, String nuevoCargo
                     controller: controller,
                     focusNode: focusNode,
                     autofocus: true,
-                    style: TextStyle(),
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
                       hintText: 'Escribe para buscar',
@@ -798,7 +817,7 @@ Future<void> actualizarCargo(String idGrupo, String idCliente, String nuevoCargo
                       });
                       _controller.clear();
                     } else {
-                      // Opcional: Mostrar un mensaje indicando que la persona ya fue agregada
+                      // Mostrar mensaje indicando que la persona ya fue agregada
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                           content: Text(
                               'La persona ya ha sido agregada a la lista')));
@@ -818,75 +837,116 @@ Future<void> actualizarCargo(String idGrupo, String idCliente, String nuevoCargo
                     itemBuilder: (context, index) {
                       final person = _selectedPersons[index];
                       final nombre = person['nombres'] ?? '';
-                      final idCliente =
-                          person['idclientes']; // Para asociar con roles
+                      final idCliente = person['idclientes'];
                       final telefono = person['telefono'] ?? 'No disponible';
                       final fechaNac =
                           person['fechaNacimiento'] ?? 'No disponible';
 
                       return ListTile(
-                          title: Row(
-                            children: [
-                              // Mostrar numeración antes del nombre
-                              Text(
-                                '${index + 1}. ', // Numeración
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: Colors.black),
+                        title: Row(
+                          children: [
+                            // Mostrar numeración antes del nombre
+                            Text(
+                              '${index + 1}. ', // Numeración
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.black),
+                            ),
+                            // Nombre completo
+                            Expanded(
+                              child: Text(
+                                '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                                style: TextStyle(fontWeight: FontWeight.w600),
                               ),
-                              // Nombre completo
-                              Expanded(
-                                child: Text(
-                                  '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-                                  style: TextStyle(fontWeight: FontWeight.w600),
-                                ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Teléfono
+                            Text(
+                              'Teléfono: $telefono',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey[700],
                               ),
-                            ],
-                          ),
-                          subtitle: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Teléfono
-                              Text(
-                                'Teléfono: $telefono',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700],
-                                ),
+                            ),
+                            // Fecha de nacimiento
+                            SizedBox(width: 30),
+                            Text(
+                              'Fecha de Nacimiento: $fechaNac',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey[700],
                               ),
-                              // Fecha de nacimiento
-                              SizedBox(width: 30),
-                              Text(
-                                'Fecha de Nacimiento: $fechaNac',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: // Asegúrate de que cada vez que se seleccione un cargo para una persona,
-// el mapa _cargosSeleccionados se actualice.
-                              DropdownButton<String>(
-                            value: _cargosSeleccionados[person['idclientes']] ??
-                                'Miembro', // Valor por defecto si no tiene cargo asignado
-                            onChanged: (nuevoCargo) {
-                              setState(() {
-                                _cargosSeleccionados[person['idclientes']] =
-                                    nuevoCargo!;
-                              });
-                            },
-                            items:
-                                cargos.map<DropdownMenuItem<String>>((cargo) {
-                              return DropdownMenuItem<String>(
-                                value: cargo,
-                                child: Text(cargo),
-                              );
-                            }).toList(),
-                          ));
+                            ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Dropdown para seleccionar cargo
+                            DropdownButton<String>(
+                              value:
+                                  _cargosSeleccionados[person['idclientes']] ??
+                                      'Miembro',
+                              onChanged: (nuevoCargo) {
+                                setState(() {
+                                  _cargosSeleccionados[person['idclientes']] =
+                                      nuevoCargo!;
+                                });
+                              },
+                              items:
+                                  cargos.map<DropdownMenuItem<String>>((cargo) {
+                                return DropdownMenuItem<String>(
+                                  value: cargo,
+                                  child: Text(cargo),
+                                );
+                              }).toList(),
+                            ),
+                            SizedBox(
+                                width:
+                                    8), // Espaciado entre el dropdown y el ícono
+                            // Ícono de eliminar
+                            IconButton(
+                              onPressed: () async {
+                                final confirmDelete = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text('Confirmar eliminación'),
+                                    content: Text(
+                                        '¿Estás seguro de que quieres eliminar a ${nombre} ${person['apellidoP'] ?? ''}?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(false),
+                                        child: Text('Cancelar'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(true),
+                                        child: Text('Eliminar'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirmDelete == true) {
+                                  setState(() {
+                                    _clientesEliminados.add(idCliente);
+                                    _selectedPersons.removeAt(index);
+                                  });
+                                }
+                              },
+                              icon: Icon(Icons.delete, color: Colors.red),
+                            ),
+                          ],
+                        ),
+                      );
                     },
                   ),
                 )

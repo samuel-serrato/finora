@@ -163,7 +163,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       final miembroData = {
         'idgrupos': idGrupo, // Se pasa el id del grupo creado
         'idclientes': persona['idclientes'], // El id del cliente seleccionado
-        'idusuarios': '6KNV796U0O', // id de usuario por defecto
+        'idusuarios': '1WDDYLGXY9', // id de usuario por defecto
         'nomCargo': _rolesSeleccionados[persona['idclientes']] ??
             'Miembro', // Rol seleccionado o 'Miembro' por defecto
       };
@@ -185,8 +185,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
           print("Miembro agregado con éxito: ${persona['nombres']}");
         } else {
           print("Error al agregar miembro: ${response.statusCode}");
-            print("Detalles del error: ${response.body}");
-
+          print("Detalles del error: ${response.body}");
         }
       } catch (e) {
         print("Error al enviar miembro: $e");

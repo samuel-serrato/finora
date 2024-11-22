@@ -195,7 +195,7 @@ class _GruposScreenState extends State<GruposScreen> {
                         ? Expanded(
                             child: Center(
                               child: Text(
-                                'No hay clientes para mostrar.',
+                                'No hay grupos para mostrar.',
                                 style:
                                     TextStyle(fontSize: 16, color: Colors.grey),
                               ),
@@ -345,7 +345,8 @@ class _GruposScreenState extends State<GruposScreen> {
                                       icon: Icon(Icons.edit_outlined,
                                           color: Colors.grey),
                                       onPressed: () {
-                                         mostrarDialogoEditarCliente(grupo.idgrupos!); // Llama la función para editar el cliente
+                                        mostrarDialogoEditarCliente(grupo
+                                            .idgrupos!); // Llama la función para editar el cliente
                                       },
                                     ),
                                     IconButton(
@@ -423,21 +424,21 @@ class _GruposScreenState extends State<GruposScreen> {
       },
     );
   }
-  void mostrarDialogoEditarCliente(String idGrupo) {
-  showDialog(
-    barrierDismissible: false, // No se puede cerrar tocando fuera
-    context: context,
-    builder: (context) {
-      return editGrupoDialog(
-        idGrupo: idGrupo, // Pasamos el idGrupo al diálogo
-        onGrupoEditado: () {
-           obtenerGrupos();
-        },
-      );
-    },
-  );
-}
 
+  void mostrarDialogoEditarCliente(String idGrupo) {
+    showDialog(
+      barrierDismissible: false, // No se puede cerrar tocando fuera
+      context: context,
+      builder: (context) {
+        return editGrupoDialog(
+          idGrupo: idGrupo, // Pasamos el idGrupo al diálogo
+          onGrupoEditado: () {
+            obtenerGrupos();
+          },
+        );
+      },
+    );
+  }
 }
 
 class Grupo {
