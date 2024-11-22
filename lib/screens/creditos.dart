@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:money_facil/custom_app_bar.dart';
 import 'package:intl/intl.dart';
+import 'package:money_facil/dialogs/infoCredito.dart';
 import 'package:money_facil/dialogs/nCredito.dart'; // Para manejar fechas
 
 class SeguimientoScreen extends StatefulWidget {
@@ -12,6 +13,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   // Datos estáticos de ejemplo de créditos activos
   final List<Credito> listaCreditos = [
     Credito(
+      idCredito: 1,
       nombreCredito: 'Cielito Azul',
       montoAutorizado: 50000,
       garantia: 10, // Porcentaje de la garantía
@@ -23,11 +25,14 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       diaDePago: 'Lunes',
       fechaPago: DateTime(2024, 11, 10), // Fecha de pago
       pagoSemanal: 2500.0, // Ejemplo de pago semanal
+      fechaInicio: DateTime(2024, 10, 1), // Fecha de inicio
+      fechaFin: DateTime(2025, 1, 1), // Fecha de finalización
     ),
     Credito(
+      idCredito: 2,
       nombreCredito: 'Las lobas',
       montoAutorizado: 10000,
-      garantia: 10, // Sin garantía
+      garantia: 10, // Porcentaje de la garantía
       interes: 9.28,
       tipoCredito: 'Individual',
       estadoCredito: 'Activo', // Estado del crédito
@@ -37,8 +42,11 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       fechaPago: DateTime(2024, 11, 12), // Fecha de pago
       pagoSemanal: 2500.0, // Ejemplo de pago semanal
       fechaPagado: DateTime(2024, 11, 12), // Ejemplo de pago registrado
+      fechaInicio: DateTime(2024, 9, 1), // Fecha de inicio
+      fechaFin: DateTime(2024, 12, 1), // Fecha de finalización
     ),
     Credito(
+      idCredito: 3,
       nombreCredito: 'Las trabajadoras',
       montoAutorizado: 80000,
       garantia: 10, // Porcentaje de la garantía
@@ -50,8 +58,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       diaDePago: 'Viernes',
       fechaPago: DateTime(2024, 11, 15), // Fecha de pago
       pagoSemanal: 2500.0, // Ejemplo de pago semanal
+      fechaInicio: DateTime(2024, 8, 15), // Fecha de inicio
+      fechaFin: DateTime(2025, 2, 15), // Fecha de finalización
     ),
-    // Agrega más créditos si es necesario
   ];
 
   bool _isDarkMode = false;
@@ -181,119 +190,159 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     );
   }
 
-Widget tabla() {
-  const double fontSize = 11;
+  Widget tabla() {
+    const double fontSize = 11;
 
-  // Lista para almacenar los índices de las filas seleccionadas
-  List<int> selectedRows = [];
+    // Lista para almacenar los índices de las filas seleccionadas
+    List<int> selectedRows = [];
 
-  return SizedBox(
-    width: MediaQuery.of(context).size.width,
-    child: DataTable(
-      showCheckboxColumn: false,
-      headingRowColor: MaterialStateProperty.resolveWith((states) => Color(0xFFE8EFF9)),
-      columnSpacing: 15,
-      headingRowHeight: 50,
-      columns: const [
-        DataColumn(label: Text('Tipo de Crédito', style: TextStyle(fontSize: fontSize))),
-        DataColumn(label: Text('Nombre', style: TextStyle(fontSize: fontSize))),
-        DataColumn(label: Center(child: Text('M. Autorizado', style: TextStyle(fontSize: fontSize)))),
-        DataColumn(label: Center(child: Text('Interés %', style: TextStyle(fontSize: fontSize)))),
-        DataColumn(label: Center(child: Text('Garantía %', style: TextStyle(fontSize: fontSize)))),
-        DataColumn(label: Center(child: Text('M. Desembolsado', style: TextStyle(fontSize: fontSize)))),
-                        DataColumn(label: Center(child: Text('Interés Total', style: TextStyle(fontSize: fontSize)))), // Nueva columna
+    return SizedBox(
+      width: MediaQuery.of(context).size.width,
+      child: DataTable(
+        showCheckboxColumn: false,
+        headingRowColor:
+            MaterialStateProperty.resolveWith((states) => Color(0xFFE8EFF9)),
+        columnSpacing: 15,
+        headingRowHeight: 50,
+        columns: const [
+          DataColumn(label: Text('Tipo', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Nombre', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Autorizado', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Interés %', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label:
+                  Text('Desembolsado', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label:
+                  Text('Interés Total', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Monto a Recuperar',
+                  style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Día Pago', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label:
+                  Text('Pago Semanal', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label:
+                  Text('Semana de Pago', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Duración del Crédito',
+                  style: TextStyle(fontSize: fontSize))), // Nueva columna
+          DataColumn(
+              label:
+                  Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
+        ],
+        rows: listaCreditos.map((credito) {
+          String estadoPago = _calcularEstadoPago(credito);
+          Color colorEstado;
 
-        DataColumn(label: Center(child: Text('Monto a Recuperar', style: TextStyle(fontSize: fontSize)))), // Nueva columna
+          if (estadoPago == "A Tiempo" || estadoPago == "Pagado") {
+            colorEstado = Colors.green;
+          } else {
+            colorEstado = Colors.red;
+          }
 
-        DataColumn(label: Center(child: Text('Día Pago', style: TextStyle(fontSize: fontSize)))),
-        DataColumn(label: Center(child: Text('Pago Semanal', style: TextStyle(fontSize: fontSize)))),
+          return DataRow(
+            selected: selectedRows.contains(listaCreditos.indexOf(credito)),
+            onSelectChanged: (isSelected) {
+              setState(() {
+                if (isSelected == true) {
+                  selectedRows.add(listaCreditos.indexOf(credito));
+                  showDialog(
+                    context: context,
+                    builder: (context) =>
+                        InfoCredito(id: credito.idCredito),
+                  );
+                }
+              });
+            },
+            cells: [
+              DataCell(Text(credito.tipoCredito,
+                  style: TextStyle(fontSize: fontSize))),
+              DataCell(Text(credito.nombreCredito,
+                  style: TextStyle(fontSize: fontSize))),
 
-        DataColumn(label: Center(child: Text('Semana de Pago', style: TextStyle(fontSize: fontSize)))),
-              DataColumn(label: Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
-
-      ],
-      rows: listaCreditos.map((credito) {
-        String estadoPago = _calcularEstadoPago(credito);
-        Color colorEstado;
-
-        if (estadoPago == "A Tiempo" || estadoPago == "Pagado") {
-          colorEstado = Colors.green;
-        } else {
-          colorEstado = Colors.red;
-        }
-
-        return DataRow(
-          selected: selectedRows.contains(listaCreditos.indexOf(credito)),
-          onSelectChanged: (isSelected) {
-            setState(() {
-              if (isSelected == true) {
-                selectedRows.add(listaCreditos.indexOf(credito));
-              } else {
-                selectedRows.remove(listaCreditos.indexOf(credito));
-              }
-            });
-          },
-          cells: [
-            DataCell(Text(credito.tipoCredito, style: TextStyle(fontSize: fontSize))),
-            DataCell(Text(credito.nombreCredito, style: TextStyle(fontSize: fontSize))),
-            DataCell(Center(child: Text('\$${credito.montoAutorizado}', style: TextStyle(fontSize: fontSize)))),
-            DataCell(Center(child: Text('${credito.interes}%', style: TextStyle(fontSize: fontSize)))),
-            DataCell(Center(child: Text('${credito.garantia}%', style: TextStyle(fontSize: fontSize)))),
-            DataCell(Center(child: Text('\$${credito.montoDesembolsado}', style: TextStyle(fontSize: fontSize)))),
-                                    DataCell(Center(child: Text('\$${credito.interesTotal.toStringAsFixed(2)}', style: TextStyle(fontSize: fontSize)))), // Interés total
-
-            DataCell(Center(child: Text('\$${credito.montoARecuperar.toStringAsFixed(2)}', style: TextStyle(fontSize: fontSize)))), // Monto a recuperar
-
-            DataCell(Center(child: Text(credito.diaDePago, style: TextStyle(fontSize: fontSize)))),
-            DataCell(Center(child: Text('\$${credito.pagoSemanal.toStringAsFixed(2)}', style: TextStyle(fontSize: fontSize)))),
-
-            DataCell(Center(child: Text(credito.semanaDePago, style: TextStyle(fontSize: fontSize)))),
-            
-          DataCell(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
+              DataCell(Center(
+                  child: Text('\$${credito.montoAutorizado}',
+                      style: TextStyle(fontSize: fontSize)))),
+              DataCell(Center(
+                  child: Text('${credito.interes}%',
+                      style: TextStyle(fontSize: fontSize)))),
+              DataCell(Center(
+                  child: Text('\$${credito.montoDesembolsado}',
+                      style: TextStyle(fontSize: fontSize)))),
+              DataCell(Center(
+                  child: Text('\$${credito.interesTotal.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: fontSize)))),
+              DataCell(Center(
+                  child: Text('\$${credito.montoARecuperar.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: fontSize)))),
+              DataCell(Center(
+                  child: Text(credito.diaDePago,
+                      style: TextStyle(fontSize: fontSize)))),
+              DataCell(Center(
+                  child: Text('\$${credito.pagoSemanal.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: fontSize)))),
+              DataCell(Center(
+                  child: Text(credito.semanaDePago,
+                      style: TextStyle(fontSize: fontSize)))),
+              DataCell(
+                Center(
+                  child: Text(
+                    '${DateFormat('dd/MM/yyyy').format(credito.fechaInicio)} - ${DateFormat('dd/MM/yyyy').format(credito.fechaFin)}',
+                    style: TextStyle(fontSize: fontSize),
+                  ),
+                ),
+              ), // Combina las fechas de inicio y fin
+              DataCell(
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      CircleAvatar(radius: 8, backgroundColor: colorEstado),
-                      SizedBox(width: 8),
-                      Text(estadoPago, style: TextStyle(fontSize: fontSize)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircleAvatar(radius: 8, backgroundColor: colorEstado),
+                          SizedBox(width: 8),
+                          Text(estadoPago,
+                              style: TextStyle(fontSize: fontSize)),
+                        ],
+                      ),
+                      if (estadoPago == "Atrasado") ...[
+                        SizedBox(height: 4),
+                        Text(
+                            '(${_diasDeRetraso(credito.fechaPago)} días de retraso)',
+                            style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
+                      if (credito.fechaPagado != null) ...[
+                        SizedBox(height: 4),
+                        Text(
+                            '(Pagado: ${DateFormat('dd/MM/yyyy').format(credito.fechaPagado!)})',
+                            style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      ]
                     ],
                   ),
-                  if (estadoPago == "Atrasado") ...[
-                    SizedBox(height: 4),
-                    Text('(${_diasDeRetraso(credito.fechaPago)} días de retraso)',
-                        style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                  if (credito.fechaPagado != null) ...[
-                    SizedBox(height: 4),
-                    Text('(Pagado: ${DateFormat('dd/MM/yyyy').format(credito.fechaPagado!)})',
-                        style: TextStyle(fontSize: 11, color: Colors.grey)),
-                  ]
-                ],
+                ),
               ),
-            ),
-          ],
-           color: MaterialStateColor.resolveWith((states) {
-                                if (states.contains(MaterialState.selected)) {
-                                  return Colors.blue.withOpacity(0.1);
-                                } else if (states
-                                    .contains(MaterialState.hovered)) {
-                                  return Colors.blue.withOpacity(0.2);
-                                }
-                                return Colors.transparent;
-                              }),
-        );
-      }).toList(),
-    ),
-  );
-}
-
-
-
+            ],
+            color: MaterialStateColor.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
+                return Colors.blue.withOpacity(0.1);
+              } else if (states.contains(MaterialState.hovered)) {
+                return Colors.blue.withOpacity(0.2);
+              }
+              return Colors.transparent;
+            }),
+          );
+        }).toList(),
+      ),
+    );
+  }
 
   // Método para calcular el estado de pago (A Tiempo, Atrasado o Pagado)
   String _calcularEstadoPago(Credito credito) {
@@ -316,6 +365,8 @@ Widget tabla() {
 }
 
 class Credito {
+  final int idCredito;
+
   final String nombreCredito;
   final int montoAutorizado;
   final int garantia;
@@ -328,8 +379,11 @@ class Credito {
   final DateTime fechaPago;
   final double pagoSemanal;
   final DateTime? fechaPagado;
+  final DateTime fechaInicio; // Nuevo campo
+  final DateTime fechaFin; // Nuevo campo
 
   Credito({
+    required this.idCredito,
     required this.nombreCredito,
     required this.montoAutorizado,
     required this.garantia,
@@ -342,6 +396,8 @@ class Credito {
     required this.fechaPago,
     required this.pagoSemanal,
     this.fechaPagado,
+    required this.fechaInicio, // Nuevo campo en el constructor
+    required this.fechaFin, // Nuevo campo en el constructor
   });
 
   // Cálculo del interés total

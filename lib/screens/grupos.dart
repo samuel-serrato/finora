@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:money_facil/custom_app_bar.dart';
+import 'package:money_facil/dialogs/editGrupo.dart';
 import 'package:money_facil/dialogs/infoGrupo.dart';
 import 'package:money_facil/dialogs/nCliente.dart';
 import 'package:money_facil/dialogs/nGrupo.dart';
@@ -317,6 +318,12 @@ class _GruposScreenState extends State<GruposScreen> {
                               label: Text('Fecha Creación',
                                   style: TextStyle(
                                       fontSize: textHeaderTableSize))),
+                          DataColumn(
+                            label: Text(
+                              'Acciones',
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            ),
+                          ),
                         ],
                         rows: listaGrupos.map((grupo) {
                           return DataRow(
@@ -331,6 +338,27 @@ class _GruposScreenState extends State<GruposScreen> {
                                   style: TextStyle(fontSize: textTableSize))),
                               DataCell(Text(formatDate(grupo.fCreacion),
                                   style: TextStyle(fontSize: textTableSize))),
+                              DataCell(
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.edit_outlined,
+                                          color: Colors.grey),
+                                      onPressed: () {
+                                         mostrarDialogoEditarCliente(grupo.idgrupos!); // Llama la función para editar el cliente
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.delete_outline,
+                                          color: Colors.grey),
+                                      onPressed: () {
+                                        // Lógica para eliminar el cliente
+                                        null;
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ],
                             onSelectChanged: (isSelected) {
                               if (isSelected!) {
@@ -395,6 +423,21 @@ class _GruposScreenState extends State<GruposScreen> {
       },
     );
   }
+  void mostrarDialogoEditarCliente(String idGrupo) {
+  showDialog(
+    barrierDismissible: false, // No se puede cerrar tocando fuera
+    context: context,
+    builder: (context) {
+      return editGrupoDialog(
+        idGrupo: idGrupo, // Pasamos el idGrupo al diálogo
+        onGrupoEditado: () {
+           obtenerGrupos();
+        },
+      );
+    },
+  );
+}
+
 }
 
 class Grupo {
