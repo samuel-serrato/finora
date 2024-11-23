@@ -9,8 +9,9 @@ import 'package:money_facil/ip.dart';
 
 class InfoGrupo extends StatefulWidget {
   final String idGrupo;
+  final String nombreGrupo;
 
-  InfoGrupo({required this.idGrupo});
+  InfoGrupo({required this.idGrupo, required this.nombreGrupo});
 
   @override
   _InfoGrupoState createState() => _InfoGrupoState();
@@ -22,15 +23,14 @@ class _InfoGrupoState extends State<InfoGrupo> {
   Timer? _timer;
   bool dialogShown = false;
   late ScrollController _scrollController;
-
-  List<dynamic> grupoDetalles =
-      []; // Variable para almacenar los datos de la API
+  List<dynamic> historialData = [];
 
   @override
   void initState() {
     _scrollController = ScrollController();
     super.initState();
     fetchGrupoData();
+    fetchGrupoHistorial(widget.nombreGrupo); // Obtener el historial del grupo
   }
 
   @override
@@ -72,7 +72,6 @@ class _InfoGrupoState extends State<InfoGrupo> {
         setState(() {
           grupoData = json.decode(response.body)[0];
           isLoading = false; // Fin de la carga
-          grupoDetalles = json.decode(response.body) as List<dynamic>;
         });
       } else {
         // Si la respuesta tiene un código de error, también dejamos de cargar
@@ -90,6 +89,57 @@ class _InfoGrupoState extends State<InfoGrupo> {
       if (mounted) {
         setState(() {
           isLoading = false; // Fin de la carga
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError('Error de conexión o inesperado: $e');
+        }
+      }
+    }
+  }
+
+  Future<void> fetchGrupoHistorial(String nombreGrupo) async {
+    _timer?.cancel();
+
+    setState(() {
+      isLoading = true; // Indicamos que está cargando
+    });
+
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && isLoading) {
+        setState(() {
+          isLoading = false;
+        });
+        mostrarDialogoError(
+            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
+      }
+    });
+
+    try {
+      final response = await http.get(Uri.parse(
+          'http://$baseUrl/api/v1/grupodetalles/historial/$nombreGrupo'));
+
+      _timer?.cancel();
+
+      if (response.statusCode == 200) {
+        setState(() {
+          historialData = json.decode(response.body); // Guarda el historial
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError(
+              'Error en la carga de datos. Código de error: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
         });
         if (!dialogShown) {
           dialogShown = true;
@@ -122,16 +172,6 @@ class _InfoGrupoState extends State<InfoGrupo> {
   String _formatDate(String isoDate) {
     final parsedDate = DateTime.parse(isoDate);
     return "${parsedDate.day}-${parsedDate.month}-${parsedDate.year}";
-  }
-
-  List<Map<String, dynamic>> _filterGroupVersions(
-      String nombreGrupo, List<dynamic> grupos) {
-    return grupos
-        .where((grupo) =>
-            grupo is Map<String, dynamic> &&
-            grupo['nombreGrupo'] == nombreGrupo)
-        .cast<Map<String, dynamic>>()
-        .toList();
   }
 
   @override
@@ -188,6 +228,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
                               SizedBox(
                                   height:
                                       8), // Espacio entre el título y los detalles
+                              _buildDetailRowIG('ID:', grupoData!['idgrupos']),
                               _buildDetailRowIG(
                                   'Nombre:', grupoData!['nombreGrupo']),
                               _buildDetailRowIG(
@@ -203,311 +244,264 @@ class _InfoGrupoState extends State<InfoGrupo> {
                       // Columna derecha deslizable
                       Expanded(
                         flex: 75,
-                        child: SingleChildScrollView(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Sección para dividir en dos columnas
-                                Row(
-                                  children: [
-                                    // Columna de Integrantes
-                                    Expanded(
-                                      flex: 1,
-                                      child: Container(
-                                        constraints: BoxConstraints(
-                                            minHeight:
-                                                300), // Altura mínima opcional
-
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8.0),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              // Título Integrantes
-                                              _buildSectionTitle('Integrantes'),
-                                              if (grupoData!['clientes']
-                                                  is List) ...[
-                                                for (var cliente
-                                                    in grupoData!['clientes'])
-                                                  Card(
-                                                    color: Colors.white,
-                                                    margin:
-                                                        EdgeInsets.symmetric(
-                                                            vertical: 8),
-                                                    elevation: 4,
-                                                    shape:
-                                                        RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              12),
-                                                    ),
-                                                    child: Padding(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              16),
-                                                      child: Row(
-                                                        children: [
-                                                          // CircleAvatar para el cliente
-                                                          Icon(
-                                                            Icons
-                                                                .account_circle,
-                                                            size: 40,
-                                                            color: Color(
-                                                                0xFFFB2056),
-                                                          ),
-                                                          SizedBox(width: 16),
-                                                          // Información del cliente
-                                                          Expanded(
-                                                            child: Column(
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .start,
-                                                              children: [
-                                                                _buildDetailRow(
-                                                                    'Nombre:',
-                                                                    cliente[
-                                                                        'nombres']),
-                                                                _buildDetailRow(
-                                                                    'Cargo:',
-                                                                    cliente[
-                                                                        'cargo']),
-                                                                /*  _buildDetailRow(
-                                                                    'Monto Individual:',
-                                                                    cliente['montoIndividual'] ??
-                                                                        'No especificado'), */
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
+                        child: Row(
+                          children: [
+                            // Columna de Integrantes
+                            Expanded(
+                              flex: 1,
+                              child: Container(
+                                constraints: BoxConstraints(
+                                    minHeight: 300), // Altura mínima
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildSectionTitle('Integrantes'),
+                                      if (grupoData!['clientes'] is List) ...[
+                                        for (var cliente
+                                            in grupoData!['clientes'])
+                                          Card(
+                                            color: Colors.white,
+                                            margin: EdgeInsets.symmetric(
+                                                vertical: 8),
+                                            elevation: 4,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(16),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.account_circle,
+                                                    size: 40,
+                                                    color: Color(0xFFFB2056),
+                                                  ),
+                                                  SizedBox(width: 16),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  vertical:
+                                                                      4.0),
+                                                          child: Text(cliente['nombres'],
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                              )),
+                                                        ),
+                                                        _buildDetailRow(
+                                                            'Cargo:',
+                                                            cliente['cargo']),
+                                                      ],
                                                     ),
                                                   ),
-                                              ],
-                                            ],
+                                                ],
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(width: 50),
-                                    // Columna de Créditos
-                                    Expanded(
-                                      flex: 1,
-                                      child: Container(
-                                        constraints: BoxConstraints(
-                                            minHeight:
-                                                300), // Altura mínima opcional
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8.0),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              _buildSectionTitle(
-                                                  'Créditos del Grupo'),
-                                              _buildSectionTitle('Activos'),
-                                              if (grupoData!['creditos']
-                                                  is List)
-                                                for (var credito
-                                                    in grupoData!['creditos'])
-                                                  if (credito['estado'] ==
-                                                      'Activo')
-                                                    Card(
-                                                      margin:
-                                                          EdgeInsets.symmetric(
-                                                              vertical: 8),
-                                                      elevation: 4,
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(12),
-                                                      ),
-                                                      child: Padding(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .all(16),
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            _buildDetailRow(
-                                                                'Crédito:',
-                                                                credito[
-                                                                    'nombre']),
-                                                            _buildDetailRow(
-                                                                'Monto Total:',
-                                                                credito[
-                                                                    'montoTotal']),
-                                                            _buildDetailRow(
-                                                                'Estado:',
-                                                                credito[
-                                                                    'estado']),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                              _buildSectionTitle('Inactivos'),
-                                              if (grupoData!['creditos']
-                                                  is List)
-                                                for (var credito
-                                                    in grupoData!['creditos'])
-                                                  if (credito['estado'] ==
-                                                      'Inactivo')
-                                                    Card(
-                                                      margin:
-                                                          EdgeInsets.symmetric(
-                                                              vertical: 8),
-                                                      elevation: 4,
-                                                      shape:
-                                                          RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(12),
-                                                      ),
-                                                      child: Padding(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .all(16),
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            _buildDetailRow(
-                                                                'Crédito:',
-                                                                credito[
-                                                                    'nombre']),
-                                                            _buildDetailRow(
-                                                                'Monto Total:',
-                                                                credito[
-                                                                    'montoTotal']),
-                                                            _buildDetailRow(
-                                                                'Estado:',
-                                                                credito[
-                                                                    'estado']),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                              SizedBox(height: 16),
-                                              Center(
-                                                child: ElevatedButton(
-                                                  onPressed: () {
-                                                    // Lógica para la renovación del grupo
-                                                    print(
-                                                        "Renovación de Grupo");
-                                                  },
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        Color(0xFFFB2056),
-                                                    foregroundColor:
-                                                        Colors.white,
-                                                    shape:
-                                                        RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              20),
-                                                    ),
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                            horizontal: 32,
-                                                            vertical: 16),
-                                                  ),
-                                                  child: Text(
-                                                    "Renovación de Grupo",
-                                                    style: TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                                  ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Columna de Créditos
+                            SizedBox(width: 20),
+                            Expanded(
+                              flex: 1,
+                              child: Container(
+                                constraints: BoxConstraints(
+                                    minHeight: 300), // Altura mínima
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildSectionTitle('Créditos del Grupo'),
+                                      _buildSectionTitle('Activos'),
+                                      if (grupoData!['creditos'] is List)
+                                        for (var credito
+                                            in grupoData!['creditos'])
+                                          if (credito['estado'] == 'Activo')
+                                            Card(
+                                              margin: EdgeInsets.symmetric(
+                                                  vertical: 8),
+                                              elevation: 4,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.all(16),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    _buildDetailRow('Crédito:',
+                                                        credito['nombre']),
+                                                    _buildDetailRow(
+                                                        'Monto Total:',
+                                                        credito['montoTotal']),
+                                                    _buildDetailRow('Estado:',
+                                                        credito['estado']),
+                                                  ],
                                                 ),
                                               ),
-                                            ],
+                                            ),
+                                      _buildSectionTitle('Inactivos'),
+                                      if (grupoData!['creditos'] is List)
+                                        for (var credito
+                                            in grupoData!['creditos'])
+                                          if (credito['estado'] == 'Inactivo')
+                                            Card(
+                                              margin: EdgeInsets.symmetric(
+                                                  vertical: 8),
+                                              elevation: 4,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.all(16),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    _buildDetailRow('Crédito:',
+                                                        credito['nombre']),
+                                                    _buildDetailRow(
+                                                        'Monto Total:',
+                                                        credito['montoTotal']),
+                                                    _buildDetailRow('Estado:',
+                                                        credito['estado']),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                      SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          print("Renovación de Grupo");
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Color(0xFFFB2056),
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(20),
                                           ),
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 32, vertical: 16),
+                                        ),
+                                        child: Text(
+                                          "Renovación de Grupo",
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold),
                                         ),
                                       ),
-                                    ),
-                                    Expanded(
-                                      flex: 1,
-                                      child: Container(
-                                        constraints: BoxConstraints(
-                                            minHeight:
-                                                300), // Altura mínima opcional
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8.0),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              _buildSectionTitle(
-                                                  'Versiones del Grupo'),
-                                              if (grupoData != null)
-                                                for (var grupo
-                                                    in _filterGroupVersions(
-                                                        grupoData![
-                                                            'nombreGrupo'],
-                                                        grupoDetalles))
-                                                  Card(
-                                                    margin:
-                                                        EdgeInsets.symmetric(
-                                                            vertical: 8),
-                                                    elevation: 4,
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Columna de Versiones (Scrollable)
+                            Expanded(
+                              flex: 1,
+                              child: SingleChildScrollView(
+                                child: Container(
+                                  constraints: BoxConstraints(
+                                      minHeight: 600), // Altura mínima
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _buildSectionTitle(
+                                            'Versiones del Grupo'),
+                                        isLoading
+                                            ? Center(
+                                                child:
+                                                    CircularProgressIndicator())
+                                            : ListView.builder(
+                                                shrinkWrap: true,
+                                                itemCount:
+                                                    historialData?.length ?? 0,
+                                                itemBuilder: (context, index) {
+                                                  var historialItem =
+                                                      historialData[index];
+                                                  return Card(
+                                                    color: Colors.white,
+                                                    margin: EdgeInsets.symmetric(
+                                                        vertical: 8,
+                                                        horizontal:
+                                                            0), // Espaciado opcional
+                                                    elevation:
+                                                        4, // Sombras para destacar el Card
                                                     shape:
                                                         RoundedRectangleBorder(
                                                       borderRadius:
                                                           BorderRadius.circular(
-                                                              12),
+                                                              12), // Bordes redondeados
                                                     ),
-                                                    child: Padding(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              16),
-                                                      child: Column(
+                                                    child: ExpansionTile(
+                                                      title: Text(
+                                                        'Grupo: ${historialItem['nombreGrupo']}',
+                                                        style: TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold),
+                                                      ),
+                                                      subtitle: Column(
                                                         crossAxisAlignment:
                                                             CrossAxisAlignment
                                                                 .start,
                                                         children: [
-                                                          _buildDetailRow(
-                                                              'ID:',
-                                                              grupo[
-                                                                  'idgrupos']),
-                                                          _buildDetailRow(
-                                                              'Fecha de Creación:',
-                                                              _formatDate(grupo[
-                                                                  'fCreacion'])),
-                                                          _buildDetailRow(
-                                                              'Estado:',
-                                                              grupo['estado']),
-                                                          _buildDetailRow(
-                                                              'Integrantes:',
-                                                              grupo['clientes']
-                                                                  .length
-                                                                  .toString()),
+                                                          Text(
+                                                              style: TextStyle(
+                                                                  fontSize: 12),
+                                                              'Estado: ${historialItem['estado']}'),
+                                                          Text(
+                                                            'Fecha: ${_formatDate(historialItem['fCreacion'])}',
+                                                            style: TextStyle(
+                                                                fontSize: 12),
+                                                          ),
                                                         ],
                                                       ),
+                                                      children: [
+                                                        _buildGrupoYClientes(
+                                                            historialItem),
+                                                      ],
                                                     ),
-                                                  ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
+                                                  );
+                                                },
+                                              ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ),
+                      )
                     ],
                   )
                 : Center(
@@ -540,6 +534,52 @@ class _InfoGrupoState extends State<InfoGrupo> {
                           ),
                         ),
                       ])),
+      ),
+    );
+  }
+
+  Widget _buildGrupoYClientes(Map historialItem) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Tipo de Grupo: ${historialItem['tipoGrupo']}',
+              style: TextStyle(fontSize: 12)),
+          Text('Detalles: ${historialItem['detalles']}',
+              style: TextStyle(fontSize: 12)),
+
+          // Mostrar clientes
+          SizedBox(height: 8),
+          Text('Integrantes:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          ...historialItem['clientes'].asMap().entries.map<Widget>((entry) {
+            int index = entry.key + 1; // Agregar índice (numeración)
+            var cliente = entry.value;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4.0),
+              child: ListTile(
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 0), // Reducir espacio
+
+                leading: Icon(
+                  Icons.account_circle,
+                  size: 30,
+                  color: Color(0xFFFB2056),
+                ),
+                title: Text(
+                  cliente['nombres'],
+                  style: TextStyle(fontSize: 12),
+                ),
+                subtitle: Text(
+                  'Cargo: ${cliente['cargo']} | Teléfono: ${cliente['telefono']}',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            );
+          }).toList(),
+        ],
       ),
     );
   }

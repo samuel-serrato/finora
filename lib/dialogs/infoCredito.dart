@@ -22,11 +22,16 @@ class _InfoCreditoState extends State<InfoCredito> {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width * 0.8;
+    final height = MediaQuery.of(context).size.height * 0.8;
+
     return Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: EdgeInsets.all(16),
       child: Container(
+        width: width,
+        height: height,
         padding: EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -45,36 +50,102 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFFB2056), Color(0xFFFF616D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
+  return Container(
+    padding: EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Color(0xFFFB2056), Color(0xFFFF616D)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Información del Crédito",
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        // Contenedor izquierdo con el contenido
+        Expanded(
+          flex: 5,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Información del Crédito",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildInfoItem("Nombre", credito.nombreCredito),
+                  SizedBox(width: 16),
+                  _buildInfoItem("Monto Autorizado", "\$${credito.montoAutorizado}"),
+                  SizedBox(width: 16),
+                  _buildInfoItem("Pago Semanal", "\$${credito.pagoSemanal}"),
+                ],
+              ),
+              SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildInfoItem("Fecha de Inicio", "${credito.fechaInicio.toLocal()}".split(' ')[0]),
+                  SizedBox(width: 16),
+                  _buildInfoItem("Fecha de Fin", "${credito.fechaFin.toLocal()}".split(' ')[0]),
+                ],
+              ),
+            ],
           ),
-          SizedBox(height: 10),
-          _buildDetailRow("Nombre:", credito.nombreCredito, Colors.white),
-          _buildDetailRow("Monto Autorizado:", "\$${credito.montoAutorizado}", Colors.white),
-          _buildDetailRow("Pago Semanal:", "\$${credito.pagoSemanal}", Colors.white),
-          _buildDetailRow("Fecha de Inicio:", "${credito.fechaInicio.toLocal()}".split(' ')[0],
-              Colors.white),
-          _buildDetailRow("Fecha de Fin:", "${credito.fechaFin.toLocal()}".split(' ')[0],
-              Colors.white),
-        ],
-      ),
-    );
-  }
+        ),
+        
+        // Contenedor derecho verde con ícono de crédito
+        Expanded(
+          flex: 3,
+          child: Container(
+            //color: Colors.green, // Color verde
+            child: Center(
+              child: Icon(
+                Icons.credit_card, // Ícono de crédito
+                size: 80, // Tamaño del ícono
+                color: Colors.white, // Color del ícono
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildInfoItem(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.white,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 
   Widget _buildDetailRow(String label, String value, Color textColor) {
     return Padding(

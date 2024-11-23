@@ -51,7 +51,7 @@ class _GruposScreenState extends State<GruposScreen> {
     Future<void> fetchData() async {
       try {
         final response =
-            await http.get(Uri.parse('http://$baseUrl/api/v1/grupos'));
+            await http.get(Uri.parse('http://$baseUrl/api/v1/grupodetalles'));
 
         print('Status code: ${response.statusCode}');
         print('Response body: ${response.body}');
@@ -283,6 +283,10 @@ class _GruposScreenState extends State<GruposScreen> {
                   ),
                 )
               : LayoutBuilder(builder: (context, constraints) {
+                  // Filtrar los grupos con estado 'Activo'
+                  var gruposActivos = listaGrupos
+                      .where((grupo) => grupo.estado == 'Activo')
+                      .toList();
                   return SingleChildScrollView(
                     scrollDirection: Axis.vertical,
                     child: ConstrainedBox(
@@ -315,6 +319,10 @@ class _GruposScreenState extends State<GruposScreen> {
                                   style: TextStyle(
                                       fontSize: textHeaderTableSize))),
                           DataColumn(
+                              label: Text('Asesor',
+                                  style: TextStyle(
+                                      fontSize: textHeaderTableSize))),
+                          DataColumn(
                               label: Text('Fecha Creación',
                                   style: TextStyle(
                                       fontSize: textHeaderTableSize))),
@@ -325,7 +333,7 @@ class _GruposScreenState extends State<GruposScreen> {
                             ),
                           ),
                         ],
-                        rows: listaGrupos.map((grupo) {
+                        rows: gruposActivos.map((grupo) {
                           return DataRow(
                             cells: [
                               DataCell(Text(grupo.idgrupos.toString(),
@@ -335,6 +343,8 @@ class _GruposScreenState extends State<GruposScreen> {
                               DataCell(Text(grupo.nombreGrupo,
                                   style: TextStyle(fontSize: textTableSize))),
                               DataCell(Text(grupo.detalles,
+                                  style: TextStyle(fontSize: textTableSize))),
+                              DataCell(Text(grupo.asesor,
                                   style: TextStyle(fontSize: textTableSize))),
                               DataCell(Text(formatDate(grupo.fCreacion),
                                   style: TextStyle(fontSize: textTableSize))),
@@ -366,7 +376,9 @@ class _GruposScreenState extends State<GruposScreen> {
                                 showDialog(
                                   context: context,
                                   builder: (context) => InfoGrupo(
-                                      idGrupo: grupo.idgrupos.toString()),
+                                    idGrupo: grupo.idgrupos.toString(),
+                                    nombreGrupo: grupo.nombreGrupo,
+                                  ),
                                 );
                               }
                             },
@@ -446,14 +458,18 @@ class Grupo {
   final String tipoGrupo;
   final String nombreGrupo;
   final String detalles;
+  final String asesor;
   final String fCreacion;
+  final String estado; // Agregamos el campo 'estado'
 
   Grupo({
     required this.idgrupos,
     required this.tipoGrupo,
     required this.nombreGrupo,
     required this.detalles,
+    required this.asesor,
     required this.fCreacion,
+    required this.estado, // Inicializamos el campo 'estado' en el constructor
   });
 
   factory Grupo.fromJson(Map<String, dynamic> json) {
@@ -462,7 +478,10 @@ class Grupo {
       tipoGrupo: json['tipoGrupo'],
       nombreGrupo: json['nombreGrupo'],
       detalles: json['detalles'],
+      asesor: json['asesor'],
       fCreacion: json['fCreacion'],
+      estado:
+          json['estado'], // Asignamos el valor del campo 'estado' desde el JSON
     );
   }
 }
