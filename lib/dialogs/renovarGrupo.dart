@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,16 +7,17 @@ import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
 import 'package:money_facil/ip.dart';
 
-class nGrupoDialog extends StatefulWidget {
-  final VoidCallback onGrupoAgregado;
+class renovarGrupoDialog extends StatefulWidget {
+  final VoidCallback onGrupoRenovado;
+  final String idGrupo; // Nuevo parámetro para recibir el idGrupo
 
-  nGrupoDialog({required this.onGrupoAgregado});
+  renovarGrupoDialog({required this.onGrupoRenovado, required this.idGrupo});
 
   @override
-  _nGrupoDialogState createState() => _nGrupoDialogState();
+  _renovarGrupoDialogState createState() => _renovarGrupoDialogState();
 }
 
-class _nGrupoDialogState extends State<nGrupoDialog>
+class _renovarGrupoDialogState extends State<renovarGrupoDialog>
     with SingleTickerProviderStateMixin {
   final TextEditingController nombreGrupoController = TextEditingController();
   final TextEditingController descripcionController = TextEditingController();
@@ -25,6 +27,11 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   final List<Map<String, dynamic>> _selectedPersons = [];
   final TextEditingController _controller = TextEditingController();
 
+  Map<String, String> _originalCargos = {};
+
+  List<String> _clientesEliminados =
+      []; // Lista para almacenar los IDs de los clientes eliminados
+
   String? selectedTipo;
 
   List<String> tiposGrupo = [
@@ -33,10 +40,10 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     'Selecto',
   ];
 
-  List<String> roles = ['Miembro', 'Presidente/a', 'Tesorero/a'];
+  List<String> cargos = ['Miembro', 'Presidente/a', 'Tesorero/a'];
 
   // Agregamos un mapa para guardar el rol de cada persona seleccionada
-  Map<String, String> _rolesSeleccionados = {};
+  Map<String, String> _cargosSeleccionados = {};
 
   late TabController _tabController;
   int _currentIndex = 0;
@@ -46,6 +53,9 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   final GlobalKey<FormState> _miembrosGrupoFormKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
+  Map<String, dynamic> grupoData = {};
+  Timer? _timer; // Temporizador para el tiempo de espera
+  bool dialogShown = false; // Evitar mostrar múltiples diálogos de error
 
   @override
   void initState() {
@@ -56,6 +66,125 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         _currentIndex = _tabController.index;
       });
     });
+    fetchGrupoData(); // Llamar a la función para obtener los datos del grupo
+
+    print('Grupo seleccionado: ${widget.idGrupo}');
+  }
+
+  // Función para obtener los detalles del grupo
+  Future<void> fetchGrupoData() async {
+    print('Ejecutando fetchGrupoData');
+
+    _timer?.cancel();
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && _isLoading) {
+        setState(() {
+          _isLoading = false;
+        });
+        mostrarDialogoError(
+          'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
+        );
+      }
+    });
+
+    try {
+      final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
+      print('URL solicitada: $url');
+      final response = await http.get(Uri.parse(url));
+
+      _timer?.cancel();
+
+      if (response.statusCode == 200) {
+        print('Respuesta recibida: ${response.body}');
+        final data = json.decode(response.body)[0];
+
+        // Lista para almacenar los clientes
+        List<Map<String, dynamic>> clientesActuales = [];
+
+        // Procesamos los datos del grupo
+        setState(() {
+          grupoData = data;
+          _isLoading = false;
+
+          nombreGrupoController.text = data['nombreGrupo'] ?? '';
+          descripcionController.text = data['detalles'] ?? '';
+          selectedTipo = data['tipoGrupo'];
+
+          _selectedPersons.clear();
+          _cargosSeleccionados.clear();
+
+          if (data['clientes'] != null) {
+            clientesActuales =
+                List<Map<String, dynamic>>.from(data['clientes']);
+            _selectedPersons.addAll(clientesActuales);
+
+            for (var cliente in clientesActuales) {
+              String? idCliente = cliente['idclientes'];
+              String? cargo = cliente['cargo'];
+              if (idCliente != null && cargo != null) {
+                _cargosSeleccionados[idCliente] = cargo;
+                _originalCargos[idCliente] = cargo;
+              }
+            }
+          }
+        });
+
+        // Imprimir los nombres de los clientes en consola
+        print('Clientes actuales del grupo:');
+        for (var cliente in clientesActuales) {
+          print(
+              'id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}, Cargo: ${cliente['cargo']}');
+        }
+      } else {
+        print('Error en la respuesta: ${response.statusCode}');
+        setState(() {
+          _isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError(
+            'Error en la carga de datos. Código de error: ${response.statusCode}',
+          );
+        }
+      }
+    } catch (e) {
+      print('Error durante la solicitud: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError('Error de conexión o inesperado: $e');
+        }
+      }
+    }
+  }
+
+  // Función para mostrar el diálogo de error
+  void mostrarDialogoError(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Error'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   bool _validarFormularioActual() {
@@ -79,140 +208,81 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     }
   }
 
-  void _mostrarDialogo({required String title, required String message, required bool isSuccess}) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text(
-          title,
-          style: TextStyle(color: isSuccess ? Colors.green : Colors.red),
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Cierra el diálogo
-            },
-            child: Text('Aceptar'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
-  void _agregarGrupo() async {
+  void _renovarGrupo() async {
     setState(() {
       _isLoading = true; // Activa el indicador de carga
     });
 
-    // Llamamos a la función que envía los datos
-    final grupoResponse = await _enviarGrupo();
+    try {
+      // Datos del grupo a renovar
+      final Map<String, dynamic> data = {
+        'idgrupos': widget.idGrupo,
+        'nombreGrupo':
+            nombreGrupoController.text, // Mantiene el nombre original
+        'detalles':
+            descripcionController.text, // Permite modificar la descripción
+        'tipoGrupo': selectedTipo, // Permite cambiar el tipo
+      };
 
-    if (grupoResponse != null) {
-      final idGrupo = grupoResponse["idgrupos"];
-      print("ID del grupo creado: $idGrupo");
+      // Imprimir los datos que se enviarán
+      print("Datos que se enviarán para renovar el grupo: $data");
 
-      if (idGrupo != null) {
-        // Paso 2: Crear miembros para el grupo
-        await _enviarMiembros(idGrupo);
+      // Enviar solicitud POST para crear un nuevo grupo con los mismos datos
+      final response = await http.post(
+        Uri.parse('http://$baseUrl/api/v1/grupos/renovacion'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(data),
+      );
+
+      if (response.statusCode == 201) {
+        final responseBody = jsonDecode(response.body);
+        final idNuevoGrupo = responseBody['idgrupos'];
+        print("Nuevo grupo creado con ID: $idNuevoGrupo");
+
+        // Agregar los miembros del grupo original al nuevo grupo
+        if (_selectedPersons.isNotEmpty) {
+          await _enviarMiembros(idNuevoGrupo);
+        }
 
         // Llama al callback para refrescar la lista de grupos
-        widget.onGrupoAgregado();
+        widget.onGrupoRenovado();
 
-        // Muestra el SnackBar de éxito
+        // Muestra mensaje de éxito
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Grupo agregado correctamente'),
+            content: Text('Grupo renovado correctamente'),
             backgroundColor: Colors.green,
           ),
         );
 
-        // Cierra el diálogo
-        Navigator.of(context).pop();
+        //Navigator.of(context).pop(); // Cierra el diálogo
       } else {
-        print("Error: idGrupo es nulo.");
-      }
-    } else {
-      print("Error: grupoResponse es nulo.");
-    }
-
-    setState(() {
-      _isLoading = false; // Desactiva el indicador de carga
-    });
-  }
-
-  Future<Map<String, dynamic>?> _enviarGrupo() async {
-    final url = Uri.parse('http://$baseUrl/api/v1/grupos');
-    final headers = {'Content-Type': 'application/json'};
-
-    final Map<String, dynamic> data = {
-      'nombreGrupo': nombreGrupoController.text,
-      'detalles': descripcionController.text,
-      'tipoGrupo': selectedTipo,
-    };
-
-    // Imprimir los datos antes de enviarlos
-    print("Datos que se enviarán para crear el grupo: $data");
-
-    try {
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: json.encode(data),
-      );
-     
-      print("Código de estado de la respuesta: ${response.statusCode}");
-      print("Cuerpo de la respuesta: ${response.body}");
-
-      if (response.statusCode == 201) {
-        final responseBody = jsonDecode(response.body);
-        print("Cuerpo decodificado: $responseBody");
-        return responseBody; // Devuelve el objeto completo si la creación fue exitosa
-      } else {
-        print("Error en crear grupo: ${response.statusCode}");
-
-      // Formatea el mensaje de error
-      final responseBody = jsonDecode(response.body);
-      final errorCode = responseBody['Error']?['Code'];
-      final errorMessage = responseBody['Error']?['Message'];
-
-      final formattedMessage =
-          'Error $errorCode: ${errorMessage ?? "Ocurrió un error inesperado."}';
-
-      print("Error en crear grupo: $formattedMessage");
-
-      // Muestra el error en el diálogo
-      _mostrarDialogo(
-        title: 'Error',
-        message: formattedMessage,
-        isSuccess: false,
-      );
-      
+        print("Error en la renovación: ${response.statusCode}");
+        print("Detalles del error: ${response.body}");
+        mostrarDialogoError("Error al renovar el grupo.");
       }
     } catch (e) {
-      print("Error al enviar grupo: $e");
+      print("Error al renovar grupo: $e");
+      mostrarDialogoError("Error inesperado al renovar el grupo: $e");
+    } finally {
+      setState(() {
+        _isLoading = false; // Desactiva el indicador de carga
+      });
     }
-
-    return null; // Si algo falla, retorna null
   }
 
-// Función para enviar los miembros al grupo
   Future<void> _enviarMiembros(String idGrupo) async {
     for (var persona in _selectedPersons) {
       final miembroData = {
-        'idgrupos': idGrupo, // Se pasa el id del grupo creado
-        'idclientes': persona['idclientes'], // El id del cliente seleccionado
-        'idusuarios': '1WDDYLGXY9', // id de usuario por defecto
-        'nomCargo': _rolesSeleccionados[persona['idclientes']] ??
-            'Miembro', // Rol seleccionado o 'Miembro' por defecto
+        'idgrupos': idGrupo, // Asigna al nuevo grupo
+        'idclientes': persona['idclientes'], // ID de cliente existente
+        'idusuarios': '1WDDYLGXY9', // ID de usuario por defecto
+        'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
       };
 
-      // Imprimir los datos antes de enviarlos
-      print("Datos que se enviarán para agregar el miembro: $miembroData");
+      print("Datos para agregar miembro en renovación: $miembroData");
 
-      final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/');
+      final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles');
       final headers = {'Content-Type': 'application/json'};
 
       try {
@@ -229,7 +299,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
           print("Detalles del error: ${response.body}");
         }
       } catch (e) {
-        print("Error al enviar miembro: $e");
+        print("Error al agregar miembro en renovación: $e");
       }
     }
   }
@@ -252,7 +322,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
             : Column(
                 children: [
                   Text(
-                    'Agregar Grupo',
+                    'Renovación de Grupo',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
@@ -321,9 +391,34 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                             ),
                           if (_currentIndex == 1)
                             ElevatedButton(
-                              onPressed: _agregarGrupo,
-                              child: Text('Agregar'),
-                            ),
+                              onPressed: () async {
+                                setState(() {
+                                  _isLoading =
+                                      true; // Muestra el CircularProgressIndicator
+                                });
+
+                                try {
+                                  _renovarGrupo(); // Espera a que la función termine
+                                } catch (e) {
+                                  // Puedes manejar el error aquí si es necesario
+                                  print("Error: $e");
+                                } finally {
+                                  if (mounted) {
+                                    // Solo actualizamos el estado si el widget sigue montado
+                                    setState(() {
+                                      _isLoading =
+                                          false; // Oculta el CircularProgressIndicator
+                                    });
+                                  }
+                                }
+                              },
+                              child: _isLoading
+                                  ? CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    )
+                                  : Text('Guardar'),
+                            )
                         ],
                       ),
                     ],
@@ -432,6 +527,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                   ),
                   SizedBox(height: verticalSpacing), // Espacio debajo del ícono
                   _buildTextField(
+                    enabled: false,
                     controller: nombreGrupoController,
                     label: 'Nombres del grupo',
                     icon: Icons.person,
@@ -444,6 +540,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                   ),
                   SizedBox(height: verticalSpacing),
                   _buildDropdown(
+                    enabled: false,
                     value: selectedTipo,
                     hint: 'Tipo',
                     items: tiposGrupo,
@@ -516,7 +613,6 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                     controller: controller,
                     focusNode: focusNode,
                     autofocus: true,
-                    style: TextStyle(),
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
                       hintText: 'Escribe para buscar',
@@ -569,12 +665,12 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                     if (!personaYaAgregada) {
                       setState(() {
                         _selectedPersons.add(person);
-                        _rolesSeleccionados[person['idclientes']] =
-                            roles[0]; // Rol predeterminado
+                        _cargosSeleccionados[person['idclientes']] =
+                            cargos[0]; // Rol predeterminado
                       });
                       _controller.clear();
                     } else {
-                      // Opcional: Mostrar un mensaje indicando que la persona ya fue agregada
+                      // Mostrar mensaje indicando que la persona ya fue agregada
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                           content: Text(
                               'La persona ya ha sido agregada a la lista')));
@@ -594,56 +690,119 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                     itemBuilder: (context, index) {
                       final person = _selectedPersons[index];
                       final nombre = person['nombres'] ?? '';
-                      final idCliente = person[
-                          'idclientes']; // Usamos idclientes para acceder al rol
+                      final idCliente = person['idclientes'];
+                      final telefono = person['telefono'] ?? 'No disponible';
+                      final fechaNac =
+                          person['fechaNacimiento'] ?? 'No disponible';
 
                       return ListTile(
                         title: Row(
                           children: [
-                            // Mostrar la numeración antes del nombre
+                            // Mostrar numeración antes del nombre
                             Text(
-                              '${index + 1}. ', // Esto es para mostrar la numeración
+                              '${index + 1}. ', // Numeración
                               style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                   color: Colors.black),
                             ),
-                            Text(
-                              '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                            // Nombre completo
+                            Expanded(
+                              child: Text(
+                                '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
                             ),
                           ],
                         ),
                         subtitle: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Teléfono: ${person['telefono'] ?? ''}'),
-                            SizedBox(width: 10),
+                            // Teléfono
                             Text(
-                                'Fecha de Nacimiento: ${person['fechaNac'] ?? ''}'),
+                              'Teléfono: $telefono',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            // Fecha de nacimiento
+                            SizedBox(width: 30),
+                            Text(
+                              'Fecha de Nacimiento: $fechaNac',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey[700],
+                              ),
+                            ),
                           ],
                         ),
-                        trailing: DropdownButton<String>(
-                          value: _rolesSeleccionados[
-                              idCliente], // Usamos idCliente para obtener el rol seleccionado
-                          onChanged: (nuevoRol) {
-                            setState(() {
-                              _rolesSeleccionados[idCliente] = nuevoRol!;
-                            });
-                          },
-                          items: roles
-                              .map<DropdownMenuItem<String>>(
-                                (rol) => DropdownMenuItem<String>(
-                                  value: rol,
-                                  child: Text(rol),
-                                ),
-                              )
-                              .toList(),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Dropdown para seleccionar cargo
+                            DropdownButton<String>(
+                              value:
+                                  _cargosSeleccionados[person['idclientes']] ??
+                                      'Miembro',
+                              onChanged: (nuevoCargo) {
+                                setState(() {
+                                  _cargosSeleccionados[person['idclientes']] =
+                                      nuevoCargo!;
+                                });
+                              },
+                              items:
+                                  cargos.map<DropdownMenuItem<String>>((cargo) {
+                                return DropdownMenuItem<String>(
+                                  value: cargo,
+                                  child: Text(cargo),
+                                );
+                              }).toList(),
+                            ),
+                            SizedBox(
+                                width:
+                                    8), // Espaciado entre el dropdown y el ícono
+                            // Ícono de eliminar
+                            IconButton(
+                              onPressed: () async {
+                                final confirmDelete = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: Text('Confirmar eliminación'),
+                                    content: Text(
+                                        '¿Estás seguro de que quieres eliminar a ${nombre} ${person['apellidoP'] ?? ''}?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(false),
+                                        child: Text('Cancelar'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(true),
+                                        child: Text('Eliminar'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirmDelete == true) {
+                                  setState(() {
+                                    _clientesEliminados.add(idCliente);
+                                    _selectedPersons.removeAt(index);
+                                  });
+                                }
+                              },
+                              icon: Icon(Icons.delete, color: Colors.red),
+                            ),
+                          ],
                         ),
                       );
                     },
                   ),
-                ),
+                )
               ],
             ),
           ),
@@ -661,23 +820,45 @@ Widget _buildTextField({
   String? Function(String?)? validator,
   double fontSize = 12.0, // Tamaño de fuente por defecto
   int? maxLength, // Longitud máxima opcional
+  bool enabled = true, // Campo habilitado por defecto
 }) {
   return TextFormField(
     controller: controller,
     keyboardType: keyboardType,
-    style: TextStyle(fontSize: fontSize),
+    style: TextStyle(
+      fontSize: fontSize,
+      color: enabled ? Colors.black : Colors.grey, // Color del texto
+    ),
     decoration: InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-      labelStyle: TextStyle(fontSize: fontSize),
+      prefixIcon: Icon(
+        icon,
+        color: enabled ? Colors.black : Colors.grey, // Color del ícono
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      labelStyle: TextStyle(
+        fontSize: fontSize,
+        color: enabled ? Colors.black : Colors.grey, // Color del label
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: Colors.grey.shade700, // Borde cuando está habilitado
+        ),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: Colors.grey, // Borde cuando está deshabilitado
+        ),
+      ),
     ),
-    validator: validator, // Asignar el validador
-    inputFormatters: maxLength != null
-        ? [
-            LengthLimitingTextInputFormatter(maxLength)
-          ] // Limita a la longitud especificada
-        : [], // Sin limitación si maxLength es null
+    validator: validator,
+    inputFormatters:
+        maxLength != null ? [LengthLimitingTextInputFormatter(maxLength)] : [],
+    enabled: enabled, // Controla si el campo está habilitado o deshabilitado
   );
 }
 
@@ -688,41 +869,60 @@ Widget _buildDropdown({
   required void Function(String?) onChanged,
   double fontSize = 12.0,
   String? Function(String?)? validator,
+  bool enabled = true, // Habilitado por defecto
 }) {
-  return DropdownButtonFormField<String>(
-    value: value,
-    hint: value == null
-        ? Text(
-            hint,
-            style: TextStyle(fontSize: fontSize, color: Colors.black),
-          )
-        : null,
-    items: items.map((item) {
-      return DropdownMenuItem(
-        value: item,
-        child: Text(
-          item,
-          style: TextStyle(fontSize: fontSize, color: Colors.black),
-        ),
-      );
-    }).toList(),
-    onChanged: onChanged,
-    validator: validator,
+  return InputDecorator(
     decoration: InputDecoration(
-      labelText: value != null ? hint : null,
+      labelText: hint,
+      labelStyle: TextStyle(
+        fontSize: fontSize,
+        color: enabled ? Colors.black : Colors.grey, // Cambiar color del hint
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: Colors.black),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade700),
+        borderSide:
+            BorderSide(color: enabled ? Colors.grey.shade700 : Colors.grey),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: Colors.black),
       ),
     ),
-    style: TextStyle(fontSize: fontSize, color: Colors.black),
+    isEmpty: value == null || value.isEmpty,
+    child: enabled
+        ? DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              hint: Text(
+                hint,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  color: Colors.grey, // Cambiar color del hint
+                ),
+              ),
+              items: items.map((item) {
+                return DropdownMenuItem(
+                  value: item,
+                  child: Text(
+                    item,
+                    style: TextStyle(fontSize: fontSize, color: Colors.black),
+                  ),
+                );
+              }).toList(),
+              onChanged: onChanged,
+              style: TextStyle(fontSize: fontSize, color: Colors.black),
+            ),
+          )
+        : Text(
+            value ?? hint,
+            style: TextStyle(
+              fontSize: fontSize,
+              color: Colors.grey, // Color del texto deshabilitado
+            ),
+          ),
   );
 }

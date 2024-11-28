@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:money_facil/dialogs/renovarGrupo.dart';
 import 'dart:convert';
 
 import 'package:money_facil/ip.dart';
@@ -99,55 +100,62 @@ class _InfoGrupoState extends State<InfoGrupo> {
   }
 
   Future<void> fetchGrupoHistorial(String nombreGrupo) async {
+  _timer?.cancel();
+
+  setState(() {
+    isLoading = true; // Indicamos que está cargando
+  });
+
+  _timer = Timer(Duration(seconds: 10), () {
+    if (mounted && isLoading) {
+      setState(() {
+        isLoading = false;
+      });
+      mostrarDialogoError(
+          'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
+    }
+  });
+
+  try {
+    final response = await http.get(Uri.parse(
+        'http://$baseUrl/api/v1/grupodetalles/historial/$nombreGrupo'));
+
     _timer?.cancel();
 
-    setState(() {
-      isLoading = true; // Indicamos que está cargando
-    });
-
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && isLoading) {
-        setState(() {
-          isLoading = false;
+    if (response.statusCode == 200) {
+      setState(() {
+        historialData = json.decode(response.body); // Guarda el historial
+        // Ordenar los datos por fecha
+        historialData.sort((a, b) {
+          DateTime dateA = DateTime.parse(a['fCreacion']);
+          DateTime dateB = DateTime.parse(b['fCreacion']);
+          return dateB.compareTo(dateA); // Orden descendente, cambia a dateA.compareTo(dateB) para ascendente
         });
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+      if (!dialogShown) {
+        dialogShown = true;
         mostrarDialogoError(
-            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
+            'Error en la carga de datos. Código de error: ${response.statusCode}');
       }
-    });
-
-    try {
-      final response = await http.get(Uri.parse(
-          'http://$baseUrl/api/v1/grupodetalles/historial/$nombreGrupo'));
-
-      _timer?.cancel();
-
-      if (response.statusCode == 200) {
-        setState(() {
-          historialData = json.decode(response.body); // Guarda el historial
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          isLoading = false;
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError(
-              'Error en la carga de datos. Código de error: ${response.statusCode}');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError('Error de conexión o inesperado: $e');
-        }
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
+      if (!dialogShown) {
+        dialogShown = true;
+        mostrarDialogoError('Error de conexión o inesperado: $e');
       }
     }
   }
+}
+
 
   void mostrarDialogoError(String mensaje) {
     showDialog(
@@ -235,6 +243,32 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                   'Tipo:', grupoData!['tipoGrupo']),
                               _buildDetailRowIG(
                                   'Detalles:', grupoData!['detalles']),
+                              _buildDetailRowIG(
+                                  'Estado:', grupoData!['estado']),
+
+                              _buildDetailRowIG('Crédito:', 'No asignado'),
+                              SizedBox(height: 30),
+                              ElevatedButton(
+                                onPressed: () {
+                                  print("Renovación de Grupo");
+                                  mostrarDialogoEditarCliente(widget.idGrupo);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: Color(0xFFFB2056),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 32, vertical: 16),
+                                ),
+                                child: Text(
+                                  "Renovación de Grupo",
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -248,7 +282,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
                           children: [
                             // Columna de Integrantes
                             Expanded(
-                              flex: 1,
+                              flex: 5,
                               child: Container(
                                 constraints: BoxConstraints(
                                     minHeight: 300), // Altura mínima
@@ -294,7 +328,9 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                                   .symmetric(
                                                                   vertical:
                                                                       4.0),
-                                                          child: Text(cliente['nombres'],
+                                                          child: Text(
+                                                              cliente[
+                                                                  'nombres'],
                                                               style: TextStyle(
                                                                 fontSize: 12,
                                                               )),
@@ -318,110 +354,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
                             // Columna de Créditos
                             SizedBox(width: 20),
                             Expanded(
-                              flex: 1,
-                              child: Container(
-                                constraints: BoxConstraints(
-                                    minHeight: 300), // Altura mínima
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildSectionTitle('Créditos del Grupo'),
-                                      _buildSectionTitle('Activos'),
-                                      if (grupoData!['creditos'] is List)
-                                        for (var credito
-                                            in grupoData!['creditos'])
-                                          if (credito['estado'] == 'Activo')
-                                            Card(
-                                              margin: EdgeInsets.symmetric(
-                                                  vertical: 8),
-                                              elevation: 4,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.all(16),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    _buildDetailRow('Crédito:',
-                                                        credito['nombre']),
-                                                    _buildDetailRow(
-                                                        'Monto Total:',
-                                                        credito['montoTotal']),
-                                                    _buildDetailRow('Estado:',
-                                                        credito['estado']),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                      _buildSectionTitle('Inactivos'),
-                                      if (grupoData!['creditos'] is List)
-                                        for (var credito
-                                            in grupoData!['creditos'])
-                                          if (credito['estado'] == 'Inactivo')
-                                            Card(
-                                              margin: EdgeInsets.symmetric(
-                                                  vertical: 8),
-                                              elevation: 4,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.all(16),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    _buildDetailRow('Crédito:',
-                                                        credito['nombre']),
-                                                    _buildDetailRow(
-                                                        'Monto Total:',
-                                                        credito['montoTotal']),
-                                                    _buildDetailRow('Estado:',
-                                                        credito['estado']),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                      SizedBox(height: 16),
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          print("Renovación de Grupo");
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Color(0xFFFB2056),
-                                          foregroundColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                          ),
-                                          padding: EdgeInsets.symmetric(
-                                              horizontal: 32, vertical: 16),
-                                        ),
-                                        child: Text(
-                                          "Renovación de Grupo",
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Columna de Versiones (Scrollable)
-                            Expanded(
-                              flex: 1,
+                              flex: 6,
                               child: SingleChildScrollView(
                                 child: Container(
                                   constraints: BoxConstraints(
@@ -434,65 +367,134 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         _buildSectionTitle(
-                                            'Versiones del Grupo'),
-                                        isLoading
-                                            ? Center(
-                                                child:
-                                                    CircularProgressIndicator())
-                                            : ListView.builder(
-                                                shrinkWrap: true,
-                                                itemCount:
-                                                    historialData?.length ?? 0,
-                                                itemBuilder: (context, index) {
-                                                  var historialItem =
-                                                      historialData[index];
-                                                  return Card(
-                                                    color: Colors.white,
-                                                    margin: EdgeInsets.symmetric(
-                                                        vertical: 8,
-                                                        horizontal:
-                                                            0), // Espaciado opcional
-                                                    elevation:
-                                                        4, // Sombras para destacar el Card
-                                                    shape:
-                                                        RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              12), // Bordes redondeados
-                                                    ),
-                                                    child: ExpansionTile(
-                                                      title: Text(
-                                                        'Grupo: ${historialItem['nombreGrupo']}',
-                                                        style: TextStyle(
-                                                            fontSize: 14,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .bold),
+                                            'Historial de Créditos'),
+                                        if (historialData != null &&
+                                            historialData.isNotEmpty)
+                                          ListView.builder(
+                                            shrinkWrap: true,
+                                            physics:
+                                                NeverScrollableScrollPhysics(),
+                                            itemCount: historialData.length,
+                                            itemBuilder: (context, index) {
+                                              var historialItem =
+                                                  historialData[index];
+                                              return Card(
+                                                color: Colors.white,
+                                                margin: EdgeInsets.symmetric(
+                                                    vertical: 8),
+                                                elevation: 4,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: ExpansionTile(
+                                                  title: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .spaceBetween,
+                                                        children: [
+                                                          Text(
+                                                            'Grupo: ${historialItem['nombreGrupo']}',
+                                                            style: TextStyle(
+                                                                fontSize: 14,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold),
+                                                          ),
+                                                          Text(
+                                                            historialItem[
+                                                                'estado'],
+                                                            style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: Colors
+                                                                    .grey[800]),
+                                                          ),
+                                                        ],
                                                       ),
-                                                      subtitle: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
+                                                      Divider(
+                                                          color: Colors
+                                                              .grey), // Línea divisoria
+                                                      SizedBox(height: 8),
+                                                      Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .spaceBetween,
+                                                        children: [
+                                                          Row(
+                                                            children: [
+                                                              Text(
+                                                                'Crédito: ',
+                                                                style: TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold),
+                                                              ),
+                                                              Text(
+                                                                '${historialItem['credito'] ?? 'No asignado'}',
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontSize: 12,
+                                                                ),
+                                                              )
+                                                            ],
+                                                          ),
+                                                          Text(
+                                                            'Fecha: ${_formatDate(historialItem['fCreacion'])}',
+                                                            style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: Colors
+                                                                    .grey[800]),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      SizedBox(height: 10),
+                                                      Row(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
                                                                 .start,
                                                         children: [
                                                           Text(
-                                                              style: TextStyle(
-                                                                  fontSize: 12),
-                                                              'Estado: ${historialItem['estado']}'),
+                                                            'Detalles: ',
+                                                            style: TextStyle(
+                                                                fontSize: 12,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: Colors
+                                                                    .grey[800]),
+                                                          ),
+                                                          SizedBox(height: 4),
                                                           Text(
-                                                            'Fecha: ${_formatDate(historialItem['fCreacion'])}',
+                                                            historialItem[
+                                                                    'detalles'] ??
+                                                                'Sin descripción',
                                                             style: TextStyle(
                                                                 fontSize: 12),
                                                           ),
                                                         ],
-                                                      ),
-                                                      children: [
-                                                        _buildGrupoYClientes(
-                                                            historialItem),
-                                                      ],
-                                                    ),
-                                                  );
-                                                },
-                                              ),
+                                                      )
+                                                    ],
+                                                  ),
+                                                  children: [
+                                                    _buildGrupoYClientes(
+                                                        historialItem),
+                                                  ],
+                                                ),
+                                              );
+                                            },
+                                          )
+                                        else
+                                          Center(
+                                            child: Text(
+                                                'No hay versiones disponibles'),
+                                          ),
                                       ],
                                     ),
                                   ),
@@ -538,6 +540,26 @@ class _InfoGrupoState extends State<InfoGrupo> {
     );
   }
 
+  void mostrarDialogoEditarCliente(String idGrupo) async {
+  final resultado = await showDialog<bool>(
+    barrierDismissible: false,
+    context: context,
+    builder: (context) {
+      return renovarGrupoDialog(
+        idGrupo: idGrupo,
+        onGrupoRenovado: () {
+          Navigator.of(context).pop(true); // Enviar true al cerrarse
+        },
+      );
+    },
+  );
+
+  if (resultado == true) {
+    Navigator.of(context).pop(true); // Propaga el true hacia la pantalla Grupos
+  }
+}
+
+
   Widget _buildGrupoYClientes(Map historialItem) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
@@ -545,8 +567,6 @@ class _InfoGrupoState extends State<InfoGrupo> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Tipo de Grupo: ${historialItem['tipoGrupo']}',
-              style: TextStyle(fontSize: 12)),
-          Text('Detalles: ${historialItem['detalles']}',
               style: TextStyle(fontSize: 12)),
 
           // Mostrar clientes

@@ -49,231 +49,217 @@ class _InfoCreditoState extends State<InfoCredito> {
     );
   }
 
-  Widget _buildHeader() {
-  return Container(
-    padding: EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: [Color(0xFFFB2056), Color(0xFFFF616D)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+    Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Color(0xFFFB2056),
+       
+        borderRadius: BorderRadius.circular(12),
       ),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Row(
-      children: [
-        // Contenedor izquierdo con el contenido
-        Expanded(
-          flex: 5,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Información del Crédito",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+      child: Row(
+        children: [
+          Expanded(
+            flex: 5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Información del Crédito",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoItem("Nombre", credito.nombreCredito),
-                  SizedBox(width: 16),
-                  _buildInfoItem("Monto Autorizado", "\$${credito.montoAutorizado}"),
-                  SizedBox(width: 16),
-                  _buildInfoItem("Pago Semanal", "\$${credito.pagoSemanal}"),
-                ],
-              ),
-              SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoItem("Fecha de Inicio", "${credito.fechaInicio.toLocal()}".split(' ')[0]),
-                  SizedBox(width: 16),
-                  _buildInfoItem("Fecha de Fin", "${credito.fechaFin.toLocal()}".split(' ')[0]),
-                ],
-              ),
-            ],
+                SizedBox(height: 10),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    _infoItem("Nombre", credito.nombreCredito),
+                    _infoItem("Monto Autorizado", "\$${credito.montoAutorizado}"),
+                    _infoItem("Pago Semanal", "\$${credito.pagoSemanal}"),
+                    _infoItem("Fecha de Inicio", _formatDate(credito.fechaInicio)),
+                    _infoItem("Fecha de Fin", _formatDate(credito.fechaFin)),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-        
-        // Contenedor derecho verde con ícono de crédito
-        Expanded(
-          flex: 3,
-          child: Container(
-            //color: Colors.green, // Color verde
+          Expanded(
+            flex: 3,
             child: Center(
               child: Icon(
-                Icons.credit_card, // Ícono de crédito
-                size: 80, // Tamaño del ícono
-                color: Colors.white, // Color del ícono
+                Icons.credit_card,
+                size: 80,
+                color: Colors.white,
               ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildInfoItem(String label, String value) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.white,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-
-  Widget _buildDetailRow(String label, String value, Color textColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
-          Text(value, style: TextStyle(fontSize: 14, color: textColor)),
         ],
       ),
     );
   }
 
   Widget _buildPagosTable() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Detalles de los Pagos",
-          style: TextStyle(
-              fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFB2056)),
-        ),
-        SizedBox(height: 10),
-        Table(
-          columnWidths: {
-            0: FractionColumnWidth(0.3),
-            1: FractionColumnWidth(0.2),
-            2: FractionColumnWidth(0.2),
-            3: FractionColumnWidth(0.3),
-          },
-          border: TableBorder.all(color: Color(0xFFEEEEEE), width: 1),
-          children: [
-            _buildTableHeader(),
-            ...pagos.map((pago) => _buildPagoRow(pago)).toList(),
-          ],
-        ),
-      ],
-    );
-  }
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        "Detalles de los Pagos",
+        style: TextStyle(
+            fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFB2056)),
+      ),
+      SizedBox(height: 10),
+      Table(
+        columnWidths: {
+          0: FlexColumnWidth(0.8),  // No. Semana
+          1: FlexColumnWidth(2),  // Fecha
+          2: FlexColumnWidth(1),  // Monto
+          3: FlexColumnWidth(1),  // Completo
+          4: FlexColumnWidth(2),  // Monto Parcial
+          5: FlexColumnWidth(1),  // Saldo a Favor
+          6: FlexColumnWidth(1),  // Saldo en Contra
+        },
+        border: TableBorder.all(color: Color(0xFFEEEEEE), width: 1),
+        children: [
+          _tableRow([
+            "Semana",
+            "Fecha",
+            "Monto",
+            "Completo",
+            "Monto Parcial",
+            "Saldo a Favor",
+            "Saldo en Contra"
+          ], isHeader: true),
+          ...pagos.asMap().entries.map((entry) {
+            int index = entry.key + 1;
+            Pago pago = entry.value;
+            double saldoFavor = 0.0;
+            double saldoContra = 0.0;
 
-  TableRow _buildTableHeader() {
-    return TableRow(
-      decoration: BoxDecoration(color: Color(0xFFF7F7F7)),
-      children: [
-        _buildTableCell(Text("Fecha", style: TextStyle(fontWeight: FontWeight.bold))),
-        _buildTableCell(Text("Monto", style: TextStyle(fontWeight: FontWeight.bold))),
-        _buildTableCell(Text("Completo", style: TextStyle(fontWeight: FontWeight.bold))),
-        _buildTableCell(Text("Monto Parcial", style: TextStyle(fontWeight: FontWeight.bold))),
-      ],
-    );
-  }
+            if (pago.montoRecibido != null) {
+              if (pago.montoRecibido! > pago.monto) {
+                saldoFavor = pago.montoRecibido! - pago.monto;
+              } else if (pago.montoRecibido! < pago.monto) {
+                saldoContra = pago.monto - pago.montoRecibido!;
+              }
+            }
 
-  TableRow _buildPagoRow(Pago pago) {
-    return TableRow(
-      children: [
-        _buildTableCell(Text("${pago.fecha.toLocal()}".split(' ')[0])),
-        _buildTableCell(Text("\$${pago.monto}")),
-        _buildTableCell(
-          Checkbox(
-            value: pago.completado,
-            activeColor: Color(0xFFFB2056),
-            onChanged: (value) {
-              setState(() {
-                pago.completado = value!;
-                if (pago.completado) {
-                  pago.parcial = false;
-                  pago.montoRecibido = pago.monto;
-                } else {
-                  pago.montoRecibido = null;
-                }
-              });
-            },
-          ),
-        ),
-        _buildTableCell(
-          Row(
-            children: [
+            return _tableRow([
+              "$index",
+              _formatDate(pago.fecha),
+              "\$${pago.monto}",
               Checkbox(
-                value: pago.parcial,
+                value: pago.completado,
                 activeColor: Color(0xFFFB2056),
                 onChanged: (value) {
                   setState(() {
-                    pago.parcial = value!;
-                    if (pago.parcial) {
-                      pago.completado = false;
+                    pago.completado = value!;
+                    if (pago.completado) {
+                      pago.parcial = false;
+                      pago.montoRecibido = pago.monto;
+                    } else {
                       pago.montoRecibido = null;
                     }
                   });
                 },
               ),
-              if (pago.parcial)
-                Expanded(
-                  child: TextField(
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: 'Monto',
-                      contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Color(0xFFCCCCCC)),
-                      ),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        pago.montoRecibido = double.tryParse(value) ?? 0.0;
-                      });
-                    },
-                  ),
-                )
-              else
-                Text(pago.completado ? "\$${pago.monto}" : ""),
-            ],
-          ),
+              _buildMontoParcial(pago),
+              saldoFavor > 0 ? "\$${saldoFavor.toStringAsFixed(2)}" : "-",
+              saldoContra > 0 ? "\$${saldoContra.toStringAsFixed(2)}" : "-",
+            ]);
+          }).toList(),
+        ],
+      ),
+    ],
+  );
+}
+
+
+
+  Widget _infoItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
         ),
+        SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: 13, color: Colors.white)),
       ],
     );
   }
 
-  Widget _buildTableCell(Widget content) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: content,
+  TableRow _tableRow(List<dynamic> cells, {bool isHeader = false}) {
+    return TableRow(
+      children: cells.map((cell) {
+        if (cell is String) {
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              cell,
+              style: TextStyle(
+                fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+                fontSize: 14,
+              ),
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: cell,
+        );
+      }).toList(),
     );
   }
 
-  Credito _buscarCreditoPorId(int id) {
+  Widget _buildMontoParcial(Pago pago) {
+    return Row(
+      children: [
+        Checkbox(
+          value: pago.parcial,
+          activeColor: Color(0xFFFB2056),
+          onChanged: (value) {
+            setState(() {
+              pago.parcial = value!;
+              if (pago.parcial) {
+                pago.completado = false;
+                pago.montoRecibido = null;
+              }
+            });
+          },
+        ),
+        if (pago.parcial)
+          Expanded(
+            child: TextField(
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: 'Monto',
+                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Color(0xFFCCCCCC)),
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  pago.montoRecibido = double.tryParse(value) ?? 0.0;
+                });
+              },
+            ),
+          )
+        else
+          Text(pago.completado ? "\$${pago.monto}" : ""),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime date) => "${date.toLocal()}".split(' ')[0];
+
+   Credito _buscarCreditoPorId(int id) {
     return Credito(
       idCredito: 1,
       nombreCredito: 'Cielito Azul',
@@ -294,17 +280,16 @@ Widget _buildInfoItem(String label, String value) {
 
   List<Pago> _generarPagos(Credito credito) {
     final List<Pago> pagos = [];
-    final int semanas = ((credito.fechaFin.difference(credito.fechaInicio).inDays) / 7).ceil();
     DateTime fechaActual = credito.fechaInicio;
-
+    final semanas = ((credito.fechaFin.difference(credito.fechaInicio).inDays) / 7).ceil();
     for (int i = 0; i < semanas; i++) {
       pagos.add(Pago(fecha: fechaActual, monto: credito.pagoSemanal));
       fechaActual = fechaActual.add(Duration(days: 7));
     }
-
     return pagos;
   }
 }
+
 
 class Credito {
   final int idCredito;

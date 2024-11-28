@@ -142,7 +142,7 @@ class _GruposScreenState extends State<GruposScreen> {
       appBar: CustomAppBar(
         isDarkMode: _isDarkMode,
         toggleDarkMode: _toggleDarkMode,
-        title: 'Clientes', // Título específico para esta pantalla
+        title: 'Grupos', // Título específico para esta pantalla
       ),
       body: isLoading
           ? Center(
@@ -285,7 +285,10 @@ class _GruposScreenState extends State<GruposScreen> {
               : LayoutBuilder(builder: (context, constraints) {
                   // Filtrar los grupos con estado 'Activo'
                   var gruposActivos = listaGrupos
-                      .where((grupo) => grupo.estado == 'Activo')
+                      .where((grupo) =>
+                          grupo.estado == 'Disponible' ||
+                          grupo.estado == 'Liquidado' ||
+                          grupo.estado == 'Activo')
                       .toList();
                   return SingleChildScrollView(
                     scrollDirection: Axis.vertical,
@@ -327,6 +330,10 @@ class _GruposScreenState extends State<GruposScreen> {
                                   style: TextStyle(
                                       fontSize: textHeaderTableSize))),
                           DataColumn(
+                              label: Text('Estado',
+                                  style: TextStyle(
+                                      fontSize: textHeaderTableSize))),
+                          DataColumn(
                             label: Text(
                               'Acciones',
                               style: TextStyle(fontSize: textHeaderTableSize),
@@ -347,6 +354,8 @@ class _GruposScreenState extends State<GruposScreen> {
                               DataCell(Text(grupo.asesor,
                                   style: TextStyle(fontSize: textTableSize))),
                               DataCell(Text(formatDate(grupo.fCreacion),
+                                  style: TextStyle(fontSize: textTableSize))),
+                              DataCell(Text((grupo.estado),
                                   style: TextStyle(fontSize: textTableSize))),
                               DataCell(
                                 Row(
@@ -371,15 +380,19 @@ class _GruposScreenState extends State<GruposScreen> {
                                 ),
                               ),
                             ],
-                            onSelectChanged: (isSelected) {
+                            onSelectChanged: (isSelected) async {
                               if (isSelected!) {
-                                showDialog(
+                                final resultado = await showDialog<bool>(
                                   context: context,
                                   builder: (context) => InfoGrupo(
                                     idGrupo: grupo.idgrupos.toString(),
                                     nombreGrupo: grupo.nombreGrupo,
                                   ),
                                 );
+
+                                if (resultado == true) {
+                                  obtenerGrupos(); // Refresca la lista solo si el resultado es true
+                                }
                               }
                             },
                             color: MaterialStateColor.resolveWith((states) {

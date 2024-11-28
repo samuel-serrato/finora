@@ -1,6 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:money_facil/ip.dart';
 
 class nCreditoDialog extends StatefulWidget {
   final VoidCallback onGrupoAgregado;
@@ -23,7 +28,6 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   final GlobalKey<FormState> _miembrosGrupoFormKey =
       GlobalKey<FormState>(); // Formulario de Integrantes
 
-  String? selectedGrupo;
   String? garantia;
   String? frecuenciaPago;
   String? diaPago;
@@ -34,9 +38,37 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   final plazoController = TextEditingController();
 
   // Datos para los integrantes y sus montos individuales
-  List<Map<String, dynamic>> integrantes = [];
-  Map<int, double> montosIndividuales =
-      {}; // Mapa de montos por cada integrante
+  List<Cliente> integrantes = [];
+
+  // Inicializamos montosIndividuales como un Map<String, double>
+  Map<String, double> montosIndividuales = {};
+
+  double? tasaInteresMensualSeleccionada;
+
+  List<double> tasas = [
+    6.00,
+    8.00,
+    8.12,
+    8.20,
+    8.52,
+    8.60,
+    8.80,
+    9.00,
+    9.28,
+    0.0 // Representa la opción "Otro"
+  ];
+
+  String? otroValor; // Para almacenar el valor del TextField
+
+  TextEditingController _otroValorController = TextEditingController();
+
+  List<Grupo> listaGrupos = [];
+  String? selectedGrupo;
+  bool isLoading = true;
+  bool errorDeConexion = false;
+  bool noGroupsFound = false;
+  bool dialogShown = false;
+  Timer? _timer;
 
   String _formatearFecha(DateTime fecha) {
     return DateFormat('dd/MM/yyyy').format(fecha);
@@ -55,6 +87,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     // Inicializar con el día de la semana de la fecha de inicio
     diaPago = _diaDeLaSemana(fechaInicio);
     frecuenciaPago = "Semanal"; // Valor predeterminado
+    obtenerGrupos();
   }
 
   Future<void> _mostrarDialogoAdvertencia(BuildContext context) async {
@@ -79,6 +112,9 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     double sumaMontosIndividuales = montosIndividuales.values
         .fold(0.0, (previousValue, element) => previousValue + element);
     double montoTotal = double.tryParse(montoController.text) ?? 0.0;
+
+    print('Suma montos individuales:${sumaMontosIndividuales}');
+    print('Monto Total:${montoTotal}');
 
     if (sumaMontosIndividuales != montoTotal) {
       // Mostrar un diálogo de advertencia si los montos no coinciden
@@ -124,12 +160,118 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     Navigator.of(context).pop();
   }
 
+  Future<void> obtenerGrupos() async {
+    setState(() {
+      isLoading = true;
+      errorDeConexion = false;
+      noGroupsFound = false;
+    });
+
+    bool dialogShown = false;
+
+    Future<void> fetchData() async {
+      try {
+        final response =
+            await http.get(Uri.parse('http://$baseUrl/api/v1/grupodetalles'));
+
+        print('Status code: ${response.statusCode}');
+        print('Response body: ${response.body}');
+
+        if (mounted) {
+          if (response.statusCode == 200) {
+            List<dynamic> data = json.decode(response.body);
+            setState(() {
+              listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
+              isLoading = false;
+              errorDeConexion = false;
+            });
+            _timer?.cancel();
+          } else if (response.statusCode == 400) {
+            final errorData = json.decode(response.body);
+            if (errorData["Error"]["Message"] == "No hay grupos registrados") {
+              setState(() {
+                listaGrupos = [];
+                isLoading = false;
+                noGroupsFound = true;
+              });
+              _timer
+                  ?.cancel(); // Detener intentos de reconexión si no hay grupos
+            } else {
+              setErrorState(dialogShown);
+            }
+          } else {
+            setErrorState(dialogShown);
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setErrorState(dialogShown, e);
+        }
+      }
+    }
+
+    fetchData();
+
+    if (!noGroupsFound) {
+      _timer = Timer(Duration(seconds: 10), () {
+        if (mounted && !dialogShown && !noGroupsFound) {
+          setState(() {
+            isLoading = false;
+            errorDeConexion = true;
+          });
+          dialogShown = true;
+          mostrarDialogoError(
+              'No se pudo conectar al servidor. Verifica tu red.');
+        }
+      });
+    }
+  }
+
+  void setErrorState(bool dialogShown, [dynamic error]) {
+    setState(() {
+      isLoading = false;
+      errorDeConexion = true;
+    });
+    if (!dialogShown) {
+      dialogShown = true;
+      if (error is SocketException) {
+        mostrarDialogoError('Error de conexión. Verifica tu red.');
+      } else {
+        mostrarDialogoError('Ocurrió un error inesperado.');
+      }
+      _timer?.cancel(); // Detener intentos de reconexión en caso de error
+    }
+  }
+
+  // Función para mostrar el diálogo de error
+  void mostrarDialogoError(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.8;
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: width,
@@ -243,16 +385,48 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                   Row(
                     children: [
                       Expanded(
-                        child: _buildDropdown(
-                          value: selectedGrupo,
-                          hint: 'Seleccionar Grupo',
-                          items: ["Grupo 1", "Grupo 2"],
-                          onChanged: (value) => setState(() {
-                            selectedGrupo = value;
-                          }),
-                          validator: (value) =>
-                              value == null ? 'Seleccione un grupo' : null,
-                        ),
+                        child: isLoading
+                            ? Center(
+                                child: CircularProgressIndicator(),
+                              ) // Indicador de carga
+                            : _buildDropdown(
+                                value: selectedGrupo,
+                                hint: 'Seleccionar Grupo',
+                                items: listaGrupos
+                                    .map((grupo) => grupo.nombreGrupo)
+                                    .toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedGrupo = value;
+
+                                    // Obtener el grupo completo basado en el nombre
+                                    var grupoSeleccionado =
+                                        listaGrupos.firstWhere(
+                                      (grupo) =>
+                                          grupo.nombreGrupo == selectedGrupo,
+                                    );
+
+                                    // Actualizar la lista de integrantes
+                                    integrantes = grupoSeleccionado.clientes;
+
+                                    // Reiniciar montos individuales y controladores
+                                    montosIndividuales.clear();
+                                    _controladoresIntegrantes = List.generate(
+                                      integrantes.length,
+                                      (index) => TextEditingController(),
+                                    );
+
+                                    // Opcional: Imprimir los integrantes para depuración
+                                    print('Integrantes del nuevo grupo:');
+                                    for (var cliente in integrantes) {
+                                      print('Nombre: ${cliente.nombres}');
+                                    }
+                                  });
+                                },
+                                validator: (value) => value == null
+                                    ? 'Seleccione un grupo'
+                                    : null,
+                              ),
                       ),
                       SizedBox(width: 10),
                       Expanded(
@@ -271,23 +445,118 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                   SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: tasaInteresController,
-                          label: 'Tasa de Interés (%)',
-                          icon: Icons.percent,
-                          keyboardType: TextInputType.number,
+                      // Dropdown de tasa de interés (que incluye "Otro")
+                      Flexible(
+                        flex: 1,
+                        child: Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15.0),
+                            border: Border.all(
+                              color: Colors.grey[400]!,
+                              width: 1.5,
+                            ),
+                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 10.0),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<double>(
+                              hint: Text(
+                                'Elige una tasa de interés',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey[700]),
+                              ),
+                              isExpanded: true,
+                              value: tasaInteresMensualSeleccionada,
+                              onChanged: (double? newValue) {
+                                print(
+                                    "Seleccionado: $newValue"); // Ver el valor seleccionado
+                                setState(() {
+                                  tasaInteresMensualSeleccionada = newValue;
+                                  if (newValue != 0.0) {
+                                    otroValor = null; // Limpiar si no es "Otro"
+                                    _otroValorController
+                                        .clear(); // Limpiar el TextField
+                                  }
+                                });
+                              },
+                              items: tasas.map<DropdownMenuItem<double>>(
+                                (double value) {
+                                  return DropdownMenuItem<double>(
+                                    value: value,
+                                    child: Text(
+                                      value == 0.0 ? 'Otro' : '$value %',
+                                      style: TextStyle(
+                                          fontSize: 14.0, color: Colors.black),
+                                    ),
+                                  );
+                                },
+                              ).toList(),
+                              icon: Icon(Icons.arrow_drop_down,
+                                  color: Color(0xFFFB2056)),
+                              dropdownColor: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: _buildDropdown(
-                          value: garantia,
-                          hint: 'Garantía',
-                          items: ["Garantía 1", "Garantía 2"],
-                          onChanged: (value) => setState(() {
-                            garantia = value;
-                          }),
+
+                      // Mostrar el TextField solo si se selecciona "Otro"
+                      if (tasaInteresMensualSeleccionada == 0.0) ...[
+                        SizedBox(width: 10), // Espaciado entre widgets
+                        Flexible(
+                          flex: 1,
+                          child: Container(
+                            margin: EdgeInsets.only(right: 10),
+                            height: 50,
+                            child: TextField(
+                              controller: _otroValorController,
+                              decoration: InputDecoration(
+                                hintText: 'Especificar Tasa',
+                                hintStyle: TextStyle(
+                                    fontSize: 12, color: Colors.grey[600]),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(15.0),
+                                  borderSide: BorderSide(
+                                      color: Colors.grey[400]!, width: 1.5),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(15.0),
+                                  borderSide: BorderSide(
+                                      color: Color(0xFFFB2056), width: 1.5),
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                    vertical: 10, horizontal: 10),
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                setState(() {
+                                  otroValor = value.isEmpty ? null : value;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // Espaciado adicional solo si no se selecciona "Otro"
+                      if (tasaInteresMensualSeleccionada != 0.0)
+                        SizedBox(width: 10), // Espaciado entre los dropdowns
+
+                      // Dropdown de Plazos
+                      Flexible(
+                        flex: tasaInteresMensualSeleccionada == 0.0
+                            ? 2
+                            : 1, // Si se selecciona "Otro", ocupa menos espacio
+                        child: Container(
+                          height: 50,
+                          child: _buildDropdown(
+                            value: garantia,
+                            hint: 'Garantía',
+                            items: ["5%", "10%"],
+                            onChanged: (value) => setState(() {
+                              garantia = value;
+                            }),
+                          ),
                         ),
                       ),
                     ],
@@ -332,7 +601,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                     ? null
                                     : plazoController.text,
                                 hint: 'Elige plazo',
-                                items: ["4 meses"],
+                                items: ["4"],
                                 onChanged: (value) {
                                   setState(() {
                                     plazoController.text = value ?? "";
@@ -382,97 +651,37 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     );
   }
 
+  // Lista para almacenar los controladores de los TextFields
+  List<TextEditingController> _controladoresIntegrantes = [];
+
   Widget _paginaIntegrantes() {
-  int pasoActual = 2; // Paso actual para esta página
+    int pasoActual = 2; // Paso actual para esta página
 
-  // Datos simulados de integrantes
-  if (integrantes.isEmpty) {
-    integrantes = [
-      {'id': 1, 'nombre': 'Juan Pérez'},
-      {'id': 2, 'nombre': 'Ana López'},
-      {'id': 3, 'nombre': 'Luis Gómez'},
-    ];
+    // Si no hemos cargado los integrantes, los inicializamos
+    if (integrantes.isEmpty && selectedGrupo != null) {
+      // Obtener el grupo seleccionado
+      var grupoSeleccionado = listaGrupos.firstWhere((grupo) =>
+          grupo.nombreGrupo ==
+          selectedGrupo); // Seleccionamos el grupo por nombre
 
-    // Inicializamos los montos individuales en 0.0
-    for (var i = 0; i < integrantes.length; i++) {
-      montosIndividuales[i] = 0.0;
-    }
-  }
+      // Usamos los clientes del grupo seleccionado
+      integrantes = grupoSeleccionado.clientes;
 
-  return Row(
-    children: [
-      _recuadroPasos(pasoActual), // Recuadro de pasos
-      SizedBox(width: 50), // Espacio entre el recuadro y el contenido
+      // Inicializamos los montos individuales en 0.0 para cada cliente
+      for (var i = 0; i < integrantes.length; i++) {
+        montosIndividuales[
+            integrantes[i].idclientes]; // Usamos el idclientes como clave
+      }
 
-      // Contenido de la página
-      Expanded(
-        child: Form(
-          key: _miembrosGrupoFormKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Asignar Monto a Integrantes',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 20),
-
-              // Lista de integrantes
-              Expanded(
-                child: ListView.builder(
-                  itemCount: integrantes.length,
-                  itemBuilder: (context, index) {
-                    final integrante = integrantes[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              integrante['nombre'] ?? 'Integrante ${index + 1}',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          Expanded(
-                            flex: 1,
-                            child: _buildTextField(
-                              controller: TextEditingController(
-                                text: montosIndividuales[index]?.toStringAsFixed(2),
-                              ),
-                              label: 'Monto',
-                              icon: Icons.attach_money,
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Por favor ingresa un monto';
-                                }
-                                return null;
-                              },
-                              fontSize: 16.0,
-                              maxLength: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              SizedBox(height: 20),
-            ],
-          ),
+      // Inicializamos los controladores asociados a cada integrante
+      _controladoresIntegrantes = List.generate(
+        integrantes.length,
+        (index) => TextEditingController(
+          text: montosIndividuales[integrantes[index].idclientes]
+              ?.toStringAsFixed(2),
         ),
-      ),
-    ],
-  );
-}
-
-
-  Widget _paginaResumen() {
-    int pasoActual = 3; // Paso actual para esta página
+      );
+    }
 
     return Row(
       children: [
@@ -481,13 +690,661 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
         // Contenido de la página
         Expanded(
-          child: Center(
-            child: Text(
-              'Resumen del Crédito',
-              style: TextStyle(fontSize: 18),
+          child: Form(
+            key: _miembrosGrupoFormKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Asignar Monto a Integrantes',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 20),
+
+                // Lista de integrantes
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: integrantes.length,
+                    itemBuilder: (context, index) {
+                      final cliente = integrantes[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                cliente.nombres ?? 'Integrante ${index + 1}',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              flex: 1,
+                              child: _buildTextField(
+                                controller: _controladoresIntegrantes[index],
+                                label: 'Monto',
+                                icon: Icons.attach_money,
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Por favor ingresa un monto';
+                                  }
+
+                                  // Actualizamos el monto en el mapa usando el id del cliente
+                                  try {
+                                    double nuevoMonto = double.parse(value);
+                                    montosIndividuales[cliente.idclientes] =
+                                        nuevoMonto;
+                                  } catch (e) {
+                                    return 'Monto inválido';
+                                  }
+
+                                  return null;
+                                },
+                                onChanged: (value) {
+                                  // Actualizamos el monto en tiempo real usando el id del cliente
+                                  montosIndividuales[cliente.idclientes] =
+                                      double.tryParse(value) ?? 0.0;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                SizedBox(height: 20),
+              ],
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  DateTime calcularFechaTermino(
+      DateTime fechaInicio, String frecuenciaPago, int plazo) {
+    // Verificar si la frecuencia de pago es "Semanal" o "Quincenal"
+    int diasSumar = 0;
+    if (frecuenciaPago == "Semanal") {
+      diasSumar = plazo * 7; // Si es semanal, multiplicamos el plazo por 7 días
+    } else if (frecuenciaPago == "Quincenal") {
+      diasSumar =
+          plazo * 15; // Si es quincenal, multiplicamos el plazo por 15 días
+    }
+
+    return fechaInicio.add(
+        Duration(days: diasSumar)); // Sumamos los días a la fecha de inicio
+  }
+
+  Widget _paginaResumen() {
+    int pasoActual = 3; // Paso actual para esta página
+
+    // Formatear los datos para mostrarlos
+    String montoAutorizado =
+        formatearNumero(double.tryParse(montoController.text) ?? 0.0);
+
+    const double fontSize = 12.0;
+
+    // Lógica para manejar la tasa de interés
+    String tasaInteres;
+    double tasaInteresMensualCalculada;
+    if (tasaInteresMensualSeleccionada != null &&
+        tasaInteresMensualSeleccionada != 0.0) {
+      tasaInteres = "$tasaInteresMensualSeleccionada %";
+      tasaInteresMensualCalculada = tasaInteresMensualSeleccionada!;
+    } else if (_otroValorController.text.isNotEmpty) {
+      tasaInteres = "${_otroValorController.text} %";
+      tasaInteresMensualCalculada =
+          double.tryParse(_otroValorController.text) ?? 0.0;
+    } else {
+      tasaInteres = "No especificada";
+      tasaInteresMensualCalculada =
+          0.0; // Asegura que no sea null en los cálculos
+    }
+
+    String garantiaTexto = garantia ?? "No especificada";
+    String frecuenciaPagoTexto = frecuenciaPago ?? "No especificada";
+
+    // Cálculos de resumen
+    double monto = double.tryParse(montoController.text) ?? 0.0;
+    int plazoNumerico = int.tryParse(plazoController.text) ?? 0;
+
+    // Variables comunes
+    double capitalPago = 0.0;
+    double interesPago = 0.0;
+    double pagoTotal = 0.0;
+    double interesTotal = 0.0;
+    double interesGlobal =
+        tasaInteresMensualCalculada * 4; // Interés anualizado
+
+    if (frecuenciaPago == "Semanal") {
+      int pagosTotales = plazoNumerico;
+      capitalPago = monto / pagosTotales;
+      interesPago = monto * (tasaInteresMensualCalculada / 4 / 100);
+      interesTotal = interesPago * pagosTotales;
+      pagoTotal = capitalPago + interesPago;
+    } else if (frecuenciaPago == "Quincenal") {
+      int pagosTotales = plazoNumerico * 2;
+      capitalPago = monto / pagosTotales;
+      interesPago = monto * (tasaInteresMensualCalculada / 2 / 100);
+      interesTotal = interesPago * pagosTotales;
+      pagoTotal = capitalPago + interesPago;
+    }
+
+    double totalARecuperar = monto + interesTotal;
+
+    // Calcular la fecha de término
+    DateTime fechaTerminoCalculada =
+        calcularFechaTermino(fechaInicio, frecuenciaPago!, plazoNumerico);
+
+    return Row(
+      children: [
+        _recuadroPasos(pasoActual),
+        SizedBox(width: 50),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Resumen del Crédito',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 2),
+                  // Sección Datos Generales
+                  Container(
+                    margin: EdgeInsets.symmetric(vertical: 10),
+                    padding: EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          offset: Offset(0, 1),
+                          blurRadius: 3,
+                        ),
+                      ],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            // Texto 'Datos Generales - ' a la izquierda
+                            Text(
+                              'Datos Generales - ',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.w600),
+                            ),
+                            // Grupo alineado a la izquierda
+                            Expanded(
+                              child: Text(
+                                selectedGrupo ?? "No especificado",
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w600),
+                                overflow: TextOverflow
+                                    .ellipsis, // Asegura que el texto largo no rompa el diseño
+                              ),
+                            ),
+                            // Fecha de inicio alineada a la derecha
+                            Text('Duración: '),
+                            Text(
+                              '${_formatearFecha(fechaInicio)}', // Formateo de fecha de inicio
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w400),
+                            ),
+                            Text(' - '),
+                            Text(
+                              '${_formatearFecha(fechaTerminoCalculada)}', // Formateo de fecha de término
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w400),
+                            ),
+                          ],
+                        ),
+                        Divider(),
+                        // Usar Rows para distribuir los datos en columnas
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _infoRow(
+                                'Monto autorizado: ', '\$${montoAutorizado}'),
+                            _infoRow('Tasa de interés mensual: ', tasaInteres),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _infoRow('Garantía: ', garantiaTexto),
+                            _infoRow(
+                              frecuenciaPago == "Semanal"
+                                  ? 'Interés Semanal: '
+                                  : frecuenciaPago == "Quincenal"
+                                      ? 'Interés Quincenal: '
+                                      : '',
+                              '${(interesPago / 100).toString()} %',
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _infoRow(
+                                'Frecuencia de pago: ', frecuenciaPagoTexto),
+                            _infoRow('Plazo: ', plazoNumerico.toString()),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _infoRow('Interés Global: ',
+                                '${formatearNumero(interesGlobal)}%'),
+                            _infoRow('Día de pago: ', diaPago!),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _infoRow(
+                                frecuenciaPago == "Semanal"
+                                    ? 'Capital Semanal: '
+                                    : frecuenciaPago == "Quincenal"
+                                        ? 'Capital Quincenal: '
+                                        : '',
+                                '\$${formatearNumero(capitalPago)}'),
+                            _infoRow(
+                                frecuenciaPago == "Semanal"
+                                    ? 'Interés Semanal: '
+                                    : frecuenciaPago == "Quincenal"
+                                        ? 'Interés Quincenal: '
+                                        : '',
+                                '\$${formatearNumero(interesPago)}'),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _infoRow(
+                                frecuenciaPago == "Semanal"
+                                    ? 'Pago Semanal: '
+                                    : frecuenciaPago == "Quincenal"
+                                        ? 'Pago Quincenal: '
+                                        : '',
+                                '\$${formatearNumero(pagoTotal)}'),
+                            _infoRow('Interés Total: ',
+                                '\$${formatearNumero(interesTotal)}'),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _infoRow('Total a Recuperar: ',
+                                '\$${formatearNumero(totalARecuperar)}'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 20),
+                  // Sección Integrantes y Montos
+                  Container(
+                    margin: EdgeInsets.symmetric(vertical: 10),
+                    padding: EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          offset: Offset(0, 2),
+                          blurRadius: 5,
+                        ),
+                      ],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Integrantes y Montos',
+                          style: TextStyle(
+                            fontSize: 18, // Usa la variable definida
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Divider(),
+                        integrantes.isNotEmpty
+                            ? SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: DataTable(
+                                  columns: [
+                                    DataColumn(
+                                        label: Text(
+                                      'Integrante',
+                                      style: TextStyle(fontSize: fontSize),
+                                    )),
+                                    DataColumn(
+                                        label: Text('Monto Individual',
+                                            style:
+                                                TextStyle(fontSize: fontSize))),
+                                    DataColumn(
+                                        label: Text('Capital Semanal',
+                                            style:
+                                                TextStyle(fontSize: fontSize))),
+                                    DataColumn(
+                                        label: Text('Interés Semanal',
+                                            style:
+                                                TextStyle(fontSize: fontSize))),
+                                    DataColumn(
+                                        label: Text('Total Capital',
+                                            style:
+                                                TextStyle(fontSize: fontSize))),
+                                    DataColumn(
+                                        label: Text('Total Intereses',
+                                            style:
+                                                TextStyle(fontSize: fontSize))),
+                                    DataColumn(
+                                        label: Text('Pago Semanal',
+                                            style:
+                                                TextStyle(fontSize: fontSize))),
+                                    DataColumn(
+                                        label: Text('Pago Total',
+                                            style:
+                                                TextStyle(fontSize: fontSize))),
+                                  ],
+                                  rows: integrantes.map<DataRow>((integrante) {
+                                    final montoIndividual = montosIndividuales[
+                                            integrante.idclientes] ??
+                                        0.0; // Obtén el monto usando idclientes como clave
+                                    final pagosTotales = (frecuenciaPago ==
+                                            "Semanal")
+                                        ? plazoNumerico
+                                        : plazoNumerico *
+                                            2; // Si es quincenal, multiplicamos por 2
+
+                                    // Calcular los valores
+                                    final capitalSemanal =
+                                        montoIndividual / pagosTotales;
+                                    final interesSemanal = montoIndividual *
+                                        (tasaInteresMensualCalculada /
+                                            (frecuenciaPago == "Semanal"
+                                                ? 4
+                                                : 2) /
+                                            100);
+                                    final pagoSemanal =
+                                        capitalSemanal + interesSemanal;
+                                    final totalCapital =
+                                        capitalSemanal * pagosTotales;
+                                    final totalIntereses =
+                                        interesSemanal * pagosTotales;
+                                    final pagoTotal =
+                                        totalCapital + totalIntereses;
+
+                                    return DataRow(cells: [
+                                      DataCell(Text(
+                                        integrante.nombres ?? 'No especificado',
+                                        style: TextStyle(fontSize: fontSize),
+                                      )),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(montoIndividual)}',
+                                          style:
+                                              TextStyle(fontSize: fontSize))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(capitalSemanal)}',
+                                          style:
+                                              TextStyle(fontSize: fontSize))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(interesSemanal)}',
+                                          style:
+                                              TextStyle(fontSize: fontSize))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(totalCapital)}',
+                                          style:
+                                              TextStyle(fontSize: fontSize))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(totalIntereses)}',
+                                          style:
+                                              TextStyle(fontSize: fontSize))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(pagoSemanal)}',
+                                          style:
+                                              TextStyle(fontSize: fontSize))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(pagoTotal)}',
+                                          style:
+                                              TextStyle(fontSize: fontSize))),
+                                    ]);
+                                  }).toList(),
+                                ),
+                              )
+                            : Text('No se han asignado integrantes.'),
+                      ],
+                    ),
+                  ),
+                  // Sección Calendario de Pagos
+                  Container(
+                    margin: EdgeInsets.symmetric(vertical: 10),
+                    padding: EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          offset: Offset(0, 2),
+                          blurRadius: 5,
+                        ),
+                      ],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Calendario de Pagos',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Divider(),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            columnSpacing: 45, // Espaciado entre columnas
+                            columns: [
+                              DataColumn(
+                                label: Text('Semana',
+                                    style: TextStyle(fontSize: 12.0)),
+                              ),
+                              DataColumn(
+                                label: Text('Fecha',
+                                    style: TextStyle(fontSize: 12.0)),
+                              ),
+                              DataColumn(
+                                label: Text('Capital',
+                                    style: TextStyle(fontSize: 12.0)),
+                              ),
+                              DataColumn(
+                                label: Text('Interés',
+                                    style: TextStyle(fontSize: 12.0)),
+                              ),
+                              DataColumn(
+                                label: Text('Pago Semanal',
+                                    style: TextStyle(fontSize: 12.0)),
+                              ),
+                              DataColumn(
+                                label: Text('Pagado',
+                                    style: TextStyle(fontSize: 12.0)),
+                              ),
+                              DataColumn(
+                                label: Text('Restante',
+                                    style: TextStyle(fontSize: 12.0)),
+                              ),
+                            ],
+                            rows: [
+                              // Semana 0 (Fecha de inicio)
+                              DataRow(
+                                cells: [
+                                  DataCell(Text('0',
+                                      style: TextStyle(fontSize: 12.0))),
+                                  DataCell(Text(_formatearFecha(fechaInicio),
+                                      style: TextStyle(fontSize: 12.0))),
+                                  DataCell(Text('\$0.00',
+                                      style: TextStyle(fontSize: 12.0))),
+                                  DataCell(Text('\$0.00',
+                                      style: TextStyle(fontSize: 12.0))),
+                                  DataCell(Text('\$0.00',
+                                      style: TextStyle(fontSize: 12.0))),
+                                  DataCell(Text('\$0.00',
+                                      style: TextStyle(fontSize: 12.0))),
+                                  DataCell(Text(
+                                      '\$${formatearNumero(totalARecuperar)}',
+                                      style: TextStyle(fontSize: 12.0))),
+                                ],
+                              ),
+                              ...List.generate(
+                                frecuenciaPago == "Semanal"
+                                    ? plazoNumerico
+                                    : plazoNumerico * 2,
+                                (index) {
+                                  final fechaPago = fechaInicio.add(
+                                    Duration(
+                                        days: (index + 1) *
+                                            (frecuenciaPago == "Semanal"
+                                                ? 7
+                                                : 14)),
+                                  );
+
+                                  final pagosTotales =
+                                      frecuenciaPago == "Semanal"
+                                          ? plazoNumerico
+                                          : plazoNumerico * 2;
+
+                                  double capitalGrupal =
+                                      integrantes.fold<double>(
+                                    0.0,
+                                    (suma, integrante) {
+                                      final montoIndividual =
+                                          montosIndividuales[
+                                                  integrante.idclientes] ??
+                                              0.0;
+                                      return suma +
+                                          (montoIndividual / pagosTotales);
+                                    },
+                                  );
+
+                                  double interesGrupal =
+                                      integrantes.fold<double>(
+                                    0.0,
+                                    (suma, integrante) {
+                                      final montoIndividual =
+                                          montosIndividuales[
+                                                  integrante.idclientes] ??
+                                              0.0;
+                                      return suma +
+                                          (montoIndividual *
+                                              (tasaInteresMensualCalculada /
+                                                  (frecuenciaPago == "Semanal"
+                                                      ? 4
+                                                      : 2) /
+                                                  100));
+                                    },
+                                  );
+
+                                  final pagoGrupal =
+                                      capitalGrupal + interesGrupal;
+
+                                  double totalPagado = pagoGrupal * (index + 1);
+                                  double totalRestante =
+                                      totalARecuperar - totalPagado;
+
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text('${index + 1}',
+                                          style: TextStyle(fontSize: 12.0))),
+                                      DataCell(Text(_formatearFecha(fechaPago),
+                                          style: TextStyle(fontSize: 12.0))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(capitalGrupal)}',
+                                          style: TextStyle(fontSize: 12.0))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(interesGrupal)}',
+                                          style: TextStyle(fontSize: 12.0))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(pagoGrupal)}',
+                                          style: TextStyle(fontSize: 12.0))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(totalPagado)}',
+                                          style: TextStyle(fontSize: 12.0))),
+                                      DataCell(Text(
+                                          '\$${formatearNumero(totalRestante)}',
+                                          style: TextStyle(fontSize: 12.0))),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+// Método para crear una fila de información clave: valor
+  Widget _infoRow(String title, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: TextStyle(fontSize: 14)),
+          Text(value,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  String formatearNumero(double numero) {
+    final formatter = NumberFormat("#,##0.00", "en_US"); // Formato español
+    return formatter.format(numero);
+  }
+
+// Widget para cada sección del resumen
+  Widget _seccionResumen(
+      {required String titulo, required List<String> contenido}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          titulo,
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 10),
+        ...contenido.map((linea) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2.0),
+            child: Text(
+              linea,
+              style: TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+          );
+        }).toList(),
       ],
     );
   }
@@ -572,23 +1429,38 @@ Widget _buildTextField({
   String? Function(String?)? validator,
   double fontSize = 12.0, // Tamaño de fuente por defecto
   int? maxLength, // Longitud máxima opcional
+  void Function(String)? onChanged, // Callback para cambios
+  double borderThickness = 1.5, // Nuevo parámetro para el grosor del borde
 }) {
   return TextFormField(
     controller: controller,
     keyboardType: keyboardType,
     style: TextStyle(fontSize: fontSize),
     decoration: InputDecoration(
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15.0),
+        borderSide: BorderSide(color: Color(0xFFFB2056), width: 1.5),
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: Colors.black, width: borderThickness),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide:
+            BorderSide(color: Colors.grey.shade400, width: borderThickness),
+      ),
       labelText: label,
       prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       labelStyle: TextStyle(fontSize: fontSize),
     ),
-    validator: validator, // Asignar el validador
+    validator: validator,
+    onChanged: onChanged, // Agregar soporte para onChanged
     inputFormatters: maxLength != null
         ? [
-            LengthLimitingTextInputFormatter(maxLength)
-          ] // Limita a la longitud especificada
-        : [], // Sin limitación si maxLength es null
+            LengthLimitingTextInputFormatter(maxLength),
+          ]
+        : [],
   );
 }
 
@@ -599,6 +1471,7 @@ Widget _buildDropdown({
   required void Function(String?) onChanged,
   double fontSize = 12.0,
   String? Function(String?)? validator,
+  double borderThickness = 1.5, // Nuevo parámetro para el grosor del borde
 }) {
   return DropdownButtonFormField<String>(
     value: value,
@@ -617,23 +1490,92 @@ Widget _buildDropdown({
         ),
       );
     }).toList(),
+    icon: Icon(Icons.arrow_drop_down, color: Color(0xFFFB2056)),
+    dropdownColor: Colors.white,
     onChanged: onChanged,
     validator: validator,
     decoration: InputDecoration(
       labelText: value != null ? hint : null,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: Colors.black, width: borderThickness),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade700),
+        borderRadius: BorderRadius.circular(15),
+        borderSide:
+            BorderSide(color: Colors.grey.shade400, width: borderThickness),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: Colors.black, width: borderThickness),
       ),
     ),
     style: TextStyle(fontSize: fontSize, color: Colors.black),
   );
+}
+
+class Grupo {
+  final String idgrupos;
+  final String tipoGrupo;
+  final String nombreGrupo;
+  final String detalles;
+  final String asesor;
+  final String fCreacion;
+  final String estado;
+  final List<Cliente> clientes; // Usamos la lista de objetos Cliente
+
+  Grupo({
+    required this.idgrupos,
+    required this.tipoGrupo,
+    required this.nombreGrupo,
+    required this.detalles,
+    required this.asesor,
+    required this.fCreacion,
+    required this.estado,
+    required this.clientes, // Inicializamos la lista de clientes
+  });
+
+  factory Grupo.fromJson(Map<String, dynamic> json) {
+    return Grupo(
+      idgrupos: json['idgrupos'],
+      tipoGrupo: json['tipoGrupo'],
+      nombreGrupo: json['nombreGrupo'],
+      detalles: json['detalles'],
+      asesor: json['asesor'],
+      fCreacion: json['fCreacion'],
+      estado: json['estado'],
+      clientes: (json['clientes'] as List)
+          .map((clienteJson) => Cliente.fromJson(clienteJson))
+          .toList(), // Convertimos cada cliente a un objeto Cliente
+    );
+  }
+}
+
+class Cliente {
+  final String idclientes;
+  final String nombres;
+  final String telefono;
+  final String fechaNacimiento;
+  final String cargo;
+  final double? montoIndividual;
+
+  Cliente({
+    required this.idclientes,
+    required this.nombres,
+    required this.telefono,
+    required this.fechaNacimiento,
+    required this.cargo,
+    this.montoIndividual,
+  });
+
+  factory Cliente.fromJson(Map<String, dynamic> json) {
+    return Cliente(
+      idclientes: json['idclientes'],
+      nombres: json['nombres'],
+      telefono: json['telefono'],
+      fechaNacimiento: json['fechaNacimiento'],
+      cargo: json['cargo'],
+      montoIndividual: json['montoIndividual']?.toDouble(),
+    );
+  }
 }
