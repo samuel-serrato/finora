@@ -20,13 +20,16 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentIndex = 0;
-
+  final DateFormat _dateFormat = DateFormat('dd/MM/yyyy');
   final GlobalKey<FormState> _formKey =
       GlobalKey<FormState>(); // Formulario general
   final GlobalKey<FormState> _infoGrupoFormKey =
       GlobalKey<FormState>(); // Formulario de Datos Generales
   final GlobalKey<FormState> _miembrosGrupoFormKey =
       GlobalKey<FormState>(); // Formulario de Integrantes
+
+  late ScrollController _scrollControllerIntegrantes;
+  late ScrollController _scrollControllerCPagos;
 
   String? garantia;
   String? frecuenciaPago;
@@ -84,10 +87,20 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       });
     });
 
+    _scrollControllerIntegrantes = ScrollController();
+    _scrollControllerCPagos = ScrollController();
+
     // Inicializar con el día de la semana de la fecha de inicio
     diaPago = _diaDeLaSemana(fechaInicio);
     frecuenciaPago = "Semanal"; // Valor predeterminado
     obtenerGrupos();
+  }
+
+  @override
+  void dispose() {
+    _scrollControllerIntegrantes.dispose();
+    _scrollControllerCPagos.dispose();
+    super.dispose();
   }
 
   Future<void> _mostrarDialogoAdvertencia(BuildContext context) async {
@@ -629,7 +642,23 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                             initialDate: fechaInicio,
                             firstDate: DateTime(2020),
                             lastDate: DateTime(2030),
+                            locale: Locale('es', 'ES'),
+                            builder: (BuildContext context, Widget? child) {
+                              return Theme(
+                                data: ThemeData.light().copyWith(
+                                  primaryColor: Colors
+                                      .white, // Cambia el color de los elementos destacados
+
+                                  colorScheme:
+                                      ColorScheme.fromSwatch().copyWith(
+                                    primary: Color(0xFFFB2056),
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
                           );
+
                           if (nuevaFecha != null) {
                             setState(() {
                               fechaInicio = nuevaFecha;
@@ -882,14 +911,14 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                             Text(
                               'Datos Generales - ',
                               style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w600),
+                                  fontSize: 16, fontWeight: FontWeight.w600),
                             ),
                             // Grupo alineado a la izquierda
                             Expanded(
                               child: Text(
                                 selectedGrupo ?? "No especificado",
                                 style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.w600),
+                                    fontSize: 16, fontWeight: FontWeight.w600),
                                 overflow: TextOverflow
                                     .ellipsis, // Asegura que el texto largo no rompa el diseño
                               ),
@@ -946,7 +975,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                           children: [
                             _infoRow('Interés Global: ',
                                 '${formatearNumero(interesGlobal)}%'),
-                            _infoRow('Día de pago: ', diaPago!),
+                            // Condicional para el "Día de pago"
+                            frecuenciaPago == "Quincenal"
+                                ? _infoRow('Día de pago: ', 'Cada quincena')
+                                : _infoRow('Día de pago: ', diaPago!),
                           ],
                         ),
                         Row(
@@ -1015,113 +1047,133 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         Text(
                           'Integrantes y Montos',
                           style: TextStyle(
-                            fontSize: 18, // Usa la variable definida
+                            fontSize: 18,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         Divider(),
                         integrantes.isNotEmpty
-                            ? SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: DataTable(
-                                  columns: [
-                                    DataColumn(
-                                        label: Text(
-                                      'Integrante',
-                                      style: TextStyle(fontSize: fontSize),
-                                    )),
-                                    DataColumn(
-                                        label: Text('Monto Individual',
-                                            style:
-                                                TextStyle(fontSize: fontSize))),
-                                    DataColumn(
-                                        label: Text('Capital Semanal',
-                                            style:
-                                                TextStyle(fontSize: fontSize))),
-                                    DataColumn(
-                                        label: Text('Interés Semanal',
-                                            style:
-                                                TextStyle(fontSize: fontSize))),
-                                    DataColumn(
-                                        label: Text('Total Capital',
-                                            style:
-                                                TextStyle(fontSize: fontSize))),
-                                    DataColumn(
-                                        label: Text('Total Intereses',
-                                            style:
-                                                TextStyle(fontSize: fontSize))),
-                                    DataColumn(
-                                        label: Text('Pago Semanal',
-                                            style:
-                                                TextStyle(fontSize: fontSize))),
-                                    DataColumn(
-                                        label: Text('Pago Total',
-                                            style:
-                                                TextStyle(fontSize: fontSize))),
-                                  ],
-                                  rows: integrantes.map<DataRow>((integrante) {
-                                    final montoIndividual = montosIndividuales[
-                                            integrante.idclientes] ??
-                                        0.0; // Obtén el monto usando idclientes como clave
-                                    final pagosTotales = (frecuenciaPago ==
-                                            "Semanal")
-                                        ? plazoNumerico
-                                        : plazoNumerico *
-                                            2; // Si es quincenal, multiplicamos por 2
-
-                                    // Calcular los valores
-                                    final capitalSemanal =
-                                        montoIndividual / pagosTotales;
-                                    final interesSemanal = montoIndividual *
-                                        (tasaInteresMensualCalculada /
-                                            (frecuenciaPago == "Semanal"
-                                                ? 4
-                                                : 2) /
-                                            100);
-                                    final pagoSemanal =
-                                        capitalSemanal + interesSemanal;
-                                    final totalCapital =
-                                        capitalSemanal * pagosTotales;
-                                    final totalIntereses =
-                                        interesSemanal * pagosTotales;
-                                    final pagoTotal =
-                                        totalCapital + totalIntereses;
-
-                                    return DataRow(cells: [
-                                      DataCell(Text(
-                                        integrante.nombres ?? 'No especificado',
-                                        style: TextStyle(fontSize: fontSize),
+                            ? Scrollbar(
+                                thickness: 7,
+                                thumbVisibility:
+                                    true, // Hace visible el thumb del Scrollbar
+                                trackVisibility:
+                                    true, // Hace visible el track del Scrollbar
+                                controller:
+                                    _scrollControllerIntegrantes, // Controlador del Scrollbar
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  controller: _scrollControllerIntegrantes,
+                                  child: DataTable(
+                                    columnSpacing:
+                                        20, // Espaciado entre columnas
+                                    columns: [
+                                      DataColumn(
+                                          label: Text(
+                                        'Integrante',
+                                        style: TextStyle(fontSize: 12),
                                       )),
-                                      DataCell(Text(
+                                      DataColumn(
+                                          label: Text(
+                                        'Monto Individual',
+                                        style: TextStyle(fontSize: 12),
+                                      )),
+                                      DataColumn(
+                                          label: Text(
+                                        'Capital Semanal',
+                                        style: TextStyle(fontSize: 12),
+                                      )),
+                                      DataColumn(
+                                          label: Text(
+                                        'Interés Semanal',
+                                        style: TextStyle(fontSize: 12),
+                                      )),
+                                      DataColumn(
+                                          label: Text(
+                                        'Total Capital',
+                                        style: TextStyle(fontSize: 12),
+                                      )),
+                                      DataColumn(
+                                          label: Text(
+                                        'Total Intereses',
+                                        style: TextStyle(fontSize: 12),
+                                      )),
+                                      DataColumn(
+                                          label: Text(
+                                        'Pago Semanal',
+                                        style: TextStyle(fontSize: 12),
+                                      )),
+                                      DataColumn(
+                                          label: Text(
+                                        'Pago Total',
+                                        style: TextStyle(fontSize: 12),
+                                      )),
+                                    ],
+                                    rows:
+                                        integrantes.map<DataRow>((integrante) {
+                                      final montoIndividual =
+                                          montosIndividuales[
+                                                  integrante.idclientes] ??
+                                              0.0;
+                                      final pagosTotales =
+                                          (frecuenciaPago == "Semanal")
+                                              ? plazoNumerico
+                                              : plazoNumerico * 2;
+
+                                      final capitalSemanal =
+                                          montoIndividual / pagosTotales;
+                                      final interesSemanal = montoIndividual *
+                                          (tasaInteresMensualCalculada /
+                                              (frecuenciaPago == "Semanal"
+                                                  ? 4
+                                                  : 2) /
+                                              100);
+                                      final pagoSemanal =
+                                          capitalSemanal + interesSemanal;
+                                      final totalCapital =
+                                          capitalSemanal * pagosTotales;
+                                      final totalIntereses =
+                                          interesSemanal * pagosTotales;
+                                      final pagoTotal =
+                                          totalCapital + totalIntereses;
+
+                                      return DataRow(cells: [
+                                        DataCell(Text(
+                                          integrante.nombres ??
+                                              'No especificado',
+                                          style: TextStyle(fontSize: 12),
+                                        )),
+                                        DataCell(Text(
                                           '\$${formatearNumero(montoIndividual)}',
-                                          style:
-                                              TextStyle(fontSize: fontSize))),
-                                      DataCell(Text(
+                                          style: TextStyle(fontSize: 12),
+                                        )),
+                                        DataCell(Text(
                                           '\$${formatearNumero(capitalSemanal)}',
-                                          style:
-                                              TextStyle(fontSize: fontSize))),
-                                      DataCell(Text(
+                                          style: TextStyle(fontSize: 12),
+                                        )),
+                                        DataCell(Text(
                                           '\$${formatearNumero(interesSemanal)}',
-                                          style:
-                                              TextStyle(fontSize: fontSize))),
-                                      DataCell(Text(
+                                          style: TextStyle(fontSize: 12),
+                                        )),
+                                        DataCell(Text(
                                           '\$${formatearNumero(totalCapital)}',
-                                          style:
-                                              TextStyle(fontSize: fontSize))),
-                                      DataCell(Text(
+                                          style: TextStyle(fontSize: 12),
+                                        )),
+                                        DataCell(Text(
                                           '\$${formatearNumero(totalIntereses)}',
-                                          style:
-                                              TextStyle(fontSize: fontSize))),
-                                      DataCell(Text(
+                                          style: TextStyle(fontSize: 12),
+                                        )),
+                                        DataCell(Text(
                                           '\$${formatearNumero(pagoSemanal)}',
-                                          style:
-                                              TextStyle(fontSize: fontSize))),
-                                      DataCell(Text(
+                                          style: TextStyle(fontSize: 12),
+                                        )),
+                                        DataCell(Text(
                                           '\$${formatearNumero(pagoTotal)}',
-                                          style:
-                                              TextStyle(fontSize: fontSize))),
-                                    ]);
-                                  }).toList(),
+                                          style: TextStyle(fontSize: 12),
+                                        )),
+                                      ]);
+                                    }).toList(),
+                                  ),
                                 ),
                               )
                             : Text('No se han asignado integrantes.'),
@@ -1154,143 +1206,150 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                           ),
                         ),
                         Divider(),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columnSpacing: 45, // Espaciado entre columnas
-                            columns: [
-                              DataColumn(
-                                label: Text('Semana',
-                                    style: TextStyle(fontSize: 12.0)),
-                              ),
-                              DataColumn(
-                                label: Text('Fecha',
-                                    style: TextStyle(fontSize: 12.0)),
-                              ),
-                              DataColumn(
-                                label: Text('Capital',
-                                    style: TextStyle(fontSize: 12.0)),
-                              ),
-                              DataColumn(
-                                label: Text('Interés',
-                                    style: TextStyle(fontSize: 12.0)),
-                              ),
-                              DataColumn(
-                                label: Text('Pago Semanal',
-                                    style: TextStyle(fontSize: 12.0)),
-                              ),
-                              DataColumn(
-                                label: Text('Pagado',
-                                    style: TextStyle(fontSize: 12.0)),
-                              ),
-                              DataColumn(
-                                label: Text('Restante',
-                                    style: TextStyle(fontSize: 12.0)),
-                              ),
-                            ],
-                            rows: [
-                              // Semana 0 (Fecha de inicio)
-                              DataRow(
-                                cells: [
-                                  DataCell(Text('0',
-                                      style: TextStyle(fontSize: 12.0))),
-                                  DataCell(Text(_formatearFecha(fechaInicio),
-                                      style: TextStyle(fontSize: 12.0))),
-                                  DataCell(Text('\$0.00',
-                                      style: TextStyle(fontSize: 12.0))),
-                                  DataCell(Text('\$0.00',
-                                      style: TextStyle(fontSize: 12.0))),
-                                  DataCell(Text('\$0.00',
-                                      style: TextStyle(fontSize: 12.0))),
-                                  DataCell(Text('\$0.00',
-                                      style: TextStyle(fontSize: 12.0))),
-                                  DataCell(Text(
-                                      '\$${formatearNumero(totalARecuperar)}',
-                                      style: TextStyle(fontSize: 12.0))),
-                                ],
-                              ),
-                              ...List.generate(
-                                frecuenciaPago == "Semanal"
-                                    ? plazoNumerico
-                                    : plazoNumerico * 2,
-                                (index) {
-                                  final fechaPago = fechaInicio.add(
-                                    Duration(
-                                        days: (index + 1) *
-                                            (frecuenciaPago == "Semanal"
-                                                ? 7
-                                                : 14)),
-                                  );
+                        Scrollbar(
+                          thickness: 7,
+                          thumbVisibility: true,
+                          controller: _scrollControllerCPagos,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            controller: _scrollControllerCPagos,
+                            child: DataTable(
+                              columnSpacing: 40,
+                              columns: [
+                                DataColumn(
+                                    label: Text('Pago',
+                                        style: TextStyle(fontSize: 12.0))),
+                                DataColumn(
+                                    label: Text('Fecha',
+                                        style: TextStyle(fontSize: 12.0))),
+                                DataColumn(
+                                    label: Text('Capital',
+                                        style: TextStyle(fontSize: 12.0))),
+                                DataColumn(
+                                    label: Text('Interés',
+                                        style: TextStyle(fontSize: 12.0))),
+                                DataColumn(
+                                    label: Text('Pago Total',
+                                        style: TextStyle(fontSize: 12.0))),
+                                DataColumn(
+                                    label: Text('Pagado',
+                                        style: TextStyle(fontSize: 12.0))),
+                                DataColumn(
+                                    label: Text('Restante',
+                                        style: TextStyle(fontSize: 12.0))),
+                              ],
+                              rows: [
+                                // Semana 0 (Fecha de inicio)
+                                DataRow(
+                                  cells: [
+                                    DataCell(Text('0',
+                                        style: TextStyle(fontSize: 12.0))),
+                                    DataCell(Text(_formatearFecha(fechaInicio),
+                                        style: TextStyle(fontSize: 12.0))),
+                                    DataCell(Text('\$0.00',
+                                        style: TextStyle(fontSize: 12.0))),
+                                    DataCell(Text('\$0.00',
+                                        style: TextStyle(fontSize: 12.0))),
+                                    DataCell(Text('\$0.00',
+                                        style: TextStyle(fontSize: 12.0))),
+                                    DataCell(Text('\$0.00',
+                                        style: TextStyle(fontSize: 12.0))),
+                                    DataCell(Text(
+                                        '\$${formatearNumero(totalARecuperar)}',
+                                        style: TextStyle(fontSize: 12.0))),
+                                  ],
+                                ),
+                                // Generar filas con fechas de pago semanal
+                                ...List.generate(
+                                  frecuenciaPago == "Semanal"
+                                      ? plazoNumerico
+                                      : plazoNumerico *
+                                          2, // Si es semanal, usamos la cantidad de pagos semanales, si es quincenal, los multiplicamos por 2.
+                                  (index) {
+                                    DateTime fechaPago;
+                                    if (frecuenciaPago == "Semanal") {
+                                      // Si es semanal, el primer pago es la siguiente semana
+                                      fechaPago = fechaInicio
+                                          .add(Duration(days: (index + 1) * 7));
+                                    } else {
+                                      // Si es quincenal, utilizamos las fechas calculadas con las quincenas
+                                      final fechasDePago =
+                                          calcularFechasDePago(fechaInicio);
+                                      fechaPago =
+                                          DateTime.parse(fechasDePago[index]);
+                                    }
 
-                                  final pagosTotales =
-                                      frecuenciaPago == "Semanal"
-                                          ? plazoNumerico
-                                          : plazoNumerico * 2;
+                                    final pagosTotales =
+                                        frecuenciaPago == "Semanal"
+                                            ? plazoNumerico
+                                            : plazoNumerico * 2;
 
-                                  double capitalGrupal =
-                                      integrantes.fold<double>(
-                                    0.0,
-                                    (suma, integrante) {
-                                      final montoIndividual =
-                                          montosIndividuales[
-                                                  integrante.idclientes] ??
-                                              0.0;
-                                      return suma +
-                                          (montoIndividual / pagosTotales);
-                                    },
-                                  );
+                                    double capitalGrupal =
+                                        integrantes.fold<double>(
+                                      0.0,
+                                      (suma, integrante) {
+                                        final montoIndividual =
+                                            montosIndividuales[
+                                                    integrante.idclientes] ??
+                                                0.0;
+                                        return suma +
+                                            (montoIndividual / pagosTotales);
+                                      },
+                                    );
 
-                                  double interesGrupal =
-                                      integrantes.fold<double>(
-                                    0.0,
-                                    (suma, integrante) {
-                                      final montoIndividual =
-                                          montosIndividuales[
-                                                  integrante.idclientes] ??
-                                              0.0;
-                                      return suma +
-                                          (montoIndividual *
-                                              (tasaInteresMensualCalculada /
-                                                  (frecuenciaPago == "Semanal"
-                                                      ? 4
-                                                      : 2) /
-                                                  100));
-                                    },
-                                  );
+                                    double interesGrupal =
+                                        integrantes.fold<double>(
+                                      0.0,
+                                      (suma, integrante) {
+                                        final montoIndividual =
+                                            montosIndividuales[
+                                                    integrante.idclientes] ??
+                                                0.0;
+                                        return suma +
+                                            (montoIndividual *
+                                                (tasaInteresMensualCalculada /
+                                                    (frecuenciaPago == "Semanal"
+                                                        ? 4
+                                                        : 2) /
+                                                    100));
+                                      },
+                                    );
 
-                                  final pagoGrupal =
-                                      capitalGrupal + interesGrupal;
+                                    final pagoGrupal =
+                                        capitalGrupal + interesGrupal;
+                                    double totalPagado =
+                                        pagoGrupal * (index + 1);
+                                    double totalRestante =
+                                        totalARecuperar - totalPagado;
 
-                                  double totalPagado = pagoGrupal * (index + 1);
-                                  double totalRestante =
-                                      totalARecuperar - totalPagado;
-
-                                  return DataRow(
-                                    cells: [
-                                      DataCell(Text('${index + 1}',
-                                          style: TextStyle(fontSize: 12.0))),
-                                      DataCell(Text(_formatearFecha(fechaPago),
-                                          style: TextStyle(fontSize: 12.0))),
-                                      DataCell(Text(
-                                          '\$${formatearNumero(capitalGrupal)}',
-                                          style: TextStyle(fontSize: 12.0))),
-                                      DataCell(Text(
-                                          '\$${formatearNumero(interesGrupal)}',
-                                          style: TextStyle(fontSize: 12.0))),
-                                      DataCell(Text(
-                                          '\$${formatearNumero(pagoGrupal)}',
-                                          style: TextStyle(fontSize: 12.0))),
-                                      DataCell(Text(
-                                          '\$${formatearNumero(totalPagado)}',
-                                          style: TextStyle(fontSize: 12.0))),
-                                      DataCell(Text(
-                                          '\$${formatearNumero(totalRestante)}',
-                                          style: TextStyle(fontSize: 12.0))),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ],
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(Text('${index + 1}',
+                                            style: TextStyle(fontSize: 12.0))),
+                                        DataCell(Text(
+                                            _formatearFecha(fechaPago),
+                                            style: TextStyle(fontSize: 12.0))),
+                                        DataCell(Text(
+                                            '\$${formatearNumero(capitalGrupal)}',
+                                            style: TextStyle(fontSize: 12.0))),
+                                        DataCell(Text(
+                                            '\$${formatearNumero(interesGrupal)}',
+                                            style: TextStyle(fontSize: 12.0))),
+                                        DataCell(Text(
+                                            '\$${formatearNumero(pagoGrupal)}',
+                                            style: TextStyle(fontSize: 12.0))),
+                                        DataCell(Text(
+                                            '\$${formatearNumero(totalPagado)}',
+                                            style: TextStyle(fontSize: 12.0))),
+                                        DataCell(Text(
+                                            '\$${formatearNumero(totalRestante)}',
+                                            style: TextStyle(fontSize: 12.0))),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -1303,6 +1362,100 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         ),
       ],
     );
+  } // Función para calcular las fechas de pago semanal con las condiciones corregidas
+
+  List<String> calcularFechasDePagoSemanal(
+      DateTime fechaInicio, int cantidadPagos) {
+    List<String> fechasDePago = [];
+
+    // El primer pago es exactamente una semana después de la fecha de inicio
+    DateTime primerPago = fechaInicio.add(Duration(days: 7));
+
+    // Generar las fechas de pago semanales
+    for (int i = 0; i < cantidadPagos; i++) {
+      fechasDePago
+          .add(_dateFormat.format(primerPago)); // Usamos el formato dd/MM/yyyy
+      primerPago = primerPago.add(Duration(days: 7)); // Se avanza una semana
+    }
+
+    return fechasDePago;
+  }
+
+// Función para calcular el siguiente lunes desde la fecha
+  DateTime _calcularSiguienteLunes(DateTime fechaInicio) {
+    int diasHastaLunes = DateTime.monday - fechaInicio.weekday;
+    if (diasHastaLunes <= 0) {
+      diasHastaLunes += 7; // Si el día es lunes o después, sumamos 7 días
+    }
+    return fechaInicio.add(Duration(days: diasHastaLunes));
+  }
+
+// Función para calcular las fechas de pago quincenales con las condiciones corregidas
+  List<String> calcularFechasDePago(DateTime fechaInicio) {
+    List<String> fechasDePago = [];
+    DateTime primerPago = _calcularPrimerPago(fechaInicio);
+
+    for (int i = 0; i < 8; i++) {
+      // Usamos el formato ISO para las fechas (yyyy-MM-dd) antes de almacenarlas
+      fechasDePago
+          .add(primerPago.toIso8601String().substring(0, 10)); // "yyyy-MM-dd"
+
+      if (primerPago.day == 30 ||
+          (primerPago.month == 2 && primerPago.day == 28)) {
+        primerPago = _siguienteQuincena(primerPago, 15);
+      } else {
+        primerPago = _siguienteQuincena(primerPago, 30);
+      }
+    }
+
+    return fechasDePago;
+  }
+
+// Función para calcular el primer pago (quincenal)
+  DateTime _calcularPrimerPago(DateTime fechaInicio) {
+    int dia = fechaInicio.day;
+
+    if (dia <= 10) {
+      // Antes del 10: paga el 15 del mes
+      return DateTime(fechaInicio.year, fechaInicio.month, 15);
+    } else if (dia > 10 && dia <= 25) {
+      // Entre el 11 y el 25: paga el 30 del mes
+      return DateTime(fechaInicio.year, fechaInicio.month, 30);
+    } else {
+      // Después del 25: paga el 15 del próximo mes
+      int siguienteMes = fechaInicio.month == 12 ? 1 : fechaInicio.month + 1;
+      int siguienteAno =
+          fechaInicio.month == 12 ? fechaInicio.year + 1 : fechaInicio.year;
+      return DateTime(siguienteAno, siguienteMes, 15);
+    }
+  }
+
+// Función para calcular la siguiente quincena después de la fecha dada
+  DateTime _siguienteQuincena(DateTime fecha, int dia) {
+    // Verificamos si el día solicitado (30) es válido para el mes
+    if (dia == 30) {
+      // Si es febrero, verificamos si el año es bisiesto
+      if (fecha.month == 2) {
+        if (fecha.year % 4 == 0 &&
+            (fecha.year % 100 != 0 || fecha.year % 400 == 0)) {
+          return DateTime(
+              fecha.year, fecha.month, 29); // Año bisiesto, febrero tiene 29
+        }
+        return DateTime(
+            fecha.year, fecha.month, 28); // Febrero en años no bisiestos
+      }
+
+      // Si el mes es de 30 días (abril, junio, septiembre, noviembre), retornamos el día 30
+      if ([4, 6, 9, 11].contains(fecha.month)) {
+        return DateTime(fecha.year, fecha.month, 30);
+      }
+
+      // Si el mes tiene 31 días, el día 30 es válido, así que lo dejamos tal cual
+      return DateTime(fecha.year, fecha.month, 30);
+    } else {
+      // Si es el 15, simplemente retornamos el 15 del siguiente mes
+      return DateTime(fecha.year, fecha.month + 1, 15);
+    }
   }
 
 // Método para crear una fila de información clave: valor
@@ -1312,7 +1465,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: TextStyle(fontSize: 14)),
+          Text(title, style: TextStyle(fontSize: 12)),
           Text(value,
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
         ],
