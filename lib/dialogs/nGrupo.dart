@@ -79,28 +79,31 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     }
   }
 
-  void _mostrarDialogo({required String title, required String message, required bool isSuccess}) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text(
-          title,
-          style: TextStyle(color: isSuccess ? Colors.green : Colors.red),
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Cierra el diálogo
-            },
-            child: Text('Aceptar'),
+  void _mostrarDialogo(
+      {required String title,
+      required String message,
+      required bool isSuccess}) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            title,
+            style: TextStyle(color: isSuccess ? Colors.green : Colors.red),
           ),
-        ],
-      );
-    },
-  );
-}
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cierra el diálogo
+              },
+              child: Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _agregarGrupo() async {
     setState(() {
@@ -162,7 +165,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         headers: headers,
         body: json.encode(data),
       );
-     
+
       print("Código de estado de la respuesta: ${response.statusCode}");
       print("Cuerpo de la respuesta: ${response.body}");
 
@@ -173,23 +176,22 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       } else {
         print("Error en crear grupo: ${response.statusCode}");
 
-      // Formatea el mensaje de error
-      final responseBody = jsonDecode(response.body);
-      final errorCode = responseBody['Error']?['Code'];
-      final errorMessage = responseBody['Error']?['Message'];
+        // Formatea el mensaje de error
+        final responseBody = jsonDecode(response.body);
+        final errorCode = responseBody['Error']?['Code'];
+        final errorMessage = responseBody['Error']?['Message'];
 
-      final formattedMessage =
-          'Error $errorCode: ${errorMessage ?? "Ocurrió un error inesperado."}';
+        final formattedMessage =
+            'Error $errorCode: ${errorMessage ?? "Ocurrió un error inesperado."}';
 
-      print("Error en crear grupo: $formattedMessage");
+        print("Error en crear grupo: $formattedMessage");
 
-      // Muestra el error en el diálogo
-      _mostrarDialogo(
-        title: 'Error',
-        message: formattedMessage,
-        isSuccess: false,
-      );
-      
+        // Muestra el error en el diálogo
+        _mostrarDialogo(
+          title: 'Error',
+          message: formattedMessage,
+          isSuccess: false,
+        );
       }
     } catch (e) {
       print("Error al enviar grupo: $e");
@@ -204,7 +206,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       final miembroData = {
         'idgrupos': idGrupo, // Se pasa el id del grupo creado
         'idclientes': persona['idclientes'], // El id del cliente seleccionado
-        'idusuarios': '1WDDYLGXY9', // id de usuario por defecto
+        'idusuarios': 'OJVVIT9BDZ', // id de usuario por defecto
         'nomCargo': _rolesSeleccionados[persona['idclientes']] ??
             'Miembro', // Rol seleccionado o 'Miembro' por defecto
       };

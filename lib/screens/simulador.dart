@@ -814,10 +814,26 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   }
 
   DateTime ajustarFechaQuincenal(DateTime fechaInicial) {
-    if (fechaInicial.day <= 15) {
+    // Determinar si estamos en la primera quincena o la segunda
+    if (fechaInicial.day <= 10) {
+      // Si la fecha es antes o igual al 10, el primer pago será el 15 del mes actual
       return DateTime(fechaInicial.year, fechaInicial.month, 15);
+    } else if (fechaInicial.day > 10 && fechaInicial.day <= 25) {
+      // Si la fecha está entre el 11 y el 25, el primer pago será el 30 o el último día del mes
+      int ultimoDiaDelMes =
+          DateTime(fechaInicial.year, fechaInicial.month + 1, 0).day;
+
+      // En febrero, devolver 28 si es menor a 30
+      if (fechaInicial.month == 2 && ultimoDiaDelMes < 30) {
+        return DateTime(fechaInicial.year, fechaInicial.month, 28);
+      }
+
+      // Para otros meses, usar 30 como referencia
+      return DateTime(fechaInicial.year, fechaInicial.month,
+          ultimoDiaDelMes < 30 ? ultimoDiaDelMes : 30);
     } else {
-      return DateTime(fechaInicial.year, fechaInicial.month, 30);
+      // Si la fecha está después del 25, el pago será el 15 del próximo mes
+      return DateTime(fechaInicial.year, fechaInicial.month + 1, 15);
     }
   }
 

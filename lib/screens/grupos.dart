@@ -67,7 +67,9 @@ class _GruposScreenState extends State<GruposScreen> {
             _timer?.cancel();
           } else if (response.statusCode == 400) {
             final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] == "No hay grupos registrados") {
+            if (errorData["Error"]["Message"] == "No hay grupos registrados" ||
+                errorData["Error"]["Message"] ==
+                    "No hay detalle de grupos registrados") {
               setState(() {
                 listaGrupos = [];
                 isLoading = false;

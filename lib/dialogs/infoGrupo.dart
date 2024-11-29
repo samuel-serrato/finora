@@ -100,62 +100,78 @@ class _InfoGrupoState extends State<InfoGrupo> {
   }
 
   Future<void> fetchGrupoHistorial(String nombreGrupo) async {
-  _timer?.cancel();
-
-  setState(() {
-    isLoading = true; // Indicamos que está cargando
-  });
-
-  _timer = Timer(Duration(seconds: 10), () {
-    if (mounted && isLoading) {
-      setState(() {
-        isLoading = false;
-      });
-      mostrarDialogoError(
-          'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
-    }
-  });
-
-  try {
-    final response = await http.get(Uri.parse(
-        'http://$baseUrl/api/v1/grupodetalles/historial/$nombreGrupo'));
-
     _timer?.cancel();
 
-    if (response.statusCode == 200) {
-      setState(() {
-        historialData = json.decode(response.body); // Guarda el historial
-        // Ordenar los datos por fecha
-        historialData.sort((a, b) {
-          DateTime dateA = DateTime.parse(a['fCreacion']);
-          DateTime dateB = DateTime.parse(b['fCreacion']);
-          return dateB.compareTo(dateA); // Orden descendente, cambia a dateA.compareTo(dateB) para ascendente
+    setState(() {
+      isLoading = true; // Indicamos que está cargando
+    });
+
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && isLoading) {
+        setState(() {
+          isLoading = false;
         });
-        isLoading = false;
-      });
-    } else {
-      setState(() {
-        isLoading = false;
-      });
-      if (!dialogShown) {
-        dialogShown = true;
         mostrarDialogoError(
-            'Error en la carga de datos. Código de error: ${response.statusCode}');
+            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
       }
-    }
-  } catch (e) {
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
-      if (!dialogShown) {
-        dialogShown = true;
-        mostrarDialogoError('Error de conexión o inesperado: $e');
+    });
+
+    try {
+      final response = await http.get(Uri.parse(
+          'http://$baseUrl/api/v1/grupodetalles/historial/$nombreGrupo'));
+
+      _timer?.cancel();
+
+      if (response.statusCode == 200) {
+        setState(() {
+          historialData = json.decode(response.body); // Guarda el historial
+          // Ordenar los datos por fecha
+          historialData.sort((a, b) {
+            DateTime dateA = DateTime.parse(a['fCreacion']);
+            DateTime dateB = DateTime.parse(b['fCreacion']);
+            return dateB.compareTo(dateA); // Orden descendente
+          });
+          isLoading = false;
+        });
+      } else if (response.statusCode == 400) {
+        final responseBody = json.decode(response.body);
+        final errorMessage = responseBody["Error"]["Message"];
+
+        if (errorMessage ==
+            "No hay detalle de grupos registrados con este nombre") {
+          setState(() {
+            isLoading = false;
+            historialData = []; // Vaciar el historial si no hay datos
+          });
+        } else {
+          if (!dialogShown) {
+            dialogShown = true;
+            mostrarDialogoError(
+                'Error en la carga de datos del historial. Código de error: ${response.statusCode}, Mensaje: $errorMessage');
+          }
+        }
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError(
+              'Error en la carga de datos del historial. Código de error: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+        if (!dialogShown) {
+          dialogShown = true;
+          mostrarDialogoError('Error de conexión o inesperado: $e');
+        }
       }
     }
   }
-}
-
 
   void mostrarDialogoError(String mensaje) {
     showDialog(
@@ -541,24 +557,24 @@ class _InfoGrupoState extends State<InfoGrupo> {
   }
 
   void mostrarDialogoEditarCliente(String idGrupo) async {
-  final resultado = await showDialog<bool>(
-    barrierDismissible: false,
-    context: context,
-    builder: (context) {
-      return renovarGrupoDialog(
-        idGrupo: idGrupo,
-        onGrupoRenovado: () {
-          Navigator.of(context).pop(true); // Enviar true al cerrarse
-        },
-      );
-    },
-  );
+    final resultado = await showDialog<bool>(
+      barrierDismissible: false,
+      context: context,
+      builder: (context) {
+        return renovarGrupoDialog(
+          idGrupo: idGrupo,
+          onGrupoRenovado: () {
+            Navigator.of(context).pop(true); // Enviar true al cerrarse
+          },
+        );
+      },
+    );
 
-  if (resultado == true) {
-    Navigator.of(context).pop(true); // Propaga el true hacia la pantalla Grupos
+    if (resultado == true) {
+      Navigator.of(context)
+          .pop(true); // Propaga el true hacia la pantalla Grupos
+    }
   }
-}
-
 
   Widget _buildGrupoYClientes(Map historialItem) {
     return Padding(

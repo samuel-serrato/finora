@@ -282,7 +282,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
 
       print("Datos para agregar miembro en renovación: $miembroData");
 
-      final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles');
+      final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/renovacion');
       final headers = {'Content-Type': 'application/json'};
 
       try {

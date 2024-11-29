@@ -47,7 +47,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     ),
     Credito(
       idCredito: 3,
-      nombreCredito: 'Las trabajadoras',
+      nombreCredito: 'Adicional Alfa y Omega',
       montoAutorizado: 80000,
       garantia: 10, // Porcentaje de la garantía
       interes: 9.28,
@@ -202,7 +202,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         showCheckboxColumn: false,
         headingRowColor:
             MaterialStateProperty.resolveWith((states) => Color(0xFFE8EFF9)),
-        columnSpacing: 15,
+        columnSpacing: 10,
         headingRowHeight: 50,
         columns: const [
           DataColumn(label: Text('Tipo', style: TextStyle(fontSize: fontSize))),
@@ -219,8 +219,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               label:
                   Text('Interés Total', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label: Text('Monto a Recuperar',
-                  style: TextStyle(fontSize: fontSize))),
+              label:
+                  Text('M. a Recuperar', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label: Text('Día Pago', style: TextStyle(fontSize: fontSize))),
           DataColumn(
@@ -254,8 +254,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   selectedRows.add(listaCreditos.indexOf(credito));
                   showDialog(
                     context: context,
-                    builder: (context) =>
-                        InfoCredito(id: credito.idCredito),
+                    builder: (context) => InfoCredito(id: credito.idCredito),
                   );
                 }
               });
