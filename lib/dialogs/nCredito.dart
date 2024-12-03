@@ -845,6 +845,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     // Variables comunes
     double capitalPago = 0.0;
     double interesPago = 0.0;
+    double interesPorcentaje = 0.0;
     double pagoTotal = 0.0;
     double interesTotal = 0.0;
     double interesGlobal =
@@ -854,12 +855,14 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       int pagosTotales = plazoNumerico;
       capitalPago = monto / pagosTotales;
       interesPago = monto * (tasaInteresMensualCalculada / 4 / 100);
+      interesPorcentaje = tasaInteresMensualCalculada / 4;
       interesTotal = interesPago * pagosTotales;
       pagoTotal = capitalPago + interesPago;
     } else if (frecuenciaPago == "Quincenal") {
       int pagosTotales = plazoNumerico * 2;
       capitalPago = monto / pagosTotales;
       interesPago = monto * (tasaInteresMensualCalculada / 2 / 100);
+      interesPorcentaje = tasaInteresMensualCalculada / 2;
       interesTotal = interesPago * pagosTotales;
       pagoTotal = capitalPago + interesPago;
     }
@@ -958,7 +961,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                   : frecuenciaPago == "Quincenal"
                                       ? 'Interés Quincenal: '
                                       : '',
-                              '${(interesPago / 100).toString()} %',
+                              '${(interesPorcentaje).toString()} %',
                             ),
                           ],
                         ),

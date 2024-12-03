@@ -276,7 +276,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       final miembroData = {
         'idgrupos': idGrupo, // Asigna al nuevo grupo
         'idclientes': persona['idclientes'], // ID de cliente existente
-        'idusuarios': '1WDDYLGXY9', // ID de usuario por defecto
+        'idusuarios': 'OJVVIT9BDZ', // ID de usuario por defecto
         'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
       };
 
