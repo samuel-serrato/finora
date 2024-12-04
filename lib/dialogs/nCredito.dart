@@ -873,6 +873,129 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     DateTime fechaTerminoCalculada =
         calcularFechaTermino(fechaInicio, frecuenciaPago!, plazoNumerico);
 
+    void imprimirDatosGenerales() {
+      print("=== Datos Generales ===");
+      print("Grupo: ${selectedGrupo ?? "No especificado"}");
+      print(
+          "Duración: ${_formatearFecha(fechaInicio)} - ${_formatearFecha(fechaTerminoCalculada)}");
+      print("Monto autorizado: \$${montoAutorizado}");
+      print("Tasa de interés mensual: $tasaInteres");
+      print("Garantía: $garantiaTexto");
+      print("Frecuencia de pago: $frecuenciaPagoTexto");
+      print("Plazo: $plazoNumerico");
+      print("Interés Global: ${formatearNumero(interesGlobal)}%");
+      print("Capital por período: \$${formatearNumero(capitalPago)}");
+      print("Interés por período: \$${formatearNumero(interesPago)}");
+      print("Pago total por período: \$${formatearNumero(pagoTotal)}");
+      print("Interés Total: \$${formatearNumero(interesTotal)}");
+      print("Total a Recuperar: \$${formatearNumero(totalARecuperar)}");
+      print("=======================");
+    }
+
+    void imprimirIntegrantesYMontosEnJSON() {
+      if (integrantes.isEmpty) {
+        print("No se han asignado integrantes.");
+        return;
+      }
+
+      // Construir el JSON con la estructura deseada
+      final jsonOutput = {
+        "montoIndividual": integrantes.map((integrante) {
+          final monto = montosIndividuales[integrante.idclientes] ?? 0.0;
+          final pagosTotales =
+              (frecuenciaPago == "Semanal") ? plazoNumerico : plazoNumerico * 2;
+
+          final capitalSemanal = monto / pagosTotales;
+          final interesSemanal = monto *
+              (tasaInteresMensualCalculada /
+                  (frecuenciaPago == "Semanal" ? 4 : 2) /
+                  100);
+          final pagoSemanal = capitalSemanal + interesSemanal;
+          final totalCapital = capitalSemanal * pagosTotales;
+          final totalIntereses = interesSemanal * pagosTotales;
+          final pagoTotal = totalCapital + totalIntereses;
+
+          return {
+            "integrante": integrante.nombres ?? "No especificado",
+            "monto": formatearNumero(monto),
+            "capitalSemanal": formatearNumero(capitalSemanal),
+            "interesSemanal": formatearNumero(interesSemanal),
+            "totalCapital": formatearNumero(totalCapital),
+            "totalIntereses": formatearNumero(totalIntereses),
+            "pagoSemanal": formatearNumero(pagoSemanal),
+            "pagoTotal": formatearNumero(pagoTotal),
+          };
+        }).toList(),
+      };
+
+      // Imprimir el JSON resultante
+      print("=== JSON de montoIndividual ===");
+      print(jsonOutput);
+    }
+
+    void imprimirCalendarioDePagosEnJSON() {
+      List<Map<String, dynamic>> calendarioDePagos = [];
+
+      // Semana 0 (Fecha de inicio)
+      calendarioDePagos.add({
+        "pago": 0,
+        "fecha": _formatearFecha(fechaInicio),
+        "capital": 0.00,
+        "interes": 0.00,
+        "pagoTotal": 0.00,
+        "pagado": 0.00,
+        "restante": totalARecuperar,
+      });
+
+      // Generar pagos
+      int pagosTotales =
+          frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
+      for (int index = 0; index < pagosTotales; index++) {
+        DateTime fechaPago;
+        if (frecuenciaPago == "Semanal") {
+          fechaPago = fechaInicio.add(Duration(days: (index + 1) * 7));
+        } else {
+          final fechasDePago = calcularFechasDePago(fechaInicio);
+          fechaPago = DateTime.parse(fechasDePago[index]);
+        }
+
+        double capitalGrupal =
+            integrantes.fold<double>(0.0, (suma, integrante) {
+          final montoIndividual =
+              montosIndividuales[integrante.idclientes] ?? 0.0;
+          return suma + (montoIndividual / pagosTotales);
+        });
+
+        double interesGrupal =
+            integrantes.fold<double>(0.0, (suma, integrante) {
+          final montoIndividual =
+              montosIndividuales[integrante.idclientes] ?? 0.0;
+          return suma +
+              (montoIndividual *
+                  (tasaInteresMensualCalculada /
+                      (frecuenciaPago == "Semanal" ? 4 : 2) /
+                      100));
+        });
+
+        double pagoGrupal = capitalGrupal + interesGrupal;
+        double totalPagado = pagoGrupal * (index + 1);
+        double totalRestante = totalARecuperar - totalPagado;
+
+        calendarioDePagos.add({
+          "pago": index + 1,
+          "fecha": _formatearFecha(fechaPago),
+          "capital": capitalGrupal,
+          "interes": interesGrupal,
+          "pagoTotal": pagoGrupal,
+          "pagado": totalPagado,
+          "restante": totalRestante,
+        });
+      }
+
+      // Imprimir en consola como JSON
+      print(calendarioDePagos);
+    }
+
     return Row(
       children: [
         _recuadroPasos(pasoActual),
@@ -1324,6 +1447,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                         pagoGrupal * (index + 1);
                                     double totalRestante =
                                         totalARecuperar - totalPagado;
+                                    //IMPRIMIR EN CONSOLA
+                                    imprimirDatosGenerales();
+                                    imprimirIntegrantesYMontosEnJSON();
+                                    imprimirCalendarioDePagosEnJSON();
 
                                     return DataRow(
                                       cells: [
@@ -1365,8 +1492,9 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         ),
       ],
     );
-  } // Función para calcular las fechas de pago semanal con las condiciones corregidas
+  }
 
+  // Función para calcular las fechas de pago semanal con las condiciones corregidas
   List<String> calcularFechasDePagoSemanal(
       DateTime fechaInicio, int cantidadPagos) {
     List<String> fechasDePago = [];
