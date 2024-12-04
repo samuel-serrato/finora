@@ -996,6 +996,66 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       print(calendarioDePagos);
     }
 
+    Map<String, dynamic> generarDatosParaServidor() {
+      // Generar la estructura principal
+      final Map<String, dynamic> datosParaServidor = {
+        "idgrupos": selectedGrupo ?? "No especificado",
+        "ti_mensual": tasaInteres,
+        "plazo": plazoNumerico,
+        "frecuenciaPago": frecuenciaPagoTexto,
+        "garantia": garantiaTexto,
+        "interesGlobal": interesGlobal,
+        "montoTotal": montoAutorizado,
+        "interesTotal": interesTotal,
+        "montoMasInteres": totalARecuperar,
+        "fechasPagosArray": []
+      };
+
+      // Generar el calendario de pagos
+      int pagosTotales =
+          frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
+
+      for (int index = 0; index < pagosTotales; index++) {
+        DateTime fechaPago;
+        if (frecuenciaPago == "Semanal") {
+          fechaPago = fechaInicio.add(Duration(days: (index + 1) * 7));
+        } else {
+          final fechasDePago = calcularFechasDePago(fechaInicio);
+          fechaPago = DateTime.parse(fechasDePago[index]);
+        }
+
+        double capitalGrupal =
+            integrantes.fold<double>(0.0, (suma, integrante) {
+          final montoIndividual =
+              montosIndividuales[integrante.idclientes] ?? 0.0;
+          return suma + (montoIndividual / pagosTotales);
+        });
+
+        double interesGrupal =
+            integrantes.fold<double>(0.0, (suma, integrante) {
+          final montoIndividual =
+              montosIndividuales[integrante.idclientes] ?? 0.0;
+          return suma +
+              (montoIndividual *
+                  (tasaInteresMensualCalculada /
+                      (frecuenciaPago == "Semanal" ? 4 : 2) /
+                      100));
+        });
+
+        datosParaServidor["fechasPagosArray"].add({
+          "iddetallegrupos": "NOVCPZ3RKX", // Reemplazar con un valor real
+          "fechasPago": _formatearFecha(fechaPago),
+          "capitalIndividual": "", // Reemplazar si es necesario
+          "periodoCapital": capitalGrupal,
+          "periodoInteres": interesGrupal,
+          "periodoInteresPorcentaje": tasaInteres,
+          "capitalMasInteres": capitalGrupal + interesGrupal,
+        });
+      }
+
+      return datosParaServidor;
+    }
+
     return Row(
       children: [
         _recuadroPasos(pasoActual),
@@ -1451,7 +1511,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                     imprimirDatosGenerales();
                                     imprimirIntegrantesYMontosEnJSON();
                                     imprimirCalendarioDePagosEnJSON();
-
+                                    print(generarDatosParaServidor());
                                     return DataRow(
                                       cells: [
                                         DataCell(Text('${index + 1}',

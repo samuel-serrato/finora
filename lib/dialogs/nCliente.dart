@@ -3177,6 +3177,20 @@ class _nClienteDialogState extends State<nClienteDialog>
             initialDate: selectedDate ?? DateTime.now(),
             firstDate: DateTime(1900),
             lastDate: DateTime.now(),
+            locale: Locale('es', 'ES'),
+            builder: (BuildContext context, Widget? child) {
+              return Theme(
+                data: ThemeData.light().copyWith(
+                  primaryColor: Colors
+                      .white, // Cambia el color de los elementos destacados
+
+                  colorScheme: ColorScheme.fromSwatch().copyWith(
+                    primary: Color(0xFFFB2056),
+                  ),
+                ),
+                child: child!,
+              );
+            },
           );
           if (pickedDate != null) {
             setState(() {

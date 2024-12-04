@@ -230,6 +230,20 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
         initialDate: fechaSeleccionada ?? DateTime.now(),
         firstDate: DateTime.now(),
         lastDate: DateTime(DateTime.now().year + 10),
+        locale: Locale('es', 'ES'),
+        builder: (BuildContext context, Widget? child) {
+          return Theme(
+            data: ThemeData.light().copyWith(
+              primaryColor:
+                  Colors.white, // Cambia el color de los elementos destacados
+
+              colorScheme: ColorScheme.fromSwatch().copyWith(
+                primary: Color(0xFFFB2056),
+              ),
+            ),
+            child: child!,
+          );
+        },
       );
       if (picked != null && picked != fechaSeleccionada) {
         setState(() {

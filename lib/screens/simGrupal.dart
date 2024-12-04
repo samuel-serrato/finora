@@ -743,6 +743,20 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
       initialDate: fechaSeleccionada ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime(DateTime.now().year + 10),
+      locale: Locale('es', 'ES'),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            primaryColor:
+                Colors.white, // Cambia el color de los elementos destacados
+
+            colorScheme: ColorScheme.fromSwatch().copyWith(
+              primary: Color(0xFFFB2056),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && picked != fechaSeleccionada) {
       setState(() {
@@ -752,80 +766,79 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
   }
 
   // Función que limpia las comas y convierte el texto a double
-double parseAmountWithoutCommas(String text) {
-  // Elimina las comas y convierte el texto a double
-  String cleanText = text.replaceAll(',', '');  // Elimina las comas
-  return double.tryParse(cleanText) ?? 0.0;     // Convierte a double o devuelve 0.0 si falla
-}
-
+  double parseAmountWithoutCommas(String text) {
+    // Elimina las comas y convierte el texto a double
+    String cleanText = text.replaceAll(',', ''); // Elimina las comas
+    return double.tryParse(cleanText) ??
+        0.0; // Convierte a double o devuelve 0.0 si falla
+  }
 
   List<UsuarioPrestamo> calcularTabla() {
-  List<UsuarioPrestamo> listaUsuarios = [];
+    List<UsuarioPrestamo> listaUsuarios = [];
 
-  // Interés semanal calculado a partir del interés mensual dividido entre 4 semanas
-  double interesSemanal = tasaInteresMensual / 4;
+    // Interés semanal calculado a partir del interés mensual dividido entre 4 semanas
+    double interesSemanal = tasaInteresMensual / 4;
 
-  int plazo = plazoSeleccionado ?? 0;
+    int plazo = plazoSeleccionado ?? 0;
 
-  if (plazo <= 0) {
-    print('El plazo debe ser mayor que 0');
-    return listaUsuarios;
-  }
+    if (plazo <= 0) {
+      print('El plazo debe ser mayor que 0');
+      return listaUsuarios;
+    }
 
-  double totalMontoIndividual = 0.0;
-  double totalCapitalSemanal = 0.0;
-  double totalInteresIndividualSemanal = 0.0;
-  double totalTotalIntereses = 0.0;
-  double totalPagoIndSemanal = 0.0;
-  double totalPagoIndTotal = 0.0;
-  double totalCapitalTotal = 0.0;  // Nuevo acumulador para total capital
+    double totalMontoIndividual = 0.0;
+    double totalCapitalSemanal = 0.0;
+    double totalInteresIndividualSemanal = 0.0;
+    double totalTotalIntereses = 0.0;
+    double totalPagoIndSemanal = 0.0;
+    double totalPagoIndTotal = 0.0;
+    double totalCapitalTotal = 0.0; // Nuevo acumulador para total capital
 
-  for (var controller in montoPorUsuarioControllers) {
-    double montoIndividual = parseAmountWithoutCommas(controller.text);
+    for (var controller in montoPorUsuarioControllers) {
+      double montoIndividual = parseAmountWithoutCommas(controller.text);
 
-    double capitalSemanal = montoIndividual / plazo;
-    double interesIndividualSemanal = (montoIndividual * (interesSemanal / 100));
-    double totalIntereses = interesIndividualSemanal * plazo;
-    double pagoIndSemanal = capitalSemanal + interesIndividualSemanal;
-    double pagoIndTotal = pagoIndSemanal * plazo;
+      double capitalSemanal = montoIndividual / plazo;
+      double interesIndividualSemanal =
+          (montoIndividual * (interesSemanal / 100));
+      double totalIntereses = interesIndividualSemanal * plazo;
+      double pagoIndSemanal = capitalSemanal + interesIndividualSemanal;
+      double pagoIndTotal = pagoIndSemanal * plazo;
 
-    // Nuevo cálculo para el total capital (capital + intereses)
-    double totalCapital = capitalSemanal * plazo;
+      // Nuevo cálculo para el total capital (capital + intereses)
+      double totalCapital = capitalSemanal * plazo;
+
+      listaUsuarios.add(UsuarioPrestamo(
+        montoIndividual: montoIndividual,
+        capitalSemanal: capitalSemanal,
+        interesIndividualSemanal: interesIndividualSemanal,
+        totalIntereses: totalIntereses,
+        pagoIndSemanal: pagoIndSemanal,
+        pagoIndTotal: pagoIndTotal,
+        totalCapital: totalCapital, // Agregar este valor al objeto
+      ));
+
+      totalMontoIndividual += montoIndividual;
+      totalCapitalSemanal += capitalSemanal;
+      totalInteresIndividualSemanal += interesIndividualSemanal;
+      totalTotalIntereses += totalIntereses;
+      totalPagoIndSemanal += pagoIndSemanal;
+      totalPagoIndTotal += pagoIndTotal;
+      totalCapitalTotal += totalCapital; // Acumular el total capital
+    }
 
     listaUsuarios.add(UsuarioPrestamo(
-      montoIndividual: montoIndividual,
-      capitalSemanal: capitalSemanal,
-      interesIndividualSemanal: interesIndividualSemanal,
-      totalIntereses: totalIntereses,
-      pagoIndSemanal: pagoIndSemanal,
-      pagoIndTotal: pagoIndTotal,
-      totalCapital: totalCapital,  // Agregar este valor al objeto
+      montoIndividual: totalMontoIndividual,
+      capitalSemanal: totalCapitalSemanal,
+      interesIndividualSemanal: totalInteresIndividualSemanal,
+      totalIntereses: totalTotalIntereses,
+      pagoIndSemanal: totalPagoIndSemanal,
+      pagoIndTotal: totalPagoIndTotal,
+      totalCapital:
+          totalCapitalTotal, // Agregar total capital a la fila de totales
     ));
 
-    totalMontoIndividual += montoIndividual;
-    totalCapitalSemanal += capitalSemanal;
-    totalInteresIndividualSemanal += interesIndividualSemanal;
-    totalTotalIntereses += totalIntereses;
-    totalPagoIndSemanal += pagoIndSemanal;
-    totalPagoIndTotal += pagoIndTotal;
-    totalCapitalTotal += totalCapital;  // Acumular el total capital
+    return listaUsuarios;
   }
-
-  listaUsuarios.add(UsuarioPrestamo(
-    montoIndividual: totalMontoIndividual,
-    capitalSemanal: totalCapitalSemanal,
-    interesIndividualSemanal: totalInteresIndividualSemanal,
-    totalIntereses: totalTotalIntereses,
-    pagoIndSemanal: totalPagoIndSemanal,
-    pagoIndTotal: totalPagoIndTotal,
-    totalCapital: totalCapitalTotal,  // Agregar total capital a la fila de totales
-  ));
-
-  return listaUsuarios;
-}
-
-
-
 }
 
 // Nuevo widget para mostrar la tabla
@@ -852,20 +865,26 @@ class TablaResultados extends StatelessWidget {
               DataColumn(
                   label: Text('Integrantes', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text('Monto individual', style: TextStyle(fontSize: 12))),
+                  label:
+                      Text('Monto individual', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text('Capital Semanal', style: TextStyle(fontSize: 12))),
+                  label:
+                      Text('Capital Semanal', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text('Interés Semanal', style: TextStyle(fontSize: 12))),
-                  DataColumn(
-                  label: Text('Total Capital', style: TextStyle(fontSize: 12))), // Nueva columna
+                  label:
+                      Text('Interés Semanal', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text('Total Intereses', style: TextStyle(fontSize: 12))),
+                  label: Text('Total Capital',
+                      style: TextStyle(fontSize: 12))), // Nueva columna
               DataColumn(
-                  label: Text('Pago Ind. Sem.', style: TextStyle(fontSize: 12))),
+                  label:
+                      Text('Total Intereses', style: TextStyle(fontSize: 12))),
               DataColumn(
-                  label: Text('Pago Ind. Total', style: TextStyle(fontSize: 12))),
-              
+                  label:
+                      Text('Pago Ind. Sem.', style: TextStyle(fontSize: 12))),
+              DataColumn(
+                  label:
+                      Text('Pago Ind. Total', style: TextStyle(fontSize: 12))),
             ],
             rows: List<DataRow>.generate(listaUsuarios.length, (index) {
               final usuario = listaUsuarios[index];
@@ -902,7 +921,7 @@ class TablaResultados extends StatelessWidget {
                       fontSize: 12),
                 )),
                 DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.totalCapital)}',  // Nueva celda
+                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.totalCapital)}', // Nueva celda
                   style: TextStyle(
                       fontWeight:
                           isTotalRow ? FontWeight.bold : FontWeight.normal,
@@ -929,7 +948,6 @@ class TablaResultados extends StatelessWidget {
                           isTotalRow ? FontWeight.bold : FontWeight.normal,
                       fontSize: 12),
                 )),
-                
               ]);
             }),
           ),
@@ -938,7 +956,6 @@ class TablaResultados extends StatelessWidget {
     );
   }
 }
-
 
 List<String> generarFechasDePago(DateTime fechaInicial, int semanas) {
   List<String> fechas = [];
@@ -1043,7 +1060,7 @@ class UsuarioPrestamo {
   final double montoIndividual;
   final double capitalSemanal;
   final double interesIndividualSemanal;
-  final double  totalCapital;
+  final double totalCapital;
   final double totalIntereses;
   final double pagoIndSemanal;
   final double pagoIndTotal;
