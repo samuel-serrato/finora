@@ -46,6 +46,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   final GlobalKey<FormState> _miembrosGrupoFormKey = GlobalKey<FormState>();
 
   bool _isLoading = false;
+  bool esAdicional = false; // Variable para el estado del checkbox
 
   @override
   void initState() {
@@ -154,6 +155,9 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       'nombreGrupo': nombreGrupoController.text,
       'detalles': descripcionController.text,
       'tipoGrupo': selectedTipo,
+      'isAdicional': esAdicional
+          ? 'Sí'
+          : 'No', // Se manda 'Sí' o 'No' según el valor del checkbox
     };
 
     // Imprimir los datos antes de enviarlos
@@ -206,7 +210,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       final miembroData = {
         'idgrupos': idGrupo, // Se pasa el id del grupo creado
         'idclientes': persona['idclientes'], // El id del cliente seleccionado
-        'idusuarios': 'OJVVIT9BDZ', // id de usuario por defecto
+        'idusuarios': 'F4H95O6HB9', // id de usuario por defecto
         'nomCargo': _rolesSeleccionados[persona['idclientes']] ??
             'Miembro', // Rol seleccionado o 'Miembro' por defecto
       };
@@ -472,7 +476,21 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                       }
                       return null;
                     },
-                  )
+                  ),
+                  SizedBox(height: verticalSpacing),
+                  // Agregar el campo "¿Es Adicional?" como un checkbox
+                  CheckboxListTile(
+                    title: Text('¿Es Adicional?'),
+                    value: esAdicional,
+                    onChanged: (bool? newValue) {
+                      setState(() {
+                        esAdicional = newValue ?? false;
+                      });
+                    },
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 0),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ],
               ),
             ),

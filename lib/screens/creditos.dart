@@ -15,6 +15,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     Credito(
       idCredito: 1,
       nombreCredito: 'Cielito Azul',
+      frecuencia: 'Semanal',
       montoAutorizado: 50000,
       garantia: 10, // Porcentaje de la garantía
       interes: 9.28,
@@ -31,6 +32,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     Credito(
       idCredito: 2,
       nombreCredito: 'Las lobas',
+      frecuencia: 'Quincenal',
       montoAutorizado: 10000,
       garantia: 10, // Porcentaje de la garantía
       interes: 9.28,
@@ -48,6 +50,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     Credito(
       idCredito: 3,
       nombreCredito: 'Adicional Alfa y Omega',
+      frecuencia: 'Semanal',
       montoAutorizado: 80000,
       garantia: 10, // Porcentaje de la garantía
       interes: 9.28,
@@ -204,8 +207,11 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             MaterialStateProperty.resolveWith((states) => Color(0xFFE8EFF9)),
         columnSpacing: 10,
         headingRowHeight: 50,
+        dataRowHeight: 60, // Ajusta la altura de las filas según lo necesites
         columns: const [
           DataColumn(label: Text('Tipo', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Frecuencia', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label: Text('Nombre', style: TextStyle(fontSize: fontSize))),
           DataColumn(
@@ -227,10 +233,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               label:
                   Text('Pago Semanal', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label:
-                  Text('Semana de Pago', style: TextStyle(fontSize: fontSize))),
+              label: Text('Núm de Pago', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label: Text('Duración del Crédito',
+              label: Text('Duración',
                   style: TextStyle(fontSize: fontSize))), // Nueva columna
           DataColumn(
               label:
@@ -262,9 +267,22 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             cells: [
               DataCell(Text(credito.tipoCredito,
                   style: TextStyle(fontSize: fontSize))),
-              DataCell(Text(credito.nombreCredito,
+              DataCell(Text(credito.frecuencia,
                   style: TextStyle(fontSize: fontSize))),
-
+              DataCell(
+                Container(
+                  width: 70, // Puedes ajustar el ancho según lo necesites
+                  child: Text(
+                    credito.nombreCredito,
+                    style: TextStyle(fontSize: fontSize),
+                    overflow: TextOverflow
+                        .ellipsis, // Asegura que el texto se trunque si es muy largo
+                    maxLines: 2, // Limita a dos líneas
+                    softWrap:
+                        true, // Permite que el texto se envuelva en varias líneas
+                  ),
+                ),
+              ),
               DataCell(Center(
                   child: Text('\$${credito.montoAutorizado}',
                       style: TextStyle(fontSize: fontSize)))),
@@ -290,21 +308,24 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   child: Text(credito.semanaDePago,
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(
-                Center(
-                  child: Text(
-                    '${DateFormat('dd/MM/yyyy').format(credito.fechaInicio)} - ${DateFormat('dd/MM/yyyy').format(credito.fechaFin)}',
-                    style: TextStyle(fontSize: fontSize),
+                Container(
+                  width: 80, // Puedes ajustar el ancho según lo necesites
+                  child: Center(
+                    child: Text(
+                      '${DateFormat('dd/MM/yyyy').format(credito.fechaInicio)} - ${DateFormat('dd/MM/yyyy').format(credito.fechaFin)}',
+                      style: TextStyle(fontSize: fontSize),
+                    ),
                   ),
                 ),
-              ), // Combina las fechas de inicio y fin
+              ),
               DataCell(
                 Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           CircleAvatar(radius: 8, backgroundColor: colorEstado),
                           SizedBox(width: 8),
@@ -365,8 +386,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
 class Credito {
   final int idCredito;
-
   final String nombreCredito;
+  final String frecuencia;
   final int montoAutorizado;
   final int garantia;
   final double interes;
@@ -384,6 +405,7 @@ class Credito {
   Credito({
     required this.idCredito,
     required this.nombreCredito,
+    required this.frecuencia,
     required this.montoAutorizado,
     required this.garantia,
     required this.interes,

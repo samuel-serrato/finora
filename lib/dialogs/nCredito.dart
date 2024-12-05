@@ -77,6 +77,21 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     return DateFormat('dd/MM/yyyy').format(fecha);
   }
 
+  String _formatearFechaServidor(DateTime fecha) {
+    return DateFormat('yyyy-MM-dd').format(fecha);
+  }
+
+  // Declaración de variables
+  String? tasaInteres = '';
+  double tasaInteresMensualCalculada = 0.0;
+  String? garantiaTexto = '';
+  String? frecuenciaPagoTexto = '';
+  double interesGlobal = 0.0;
+  String? montoAutorizado = '';
+  double interesTotal = 0.0;
+  double totalARecuperar = 0.0;
+  int plazoNumerico = 0;
+
   @override
   void initState() {
     super.initState();
@@ -167,10 +182,90 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     return dias[fecha.weekday % 7];
   }
 
-  void _guardarCredito() {
-    // Lógica para guardar el crédito con los datos ingresados
-    print("Crédito guardado");
-    Navigator.of(context).pop();
+  void _guardarCredito() async {
+    print("Generando datos del crédito...");
+
+    // Generar los datos a enviar
+    final datosParaServidor = generarDatosParaServidor();
+
+    // Llamar a la función para enviar los datos
+    await enviarCredito(datosParaServidor);
+  }
+
+  Future<void> enviarCredito(Map<String, dynamic> datos) async {
+    // URL del endpoint
+    final String url = 'http://192.168.0.112:3000/api/v1/creditos';
+
+    // Mostrar un mensaje de carga opcional
+    print("Enviando datos del crédito...");
+
+    try {
+      // Realizar la solicitud POST
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type':
+              'application/json', // Indicamos que el contenido es JSON
+        },
+        body: jsonEncode(datos), // Convertir datos a JSON
+      );
+
+      // Validar la respuesta
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Mostrar Snackbar de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Crédito guardado exitosamente'),
+            backgroundColor: Colors.green, // Color verde para éxito
+          ),
+        );
+
+        Navigator.of(context).pop(); // Cerrar la vista o diálogo
+      } else {
+        // Mostrar Snackbar de error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Error al guardar el crédito: ${response.statusCode}'),
+            backgroundColor: Colors.red, // Color rojo para error
+          ),
+        );
+        print('Error al guardar el crédito: ${response.statusCode}');
+        print('Respuesta del servidor: ${response.body}');
+      }
+    } catch (e) {
+      // Mostrar Snackbar de error de conexión
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Error de conexión. Verifica tu red e intenta nuevamente.'),
+          backgroundColor: Colors.red, // Color rojo para error
+        ),
+      );
+
+      // Manejo de errores de conexión u otros
+      print('Error al guardar el crédito: $e');
+    }
+  }
+
+  void _mostrarError(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Error"),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text("Aceptar"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> obtenerGrupos() async {
@@ -812,15 +907,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   Widget _paginaResumen() {
     int pasoActual = 3; // Paso actual para esta página
 
-    // Formatear los datos para mostrarlos
-    String montoAutorizado =
-        formatearNumero(double.tryParse(montoController.text) ?? 0.0);
-
     const double fontSize = 12.0;
 
     // Lógica para manejar la tasa de interés
-    String tasaInteres;
-    double tasaInteresMensualCalculada;
+
     if (tasaInteresMensualSeleccionada != null &&
         tasaInteresMensualSeleccionada != 0.0) {
       tasaInteres = "$tasaInteresMensualSeleccionada %";
@@ -835,21 +925,24 @@ class _nCreditoDialogState extends State<nCreditoDialog>
           0.0; // Asegura que no sea null en los cálculos
     }
 
-    String garantiaTexto = garantia ?? "No especificada";
-    String frecuenciaPagoTexto = frecuenciaPago ?? "No especificada";
-
     // Cálculos de resumen
     double monto = double.tryParse(montoController.text) ?? 0.0;
-    int plazoNumerico = int.tryParse(plazoController.text) ?? 0;
+    plazoNumerico = int.tryParse(plazoController.text) ?? 0;
 
     // Variables comunes
     double capitalPago = 0.0;
     double interesPago = 0.0;
     double interesPorcentaje = 0.0;
     double pagoTotal = 0.0;
-    double interesTotal = 0.0;
-    double interesGlobal =
-        tasaInteresMensualCalculada * 4; // Interés anualizado
+    interesTotal = 0.0;
+    interesGlobal = tasaInteresMensualCalculada * 4; // Interés anualizado
+
+    // Formatear los datos para mostrarlos
+    montoAutorizado =
+        formatearNumero(double.tryParse(montoController.text) ?? 0.0);
+
+    garantiaTexto = garantia ?? "No especificada";
+    frecuenciaPagoTexto = frecuenciaPago ?? "No especificada";
 
     if (frecuenciaPago == "Semanal") {
       int pagosTotales = plazoNumerico;
@@ -867,7 +960,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       pagoTotal = capitalPago + interesPago;
     }
 
-    double totalARecuperar = monto + interesTotal;
+    totalARecuperar = monto + interesTotal;
 
     // Calcular la fecha de término
     DateTime fechaTerminoCalculada =
@@ -996,66 +1089,6 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       print(calendarioDePagos);
     }
 
-    Map<String, dynamic> generarDatosParaServidor() {
-      // Generar la estructura principal
-      final Map<String, dynamic> datosParaServidor = {
-        "idgrupos": selectedGrupo ?? "No especificado",
-        "ti_mensual": tasaInteres,
-        "plazo": plazoNumerico,
-        "frecuenciaPago": frecuenciaPagoTexto,
-        "garantia": garantiaTexto,
-        "interesGlobal": interesGlobal,
-        "montoTotal": montoAutorizado,
-        "interesTotal": interesTotal,
-        "montoMasInteres": totalARecuperar,
-        "fechasPagosArray": []
-      };
-
-      // Generar el calendario de pagos
-      int pagosTotales =
-          frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
-
-      for (int index = 0; index < pagosTotales; index++) {
-        DateTime fechaPago;
-        if (frecuenciaPago == "Semanal") {
-          fechaPago = fechaInicio.add(Duration(days: (index + 1) * 7));
-        } else {
-          final fechasDePago = calcularFechasDePago(fechaInicio);
-          fechaPago = DateTime.parse(fechasDePago[index]);
-        }
-
-        double capitalGrupal =
-            integrantes.fold<double>(0.0, (suma, integrante) {
-          final montoIndividual =
-              montosIndividuales[integrante.idclientes] ?? 0.0;
-          return suma + (montoIndividual / pagosTotales);
-        });
-
-        double interesGrupal =
-            integrantes.fold<double>(0.0, (suma, integrante) {
-          final montoIndividual =
-              montosIndividuales[integrante.idclientes] ?? 0.0;
-          return suma +
-              (montoIndividual *
-                  (tasaInteresMensualCalculada /
-                      (frecuenciaPago == "Semanal" ? 4 : 2) /
-                      100));
-        });
-
-        datosParaServidor["fechasPagosArray"].add({
-          "iddetallegrupos": "NOVCPZ3RKX", // Reemplazar con un valor real
-          "fechasPago": _formatearFecha(fechaPago),
-          "capitalIndividual": "", // Reemplazar si es necesario
-          "periodoCapital": capitalGrupal,
-          "periodoInteres": interesGrupal,
-          "periodoInteresPorcentaje": tasaInteres,
-          "capitalMasInteres": capitalGrupal + interesGrupal,
-        });
-      }
-
-      return datosParaServidor;
-    }
-
     return Row(
       children: [
         _recuadroPasos(pasoActual),
@@ -1131,13 +1164,13 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                           children: [
                             _infoRow(
                                 'Monto autorizado: ', '\$${montoAutorizado}'),
-                            _infoRow('Tasa de interés mensual: ', tasaInteres),
+                            _infoRow('Tasa de interés mensual: ', tasaInteres!),
                           ],
                         ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _infoRow('Garantía: ', garantiaTexto),
+                            _infoRow('Garantía: ', garantiaTexto!),
                             _infoRow(
                               frecuenciaPago == "Semanal"
                                   ? 'Interés Semanal: '
@@ -1152,7 +1185,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             _infoRow(
-                                'Frecuencia de pago: ', frecuenciaPagoTexto),
+                                'Frecuencia de pago: ', frecuenciaPagoTexto!),
                             _infoRow('Plazo: ', plazoNumerico.toString()),
                           ],
                         ),
@@ -1554,6 +1587,71 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     );
   }
 
+  Map<String, dynamic> generarDatosParaServidor() {
+    // Obtener el grupo seleccionado y su id
+    String idGrupoSeleccionado = listaGrupos
+        .firstWhere((grupo) => grupo.nombreGrupo == selectedGrupo)
+        .idgrupos;
+
+    // Generar la estructura principal
+    final Map<String, dynamic> datosParaServidor = {
+      "idgrupos": idGrupoSeleccionado,
+      "ti_mensual": tasaInteres,
+      "plazo": plazoNumerico,
+      "frecuenciaPago": frecuenciaPagoTexto,
+      "garantia": garantiaTexto,
+      "interesGlobal": interesGlobal,
+      "montoTotal": montoController.text,
+      "interesTotal": interesTotal,
+      "montoMasInteres": totalARecuperar,
+      "fechasPago": [], // Este arreglo se llenará con las fechas
+      "montosIndividuales":
+          [] // Este arreglo se llenará con los datos individuales
+    };
+
+    // Generar las fechas de pago
+    int pagosTotales =
+        frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
+    for (int index = 0; index < pagosTotales; index++) {
+      DateTime fechaPago = frecuenciaPago == "Semanal"
+          ? fechaInicio.add(Duration(days: (index + 1) * 7))
+          : fechaInicio
+              .add(Duration(days: (index + 1) * 15)); // Ejemplo para quincenal
+
+      datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaPago));
+    }
+
+    // Generar los montos individuales
+    for (var integrante in integrantes) {
+      String idDetalleGrupo = integrante.iddetallegrupos;
+      double capitalIndividual =
+          montosIndividuales[integrante.idclientes] ?? 0.0;
+      double periodoCapital = capitalIndividual / pagosTotales;
+
+      // Quitar el símbolo '%' de la tasa de interés y convertirla a double
+      double tasaInteresNumerica =
+          double.tryParse(tasaInteres!.replaceAll('%', '')) ?? 0.0;
+
+      double periodoInteres = capitalIndividual *
+          (tasaInteresMensualCalculada /
+              (frecuenciaPago == "Semanal" ? 4 : 2)) /
+          100;
+      double capitalMasInteres = periodoCapital + periodoInteres;
+
+      datosParaServidor["montosIndividuales"].add({
+        "iddetallegrupos": idDetalleGrupo,
+        "capitalIndividual": capitalIndividual,
+        "periodoCapital": periodoCapital,
+        "periodoInteres": periodoInteres,
+        "periodoInteresPorcentaje":
+            tasaInteresNumerica, // Aquí se usa la tasa de interés sin el '%'
+        "capitalMasInteres": capitalMasInteres,
+      });
+    }
+
+    return datosParaServidor;
+  }
+
   // Función para calcular las fechas de pago semanal con las condiciones corregidas
   List<String> calcularFechasDePagoSemanal(
       DateTime fechaInicio, int cantidadPagos) {
@@ -1896,6 +1994,7 @@ class Grupo {
 }
 
 class Cliente {
+  final String iddetallegrupos;
   final String idclientes;
   final String nombres;
   final String telefono;
@@ -1904,6 +2003,7 @@ class Cliente {
   final double? montoIndividual;
 
   Cliente({
+    required this.iddetallegrupos,
     required this.idclientes,
     required this.nombres,
     required this.telefono,
@@ -1914,6 +2014,7 @@ class Cliente {
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
     return Cliente(
+      iddetallegrupos: json['iddetallegrupos'],
       idclientes: json['idclientes'],
       nombres: json['nombres'],
       telefono: json['telefono'],
