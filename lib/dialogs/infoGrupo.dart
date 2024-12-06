@@ -262,7 +262,8 @@ class _InfoGrupoState extends State<InfoGrupo> {
                               _buildDetailRowIG(
                                   'Estado:', grupoData!['estado']),
 
-                              _buildDetailRowIG('Crédito:', 'No asignado'),
+                              _buildDetailRowIG('Folio del Crédito:',
+                                  grupoData!['folio'] ?? 'No asignado'),
                               SizedBox(height: 30),
                               ElevatedButton(
                                 onPressed: () {

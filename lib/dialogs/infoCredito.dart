@@ -49,12 +49,11 @@ class _InfoCreditoState extends State<InfoCredito> {
     );
   }
 
-    Widget _buildHeader() {
+  Widget _buildHeader() {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Color(0xFFFB2056),
-       
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -78,9 +77,11 @@ class _InfoCreditoState extends State<InfoCredito> {
                   runSpacing: 8,
                   children: [
                     _infoItem("Nombre", credito.nombreCredito),
-                    _infoItem("Monto Autorizado", "\$${credito.montoAutorizado}"),
+                    _infoItem(
+                        "Monto Autorizado", "\$${credito.montoAutorizado}"),
                     _infoItem("Pago Semanal", "\$${credito.pagoSemanal}"),
-                    _infoItem("Fecha de Inicio", _formatDate(credito.fechaInicio)),
+                    _infoItem(
+                        "Fecha de Inicio", _formatDate(credito.fechaInicio)),
                     _infoItem("Fecha de Fin", _formatDate(credito.fechaFin)),
                   ],
                 ),
@@ -103,81 +104,172 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   Widget _buildPagosTable() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        "Detalles de los Pagos",
-        style: TextStyle(
-            fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFFB2056)),
+    // Calcular totales
+    double totalMonto = pagos.fold(0, (sum, pago) => sum + pago.monto);
+    double totalParcial =
+        pagos.fold(0, (sum, pago) => sum + (pago.montoRecibido ?? 0));
+    double totalSaldoFavor = pagos.fold(
+        0,
+        (sum, pago) =>
+            sum +
+            ((pago.montoRecibido != null && pago.montoRecibido! > pago.monto)
+                ? pago.montoRecibido! - pago.monto
+                : 0));
+    double totalSaldoContra = pagos.fold(
+        0,
+        (sum, pago) =>
+            sum +
+            ((pago.montoRecibido != null && pago.montoRecibido! < pago.monto)
+                ? pago.monto - pago.montoRecibido!
+                : 0));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "Detalles de los Pagos",
+          style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFFB2056)),
+        ),
+        SizedBox(height: 10),
+        // Encabezado fijo
+        Container(
+          height: 40,
+          decoration: BoxDecoration(
+            color: Color(0xFFFB2056),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(0),
+            child: Row(
+              children: [
+                _buildTableCell("Semana",
+                    isHeader: true, textColor: Colors.white),
+                _buildTableCell("Fecha",
+                    isHeader: true, textColor: Colors.white),
+                _buildTableCell("Monto",
+                    isHeader: true, textColor: Colors.white),
+                _buildTableCell("Completo",
+                    isHeader: true, textColor: Colors.white),
+                _buildTableCell("Monto Parcial",
+                    isHeader: true, textColor: Colors.white),
+                _buildTableCell("Saldo a Favor",
+                    isHeader: true, textColor: Colors.white),
+                _buildTableCell("Saldo en Contra",
+                    isHeader: true, textColor: Colors.white),
+              ],
+            ),
+          ),
+        ),
+        // Contenedor de la tabla con desplazamiento
+        Container(
+          height: 300, // Ajusta el tamaño según sea necesario
+          child: SingleChildScrollView(
+            child: Column(
+              children: pagos.asMap().entries.map((entry) {
+                int index = entry.key + 1;
+                Pago pago = entry.value;
+                double saldoFavor = 0.0;
+                double saldoContra = 0.0;
+
+                if (pago.montoRecibido != null) {
+                  if (pago.montoRecibido! > pago.monto) {
+                    saldoFavor = pago.montoRecibido! - pago.monto;
+                  } else if (pago.montoRecibido! < pago.monto) {
+                    saldoContra = pago.monto - pago.montoRecibido!;
+                  }
+                }
+
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                        bottom: BorderSide(color: Color(0xFFEEEEEE), width: 1)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      children: [
+                        _buildTableCell("$index"),
+                        _buildTableCell(_formatDate(pago.fecha)),
+                        _buildTableCell("\$${pago.monto.toStringAsFixed(2)}"),
+                        _buildTableCell(Checkbox(
+                          value: pago.completado,
+                          activeColor: Color(0xFFFB2056),
+                          onChanged: (value) {
+                            setState(() {
+                              pago.completado = value!;
+                              if (pago.completado) {
+                                pago.parcial = false;
+                                pago.montoRecibido = pago.monto;
+                              } else {
+                                pago.montoRecibido = null;
+                              }
+                            });
+                          },
+                        )),
+                        _buildTableCell(_buildMontoParcial(pago)),
+                        _buildTableCell(saldoFavor > 0
+                            ? "\$${saldoFavor.toStringAsFixed(2)}"
+                            : "-"),
+                        _buildTableCell(saldoContra > 0
+                            ? "\$${saldoContra.toStringAsFixed(2)}"
+                            : "-"),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        // Fila de totales
+        Container(
+          height: 40,
+          decoration: BoxDecoration(
+            color: Color(0xFFFB2056),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(0),
+            child: Row(
+              children: [
+                _buildTableCell("Totales",
+                    isHeader: false, textColor: Colors.white),
+                _buildTableCell("", textColor: Colors.white),
+                _buildTableCell("\$${totalMonto.toStringAsFixed(2)}",
+                    textColor: Colors.white),
+                _buildTableCell("", textColor: Colors.white),
+                _buildTableCell("\$${totalParcial.toStringAsFixed(2)}",
+                    textColor: Colors.white),
+                _buildTableCell("\$${totalSaldoFavor.toStringAsFixed(2)}",
+                    textColor: Colors.white),
+                _buildTableCell("\$${totalSaldoContra.toStringAsFixed(2)}",
+                    textColor: Colors.white),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTableCell(dynamic content,
+      {bool isHeader = false, Color textColor = Colors.black}) {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        child: content
+                is Widget // Si el contenido es un Widget, lo renderizamos directamente.
+            ? content
+            : Text(content.toString(),
+                style: TextStyle(
+                    color:
+                        textColor)), // Si no es un Widget, lo mostramos como texto
       ),
-      SizedBox(height: 10),
-      Table(
-        columnWidths: {
-          0: FlexColumnWidth(0.8),  // No. Semana
-          1: FlexColumnWidth(2),  // Fecha
-          2: FlexColumnWidth(1),  // Monto
-          3: FlexColumnWidth(1),  // Completo
-          4: FlexColumnWidth(2),  // Monto Parcial
-          5: FlexColumnWidth(1),  // Saldo a Favor
-          6: FlexColumnWidth(1),  // Saldo en Contra
-        },
-        border: TableBorder.all(color: Color(0xFFEEEEEE), width: 1),
-        children: [
-          _tableRow([
-            "Semana",
-            "Fecha",
-            "Monto",
-            "Completo",
-            "Monto Parcial",
-            "Saldo a Favor",
-            "Saldo en Contra"
-          ], isHeader: true),
-          ...pagos.asMap().entries.map((entry) {
-            int index = entry.key + 1;
-            Pago pago = entry.value;
-            double saldoFavor = 0.0;
-            double saldoContra = 0.0;
-
-            if (pago.montoRecibido != null) {
-              if (pago.montoRecibido! > pago.monto) {
-                saldoFavor = pago.montoRecibido! - pago.monto;
-              } else if (pago.montoRecibido! < pago.monto) {
-                saldoContra = pago.monto - pago.montoRecibido!;
-              }
-            }
-
-            return _tableRow([
-              "$index",
-              _formatDate(pago.fecha),
-              "\$${pago.monto}",
-              Checkbox(
-                value: pago.completado,
-                activeColor: Color(0xFFFB2056),
-                onChanged: (value) {
-                  setState(() {
-                    pago.completado = value!;
-                    if (pago.completado) {
-                      pago.parcial = false;
-                      pago.montoRecibido = pago.monto;
-                    } else {
-                      pago.montoRecibido = null;
-                    }
-                  });
-                },
-              ),
-              _buildMontoParcial(pago),
-              saldoFavor > 0 ? "\$${saldoFavor.toStringAsFixed(2)}" : "-",
-              saldoContra > 0 ? "\$${saldoContra.toStringAsFixed(2)}" : "-",
-            ]);
-          }).toList(),
-        ],
-      ),
-    ],
-  );
-}
-
-
+    );
+  }
 
   Widget _infoItem(String label, String value) {
     return Column(
@@ -185,34 +277,12 @@ class _InfoCreditoState extends State<InfoCredito> {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+              fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         SizedBox(height: 4),
         Text(value, style: TextStyle(fontSize: 13, color: Colors.white)),
       ],
-    );
-  }
-
-  TableRow _tableRow(List<dynamic> cells, {bool isHeader = false}) {
-    return TableRow(
-      children: cells.map((cell) {
-        if (cell is String) {
-          return Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              cell,
-              style: TextStyle(
-                fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-                fontSize: 14,
-              ),
-            ),
-          );
-        }
-        return Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: cell,
-        );
-      }).toList(),
     );
   }
 
@@ -238,7 +308,13 @@ class _InfoCreditoState extends State<InfoCredito> {
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 hintText: 'Monto',
-                contentPadding: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                isDense: true, // Hace que el diseño sea más compacto
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+                constraints: BoxConstraints(
+                  minHeight: 30, // Altura mínima
+                  maxHeight: 30, // Altura máxima
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: BorderSide(color: Color(0xFFCCCCCC)),
@@ -259,7 +335,7 @@ class _InfoCreditoState extends State<InfoCredito> {
 
   String _formatDate(DateTime date) => "${date.toLocal()}".split(' ')[0];
 
-   Credito _buscarCreditoPorId(int id) {
+  Credito _buscarCreditoPorId(int id) {
     return Credito(
       idCredito: 1,
       nombreCredito: 'Cielito Azul',
@@ -281,7 +357,8 @@ class _InfoCreditoState extends State<InfoCredito> {
   List<Pago> _generarPagos(Credito credito) {
     final List<Pago> pagos = [];
     DateTime fechaActual = credito.fechaInicio;
-    final semanas = ((credito.fechaFin.difference(credito.fechaInicio).inDays) / 7).ceil();
+    final semanas =
+        ((credito.fechaFin.difference(credito.fechaInicio).inDays) / 7).ceil();
     for (int i = 0; i < semanas; i++) {
       pagos.add(Pago(fecha: fechaActual, monto: credito.pagoSemanal));
       fechaActual = fechaActual.add(Duration(days: 7));
@@ -289,7 +366,6 @@ class _InfoCreditoState extends State<InfoCredito> {
     return pagos;
   }
 }
-
 
 class Credito {
   final int idCredito;

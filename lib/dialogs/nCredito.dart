@@ -1605,7 +1605,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       "interesTotal": interesTotal,
       "montoMasInteres": totalARecuperar,
       "fechasPago": [], // Este arreglo se llenará con las fechas
-      "montosIndividuales":
+      "clientesMontosInd":
           [] // Este arreglo se llenará con los datos individuales
     };
 
@@ -1638,14 +1638,22 @@ class _nCreditoDialogState extends State<nCreditoDialog>
           100;
       double capitalMasInteres = periodoCapital + periodoInteres;
 
-      datosParaServidor["montosIndividuales"].add({
+      // Cálculo de los totales
+      double totalCapital = periodoCapital * pagosTotales;
+      double totalIntereses = periodoInteres * pagosTotales;
+      double pagoTotal = totalCapital + totalIntereses;
+
+      datosParaServidor["clientesMontosInd"].add({
         "iddetallegrupos": idDetalleGrupo,
         "capitalIndividual": capitalIndividual,
         "periodoCapital": periodoCapital,
         "periodoInteres": periodoInteres,
         "periodoInteresPorcentaje":
-            tasaInteresNumerica, // Aquí se usa la tasa de interés sin el '%'
+            tasaInteresNumerica, // Aquí se usa la tasa sin '%'
+        "totalCapital": totalCapital, // Total del capital
+        "totalIntereses": totalIntereses, // Total de intereses
         "capitalMasInteres": capitalMasInteres,
+        "pagoTotal": pagoTotal // Total a pagar
       });
     }
 
