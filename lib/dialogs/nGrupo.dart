@@ -210,7 +210,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       final miembroData = {
         'idgrupos': idGrupo, // Se pasa el id del grupo creado
         'idclientes': persona['idclientes'], // El id del cliente seleccionado
-        'idusuarios': 'F4H95O6HB9', // id de usuario por defecto
+        'idusuarios': '0XSWE1ZEYG', // id de usuario por defecto
         'nomCargo': _rolesSeleccionados[persona['idclientes']] ??
             'Miembro', // Rol seleccionado o 'Miembro' por defecto
       };

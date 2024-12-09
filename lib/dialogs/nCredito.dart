@@ -194,7 +194,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
   Future<void> enviarCredito(Map<String, dynamic> datos) async {
     // URL del endpoint
-    final String url = 'http://192.168.0.112:3000/api/v1/creditos';
+    final String url = 'http://$baseUrl/api/v1/creditos';
 
     // Mostrar un mensaje de carga opcional
     print("Enviando datos del crédito...");
