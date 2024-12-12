@@ -206,37 +206,43 @@ class _nGrupoDialogState extends State<nGrupoDialog>
 
 // Función para enviar los miembros al grupo
   Future<void> _enviarMiembros(String idGrupo) async {
-    for (var persona in _selectedPersons) {
-      final miembroData = {
-        'idgrupos': idGrupo, // Se pasa el id del grupo creado
-        'idclientes': persona['idclientes'], // El id del cliente seleccionado
-        'idusuarios': '0XSWE1ZEYG', // id de usuario por defecto
+    // Crear una lista de miembros con la estructura esperada
+    List<Map<String, dynamic>> miembros = _selectedPersons.map((persona) {
+      return {
+        'idcliente': persona['idclientes'], // El id del cliente seleccionado
         'nomCargo': _rolesSeleccionados[persona['idclientes']] ??
             'Miembro', // Rol seleccionado o 'Miembro' por defecto
       };
+    }).toList();
 
-      // Imprimir los datos antes de enviarlos
-      print("Datos que se enviarán para agregar el miembro: $miembroData");
+    // Crear el objeto de datos para enviar
+    final miembroData = {
+      'idgrupos': idGrupo, // Se pasa el id del grupo creado
+      'clientes': miembros, // Lista de miembros
+      'idusuarios': '1KBEH3H9E7', // id de usuario por defecto
+    };
 
-      final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/');
-      final headers = {'Content-Type': 'application/json'};
+    // Imprimir los datos antes de enviarlos
+    print("Datos que se enviarán para agregar los miembros: $miembroData");
 
-      try {
-        final response = await http.post(
-          url,
-          headers: headers,
-          body: json.encode(miembroData),
-        );
+    final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/');
+    final headers = {'Content-Type': 'application/json'};
 
-        if (response.statusCode == 201) {
-          print("Miembro agregado con éxito: ${persona['nombres']}");
-        } else {
-          print("Error al agregar miembro: ${response.statusCode}");
-          print("Detalles del error: ${response.body}");
-        }
-      } catch (e) {
-        print("Error al enviar miembro: $e");
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode(miembroData),
+      );
+
+      if (response.statusCode == 201) {
+        print("Miembros agregados con éxito");
+      } else {
+        print("Error al agregar miembros: ${response.statusCode}");
+        print("Detalles del error: ${response.body}");
       }
+    } catch (e) {
+      print("Error al enviar miembros: $e");
     }
   }
 

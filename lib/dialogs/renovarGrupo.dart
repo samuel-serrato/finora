@@ -272,37 +272,44 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
   }
 
   Future<void> _enviarMiembros(String idGrupo) async {
-    for (var persona in _selectedPersons) {
-      final miembroData = {
-        'idgrupos': idGrupo, // Asigna al nuevo grupo
-        'idclientes': persona['idclientes'], // ID de cliente existente
-        'idusuarios': 'OJVVIT9BDZ', // ID de usuario por defecto
-        'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
-      };
+  // Crear una lista de miembros con la estructura esperada
+  List<Map<String, dynamic>> miembros = _selectedPersons.map((persona) {
+    return {
+      'idclientes': persona['idclientes'], // ID de cliente existente
+      'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro', // Rol seleccionado o 'Miembro' por defecto
+    };
+  }).toList();
 
-      print("Datos para agregar miembro en renovación: $miembroData");
+  // Crear el objeto de datos para enviar
+  final miembroData = {
+    'idgrupos': idGrupo, // Asigna al nuevo grupo
+    'clientes': miembros, // Lista de miembros
+    'idusuarios': 'OJVVIT9BDZ', // ID de usuario por defecto
+  };
 
-      final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/renovacion');
-      final headers = {'Content-Type': 'application/json'};
+  print("Datos para agregar miembros en renovación: $miembroData");
 
-      try {
-        final response = await http.post(
-          url,
-          headers: headers,
-          body: json.encode(miembroData),
-        );
+  final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/renovacion');
+  final headers = {'Content-Type': 'application/json'};
 
-        if (response.statusCode == 201) {
-          print("Miembro agregado con éxito: ${persona['nombres']}");
-        } else {
-          print("Error al agregar miembro: ${response.statusCode}");
-          print("Detalles del error: ${response.body}");
-        }
-      } catch (e) {
-        print("Error al agregar miembro en renovación: $e");
-      }
+  try {
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: json.encode(miembroData),
+    );
+
+    if (response.statusCode == 201) {
+      print("Miembros agregados con éxito en renovación");
+    } else {
+      print("Error al agregar miembros en renovación: ${response.statusCode}");
+      print("Detalles del error: ${response.body}");
     }
+  } catch (e) {
+    print("Error al agregar miembros en renovación: $e");
   }
+}
+
 
   @override
   Widget build(BuildContext context) {

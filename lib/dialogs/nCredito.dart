@@ -1604,6 +1604,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       "montoTotal": montoController.text,
       "interesTotal": interesTotal,
       "montoMasInteres": totalARecuperar,
+      "diaPago": diaPago,
       "fechasPago": [], // Este arreglo se llenará con las fechas
       "clientesMontosInd":
           [] // Este arreglo se llenará con los datos individuales
@@ -1611,15 +1612,18 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
     // Generar las fechas de pago
     int pagosTotales =
-        frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
-    for (int index = 0; index < pagosTotales; index++) {
-      DateTime fechaPago = frecuenciaPago == "Semanal"
-          ? fechaInicio.add(Duration(days: (index + 1) * 7))
-          : fechaInicio
-              .add(Duration(days: (index + 1) * 15)); // Ejemplo para quincenal
+    frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
 
-      datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaPago));
-    }
+// Añadir el pago 0 con la fecha inicial
+datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaInicio));
+
+for (int index = 0; index < pagosTotales; index++) {
+  DateTime fechaPago = frecuenciaPago == "Semanal"
+      ? fechaInicio.add(Duration(days: (index + 1) * 7))
+      : fechaInicio.add(Duration(days: (index + 1) * 15)); // Ejemplo para quincenal
+
+  datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaPago));
+}
 
     // Generar los montos individuales
     for (var integrante in integrantes) {

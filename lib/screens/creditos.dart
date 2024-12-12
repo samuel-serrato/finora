@@ -1,8 +1,13 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:money_facil/custom_app_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:money_facil/dialogs/infoCredito.dart';
-import 'package:money_facil/dialogs/nCredito.dart'; // Para manejar fechas
+import 'package:money_facil/dialogs/nCredito.dart';
+import 'package:money_facil/ip.dart'; // Para manejar fechas
 
 class SeguimientoScreen extends StatefulWidget {
   @override
@@ -11,60 +16,124 @@ class SeguimientoScreen extends StatefulWidget {
 
 class _SeguimientoScreenState extends State<SeguimientoScreen> {
   // Datos estáticos de ejemplo de créditos activos
-  final List<Credito> listaCreditos = [
-    Credito(
-      idCredito: 1,
-      nombreCredito: 'Cielito Azul',
-      frecuencia: 'Semanal',
-      montoAutorizado: 50000,
-      garantia: 10, // Porcentaje de la garantía
-      interes: 9.28,
-      tipoCredito: 'Individual',
-      estadoCredito: 'Activo', // Estado del crédito
-      montoDesembolsado: 40000,
-      semanaDePago: '2 de 14',
-      diaDePago: 'Lunes',
-      fechaPago: DateTime(2024, 11, 10), // Fecha de pago
-      pagoSemanal: 2500.0, // Ejemplo de pago semanal
-      fechaInicio: DateTime(2024, 10, 1), // Fecha de inicio
-      fechaFin: DateTime(2025, 1, 1), // Fecha de finalización
-    ),
-    Credito(
-      idCredito: 2,
-      nombreCredito: 'Las lobas',
-      frecuencia: 'Quincenal',
-      montoAutorizado: 10000,
-      garantia: 10, // Porcentaje de la garantía
-      interes: 9.28,
-      tipoCredito: 'Individual',
-      estadoCredito: 'Activo', // Estado del crédito
-      montoDesembolsado: 10000,
-      semanaDePago: '5 de 12',
-      diaDePago: 'Miércoles',
-      fechaPago: DateTime(2024, 11, 12), // Fecha de pago
-      pagoSemanal: 2500.0, // Ejemplo de pago semanal
-      fechaPagado: DateTime(2024, 11, 12), // Ejemplo de pago registrado
-      fechaInicio: DateTime(2024, 9, 1), // Fecha de inicio
-      fechaFin: DateTime(2024, 12, 1), // Fecha de finalización
-    ),
-    Credito(
-      idCredito: 3,
-      nombreCredito: 'Adicional Alfa y Omega',
-      frecuencia: 'Semanal',
-      montoAutorizado: 80000,
-      garantia: 10, // Porcentaje de la garantía
-      interes: 9.28,
-      tipoCredito: 'Grupal',
-      estadoCredito: 'Activo', // Estado del crédito
-      montoDesembolsado: 80000,
-      semanaDePago: '8 de 20',
-      diaDePago: 'Viernes',
-      fechaPago: DateTime(2024, 11, 15), // Fecha de pago
-      pagoSemanal: 2500.0, // Ejemplo de pago semanal
-      fechaInicio: DateTime(2024, 8, 15), // Fecha de inicio
-      fechaFin: DateTime(2025, 2, 15), // Fecha de finalización
-    ),
-  ];
+  List<Credito> listaCreditos = [];
+
+  bool isLoading = false; // Para indicar si los datos están siendo cargados.
+  bool errorDeConexion = false; // Para indicar si hubo un error de conexión.
+  bool noCreditsFound = false; // Para indicar si no se encontraron créditos.
+  Timer?
+      _timer; // Para manejar el temporizador que muestra el mensaje de error después de cierto tiempo.
+
+  @override
+  void initState() {
+    super.initState();
+    obtenerCreditos();
+  }
+
+  Future<void> obtenerCreditos() async {
+    setState(() {
+      isLoading = true;
+      errorDeConexion = false;
+      noCreditsFound = false;
+    });
+
+    bool dialogShown = false;
+
+    Future<void> fetchData() async {
+      try {
+        final response =
+            await http.get(Uri.parse('http://$baseUrl/api/v1/creditos'));
+
+        print('Status code: ${response.statusCode}');
+        print('Response body: ${response.body}');
+
+        if (mounted) {
+          if (response.statusCode == 200) {
+            List<dynamic> data = json.decode(response.body);
+            setState(() {
+              listaCreditos =
+                  data.map((item) => Credito.fromJson(item)).toList();
+              isLoading = false;
+              errorDeConexion = false;
+            });
+            _timer?.cancel();
+          } else if (response.statusCode == 400) {
+            final errorData = json.decode(response.body);
+            if (errorData["Error"]["Message"] ==
+                "No hay créditos registrados") {
+              setState(() {
+                listaCreditos = [];
+                isLoading = false;
+                noCreditsFound = true;
+              });
+              _timer
+                  ?.cancel(); // Detener intentos de reconexión si no hay créditos
+            } else {
+              setErrorState(dialogShown);
+            }
+          } else {
+            setErrorState(dialogShown);
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          setErrorState(dialogShown, e);
+        }
+      }
+    }
+
+    fetchData();
+
+    if (!noCreditsFound) {
+      _timer = Timer(Duration(seconds: 10), () {
+        if (mounted && !dialogShown && !noCreditsFound) {
+          setState(() {
+            isLoading = false;
+            errorDeConexion = true;
+          });
+          dialogShown = true;
+          mostrarDialogoError(
+              'No se pudo conectar al servidor. Verifica tu red.');
+        }
+      });
+    }
+  }
+
+  void setErrorState(bool dialogShown, [dynamic error]) {
+    setState(() {
+      isLoading = false;
+      errorDeConexion = true;
+    });
+    if (!dialogShown) {
+      dialogShown = true;
+      if (error is SocketException) {
+        mostrarDialogoError('Error de conexión. Verifica tu red.');
+      } else {
+        mostrarDialogoError('Ocurrió un error inesperado.');
+      }
+      _timer?.cancel(); // Detener intentos de reconexión en caso de error
+    }
+  }
+
+  void mostrarDialogoError(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Error de conexión'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   bool _isDarkMode = false;
 
@@ -88,12 +157,59 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   Widget content(BuildContext context) {
-    return Column(
-      children: [
-        filaBuscarYAgregar(context),
-        filaTabla(context),
-      ],
-    );
+    if (isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFFB2056),
+        ),
+      );
+    } else if (errorDeConexion) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                obtenerCreditos();
+              },
+              child: Text('Recargar'),
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
+                foregroundColor: MaterialStateProperty.all(Colors.white),
+                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (noCreditsFound || listaCreditos.isEmpty) {
+      return Center(
+        child: Text(
+          'No hay créditos para mostrar.',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    } else {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          filaBuscarYAgregar(context),
+          Expanded(
+            child: filaTabla(context),
+          ),
+        ],
+      );
+    }
   }
 
   Widget filaBuscarYAgregar(BuildContext context) {
@@ -216,11 +332,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               label: Text('Nombre', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label: Text('Autorizado', style: TextStyle(fontSize: fontSize))),
+          
+          DataColumn(label: Text('Desembolsado', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label: Text('Interés %', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label:
-                  Text('Desembolsado', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label:
                   Text('Interés Total', style: TextStyle(fontSize: fontSize))),
@@ -235,21 +350,18 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           DataColumn(
               label: Text('Núm de Pago', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label: Text('Duración',
-                  style: TextStyle(fontSize: fontSize))), // Nueva columna
-          DataColumn(
-              label:
-                  Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
+              label: Text('Duración', style: TextStyle(fontSize: fontSize))),
+          //DataColumn(label: Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
         ],
         rows: listaCreditos.map((credito) {
-          String estadoPago = _calcularEstadoPago(credito);
-          Color colorEstado;
+          /*  String estadoPago = _calcularEstadoPago(credito);
+        Color colorEstado;
 
-          if (estadoPago == "A Tiempo" || estadoPago == "Pagado") {
-            colorEstado = Colors.green;
-          } else {
-            colorEstado = Colors.red;
-          }
+        if (estadoPago == "A Tiempo" || estadoPago == "Pagado") {
+          colorEstado = Colors.green;
+        } else {
+          colorEstado = Colors.red;
+        } */
 
           return DataRow(
             selected: selectedRows.contains(listaCreditos.indexOf(credito)),
@@ -259,96 +371,97 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   selectedRows.add(listaCreditos.indexOf(credito));
                   showDialog(
                     context: context,
-                    builder: (context) => InfoCredito(id: credito.idCredito),
+                    builder: (context) => InfoCredito(folio: credito.folio),
                   );
                 }
               });
             },
             cells: [
-              DataCell(Text(credito.tipoCredito,
-                  style: TextStyle(fontSize: fontSize))),
-              DataCell(Text(credito.frecuencia,
+              DataCell(
+                  Text(credito.tipo, style: TextStyle(fontSize: fontSize))),
+              DataCell(Text(credito.tipoPlazo,
                   style: TextStyle(fontSize: fontSize))),
               DataCell(
                 Container(
-                  width: 70, // Puedes ajustar el ancho según lo necesites
+                  width: 80,
                   child: Text(
-                    credito.nombreCredito,
+                    credito.nombreGrupo,
                     style: TextStyle(fontSize: fontSize),
-                    overflow: TextOverflow
-                        .ellipsis, // Asegura que el texto se trunque si es muy largo
-                    maxLines: 2, // Limita a dos líneas
-                    softWrap:
-                        true, // Permite que el texto se envuelva en varias líneas
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    softWrap: true,
                   ),
                 ),
               ),
               DataCell(Center(
-                  child: Text('\$${credito.montoAutorizado}',
+                  child: Text('\$${credito.montoTotal.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
+              
               DataCell(Center(
-                  child: Text('${credito.interes}%',
-                      style: TextStyle(fontSize: fontSize)))),
-              DataCell(Center(
-                  child: Text('\$${credito.montoDesembolsado}',
+                child: Text('\$${credito.montoDesembolsado.toStringAsFixed(2)}',
+                    style: TextStyle(fontSize: fontSize)))),
+                    DataCell(Center(
+                  child: Text('${credito.interesGlobal}%',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
                   child: Text('\$${credito.interesTotal.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
-                  child: Text('\$${credito.montoARecuperar.toStringAsFixed(2)}',
+                  child: Text('\$${credito.montoMasInteres.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
-                  child: Text(credito.diaDePago,
+                  child: Text('${credito.diaPago}',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
-                  child: Text('\$${credito.pagoSemanal.toStringAsFixed(2)}',
+                  child: Text('${credito.pagoCuota}',
                       style: TextStyle(fontSize: fontSize)))),
+              /* DataCell(Center(
+                  child: Text('${credito.plazo} ${credito.tipoPlazo}',
+                      style: TextStyle(fontSize: fontSize)))), */
               DataCell(Center(
-                  child: Text(credito.semanaDePago,
+                  child: Text('${credito.numPago}',
                       style: TextStyle(fontSize: fontSize)))),
-              DataCell(
-                Container(
-                  width: 80, // Puedes ajustar el ancho según lo necesites
-                  child: Center(
-                    child: Text(
-                      '${DateFormat('dd/MM/yyyy').format(credito.fechaInicio)} - ${DateFormat('dd/MM/yyyy').format(credito.fechaFin)}',
-                      style: TextStyle(fontSize: fontSize),
-                    ),
+              DataCell(Container(
+                  width: 70,
+                  child: Text(
+                    credito.fechasIniciofin,
+                    style: TextStyle(fontSize: fontSize),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    softWrap: true,
                   ),
-                ),
-              ),
-              DataCell(
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          CircleAvatar(radius: 8, backgroundColor: colorEstado),
-                          SizedBox(width: 8),
-                          Text(estadoPago,
-                              style: TextStyle(fontSize: fontSize)),
-                        ],
-                      ),
-                      if (estadoPago == "Atrasado") ...[
-                        SizedBox(height: 4),
-                        Text(
-                            '(${_diasDeRetraso(credito.fechaPago)} días de retraso)',
-                            style: TextStyle(fontSize: 11, color: Colors.grey)),
+                ),),
+              /* DataCell(
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        CircleAvatar(radius: 8, backgroundColor: colorEstado),
+                        SizedBox(width: 8),
+                        Text(estadoPago,
+                            style: TextStyle(fontSize: fontSize)),
                       ],
-                      if (credito.fechaPagado != null) ...[
-                        SizedBox(height: 4),
-                        Text(
-                            '(Pagado: ${DateFormat('dd/MM/yyyy').format(credito.fechaPagado!)})',
-                            style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      ]
+                    ),
+                    if (estadoPago == "Atrasado") ...[
+                      SizedBox(height: 4),
+                      Text(
+                          '(${_diasDeRetraso(credito.fCreacion)} días de retraso)',
+                          style: TextStyle(fontSize: 11, color: Colors.grey)),
                     ],
-                  ),
+                    if (credito.fCreacion != null) ...[
+                      SizedBox(height: 4),
+                      Text(
+                          '(Creado: ${DateFormat('dd/MM/yyyy').format(credito.fCreacion!)})',
+                          style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ]
+                  ],
                 ),
               ),
+            ), */
             ],
             color: MaterialStateColor.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
@@ -365,7 +478,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   // Método para calcular el estado de pago (A Tiempo, Atrasado o Pagado)
-  String _calcularEstadoPago(Credito credito) {
+  /* String _calcularEstadoPago(Credito credito) {
     DateTime ahora = DateTime.now();
     if (credito.fechaPagado != null) {
       return "Pagado";
@@ -375,7 +488,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     } else {
       return "Atrasado";
     }
-  }
+  } */
 
   // Método para calcular los días de retraso
   int _diasDeRetraso(DateTime fechaPago) {
@@ -385,49 +498,69 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 }
 
 class Credito {
-  final int idCredito;
-  final String nombreCredito;
-  final String frecuencia;
-  final int montoAutorizado;
-  final int garantia;
+  final String idCredito;
+  final String nombreGrupo;
+  final int plazo;
+  final String tipoPlazo;
+  final String tipo;
   final double interes;
-  final String tipoCredito;
+  final double montoDesembolsado;
+  final String folio;
+  final String diaPago;
+  final double garantia;
+  final double pagoCuota;
+  final double interesGlobal;
+  final double montoTotal;
+  final double interesTotal;
+  final double montoMasInteres;
+  final String numPago;
+  final String fechasIniciofin;
   final String estadoCredito;
-  final int montoDesembolsado;
-  final String semanaDePago;
-  final String diaDePago;
-  final DateTime fechaPago;
-  final double pagoSemanal;
-  final DateTime? fechaPagado;
-  final DateTime fechaInicio; // Nuevo campo
-  final DateTime fechaFin; // Nuevo campo
+  final DateTime fCreacion;
 
   Credito({
     required this.idCredito,
-    required this.nombreCredito,
-    required this.frecuencia,
-    required this.montoAutorizado,
-    required this.garantia,
+    required this.nombreGrupo,
+    required this.plazo,
+    required this.tipoPlazo,
+    required this.tipo,
     required this.interes,
-    required this.tipoCredito,
-    required this.estadoCredito,
     required this.montoDesembolsado,
-    required this.semanaDePago,
-    required this.diaDePago,
-    required this.fechaPago,
-    required this.pagoSemanal,
-    this.fechaPagado,
-    required this.fechaInicio, // Nuevo campo en el constructor
-    required this.fechaFin, // Nuevo campo en el constructor
+    required this.folio,
+    required this.diaPago,
+    required this.garantia,
+    required this.pagoCuota,
+    required this.interesGlobal,
+    required this.montoTotal,
+    required this.interesTotal,
+    required this.montoMasInteres,
+    required this.numPago,
+    required this.fechasIniciofin,
+    required this.estadoCredito,
+    required this.fCreacion,
   });
 
-  // Cálculo del interés total
-  double get interesTotal {
-    return montoDesembolsado * (interes / 100);
-  }
-
-  // Cálculo del monto a recuperar
-  double get montoARecuperar {
-    return montoDesembolsado + interesTotal;
+  factory Credito.fromJson(Map<String, dynamic> json) {
+    return Credito(
+      idCredito: json['idcredito'],
+      nombreGrupo: json['nombreGrupo'],
+      plazo: json['plazo'] is String ? int.parse(json['plazo']) : json['plazo'],
+      tipoPlazo: json['tipoPlazo'],
+      tipo: json['tipo'],
+      interes: json['interesGlobal'].toDouble(),
+      montoDesembolsado: json['montoDesembolsado'].toDouble(),
+      folio: json['folio'],
+      diaPago: json['diaPago'],
+      garantia: double.parse(json['garantia'].replaceAll('%', '')),
+      pagoCuota: json['pagoCuota'].toDouble(),
+      interesGlobal: json['interesGlobal'].toDouble(),
+      montoTotal: json['montoTotal'].toDouble(),
+      interesTotal: json['interesTotal'].toDouble(),
+      montoMasInteres: json['montoMasInteres'].toDouble(),
+      numPago: json['numPago'],
+      fechasIniciofin: json['fechasIniciofin'],
+      estadoCredito: json['estado_credito'],
+      fCreacion: DateTime.parse(json['fCreacion']),
+    );
   }
 }
