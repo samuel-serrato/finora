@@ -60,7 +60,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           } else if (response.statusCode == 400) {
             final errorData = json.decode(response.body);
             if (errorData["Error"]["Message"] ==
-                "No hay créditos registrados") {
+                "No hay ningun credito registrado") {
               setState(() {
                 listaCreditos = [];
                 isLoading = false;
@@ -192,21 +192,23 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           ],
         ),
       );
-    } else if (noCreditsFound || listaCreditos.isEmpty) {
-      return Center(
-        child: Text(
-          'No hay créditos para mostrar.',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
-        ),
-      );
     } else {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          filaBuscarYAgregar(context),
-          Expanded(
-            child: filaTabla(context),
-          ),
+          filaBuscarYAgregar(context), // Mostrar siempre este widget
+          noCreditsFound || listaCreditos.isEmpty
+              ? Expanded(
+                  child: Center(
+                    child: Text(
+                      'No hay créditos para mostrar.',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ),
+                )
+              : Expanded(
+                  child: filaTabla(context),
+                ),
         ],
       );
     }
@@ -255,7 +257,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
-            onPressed: mostrarDialogAgregarGrupo,
+            onPressed: mostrarDialogAgregarCredito,
             child: Text('Agregar Crédito'),
           ),
         ],
@@ -263,14 +265,14 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     );
   }
 
-  void mostrarDialogAgregarGrupo() {
+  void mostrarDialogAgregarCredito() {
     showDialog(
       barrierDismissible: false, // Evita que se cierre al tocar fuera
       context: context,
       builder: (context) {
         return nCreditoDialog(
-          onGrupoAgregado: () {
-            //obtenerGrupos(); // Refresca la lista de clientes después de agregar uno
+          onCreditoAgregado: () {
+            obtenerCreditos(); // Refresca la lista de clientes después de agregar uno
           },
         );
       },
@@ -332,8 +334,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               label: Text('Nombre', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label: Text('Autorizado', style: TextStyle(fontSize: fontSize))),
-          
-          DataColumn(label: Text('Desembolsado', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label:
+                  Text('Desembolsado', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label: Text('Interés %', style: TextStyle(fontSize: fontSize))),
           DataColumn(
@@ -351,18 +354,11 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               label: Text('Núm de Pago', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label: Text('Duración', style: TextStyle(fontSize: fontSize))),
-          //DataColumn(label: Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label:
+                  Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
         ],
         rows: listaCreditos.map((credito) {
-          /*  String estadoPago = _calcularEstadoPago(credito);
-        Color colorEstado;
-
-        if (estadoPago == "A Tiempo" || estadoPago == "Pagado") {
-          colorEstado = Colors.green;
-        } else {
-          colorEstado = Colors.red;
-        } */
-
           return DataRow(
             selected: selectedRows.contains(listaCreditos.indexOf(credito)),
             onSelectChanged: (isSelected) {
@@ -396,11 +392,11 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               DataCell(Center(
                   child: Text('\$${credito.montoTotal.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
-              
               DataCell(Center(
-                child: Text('\$${credito.montoDesembolsado.toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: fontSize)))),
-                    DataCell(Center(
+                  child: Text(
+                      '\$${credito.montoDesembolsado.toStringAsFixed(2)}',
+                      style: TextStyle(fontSize: fontSize)))),
+              DataCell(Center(
                   child: Text('${credito.interesGlobal}%',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
@@ -415,13 +411,11 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               DataCell(Center(
                   child: Text('${credito.pagoCuota}',
                       style: TextStyle(fontSize: fontSize)))),
-              /* DataCell(Center(
-                  child: Text('${credito.plazo} ${credito.tipoPlazo}',
-                      style: TextStyle(fontSize: fontSize)))), */
               DataCell(Center(
                   child: Text('${credito.numPago}',
                       style: TextStyle(fontSize: fontSize)))),
-              DataCell(Container(
+              DataCell(
+                Container(
                   width: 70,
                   child: Text(
                     credito.fechasIniciofin,
@@ -430,38 +424,16 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                     maxLines: 2,
                     softWrap: true,
                   ),
-                ),),
-              /* DataCell(
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        CircleAvatar(radius: 8, backgroundColor: colorEstado),
-                        SizedBox(width: 8),
-                        Text(estadoPago,
-                            style: TextStyle(fontSize: fontSize)),
-                      ],
-                    ),
-                    if (estadoPago == "Atrasado") ...[
-                      SizedBox(height: 4),
-                      Text(
-                          '(${_diasDeRetraso(credito.fCreacion)} días de retraso)',
-                          style: TextStyle(fontSize: 11, color: Colors.grey)),
-                    ],
-                    if (credito.fCreacion != null) ...[
-                      SizedBox(height: 4),
-                      Text(
-                          '(Creado: ${DateFormat('dd/MM/yyyy').format(credito.fCreacion!)})',
-                          style: TextStyle(fontSize: 11, color: Colors.grey)),
-                    ]
-                  ],
                 ),
               ),
-            ), */
+              DataCell(
+                Center(
+                  child: Text(
+                    credito.estadoCredito.estado, // Mostrar el estado
+                    style: TextStyle(fontSize: fontSize),
+                  ),
+                ),
+              ),
             ],
             color: MaterialStateColor.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
@@ -475,25 +447,6 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         }).toList(),
       ),
     );
-  }
-
-  // Método para calcular el estado de pago (A Tiempo, Atrasado o Pagado)
-  /* String _calcularEstadoPago(Credito credito) {
-    DateTime ahora = DateTime.now();
-    if (credito.fechaPagado != null) {
-      return "Pagado";
-    } else if (ahora.isBefore(credito.fechaPago) ||
-        ahora.isAtSameMomentAs(credito.fechaPago)) {
-      return "A Tiempo";
-    } else {
-      return "Atrasado";
-    }
-  } */
-
-  // Método para calcular los días de retraso
-  int _diasDeRetraso(DateTime fechaPago) {
-    DateTime ahora = DateTime.now();
-    return ahora.difference(fechaPago).inDays;
   }
 }
 
@@ -515,8 +468,8 @@ class Credito {
   final double montoMasInteres;
   final String numPago;
   final String fechasIniciofin;
-  final String estadoCredito;
   final DateTime fCreacion;
+  final EstadoCredito estadoCredito;
 
   Credito({
     required this.idCredito,
@@ -559,8 +512,37 @@ class Credito {
       montoMasInteres: json['montoMasInteres'].toDouble(),
       numPago: json['numPago'],
       fechasIniciofin: json['fechasIniciofin'],
-      estadoCredito: json['estado_credito'],
+      estadoCredito: EstadoCredito.fromJson(json['estado_credito']),
       fCreacion: DateTime.parse(json['fCreacion']),
+    );
+  }
+}
+
+class EstadoCredito {
+  final double montoTotal;
+  final double moratorios;
+  final int semanasDeRetraso;
+  final int diferenciaEnDias;
+  final String mensaje;
+  final String estado;
+
+  EstadoCredito({
+    required this.montoTotal,
+    required this.moratorios,
+    required this.semanasDeRetraso,
+    required this.diferenciaEnDias,
+    required this.mensaje,
+    required this.estado,
+  });
+
+  factory EstadoCredito.fromJson(Map<String, dynamic> json) {
+    return EstadoCredito(
+      montoTotal: double.parse(json['montoTotal']),
+      moratorios: double.parse(json['moratorios']),
+      semanasDeRetraso: json['semanasDeRetraso'],
+      diferenciaEnDias: json['diferenciaEnDias'],
+      mensaje: json['mensaje'],
+      estado: json['esatado'], // Nota: el JSON tiene un error de tipografía aquí ("esatado" en lugar de "estado").
     );
   }
 }

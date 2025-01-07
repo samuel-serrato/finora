@@ -8,9 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:money_facil/ip.dart';
 
 class nCreditoDialog extends StatefulWidget {
-  final VoidCallback onGrupoAgregado;
+  final VoidCallback onCreditoAgregado;
 
-  nCreditoDialog({required this.onGrupoAgregado});
+  nCreditoDialog({required this.onCreditoAgregado});
 
   @override
   _nCreditoDialogState createState() => _nCreditoDialogState();
@@ -935,7 +935,9 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     double interesPorcentaje = 0.0;
     double pagoTotal = 0.0;
     interesTotal = 0.0;
-    interesGlobal = tasaInteresMensualCalculada * 4; // Interés anualizado
+    interesGlobal = (tasaInteresMensualCalculada / 4) * plazoNumerico; // Interés anualizado
+
+    print('interesGlobal print: $interesGlobal');
 
     // Formatear los datos para mostrarlos
     montoAutorizado =
@@ -959,8 +961,16 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       interesTotal = interesPago * pagosTotales;
       pagoTotal = capitalPago + interesPago;
     }
-
+  
     totalARecuperar = monto + interesTotal;
+
+    print('capitalL: $capitalPago');
+    print('interesPAGOo: $interesPago');
+    print('interesTOTALa: $interesTotal');
+    print('montoO: $monto'); 
+    print('total a RECUPERAR A: $totalARecuperar');
+
+    print('pago seamanal: $pagoTotal');
 
     // Calcular la fecha de término
     DateTime fechaTerminoCalculada =
@@ -1228,7 +1238,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                     : frecuenciaPago == "Quincenal"
                                         ? 'Pago Quincenal: '
                                         : '',
-                                '\$${formatearNumero(pagoTotal)}'),
+                                '\$${(pagoTotal)}'),
                             _infoRow('Interés Total: ',
                                 '\$${formatearNumero(interesTotal)}'),
                           ],

@@ -284,7 +284,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
   final miembroData = {
     'idgrupos': idGrupo, // Asigna al nuevo grupo
     'clientes': miembros, // Lista de miembros
-    'idusuarios': 'OJVVIT9BDZ', // ID de usuario por defecto
+    'idusuarios': 'WVI8HMQAG5', // ID de usuario por defecto
   };
 
   print("Datos para agregar miembros en renovación: $miembroData");
