@@ -250,9 +250,9 @@ class _InfoCreditoState extends State<InfoCredito> {
                                       ),
                                       _buildDetailRow(
                                         'Estado',
-                                        creditoData!.estadoCredito.estado !=
+                                        creditoData!.estado !=
                                                 null
-                                            ? creditoData!.estadoCredito.estado
+                                            ? creditoData!.estado
                                                 .toString()
                                             : 'No disponible',
                                       ),
@@ -500,7 +500,7 @@ class Credito {
   final double pagoCuota;
   final String numPago;
   final String fechasIniciofin;
-  final EstadoCredito estadoCredito;
+  final String estado;
   final String fCreacion;
   final List<ClienteMonto> clientesMontosInd;
 
@@ -525,71 +525,45 @@ class Credito {
     required this.pagoCuota,
     required this.numPago,
     required this.fechasIniciofin,
-    required this.estadoCredito,
+    required this.estado,
     required this.fCreacion,
     required this.clientesMontosInd,
   });
 
   factory Credito.fromJson(Map<String, dynamic> json) {
-    return Credito(
-      idcredito: json['idcredito'],
-      idgrupos: json['idgrupos'],
-      nombreGrupo: json['nombreGrupo'],
-      diaPago: json['diaPago'] ?? "",
-      plazo: json['plazo'],
-      tipoPlazo: json['tipoPlazo'],
-      tipo: json['tipo'],
-      ti_mensual: json['ti_mensual'].toDouble(),
-      folio: json['folio'],
-      garantia: json['garantia'],
-      montoDesembolsado: json['montoDesembolsado'].toDouble(),
-      interesGlobal: json['interesGlobal'].toDouble(),
-      semanalCapital: json['semanalCapital'].toDouble(), // Nuevo campo
-      semanalInteres: json['semanalInteres'].toDouble(), // Nuevo campo
-      montoTotal: json['montoTotal'].toDouble(),
-      interesTotal: json['interesTotal'].toDouble(),
-      montoMasInteres: json['montoMasInteres'].toDouble(),
-      pagoCuota: json['pagoCuota'].toDouble(),
-      numPago: json['numPago'],
-      fechasIniciofin: json['fechasIniciofin'],
-      estadoCredito: EstadoCredito.fromJson(json['estado_credito']),
-      fCreacion: json['fCreacion'],
-      clientesMontosInd: (json['clientesMontosInd'] as List)
-          .map((e) => ClienteMonto.fromJson(e))
-          .toList(),
-    );
-  }
+    print("Procesando JSON: $json");
+print("Campo plazo: ${json['plazo']}");
+print("Campo numPago: ${json['numPago']}");
+  return Credito(
+    idcredito: json['idcredito'] ?? "",
+    idgrupos: json['idgrupos'] ?? "",
+    nombreGrupo: json['nombreGrupo'] ?? "",
+    diaPago: json['diaPago'] ?? "",
+    plazo: json['plazo'] ?? 0, // Ya es un número, no necesita conversión
+    tipoPlazo: json['tipoPlazo'] ?? "",
+    tipo: json['tipo'] ?? "",
+    ti_mensual: (json['ti_mensual'] as num?)?.toDouble() ?? 0.0,
+    folio: json['folio'] ?? "",
+    garantia: json['garantia'] ?? "",
+    montoDesembolsado: (json['montoDesembolsado'] as num?)?.toDouble() ?? 0.0,
+    interesGlobal: (json['interesGlobal'] as num?)?.toDouble() ?? 0.0,
+    semanalCapital: (json['semanalCapital'] as num?)?.toDouble() ?? 0.0,
+    semanalInteres: (json['semanalInteres'] as num?)?.toDouble() ?? 0.0,
+    montoTotal: (json['montoTotal'] as num?)?.toDouble() ?? 0.0,
+    interesTotal: (json['interesTotal'] as num?)?.toDouble() ?? 0.0,
+    montoMasInteres: (json['montoMasInteres'] as num?)?.toDouble() ?? 0.0,
+    pagoCuota: (json['pagoCuota'] as num?)?.toDouble() ?? 0.0,
+    numPago: json['numPago'] ?? "", // Este es un texto
+    fechasIniciofin: json['fechasIniciofin'] ?? "",
+    estado: json['estado_credito']?['esatado'] ?? "", // Manejo del objeto anidado
+    fCreacion: json['fCreacion'] ?? "",
+    clientesMontosInd: (json['clientesMontosInd'] as List? ?? [])
+        .map((e) => ClienteMonto.fromJson(e))
+        .toList(),
+  );
+}
 }
 
-class EstadoCredito {
-  final double montoTotal;
-  final double moratorios;
-  final int semanasDeRetraso;
-  final int diferenciaEnDias;
-  final String mensaje;
-  final String estado;
-
-  EstadoCredito({
-    required this.montoTotal,
-    required this.moratorios,
-    required this.semanasDeRetraso,
-    required this.diferenciaEnDias,
-    required this.mensaje,
-    required this.estado,
-  });
-
-  factory EstadoCredito.fromJson(Map<String, dynamic> json) {
-    return EstadoCredito(
-      montoTotal: double.parse(json['montoTotal']),
-      moratorios: double.parse(json['moratorios']),
-      semanasDeRetraso: json['semanasDeRetraso'],
-      diferenciaEnDias: json['diferenciaEnDias'],
-      mensaje: json['mensaje'],
-      estado: json[
-          'esatado'], // Nota: el JSON tiene un error de tipografía aquí ("esatado" en lugar de "estado").
-    );
-  }
-}
 
 class PaginaControl extends StatefulWidget {
   final String idCredito;
@@ -604,19 +578,31 @@ class _PaginaControlState extends State<PaginaControl> {
   late Future<List<Pago>> _pagosFuture;
 // Mapa para controlar si cada pago está siendo editado
   Map<int, bool> editingState = {}; // Usamos un mapa para el control por pago
+  List<TextEditingController> controllers = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _pagosFuture = _fetchPagos().then((pagos) {
-      for (var pago in pagos) {
-        if (pago.capitalDeposito == null) {
-          pago.capitalDeposito = 0.0; // Solo si no tiene valor
-        }
+@override
+void initState() {
+  super.initState();
+  
+  _pagosFuture = _fetchPagos().then((pagos) {
+    for (var pago in pagos) {
+      if (pago.deposito == null) {
+        pago.deposito = 0.0; // Solo si no tiene valor
       }
-      return pagos;
+    }
+    
+    // Inicializamos los controladores para cada pago
+    controllers = List.generate(pagos.length, (index) {
+      return TextEditingController(
+        text: pagos[index].deposito != null && pagos[index].deposito! > 0
+            ? pagos[index].deposito!.toStringAsFixed(2) 
+            : '', // Si el valor de deposito es 0, no mostrar nada
+      );
     });
-  }
+    
+    return pagos;
+  });
+}
 
   // Función para formatear fechas
   String formatearFecha(Object? fecha) {
@@ -680,7 +666,7 @@ class _PaginaControlState extends State<PaginaControl> {
             if (i == 0) continue; // Excluir el pago 1 (índice 0)
 
             double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
-            double capitalDeposito = pago.capitalDeposito ?? 0.0;
+            double deposito = pago.deposito ?? 0.0;
 
             // Suma de los abonos realizados
             double totalAbonos = pago.abonos
@@ -694,12 +680,12 @@ class _PaginaControlState extends State<PaginaControl> {
               totalPagoActual += capitalMasInteres;
             } else if (pago.tipoPago == 'Monto Parcial' ||
                 pago.tipoPago == 'En Abonos') {
-              totalPagoActual += capitalDeposito +
+              totalPagoActual += deposito +
                   totalAbonos; // Sumar abonos al monto parcial/Abonos
             }
 
             // Saldo a favor y en contra ya lo tienes calculado más arriba
-            double montoTotalConAbonos = capitalDeposito + totalAbonos;
+            double montoTotalConAbonos = deposito + totalAbonos;
 
             if (montoTotalConAbonos > capitalMasInteres) {
               totalSaldoFavor += montoTotalConAbonos - capitalMasInteres;
@@ -758,14 +744,14 @@ class _PaginaControlState extends State<PaginaControl> {
                       if (!esPago1) {
                         double capitalMasInteres =
                             pago.capitalMasInteres ?? 0.0;
-                        double capitalDeposito = pago.capitalDeposito ?? 0.0;
+                        double deposito = pago.deposito ?? 0.0;
 
                         // Suma el total de abonos realizados
                         double totalAbonos = pago.abonos.fold(
                             0.0, (sum, abono) => sum + (abono['monto'] ?? 0.0));
 
                         // Calcula el monto total pagado (depósito + abonos)
-                        double montoPagado = capitalDeposito + totalAbonos;
+                        double montoPagado = deposito + totalAbonos;
 
                         // Calcula saldo a favor y en contra solo si hay datos válidos
                         if (montoPagado > 0.0) {
@@ -837,9 +823,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                           setState(() {
                                             pago.tipoPago = newValue!;
                                             if (newValue == 'Completo') {
-                                              pago.capitalDeposito = pago.capitalMasInteres ?? 0.0;
+                                              pago.deposito = pago.capitalMasInteres ?? 0.0;
                                             } else if (newValue == 'Monto Parcial') {
-                                              pago.capitalDeposito = 0.0; // Resetear valor
+                                              pago.deposito = 0.0; // Resetear valor
                                             }
                                           });
                                         },
@@ -849,255 +835,192 @@ class _PaginaControlState extends State<PaginaControl> {
                               ),
                               SizedBox(width: 20),
                               // Dos botones: uno para agregar abonos, otro para ver abonos
-                              _buildTableCell(
-                                pago.tipoPago == 'En Abonos'
-                                    ? Padding(
-                                        padding: const EdgeInsets.only(left: 5),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            // Botón para agregar un abono
-                                            Container(
-                                              decoration: BoxDecoration(
-                                                color: Color(0xFFFB2056),
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black26,
-                                                    blurRadius: 5,
-                                                    offset: Offset(2, 2),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: IconButton(
-                                                icon: Icon(Icons.add,
-                                                    color: Colors.white),
-                                                onPressed: () async {
-                                                  List<Map<String, dynamic>>
-                                                      nuevosAbonos =
-                                                      (await showDialog(
-                                                            context: context,
-                                                            builder: (context) =>
-                                                                AbonosDialog(
-                                                              montoAPagar: pago
-                                                                  .capitalMasInteres,
-                                                              onConfirm:
-                                                                  (abonos) {
-                                                                Navigator.of(
-                                                                        context)
-                                                                    .pop(
-                                                                        abonos);
-                                                              },
-                                                            ),
-                                                          )) ??
-                                                          []; // Si es null, asigna una lista vacía
+                             _buildTableCell(
+  pago.tipoPago == 'En Abonos'
+    ? Padding(
+        padding: const EdgeInsets.only(left: 5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Botón para agregar un abono
+            Container(
+              decoration: BoxDecoration(
+                color: Color(0xFFFB2056),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 5,
+                    offset: Offset(2, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: Icon(Icons.add, color: Colors.white),
+                onPressed: () async {
+                  List<Map<String, dynamic>> nuevosAbonos =
+                      (await showDialog(
+                        context: context,
+                        builder: (context) => AbonosDialog(
+                          montoAPagar: pago.capitalMasInteres,
+                          onConfirm: (abonos) {
+                            Navigator.of(context).pop(abonos);
+                          },
+                        ),
+                      )) ??
+                      []; // Si es null, asigna una lista vacía
 
-                                                  // Actualizar la lista de abonos del pago
-                                                  setState(() {
-                                                    if (nuevosAbonos
-                                                        .isNotEmpty) {
-                                                      pago.abonos
-                                                          .addAll(nuevosAbonos);
-                                                    }
-                                                  });
-                                                },
-                                              ),
-                                            ),
-                                            SizedBox(
-                                                width:
-                                                    8), // Espacio entre los botones
-                                            // Botón para ver los abonos realizados en PopUpMenu
-                                            Container(
-                                              decoration: BoxDecoration(
-                                                color: Colors.blueAccent,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black26,
-                                                    blurRadius: 5,
-                                                    offset: Offset(2, 2),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: PopupMenuButton<
-                                                  Map<String, dynamic>>(
-                                                tooltip: 'Mostrar Abonos',
-                                                icon: Icon(Icons.visibility,
-                                                    color: Colors.white),
-                                                color: Colors.white,
-                                                offset: Offset(0, 40),
-                                                onSelected: (abono) {
-                                                  // Aquí podrías manejar acciones con los abonos seleccionados
-                                                },
-                                                itemBuilder: (context) {
-                                                  // Calcula el total de los abonos
-                                                  double totalAbonos =
-                                                      pago.abonos.fold(
-                                                          0.0,
-                                                          (sum, abono) =>
-                                                              sum +
-                                                              (abono['monto'] ??
-                                                                  0.0));
+                  // Actualizar la lista de abonos del pago
+                  setState(() {
+                    if (nuevosAbonos.isNotEmpty) {
+                      pago.abonos.addAll(nuevosAbonos);
+                    }
+                  });
+                },
+              ),
+            ),
+            SizedBox(width: 8), // Espacio entre los botones
+            // Botón para ver los abonos realizados en PopUpMenu
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.blueAccent,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 5,
+                    offset: Offset(2, 2),
+                  ),
+                ],
+              ),
+              child: PopupMenuButton<Map<String, dynamic>>(
+                tooltip: 'Mostrar Abonos',
+                icon: Icon(Icons.visibility, color: Colors.white),
+                color: Colors.white,
+                offset: Offset(0, 40),
+                onSelected: (abono) {
+                  // Aquí podrías manejar acciones con los abonos seleccionados
+                },
+                itemBuilder: (context) {
+                  // Calcula el total de los abonos
+                  double totalAbonos = pago.abonos.fold(0.0, (sum, abono) => sum + (abono['deposito'] ?? 0.0));
 
-                                                  return [
-                                                    ...pago.abonos.map((abono) {
-                                                      return PopupMenuItem(
-                                                        value: abono,
-                                                        child: Container(
-                                                          width:
-                                                              300, // Puedes ajustar este valor si quieres que el menú sea aún más ancho
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                                  vertical: 8.0,
-                                                                  horizontal:
-                                                                      12.0),
-                                                          child: Row(
-                                                            children: [
-                                                              Icon(
-                                                                  Icons.payment,
-                                                                  color: Colors
-                                                                      .green,
-                                                                  size:
-                                                                      16), // Icono junto al texto
-                                                              SizedBox(
-                                                                  width:
-                                                                      10), // Espacio entre el icono y el texto
-                                                              Expanded(
-                                                                child: Text(
-                                                                  "Fecha: ${formatearFecha(abono['fecha'])}, Monto: \$${abono['monto']?.toStringAsFixed(2)}",
-                                                                  style:
-                                                                      TextStyle(
-                                                                    fontSize:
-                                                                        12,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w500,
-                                                                    color: Colors
-                                                                        .black87,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      );
-                                                    }).toList(),
-                                                    PopupMenuItem(
-                                                      enabled:
-                                                          false, // Deshabilitamos este item para que no sea seleccionable
-                                                      child: Container(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .symmetric(
-                                                                vertical: 8.0,
-                                                                horizontal:
-                                                                    12.0),
-                                                        child: Column(
-                                                          children: [
-                                                            Divider(
-                                                                color: Colors
-                                                                    .black26,
-                                                                height:
-                                                                    1), // Divider entre los abonos y el total
-                                                            SizedBox(
-                                                                height: 10),
-                                                            Row(
-                                                              children: [
-                                                                Icon(
-                                                                    Icons
-                                                                        .attach_money,
-                                                                    color: Colors
-                                                                        .black,
-                                                                    size:
-                                                                        16), // Icono del total
-                                                                SizedBox(
-                                                                    width: 10),
-                                                                Expanded(
-                                                                  child: Text(
-                                                                    "Total Abonos: \$${totalAbonos.toStringAsFixed(2)}",
-                                                                    style:
-                                                                        TextStyle(
-                                                                      fontSize:
-                                                                          12,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                      color: Colors
-                                                                          .black87,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ];
-                                                },
-                                                constraints: BoxConstraints(
-                                                    maxWidth:
-                                                        500), // Ajusta el ancho máximo del menú
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )
+                  return [
+                    ...pago.abonos.map((abono) {
+                      return PopupMenuItem(
+                        value: abono,
+                        child: Container(
+                          width: 300, // Puedes ajustar este valor si quieres que el menú sea aún más ancho
+                          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.payment, color: Colors.green, size: 16), // Icono junto al texto
+                              SizedBox(width: 10), // Espacio entre el icono y el texto
+                              Expanded(
+                                child: Text(
+                                  "Fecha: ${formatearFecha(abono['fechaDeposito'])}, Monto: \$${abono['deposito']?.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                    PopupMenuItem(
+                      enabled: false, // Deshabilitamos este item para que no sea seleccionable
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+                        child: Column(
+                          children: [
+                            Divider(color: Colors.black26, height: 1), // Divider entre los abonos y el total
+                            SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Icon(Icons.attach_money, color: Colors.black, size: 16), // Icono del total
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    "Total Abonos: \$${totalAbonos.toStringAsFixed(2)}",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ];
+                },
+                constraints: BoxConstraints(maxWidth: 500), // Ajusta el ancho máximo del menú
+              ),
+            ),
+          ],
+        ),
+      )
+    
+    
                                     : esPago1
     ? "-"
     : pago.tipoPago == 'Monto Parcial'
-      ? (pago.capitalDeposito != null && pago.capitalDeposito! > 0 && !(editingState[index] ?? false)
-          ? Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: Text(
-                "\$${pago.capitalDeposito!.toStringAsFixed(2)}",
-                style: TextStyle(fontSize: 12, color: Colors.black),
-              ),
-            )
-          : Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: TextField(
-                controller: TextEditingController(
-                  text: pago.capitalDeposito != null
-                      ? pago.capitalDeposito!.toStringAsFixed(2)
-                      : '',
-                ),
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  setState(() {
-                    pago.capitalDeposito = double.tryParse(value) ?? 0.0;
-                  });
-                },
-                onSubmitted: (value) {
-                  // Mantén el TextField visible mientras se edita
-                  setState(() {
-                    editingState[index] = true; // Mantener el TextField visible
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'Monto Parcial',
-                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15.0),
-                    borderSide: BorderSide(color: Colors.grey[400]!, width: 1.5),
+        ? Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: (editingState[index] ?? true) // Inicialmente será true
+                ? TextField(
+  controller: controllers[index],
+  textAlign: TextAlign.center,
+  style: TextStyle(fontSize: 12),
+  keyboardType: TextInputType.number,
+  onChanged: (value) {
+    setState(() {
+      pago.deposito = double.tryParse(value) ?? 0.0;
+    });
+  },
+  decoration: InputDecoration(
+    hintText: 'Monto Parcial',
+    hintStyle: TextStyle(fontSize: 12, color: Colors.grey[700]),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(15.0),
+      borderSide: BorderSide(color: Colors.grey[400]!, width: 1.5),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(15.0),
+      borderSide: BorderSide(color: Color(0xFFFB2056), width: 1.5),
+    ),
+    contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+  ),
+)
+                : GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        editingState[index] = true; // Cambia al TextField al hacer clic
+                      });
+                    },
+                    child: Text(
+                      "\$${pago.deposito?.toStringAsFixed(2) ?? '0.00'}",
+                      style: TextStyle(fontSize: 12, color: Colors.black),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15.0),
-                    borderSide: BorderSide(color: Color(0xFFFB2056), width: 1.5),
-                  ),
-                  contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-                ),
-              ),
-            ))
-      : "-",
-  flex: 20,
-                              ),
+          )
+        : Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Text(
+              "\$${pago.deposito?.toStringAsFixed(2) ?? '0.00'}",
+              style: TextStyle(fontSize: 12, color: Colors.black),
+            ),
+          ),
+flex: 20,
+),
+
 
                               _buildTableCell(
                                 esPago1
@@ -1188,7 +1111,7 @@ class Pago {
   double? saldoEnContra; // Actualizado a tipo numérico
   double restanteTotal;
   String estado;
-  double? capitalDeposito;
+  double? deposito;
   String tipoPago;
   int? cantidadAbonos;
   double? montoPorCuota;
@@ -1204,7 +1127,7 @@ class Pago {
     this.saldoEnContra,
     required this.restanteTotal,
     required this.estado,
-    this.capitalDeposito,
+    this.deposito,
     required this.tipoPago,
     this.cantidadAbonos,
     this.montoPorCuota,
@@ -1212,41 +1135,41 @@ class Pago {
   });
 
   factory Pago.fromJson(Map<String, dynamic> json) {
-    return Pago(
-      semana: json['semana'],
-      fechaPago: json['fechaPago'],
-      capital: (json['capital'] is int)
-          ? (json['capital'] as int).toDouble()
-          : json['capital'],
-      interes: (json['interes'] is int)
-          ? (json['interes'] as int).toDouble()
-          : json['interes'],
-      capitalMasInteres: (json['capitalMasInteres'] is int)
-          ? (json['capitalMasInteres'] as int).toDouble()
-          : json['capitalMasInteres'],
-
-      saldoFavor: json['saldoFavor'] != null
-          ? double.tryParse(json['saldoFavor'].toString())
-          : null, // Conversión de saldoFavor
-      saldoEnContra: json['saldoEnContra'] != null
-          ? double.tryParse(json['saldoEnContra'].toString())
-          : null, // Conversión de saldoEnContra
-
-      restanteTotal: (json['restanteTotal'] is int)
-          ? (json['restanteTotal'] as int).toDouble()
-          : json['restanteTotal'],
-      estado: json['estado'],
-      capitalDeposito:
-          json['pagos'] != null && (json['pagos'] as List).isNotEmpty
-              ? (json['pagos'][0]['capitalDeposito'] as num).toDouble()
-              : null,
-
-      cantidadAbonos: json['cantidadAbonos'],
-      montoPorCuota: json['montoPorCuota'],
-      abonos: [],
-      tipoPago: json['tipoPagos'] == 'sin asignar' ? '' : json['tipoPagos'],
-    );
-  }
+  return Pago(
+    semana: json['semana'] ?? 0,
+    fechaPago: json['fechaPago'] ?? '',
+    capital: (json['capital'] is int)
+        ? (json['capital'] as int).toDouble()
+        : (json['capital'] as num?)?.toDouble() ?? 0.0,
+    interes: (json['interes'] is int)
+        ? (json['interes'] as int).toDouble()
+        : (json['interes'] as num?)?.toDouble() ?? 0.0,
+    capitalMasInteres: (json['capitalMasInteres'] is int)
+        ? (json['capitalMasInteres'] as int).toDouble()
+        : (json['capitalMasInteres'] as num?)?.toDouble() ?? 0.0,
+    saldoFavor: json['saldoFavor'] != null
+        ? double.tryParse(json['saldoFavor'].toString())
+        : null,
+    saldoEnContra: json['saldoEnContra'] != null
+        ? double.tryParse(json['saldoEnContra'].toString())
+        : null,
+    restanteTotal: (json['restanteTotal'] is int)
+        ? (json['restanteTotal'] as int).toDouble()
+        : (json['restanteTotal'] as num?)?.toDouble() ?? 0.0,
+    estado: json['estado'] ?? '',
+    deposito: json['pagos'] != null && (json['pagos'] as List).isNotEmpty
+        ? ((json['pagos'][0]['deposito'] as num?)?.toDouble() ?? 0.0)
+        : null,
+    tipoPago: json['tipoPagos'] == 'sin asignar' ? '' : json['tipoPagos'] ?? '',
+    cantidadAbonos: (json['cantidadAbonos'] as num?)?.toInt(),
+    montoPorCuota: (json['montoPorCuota'] is String)
+        ? double.tryParse(json['montoPorCuota'])
+        : (json['montoPorCuota'] as num?)?.toDouble(),
+    abonos: (json['pagos'] as List<dynamic>? ?? [])
+        .map((pago) => Map<String, dynamic>.from(pago))
+        .toList(),
+  );
+}
 }
 
 class AbonosDialog extends StatefulWidget {
