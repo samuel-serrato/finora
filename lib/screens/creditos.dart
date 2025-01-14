@@ -77,6 +77,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         }
       } catch (e) {
         if (mounted) {
+          print('Error: $e'); // Imprime el error capturado
           setErrorState(dialogShown, e);
         }
       }
@@ -537,12 +538,13 @@ class EstadoCredito {
 
   factory EstadoCredito.fromJson(Map<String, dynamic> json) {
     return EstadoCredito(
-      montoTotal: double.parse(json['montoTotal']),
-      moratorios: double.parse(json['moratorios']),
+      montoTotal: (json['montoTotal'] as num).toDouble(), // Convertir a double
+      moratorios: (json['moratorios'] as num).toDouble(), // Convertir a double
       semanasDeRetraso: json['semanasDeRetraso'],
       diferenciaEnDias: json['diferenciaEnDias'],
       mensaje: json['mensaje'],
-      estado: json['esatado'], // Nota: el JSON tiene un error de tipografía aquí ("esatado" en lugar de "estado").
+      estado: json[
+          'esatado'], // Nota: el JSON tiene un error de tipografía aquí ("esatado" en lugar de "estado").
     );
   }
 }
