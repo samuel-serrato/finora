@@ -6,11 +6,11 @@ class PagosProvider with ChangeNotifier {
 
   List<PagoSeleccionado> get pagosSeleccionados => _pagosSeleccionados;
 
-  void agregarPago(PagoSeleccionado pago) {
-    _pagosSeleccionados.add(pago);
-    notifyListeners();
+  // Método para agregar un nuevo pago
+  void agregarPago(PagoSeleccionado nuevoPago) {
+    _pagosSeleccionados.add(nuevoPago);
+    notifyListeners(); // Asegúrate de notificar a los listeners para actualizar el UI
   }
-
   void eliminarPago(PagoSeleccionado pago) {
     _pagosSeleccionados.removeWhere((p) => p.semana == pago.semana);
     notifyListeners();
@@ -30,5 +30,8 @@ class PagosProvider with ChangeNotifier {
     pago.abonos.add(abono);
     notifyListeners();
   }
+
+
+  // Puedes agregar más funciones según lo necesites
 }
 
