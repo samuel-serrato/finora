@@ -219,7 +219,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     final miembroData = {
       'idgrupos': idGrupo, // Se pasa el id del grupo creado
       'clientes': miembros, // Lista de miembros
-      'idusuarios': 'WVI8HMQAG5', // id de usuario por defecto
+      'idusuarios': '9E0T6RGRI5', // id de usuario por defecto
     };
 
     // Imprimir los datos antes de enviarlos

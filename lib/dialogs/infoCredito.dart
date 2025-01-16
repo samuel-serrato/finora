@@ -139,7 +139,7 @@ class _InfoCreditoState extends State<InfoCredito> {
             'fechaPago': abono['fechaDeposito'] ?? '',
             'montoaPagar': pago.capitalMasInteres ?? 0.0,
             'deposito': abono['deposito'] ?? 0.0,
-            'moratorio': 0.0, // Asumimos moratorio como 0 si no tienes datos
+            'moratorio': 51.42, // Asumimos moratorio como 0 si no tienes datos
             'saldofavor': saldoFavor, // Mantener el saldo a favor
           };
 
@@ -152,7 +152,7 @@ class _InfoCreditoState extends State<InfoCredito> {
           'fechaPago': pago.fechaPago ?? '',
           'montoaPagar': pago.capitalMasInteres ?? 0.0,
           'deposito': pago.deposito ?? 0.0,
-          'moratorio': 0.0, // Asumimos moratorio como 0 si no tienes datos
+          'moratorio': 51.42, // Asumimos moratorio como 0 si no tienes datos
           'saldofavor': saldoFavor,
         };
 
@@ -163,71 +163,71 @@ class _InfoCreditoState extends State<InfoCredito> {
     return pagosJson;
   }
 
-  Future<void> enviarDatosAlServidor(List<PagoSeleccionado> pagosSeleccionados) async {
-  // Generar los datos JSON con la función que ya tienes
-  List<Map<String, dynamic>> pagosJson = generarPagoJson(pagosSeleccionados);
+  Future<void> enviarDatosAlServidor(
+      List<PagoSeleccionado> pagosSeleccionados) async {
+    // Generar los datos JSON con la función que ya tienes
+    List<Map<String, dynamic>> pagosJson = generarPagoJson(pagosSeleccionados);
 
-  // Aquí puedes hacer lo que necesites con los datos, por ejemplo, enviarlos a un servidor
-  print('Datos a enviar: $pagosJson');
+    // Aquí puedes hacer lo que necesites con los datos, por ejemplo, enviarlos a un servidor
+    print('Datos a enviar: $pagosJson');
 
-  // URL del servidor
-  final url = Uri.parse('http://$baseUrl/api/v1/pagos');
+    // URL del servidor
+    final url = Uri.parse('http://$baseUrl/api/v1/pagos');
 
-  // Hacer la solicitud POST
-  try {
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json', // Asegúrate de enviar como JSON
-      },
-      body: json.encode(pagosJson), // Convertir los datos a formato JSON
-    );
+    // Hacer la solicitud POST
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json', // Asegúrate de enviar como JSON
+        },
+        body: json.encode(pagosJson), // Convertir los datos a formato JSON
+      );
 
-    // Verificar la respuesta del servidor
-    if (response.statusCode == 200) {
-      print('Datos enviados exitosamente');
-            mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
+      // Verificar la respuesta del servidor
+      if (response.statusCode == 200) {
+        print('Datos enviados exitosamente');
+        mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
 
-      // Aquí puedes hacer algo en caso de que el servidor confirme el éxito
-    } else {
-      // Imprimir detalles del error si la respuesta no es 200
-      print('Error al enviar datos: ${response.statusCode}');
-      print('Respuesta del servidor: ${response.body}');
-      // Aquí puedes manejar los errores de acuerdo a la respuesta del servidor
-       mostrarDialogo(context, 'Error', 
-          'Error al enviar datos: ${response.statusCode}\n${response.body}');
+        // Aquí puedes hacer algo en caso de que el servidor confirme el éxito
+      } else {
+        // Imprimir detalles del error si la respuesta no es 200
+        print('Error al enviar datos: ${response.statusCode}');
+        print('Respuesta del servidor: ${response.body}');
+        // Aquí puedes manejar los errores de acuerdo a la respuesta del servidor
+        mostrarDialogo(context, 'Error',
+            'Error al enviar datos: ${response.statusCode}\n${response.body}');
+      }
+    } catch (e) {
+      print('Error al hacer la solicitud: $e');
+      // Aquí puedes manejar excepciones si no se puede hacer la solicitud
+      mostrarDialogo(context, 'Error', 'Ocurrió un error: $e');
     }
-  } catch (e) {
-    print('Error al hacer la solicitud: $e');
-    // Aquí puedes manejar excepciones si no se puede hacer la solicitud
-     mostrarDialogo(context, 'Error', 'Ocurrió un error: $e');
   }
-}
 
 // Función para mostrar un diálogo
-void mostrarDialogo(BuildContext context, String titulo, String mensaje) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text(titulo),
-        content: Text(mensaje),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Cerrar el diálogo
-            },
-            child: Text('OK'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
+  void mostrarDialogo(BuildContext context, String titulo, String mensaje) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(titulo),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cerrar el diálogo
+              },
+              child: Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width * 0.9;
+    final width = MediaQuery.of(context).size.width * 0.95;
     final height = MediaQuery.of(context).size.height * 0.9;
 
     return Dialog(
@@ -487,8 +487,6 @@ void mostrarDialogo(BuildContext context, String titulo, String mensaje) {
 
                       // Llamar a la función para enviar los datos al servidor
                       enviarDatosAlServidor(pagosSeleccionados);
-
-                 
                     },
                     child: Text('Guardar'),
                   )
@@ -767,90 +765,92 @@ class _PaginaControlState extends State<PaginaControl> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<Pago>>(
-      future: _pagosFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(child: Text('No se encontraron pagos.'));
-        } else {
-          List<Pago> pagos = snapshot.data!;
+Widget build(BuildContext context) {
+  return FutureBuilder<List<Pago>>(
+    future: _pagosFuture,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return Center(child: CircularProgressIndicator());
+      } else if (snapshot.hasError) {
+        return Center(child: Text('Error: ${snapshot.error}'));
+      } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        return Center(child: Text('No se encontraron pagos.'));
+      } else {
+        List<Pago> pagos = snapshot.data!;
 
-          //imprimirPagos(pagos);
+        // Inicializamos los totales
+        double totalMonto = 0.0;
+        double totalPagoActual = 0.0;
+        double totalSaldoFavor = 0.0;
+        double totalSaldoContra = 0.0;
 
-          double totalMonto = 0.0;
-          double totalPagoActual = 0.0;
-          double totalSaldoFavor = 0.0;
-          double totalSaldoContra = 0.0;
+        for (int i = 0; i < pagos.length; i++) {
+          final pago = pagos[i];
 
-          for (int i = 0; i < pagos.length; i++) {
-            final pago = pagos[i];
-
-            // Excluir semana 0 (cuando no hay pagos aún)
-            if (i == 0) {
-              continue; // No se hace ningún cálculo para la semana 0
-            }
-
-            double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
-            double deposito = pago.deposito ?? 0.0;
-
-            // Restablecer los saldos para evitar acumulaciones previas
-            double saldoFavor = 0.0;
-            double saldoContra = 0.0;
-
-            // Calcular total de abonos
-            double totalAbonos = pago.abonos
-                .fold(0.0, (sum, abono) => sum + (abono['deposito'] ?? 0.0));
-
-            if (capitalMasInteres == 0.0) {
-              continue;
-            }
-
-            totalMonto += capitalMasInteres;
-
-            // Validar si el depósito ya está incluido en los abonos
-            bool depositoIncluidoEnAbonos =
-                pago.abonos.any((abono) => abono['deposito'] == deposito);
-
-            // Calcular el monto total pagado
-            double montoPagado =
-                depositoIncluidoEnAbonos ? totalAbonos : totalAbonos + deposito;
-
-            // Acumular el pago actual
-            totalPagoActual += montoPagado;
-
-            // Si no se ha iniciado el pago (es decir, el monto pagado es 0), mostramos "-"
-            if (montoPagado > 0) {
-              // Cálculo de saldo a favor y saldo en contra
-              if (montoPagado > capitalMasInteres) {
-                saldoFavor = montoPagado - capitalMasInteres;
-                saldoContra = 0.0;
-              } else {
-                saldoFavor = 0.0;
-                saldoContra = capitalMasInteres - montoPagado;
-              }
-            } else {
-              // Si aún no se ha realizado ningún pago, saldo en contra debe ser "-"
-              saldoFavor = 0.0;
-              saldoContra = 0.0;
-            }
-
-            // Asignar el saldo actual al pago (sin duplicar)
-            pago.saldoFavor = saldoFavor;
-            pago.saldoEnContra = saldoContra;
-
-            // Acumular totales evitando duplicaciones
-            totalSaldoFavor += saldoFavor > 0 ? saldoFavor : 0.0;
-            totalSaldoContra += saldoContra > 0 ? saldoContra : 0.0;
+          // Excluir semana 0 (cuando no hay pagos aún)
+          if (i == 0) {
+            continue; // No se hace ningún cálculo para la semana 0
           }
 
-// Mostrar los totales correctamente, con "-" en lugar de 0.0 cuando corresponde
-          totalSaldoFavor = totalSaldoFavor > 0.0 ? totalSaldoFavor : 0.0;
-          totalSaldoContra = totalSaldoContra > 0.0 ? totalSaldoContra : 0.0;
+          // Verificar si hay moratorios
+          if (pago.moratorios!.moratorios > 0) {
+            // Si tiene moratorios, no lo consideramos en el cálculo de los totales
+            continue;
+          }
+
+          double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
+          double deposito = pago.deposito ?? 0.0;
+
+          // Restablecer los saldos para evitar acumulaciones previas
+          double saldoFavor = 0.0;
+          double saldoContra = 0.0;
+
+          // Calcular total de abonos
+          double totalAbonos = pago.abonos.fold(0.0, (sum, abono) => sum + (abono['deposito'] ?? 0.0));
+
+          if (capitalMasInteres == 0.0) {
+            continue;
+          }
+
+          totalMonto += capitalMasInteres;
+
+          // Validar si el depósito ya está incluido en los abonos
+          bool depositoIncluidoEnAbonos = pago.abonos.any((abono) => abono['deposito'] == deposito);
+
+          // Calcular el monto total pagado
+          double montoPagado = depositoIncluidoEnAbonos ? totalAbonos : totalAbonos + deposito;
+
+          // Acumular el pago actual
+          totalPagoActual += montoPagado;
+
+          // Si no se ha iniciado el pago (es decir, el monto pagado es 0), mostramos "-"
+          if (montoPagado > 0) {
+            // Cálculo de saldo a favor y saldo en contra
+            if (montoPagado > capitalMasInteres) {
+              saldoFavor = montoPagado - capitalMasInteres;
+              saldoContra = 0.0;
+            } else {
+              saldoFavor = 0.0;
+              saldoContra = capitalMasInteres - montoPagado;
+            }
+          } else {
+            // Si aún no se ha realizado ningún pago, saldo en contra debe ser "-"
+            saldoFavor = 0.0;
+            saldoContra = 0.0;
+          }
+
+          // Asignar el saldo actual al pago (sin duplicar)
+          pago.saldoFavor = saldoFavor;
+          pago.saldoEnContra = saldoContra;
+
+          // Acumular totales evitando duplicaciones
+          totalSaldoFavor += saldoFavor > 0 ? saldoFavor : 0.0;
+          totalSaldoContra += saldoContra > 0 ? saldoContra : 0.0;
+        }
+
+        // Mostrar los totales correctamente, con "-" en lugar de 0.0 cuando corresponde
+        totalSaldoFavor = totalSaldoFavor > 0.0 ? totalSaldoFavor : 0.0;
+        totalSaldoContra = totalSaldoContra > 0.0 ? totalSaldoContra : 0.0;
 
           /* print("=== Totales Finales ===");
           print("  Total Monto: $totalMonto");
@@ -873,19 +873,23 @@ class _PaginaControlState extends State<PaginaControl> {
                     _buildTableCell("No. Pago",
                         isHeader: true, textColor: Colors.white, flex: 12),
                     _buildTableCell("Fecha Pago",
-                        isHeader: true, textColor: Colors.white, flex: 20),
+                        isHeader: true, textColor: Colors.white, flex: 15),
                     _buildTableCell("Monto a Pagar",
                         isHeader: true,
                         textColor: Colors.white,
                         flex: 20), // Nueva columna
                     _buildTableCell("Pago",
-                        isHeader: true, textColor: Colors.white, flex: 20),
+                        isHeader: true, textColor: Colors.white, flex: 22),
                     _buildTableCell("Monto",
                         isHeader: true, textColor: Colors.white, flex: 20),
                     _buildTableCell("Saldo a Favor",
-                        isHeader: true, textColor: Colors.white, flex: 20),
+                        isHeader: true, textColor: Colors.white, flex: 18),
                     _buildTableCell("Saldo en Contra",
-                        isHeader: true, textColor: Colors.white, flex: 20),
+                        isHeader: true, textColor: Colors.white, flex: 18),
+                    _buildTableCell("Moratorios",
+                        isHeader: true,
+                        textColor: Colors.white,
+                        flex: 18), // Nueva columna
                   ],
                 ),
               ),
@@ -949,7 +953,7 @@ class _PaginaControlState extends State<PaginaControl> {
                               _buildTableCell(esPago1 ? "0" : "${pago.semana}",
                                   flex: 12),
                               _buildTableCell(formatearFecha(pago.fechaPago),
-                                  flex: 20),
+                                  flex: 15),
                               _buildTableCell(
                                 esPago1
                                     ? "-"
@@ -1032,7 +1036,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                           });
                                         },
                                       ),
-                                flex: 20,
+                                flex: 22,
                               ),
 
                               SizedBox(width: 20),
@@ -1602,16 +1606,23 @@ class _PaginaControlState extends State<PaginaControl> {
                                 flex: 20,
                               ),
 
+                              // Mostrar el saldo a favor solo si no hay moratorios
                               _buildTableCell(
                                 esPago1
                                     ? "-"
-                                    : (pago.saldoFavor == 0.0 ||
-                                            pago.saldoFavor == null)
-                                        ? "-" // Mostrar "-" si el saldo a favor es 0.0 o null
-                                        : "\$${pago.saldoFavor?.toStringAsFixed(2)}",
-                                flex: 20,
+                                    : (pago.moratorios?.moratorios == 0.0 ||
+                                            pago.moratorios ==
+                                                null) // Si no hay moratorios o son 0
+                                        ? (pago.saldoFavor == 0.0 ||
+                                                pago.saldoFavor ==
+                                                    null) // Si saldoFavor es 0 o nulo
+                                            ? "-" // No mostrar nada si saldoFavor es 0 o nulo
+                                            : "\$${pago.saldoFavor?.toStringAsFixed(2)}" // Mostrar saldo a favor
+                                        : "-", // Si hay moratorios, no mostrar saldo a favor
+                                flex: 18,
                               ),
 
+// Mostrar el saldo en contra como ya lo tenías
                               _buildTableCell(
                                 esPago1
                                     ? "-"
@@ -1619,8 +1630,128 @@ class _PaginaControlState extends State<PaginaControl> {
                                             pago.saldoEnContra == null)
                                         ? "-" // Mostrar "-" si el saldo en contra es 0.0 o null
                                         : "\$${pago.saldoEnContra?.toStringAsFixed(2)}",
-                                flex: 20,
+                                flex: 18,
                               ),
+
+// Mostrar los moratorios con la misma lógica, solo si existen
+                              _buildTableCell(
+                                esPago1
+                                    ? "-"
+                                    : (pago.moratorios == null)
+                                        ? "-" // Mostrar "-" si los moratorios son nulos
+                                        : Row(
+                                            mainAxisAlignment: MainAxisAlignment
+                                                .center, // Distribuir uniformemente
+                                            children: [
+                                              Text(
+                                                pago.moratorios!.moratorios ==
+                                                        0.0
+                                                    ? "-" // Mostrar "-" si el monto de moratorios es 0.0
+                                                    : "\$${pago.moratorios!.moratorios.toStringAsFixed(2)}",
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.normal),
+                                              ),
+                                              if (pago.moratorios!
+                                                          .semanasDeRetraso >
+                                                      0 ||
+                                                  pago.moratorios!
+                                                          .diferenciaEnDias >
+                                                      0)
+                                                PopupMenuButton<int>(
+                                                  color: Colors.white,
+                                                  icon: Icon(Icons.info_outline,
+                                                      size: 16,
+                                                      color: Colors.grey),
+                                                  offset: Offset(0,
+                                                      40), // Ajusta la posición del menú
+                                                  itemBuilder:
+                                                      (BuildContext context) =>
+                                                          [
+                                                    PopupMenuItem(
+                                                      enabled:
+                                                          false, // Desactivado, solo para mostrar información
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          if (pago.moratorios!
+                                                                  .semanasDeRetraso >
+                                                              0)
+                                                            Text(
+                                                              "Semanas de Retraso: ${pago.moratorios!.semanasDeRetraso}",
+                                                              style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors
+                                                                          .grey[
+                                                                      800]),
+                                                            ),
+                                                          if (pago.moratorios!
+                                                                  .semanasDeRetraso >
+                                                              0)
+                                                            SizedBox(
+                                                                height:
+                                                                    8), // Espacio entre los elementos
+
+                                                          if (pago.moratorios!
+                                                                  .diferenciaEnDias >
+                                                              0)
+                                                            Text(
+                                                              "Días de Retraso: ${pago.moratorios!.diferenciaEnDias}",
+                                                              style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors
+                                                                          .grey[
+                                                                      800]),
+                                                            ),
+                                                          SizedBox(
+                                                              height:
+                                                                  8), // Espacio entre los elementos
+
+                                                          if (pago.moratorios!
+                                                                  .diferenciaEnDias >
+                                                              0)
+                                                            Text(
+                                                              "Monto Total a Pagar: ${pago.moratorios!.montoTotal}",
+                                                              style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors
+                                                                          .grey[
+                                                                      800]),
+                                                            ),
+                                                          if (pago.moratorios!
+                                                                  .diferenciaEnDias >
+                                                              0)
+                                                            SizedBox(
+                                                                height:
+                                                                    8), // Espacio entre los elementos
+
+                                                          if (pago
+                                                              .moratorios!
+                                                              .mensaje
+                                                              .isNotEmpty)
+                                                            Text(
+                                                              "${pago.moratorios!.mensaje}",
+                                                              style: TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors
+                                                                          .grey[
+                                                                      800]),
+                                                            ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                            ],
+                                          ),
+                                flex: 18,
+                              ),
+
+                              // Nueva columna para los moratorios
                             ],
                           ),
                         ),
@@ -1629,6 +1760,7 @@ class _PaginaControlState extends State<PaginaControl> {
                   ),
                 ),
               ),
+              // Después, pasas esos totales al _buildTableCell como lo haces normalmente
               Container(
                 height: 40,
                 decoration: BoxDecoration(
@@ -1637,18 +1769,14 @@ class _PaginaControlState extends State<PaginaControl> {
                 ),
                 child: Row(
                   children: [
-                    _buildTableCell("Totales",
-                        isHeader: false, textColor: Colors.white, flex: 12),
-                    _buildTableCell("", textColor: Colors.white, flex: 20),
-                    _buildTableCell("\$${formatearNumero(totalMonto)}",
-                        textColor: Colors.white, flex: 20),
-                    _buildTableCell("", textColor: Colors.white, flex: 20),
-                    _buildTableCell("\$${formatearNumero(totalPagoActual)}",
-                        textColor: Colors.white, flex: 20),
-                    _buildTableCell("\$${formatearNumero(totalSaldoFavor)}",
-                        textColor: Colors.white, flex: 20),
-                    _buildTableCell("\$${formatearNumero(totalSaldoContra)}",
-                        textColor: Colors.white, flex: 20),
+                     _buildTableCell("Totales", isHeader: false, textColor: Colors.white, flex: 10),
+              _buildTableCell("", textColor: Colors.white, flex: 6),
+              _buildTableCell("\$${formatearNumero(totalMonto)}", textColor: Colors.white, flex: 10),
+              _buildTableCell("", textColor: Colors.white, flex: 15),
+              _buildTableCell("\$${formatearNumero(totalPagoActual)}", textColor: Colors.white, flex: 10),
+              _buildTableCell("\$${formatearNumero(totalSaldoFavor)}", textColor: Colors.white, flex: 10),
+              _buildTableCell("\$${formatearNumero(totalSaldoContra)}", textColor: Colors.white, flex: 10),
+              _buildTableCell("0.00", textColor: Colors.white, flex: 10),
                   ],
                 ),
               ),
@@ -1700,6 +1828,7 @@ class Pago {
   List<Map<String, dynamic>> abonos;
   List<String?> fechasDepositos;
   String? idfechaspagos; // Agregado el campo idfechaspagos
+  Moratorios? moratorios; // Agregado el campo de moratorios
 
   Pago({
     required this.semana,
@@ -1718,6 +1847,7 @@ class Pago {
     this.abonos = const [],
     this.fechasDepositos = const [],
     this.idfechaspagos, // Incluir en el constructor
+    this.moratorios, // Incluir en el constructor
   });
 
   factory Pago.fromJson(Map<String, dynamic> json) {
@@ -1765,6 +1895,35 @@ class Pago {
           .toList(),
       fechasDepositos: fechasDepositos,
       idfechaspagos: json['idfechaspagos'], // Parsear el idfechaspagos
+      moratorios: json['moratorios'] is Map<String, dynamic>
+          ? Moratorios.fromJson(Map<String, dynamic>.from(json['moratorios']))
+          : null, // Verificar si es un Map antes de parsear
+    );
+  }
+}
+
+class Moratorios {
+  double montoTotal;
+  double moratorios;
+  int semanasDeRetraso;
+  int diferenciaEnDias;
+  String mensaje;
+
+  Moratorios({
+    required this.montoTotal,
+    required this.moratorios,
+    required this.semanasDeRetraso,
+    required this.diferenciaEnDias,
+    required this.mensaje,
+  });
+
+  factory Moratorios.fromJson(Map<String, dynamic> json) {
+    return Moratorios(
+      montoTotal: (json['montoTotal'] as num).toDouble(),
+      moratorios: (json['moratorios'] as num).toDouble(),
+      semanasDeRetraso: json['semanasDeRetraso'] ?? 0,
+      diferenciaEnDias: json['diferenciaEnDias'] ?? 0,
+      mensaje: json['mensaje'] ?? '',
     );
   }
 }
