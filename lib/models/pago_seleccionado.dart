@@ -7,6 +7,7 @@ class PagoSeleccionado {
   List<Map<String, dynamic>> abonos; // Lista mutable
   double? saldoFavor; // Campo adicional para saldo a favor
   String? idfechaspagos; // Añadido el campo para idfechaspagos
+  double? moratorio;
 
   // Constructor actualizado para incluir saldoFavor
   PagoSeleccionado({
@@ -17,6 +18,7 @@ class PagoSeleccionado {
     this.capitalMasInteres,
     required this.fechaPago,
     this.saldoFavor = 0.0, // Inicialización por defecto
+    this.moratorio = 0.0, // Inicialización por defecto
     List<Map<String, dynamic>>? abonos,
   }) : abonos = abonos ?? [];
 
@@ -33,6 +35,7 @@ class PagoSeleccionado {
       'abonos': abonos,
       'saldoFavor': saldoFavor, // Agregar saldoFavor al JSON
       'capitalMasInteres': capitalMasInteres,
+      'moratorio': moratorio
     };
   }
 }
