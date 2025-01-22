@@ -24,6 +24,7 @@ class _InfoCreditoState extends State<InfoCredito> {
   Timer? _timer;
   late ScrollController _scrollController;
   String idCredito = '';
+  final GlobalKey<_PaginaControlState> paginaControlKey = GlobalKey();
 
   @override
   void initState() {
@@ -189,9 +190,11 @@ class _InfoCreditoState extends State<InfoCredito> {
       );
 
       // Verificar la respuesta del servidor
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         print('Datos enviados exitosamente');
         mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
+        // Llama a recargarPagos en PaginaControl
+        //paginaControlKey.currentState?.recargarPagos();
       } else {
         // Imprimir detalles del error si la respuesta no es 200
         print('Error al enviar datos: ${response.statusCode}');
@@ -249,6 +252,10 @@ class _InfoCreditoState extends State<InfoCredito> {
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.of(context).pop(); // Cerrar el diálogo
+                Provider.of<PagosProvider>(context, listen: false)
+                    .limpiarPagos();
+
+                paginaControlKey.currentState?.recargarPagos();
               },
               icon: Icon(Icons.check, color: Colors.white),
               label: Text(
@@ -445,6 +452,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                 _buildSectionTitle(
                                                     'Control de Pagos'),
                                                 PaginaControl(
+                                                    key: paginaControlKey,
                                                     idCredito: idCredito),
                                               ],
                                             ),
@@ -738,7 +746,8 @@ class Credito {
 class PaginaControl extends StatefulWidget {
   final String idCredito;
 
-  PaginaControl({required this.idCredito});
+  PaginaControl({Key? key, required this.idCredito})
+      : super(key: key); // Pasamos key al constructor de StatefulWidget
 
   @override
   _PaginaControlState createState() => _PaginaControlState();
@@ -749,6 +758,8 @@ class _PaginaControlState extends State<PaginaControl> {
 // Mapa para controlar si cada pago está siendo editado
   Map<int, bool> editingState = {}; // Usamos un mapa para el control por pago
   List<TextEditingController> controllers = [];
+  bool isLoading =
+      true; // Agregar esta variable para controlar el estado de carga
 
   //Variable para el Timer
   Timer? _debounce;
@@ -758,6 +769,10 @@ class _PaginaControlState extends State<PaginaControl> {
     super.initState();
 
     _pagosFuture = _fetchPagos().then((pagos) {
+      setState(() {
+        isLoading =
+            false; // Una vez que se carguen los pagos, desactivamos la carga
+      });
       for (var pago in pagos) {
         if (pago.sumaDepositoMoratorisos == null) {
           pago.sumaDepositoMoratorisos = 0.0; // Solo si no tiene valor
@@ -777,6 +792,38 @@ class _PaginaControlState extends State<PaginaControl> {
       return pagos;
     });
   }
+void recargarPagos() async {
+  setState(() {
+    isLoading = true;  // Activa el CircularProgressIndicator
+  });
+
+  // Simula un delay antes de empezar a cargar los pagos
+  await Future.delayed(Duration(milliseconds: 500)); // Delay de 1 segundo
+
+  try {
+    // Realizamos la carga de los pagos con el Future
+    List<Pago> pagos = await _fetchPagos();
+
+    // Si los datos se cargan exitosamente, actualizamos el estado
+    setState(() {
+      _pagosFuture = Future.value(pagos);  // Asignamos el resultado del Future
+    });
+
+    // Desactivamos el indicador de carga
+    setState(() {
+      isLoading = false;
+    });
+  } catch (e) {
+    // En caso de error, desactivamos el indicador de carga
+    setState(() {
+      isLoading = false;
+    });
+
+    // Aquí puedes manejar el error, por ejemplo, mostrando un mensaje
+    print("Error al cargar los pagos: $e");
+  }
+}
+
 
   // Función para formatear fechas
   String formatearFecha(Object? fecha) {
@@ -829,8 +876,15 @@ class _PaginaControlState extends State<PaginaControl> {
     return FutureBuilder<List<Pago>>(
       future: _pagosFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+        if (snapshot.connectionState == ConnectionState.waiting || isLoading) {
+          return Padding(
+            padding: const EdgeInsets.only(top: 200),
+            child: Center(
+                child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(
+                  Colors.red), // Cambiar a cualquier color que desees
+            )),
+          );
         } else if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
