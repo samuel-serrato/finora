@@ -8,8 +8,9 @@ class PagoSeleccionado {
   double? saldoFavor; // Campo adicional para saldo a favor
   String? idfechaspagos; // Añadido el campo para idfechaspagos
   double? moratorio;
+  double? saldoEnContra; // Añadir campo saldoEnContra
 
-  // Constructor actualizado para incluir saldoFavor
+  // Constructor actualizado para incluir saldoFavor y saldoEnContra
   PagoSeleccionado({
     required this.semana,
     required this.tipoPago,
@@ -20,12 +21,13 @@ class PagoSeleccionado {
     this.saldoFavor = 0.0, // Inicialización por defecto
     this.moratorio = 0.0, // Inicialización por defecto
     List<Map<String, dynamic>>? abonos,
+    this.saldoEnContra = 0.0, // Inicialización por defecto
   }) : abonos = abonos ?? [];
 
   // Nuevo campo para monto a pagar
   double? montoAPagar;
 
-  // Método toJson actualizado para incluir saldoFavor
+  // Método toJson actualizado para incluir saldoFavor y saldoEnContra
   Map<String, dynamic> toJson() {
     return {
       'semana': semana,
@@ -35,7 +37,8 @@ class PagoSeleccionado {
       'abonos': abonos,
       'saldoFavor': saldoFavor, // Agregar saldoFavor al JSON
       'capitalMasInteres': capitalMasInteres,
-      'moratorio': moratorio
+      'moratorio': moratorio,
+      'saldoEnContra': saldoEnContra, // Agregar saldoEnContra al JSON
     };
   }
 }

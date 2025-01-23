@@ -121,59 +121,87 @@ class _InfoCreditoState extends State<InfoCredito> {
     );
   }
 
-  List<Map<String, dynamic>> generarPagoJson(List<PagoSeleccionado> pagosSeleccionados) {
+ List<Map<String, dynamic>> generarPagoJson(
+    List<PagoSeleccionado> pagosSeleccionados,
+    List<PagoSeleccionado> pagosOriginales,
+  ) {
   List<Map<String, dynamic>> pagosJson = [];
 
-  for (var pago in pagosSeleccionados) {
-    double? montoAPagar = pago.capitalMasInteres;
-    double moratorio = pago.moratorio ?? 0.0;
-    double saldoFavor = (pago.saldoFavor ?? 0.0).toDouble();
-    double montoTotalPagado = pago.deposito ?? 0.0;
+  for (int i = 0; i < pagosSeleccionados.length; i++) {
+    PagoSeleccionado pagoActual = pagosSeleccionados[i];
+    PagoSeleccionado pagoOriginal = i < pagosOriginales.length
+        ? pagosOriginales[i]
+        : PagoSeleccionado(
+            semana: 0,
+            tipoPago: '',
+            deposito: 0,
+            idfechaspagos: '',
+            fechaPago: '',
+            capitalMasInteres: 0.0,
+            moratorio: 0.0,
+            saldoFavor: 0.0,
+            saldoEnContra: 0.0,
+            abonos: [],
+          );
 
-    if (pago.abonos != null && pago.abonos.isNotEmpty) {
-      // Si hay abonos, crear un objeto JSON por cada abono
-      for (var abono in pago.abonos) {
-        double deposito = abono['deposito'] ?? 0.0;
+    // Tomamos el último abono y su deposito
+    double depositoUltimoAbono = 0.0;
+    if (pagoActual.abonos.isNotEmpty) {
+      var ultimoAbono = pagoActual.abonos.last;
+      depositoUltimoAbono = (ultimoAbono['deposito'] is double)
+          ? ultimoAbono['deposito']
+          : (ultimoAbono['deposito'] is int)
+              ? (ultimoAbono['deposito'] as int).toDouble()
+              : 0.0;
+    }
 
-        Map<String, dynamic> abonoJson = {
-          'idfechaspagos': pago.idfechaspagos ?? '',
-          'fechaPago': abono['fechaDeposito'] ?? '',
-          'montoaPagar': montoAPagar,
-          'deposito': deposito,
-          'moratorio': moratorio,
-          'saldofavor': saldoFavor,
-          'tipoPago': pago.tipoPago,
-        };
+    // Calcular el total de los abonos hasta ahora
+    double totalAbonos = pagoActual.abonos.fold(0.0, (sum, abono) {
+      double depositoAbono = (abono['deposito'] is double)
+          ? abono['deposito']
+          : (abono['deposito'] is int)
+              ? (abono['deposito'] as int).toDouble()
+              : 0.0;
+      print("Abono encontrado: $depositoAbono");
+      return sum + depositoAbono;
+    });
 
-        pagosJson.add(abonoJson);
-      }
+    print("Total de abonos: $totalAbonos");
+
+    // Aseguramos que el capitalMasInteres no sea null
+    double montoAPagar = (pagoActual.capitalMasInteres ?? 0.0);
+    print("Monto a pagar: $montoAPagar");
+
+    // Calculamos el saldo a favor (si el total de abonos excede el monto a pagar)
+    double saldoFavor = 0.0;
+    if (totalAbonos > montoAPagar) {
+      saldoFavor = totalAbonos - montoAPagar;
+      print("Saldo a favor calculado: $saldoFavor");
     } else {
-      // Si no hay abonos, crear un solo objeto JSON para el pago completo
-      double montoDeposito = 0.0;
-      double montoMoratorio = 0.0;
-      double saldoAFavor = 0.0;
+      saldoFavor = 0.0;
+    }
 
-      if (montoTotalPagado <= montoAPagar!) {
-        montoDeposito = montoTotalPagado;
-      } else if (montoTotalPagado <= (montoAPagar + moratorio)) {
-        montoDeposito = montoAPagar;
-        montoMoratorio = montoTotalPagado - montoAPagar;
-      } else {
-        montoDeposito = montoAPagar;
-        montoMoratorio = moratorio;
-        saldoAFavor = montoTotalPagado - (montoAPagar + moratorio);
-      }
+    // Calculamos el valor de moratorio
+    double moratorio = pagoActual.moratorio ?? 0.0;
 
-      Map<String, dynamic> pagoJson = {
-        'idfechaspagos': pago.idfechaspagos ?? '',
-        'fechaPago': pago.fechaPago ?? '',
-        'montoaPagar': montoAPagar,
-        'deposito': montoDeposito,
-        'moratorio': montoMoratorio,
-        'saldofavor': saldoAFavor,
-        'tipoPago': pago.tipoPago,
-      };
+    // Creamos la estructura final del JSON según los datos
+    Map<String, dynamic> pagoJson = {
+      "idfechaspagos": pagoActual.idfechaspagos,
+      "fechaPago": pagoActual.fechaPago,
+      "tipoPago": pagoActual.tipoPago,
+      "montoaPagar": montoAPagar, // El monto total a pagar
+      "deposito": depositoUltimoAbono, // El último deposito
+      "moratorio": moratorio, // Valor de moratorio
+      "saldofavor": saldoFavor, // Saldo a favor calculado
+    };
 
+    // Solo agregar si hay cambios respecto al original
+    if (pagoActual.deposito != pagoOriginal.deposito ||
+        pagoActual.capitalMasInteres != pagoOriginal.capitalMasInteres ||
+        pagoActual.saldoFavor != pagoOriginal.saldoFavor ||
+        pagoActual.moratorio != pagoOriginal.moratorio ||
+        pagoActual.saldoEnContra != pagoOriginal.saldoEnContra ||
+        pagoActual.abonos != pagoOriginal.abonos) {
       pagosJson.add(pagoJson);
     }
   }
@@ -182,15 +210,34 @@ class _InfoCreditoState extends State<InfoCredito> {
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
   Future<void> enviarDatosAlServidor(
-      List<PagoSeleccionado> pagosSeleccionados) async {
+    BuildContext context, // Asegúrate de pasar el contexto
+    List<PagoSeleccionado> pagosSeleccionados,
+  ) async {
+    // Obtener los pagos originales del provider
+    final pagosOriginales =
+        Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
+
     // Generar los datos JSON con la función que ya tienes
-    List<Map<String, dynamic>> pagosJson = generarPagoJson(pagosSeleccionados);
+    List<Map<String, dynamic>> pagosJson =
+        generarPagoJson(pagosSeleccionados, pagosOriginales);
 
     // URL del servidor
     final url = Uri.parse('http://$baseUrl/api/v1/pagos');
 
-    //Datos a enviar
+    // Datos a enviar
     print('Datos a enviar: $pagosJson');
 
     // Hacer la solicitud POST
@@ -208,7 +255,7 @@ class _InfoCreditoState extends State<InfoCredito> {
         print('Datos enviados exitosamente');
         mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
         // Llama a recargarPagos en PaginaControl
-        //paginaControlKey.currentState?.recargarPagos();
+        // paginaControlKey.currentState?.recargarPagos();
       } else {
         // Imprimir detalles del error si la respuesta no es 200
         print('Error al enviar datos: ${response.statusCode}');
@@ -548,14 +595,21 @@ class _InfoCreditoState extends State<InfoCredito> {
                       final pagosSeleccionados =
                           Provider.of<PagosProvider>(context, listen: false)
                               .pagosSeleccionados;
+                      final pagosOriginales =
+                          Provider.of<PagosProvider>(context, listen: false)
+                              .pagosOriginales;
 
-                      // Llamar a la función para enviar los datos al servidor
-                      enviarDatosAlServidor(pagosSeleccionados);
+                      // Generar JSON solo con los datos modificados
+                      List<Map<String, dynamic>> pagosJson =
+                          generarPagoJson(pagosSeleccionados, pagosOriginales);
 
-                      // List<Map<String, dynamic>> pagosJson =
-                      //  generarPagoJson(pagosSeleccionados);
-                      // Aquí puedes hacer lo que necesites con los datos, por ejemplo, enviarlos a un servidor
-                      // print('Datos a enviar: $pagosJson');
+                      // Verificar si hay datos modificados para enviar
+                      if (pagosJson.isNotEmpty) {
+                        print('Datos a enviar: $pagosJson');
+                        // Aquí puedes enviar los datos modificados al servidor o donde sea necesario
+                      } else {
+                        print("No hay cambios para guardar.");
+                      }
                     },
                     child: Text('Guardar'),
                   )
@@ -778,6 +832,7 @@ class _PaginaControlState extends State<PaginaControl> {
   //Variable para el Timer
   Timer? _debounce;
 
+
   @override
   void initState() {
     super.initState();
@@ -787,6 +842,7 @@ class _PaginaControlState extends State<PaginaControl> {
         isLoading =
             false; // Una vez que se carguen los pagos, desactivamos la carga
       });
+
       for (var pago in pagos) {
         if (pago.sumaDepositoMoratorisos == null) {
           pago.sumaDepositoMoratorisos = 0.0; // Solo si no tiene valor
@@ -803,41 +859,55 @@ class _PaginaControlState extends State<PaginaControl> {
         );
       });
 
+      // Carga los datos en el PagosProvider
+      final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
+      pagosProvider.cargarPagos(pagos
+          .map((pago) => PagoSeleccionado(
+                semana: pago.semana,
+                tipoPago: pago.tipoPago,
+                deposito: pago.deposito ?? 0.0,
+                saldoFavor: 0.0,
+                abonos: pago.abonos ?? [],
+                idfechaspagos: pago.idfechaspagos ?? '',
+                fechaPago: pago.fechaPago ?? '',
+              ))
+          .toList());
+
       return pagos;
     });
   }
-void recargarPagos() async {
-  setState(() {
-    isLoading = true;  // Activa el CircularProgressIndicator
-  });
 
-  // Simula un delay antes de empezar a cargar los pagos
-  await Future.delayed(Duration(milliseconds: 500)); // Delay de 1 segundo
-
-  try {
-    // Realizamos la carga de los pagos con el Future
-    List<Pago> pagos = await _fetchPagos();
-
-    // Si los datos se cargan exitosamente, actualizamos el estado
+  void recargarPagos() async {
     setState(() {
-      _pagosFuture = Future.value(pagos);  // Asignamos el resultado del Future
+      isLoading = true; // Activa el CircularProgressIndicator
     });
 
-    // Desactivamos el indicador de carga
-    setState(() {
-      isLoading = false;
-    });
-  } catch (e) {
-    // En caso de error, desactivamos el indicador de carga
-    setState(() {
-      isLoading = false;
-    });
+    // Simula un delay antes de empezar a cargar los pagos
+    await Future.delayed(Duration(milliseconds: 500)); // Delay de 1 segundo
 
-    // Aquí puedes manejar el error, por ejemplo, mostrando un mensaje
-    print("Error al cargar los pagos: $e");
+    try {
+      // Realizamos la carga de los pagos con el Future
+      List<Pago> pagos = await _fetchPagos();
+
+      // Si los datos se cargan exitosamente, actualizamos el estado
+      setState(() {
+        _pagosFuture = Future.value(pagos); // Asignamos el resultado del Future
+      });
+
+      // Desactivamos el indicador de carga
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      // En caso de error, desactivamos el indicador de carga
+      setState(() {
+        isLoading = false;
+      });
+
+      // Aquí puedes manejar el error, por ejemplo, mostrando un mensaje
+      print("Error al cargar los pagos: $e");
+    }
   }
-}
-
 
   // Función para formatear fechas
   String formatearFecha(Object? fecha) {
@@ -958,6 +1028,7 @@ void recargarPagos() async {
                   (pago.deposito ?? 0.0);
             }
 
+            // Calcular saldos solo si hay pagos de capital/intereses/moratorios
             if (capitalMasInteres == 0.0 && moratorios == 0.0) {
               print("Semana $i: Sin capital/intereses/moratorios.");
               continue; // No calcular para pagos sin capital, intereses ni moratorios
@@ -987,9 +1058,9 @@ void recargarPagos() async {
               saldoContra = totalDeuda - montoPagado;
             }
 
-            // Asegúrate de que los valores se asignan correctamente
+            /* // Actualizar los saldos en el pago
             pago.saldoFavor = saldoFavor;
-            pago.saldoEnContra = saldoContra;
+            pago.saldoEnContra = saldoContra; */
 
             // Acumular totales evitando duplicaciones
             if (saldoFavor > 0) {
@@ -1051,11 +1122,9 @@ void recargarPagos() async {
                 child: SingleChildScrollView(
                   child: Column(
                     children: pagos.map((pago) {
-                      // Identificar si es el primer pago
                       bool esPago1 = pagos.indexOf(pago) == 0;
                       int index = pagos.indexOf(pago);
 
-                      // Calcular saldo a favor y en contra para cada fila
                       double saldoFavor = 0.0;
                       double saldoContra = 0.0;
 
@@ -1063,33 +1132,32 @@ void recargarPagos() async {
                         double capitalMasInteres =
                             pago.capitalMasInteres ?? 0.0;
 
-                        // Suma el total de abonos realizados en la semana actual
-                        double totalAbonos = pago.abonos.fold(
-                          0.0,
-                          (sum, abono) => sum + (abono['deposito'] ?? 0.0),
-                        );
+                        // Total de abonos de la semana
+                        double totalAbonos = pago.abonos.fold(0.0,
+                            (sum, abono) => sum + (abono['deposito'] ?? 0.0));
 
-                        // Calcula el monto total pagado (solo abonos)
+                        // Monto total pagado (solo abonos)
                         double montoPagado = totalAbonos;
 
-                        // Calcular los saldos
+                        // Calcular saldos
                         if (montoPagado > capitalMasInteres) {
                           saldoFavor = montoPagado - capitalMasInteres;
-                          saldoContra =
-                              0.0; // No puede haber saldo en contra si hay saldo a favor
+                          saldoContra = 0.0;
                         } else if (montoPagado < capitalMasInteres) {
                           saldoContra = capitalMasInteres - montoPagado;
-                          saldoFavor =
-                              0.0; // No puede haber saldo a favor si hay saldo en contra
+                          saldoFavor = 0.0;
                         } else {
                           saldoFavor = 0.0;
-                          saldoContra = 0.0; // Todo está equilibrado
+                          saldoContra = 0.0;
                         }
 
                         // Si el saldo en contra es igual al capital más intereses, se pone a 0
                         if (saldoContra == capitalMasInteres) {
                           saldoContra = 0.0;
                         }
+
+                        print(
+                            'Pago de la semana ${pago.semana}: Saldo a favor: $saldoFavor, Saldo en contra: $saldoContra');
                       }
                       // Convierte la fecha del pago a DateTime
                       DateTime fechaPagoDateTime =
@@ -1263,6 +1331,27 @@ void recargarPagos() async {
                                                   onPressed: _puedeEditarPago(
                                                           pago) // La misma condición para habilitar o deshabilitar el botón
                                                       ? () async {
+                                                          // Obtén el proveedor y muestra sus detalles
+                                                          final pagosProvider =
+                                                              Provider.of<
+                                                                      PagosProvider>(
+                                                                  context,
+                                                                  listen:
+                                                                      false);
+                                                          print(
+                                                              'Pagos seleccionados detallados: ${pagosProvider.pagosSeleccionados.map((p) => {
+                                                                    'semana': p
+                                                                        .semana,
+                                                                    'tipoPago':
+                                                                        p.tipoPago,
+                                                                    'deposito':
+                                                                        p.deposito,
+                                                                    'saldoFavor':
+                                                                        p.saldoFavor,
+                                                                    'abonos': p
+                                                                        .abonos,
+                                                                  }).toList()}');
+
                                                           List<
                                                                   Map<String,
                                                                       dynamic>>
