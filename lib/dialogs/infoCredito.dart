@@ -121,37 +121,49 @@ class _InfoCreditoState extends State<InfoCredito> {
     );
   }
 
-  List<Map<String, dynamic>> generarPagoJson(
-      List<PagoSeleccionado> pagosSeleccionados) {
-    List<Map<String, dynamic>> pagosJson = [];
+  List<Map<String, dynamic>> generarPagoJson(List<PagoSeleccionado> pagosSeleccionados) {
+  List<Map<String, dynamic>> pagosJson = [];
 
-    for (var pago in pagosSeleccionados) {
-      double? montoAPagar = pago.capitalMasInteres;
-      double moratorio = pago.moratorio ?? 0.0;
-      double saldoFavor = (pago.saldoFavor ?? 0.0).toDouble();
+  for (var pago in pagosSeleccionados) {
+    double? montoAPagar = pago.capitalMasInteres;
+    double moratorio = pago.moratorio ?? 0.0;
+    double saldoFavor = (pago.saldoFavor ?? 0.0).toDouble();
+    double montoTotalPagado = pago.deposito ?? 0.0;
 
-      // Monto total que se pagó
-      double montoTotalPagado = pago.deposito ?? 0.0;
+    if (pago.abonos != null && pago.abonos.isNotEmpty) {
+      // Si hay abonos, crear un objeto JSON por cada abono
+      for (var abono in pago.abonos) {
+        double deposito = abono['deposito'] ?? 0.0;
 
+        Map<String, dynamic> abonoJson = {
+          'idfechaspagos': pago.idfechaspagos ?? '',
+          'fechaPago': abono['fechaDeposito'] ?? '',
+          'montoaPagar': montoAPagar,
+          'deposito': deposito,
+          'moratorio': moratorio,
+          'saldofavor': saldoFavor,
+          'tipoPago': pago.tipoPago,
+        };
+
+        pagosJson.add(abonoJson);
+      }
+    } else {
+      // Si no hay abonos, crear un solo objeto JSON para el pago completo
       double montoDeposito = 0.0;
       double montoMoratorio = 0.0;
       double saldoAFavor = 0.0;
 
       if (montoTotalPagado <= montoAPagar!) {
-        // Si el pago es menor o igual al monto a pagar, se asigna todo al depósito
         montoDeposito = montoTotalPagado;
       } else if (montoTotalPagado <= (montoAPagar + moratorio)) {
-        // Si el pago cubre el monto a pagar y parte del moratorio
         montoDeposito = montoAPagar;
         montoMoratorio = montoTotalPagado - montoAPagar;
       } else {
-        // Si el pago cubre el monto a pagar, el moratorio y queda saldo a favor
         montoDeposito = montoAPagar;
         montoMoratorio = moratorio;
         saldoAFavor = montoTotalPagado - (montoAPagar + moratorio);
       }
 
-      // Crear el JSON con los valores calculados
       Map<String, dynamic> pagoJson = {
         'idfechaspagos': pago.idfechaspagos ?? '',
         'fechaPago': pago.fechaPago ?? '',
@@ -164,9 +176,11 @@ class _InfoCreditoState extends State<InfoCredito> {
 
       pagosJson.add(pagoJson);
     }
-
-    return pagosJson;
   }
+
+  return pagosJson;
+}
+
 
   Future<void> enviarDatosAlServidor(
       List<PagoSeleccionado> pagosSeleccionados) async {
@@ -1665,7 +1679,7 @@ void recargarPagos() async {
                                                                           pago.capitalMasInteres!;
                                                                 }
 
-// Imprimir el saldo a favor si existe
+                                                                // Imprimir el saldo a favor si existe
                                                                 if (pago.saldoFavor! >
                                                                     0) {
                                                                   print(
