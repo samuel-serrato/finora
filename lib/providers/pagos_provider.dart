@@ -1,34 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:money_facil/models/pago_seleccionado.dart';
 import 'package:uuid/uuid.dart'; // Asegúrate de añadir esta dependencia si usas UUID
-
+import 'package:collection/collection.dart'; // Importa para usar DeepCollectionEquality
 
 class PagosProvider with ChangeNotifier {
   List<PagoSeleccionado> _pagosSeleccionados = [];
-  List<PagoSeleccionado> _pagosOriginales = [];  // Nueva lista para los pagos originales
+  List<PagoSeleccionado> _pagosOriginales =
+      []; // Nueva lista para los pagos originales
 
   List<PagoSeleccionado> get pagosSeleccionados => _pagosSeleccionados;
-    List<PagoSeleccionado> get pagosOriginales => _pagosOriginales;  // Getter público
+  List<PagoSeleccionado> get pagosOriginales =>
+      _pagosOriginales; // Getter público
 
+  bool hayCambios() {
+    return obtenerCamposModificados().isNotEmpty;
+  }
 
   // Método para cargar los pagos
   void cargarPagos(List<PagoSeleccionado> pagos) {
-    _pagosSeleccionados = pagos;
-    _pagosOriginales = List.from(pagos);  // Guardamos los pagos originales al cargar
+    _pagosSeleccionados = List.from(pagos);
+    _pagosOriginales =
+        List.from(pagos); // Haz una copia idéntica de los originales
     notifyListeners();
   }
 
   // Método para obtener los pagos modificados
+  final DeepCollectionEquality _equality = DeepCollectionEquality();
+
   List<Map<String, dynamic>> obtenerCamposModificados() {
     List<Map<String, dynamic>> pagosModificados = [];
 
+    // Validar si las listas tienen el mismo tamaño
+    if (_pagosSeleccionados.length != _pagosOriginales.length) {
+      throw Exception(
+          'La longitud de pagosSeleccionados (${_pagosSeleccionados.length}) no coincide con pagosOriginales (${_pagosOriginales.length})');
+    }
+
     for (int i = 0; i < _pagosSeleccionados.length; i++) {
-      PagoSeleccionado pagoOriginal = _pagosOriginales[i]; // Pago original
-      PagoSeleccionado pagoActual = _pagosSeleccionados[i]; // Pago modificado
+      PagoSeleccionado pagoOriginal = _pagosOriginales[i];
+      PagoSeleccionado pagoActual = _pagosSeleccionados[i];
 
       Map<String, dynamic> camposModificados = {};
 
-      // Compara los campos y agrega los modificados
+      if (pagoActual.tipoPago != pagoOriginal.tipoPago) {
+        camposModificados['tipoPago'] = pagoActual.tipoPago;
+      }
+
       if (pagoActual.deposito != pagoOriginal.deposito) {
         camposModificados['deposito'] = pagoActual.deposito;
       }
@@ -48,7 +65,6 @@ class PagosProvider with ChangeNotifier {
         camposModificados['abonos'] = pagoActual.abonos;
       }
 
-      // Si hay cambios, agregamos al resultado
       if (camposModificados.isNotEmpty) {
         camposModificados['semana'] = pagoActual.semana;
         camposModificados['tipoPago'] = pagoActual.tipoPago;
@@ -62,12 +78,18 @@ class PagosProvider with ChangeNotifier {
   // Métodos de agregar y eliminar pagos
   void agregarPago(PagoSeleccionado nuevoPago) {
     _pagosSeleccionados.add(nuevoPago);
+    _pagosOriginales.add(nuevoPago); // Asegúrate de agregar también al original
+
     notifyListeners();
   }
 
   void eliminarPago(PagoSeleccionado pago) {
-    _pagosSeleccionados.removeWhere((p) => p.semana == pago.semana);
-    notifyListeners();
+    int index = _pagosSeleccionados.indexWhere((p) => p.semana == pago.semana);
+    if (index != -1) {
+      _pagosSeleccionados.removeAt(index);
+      _pagosOriginales.removeAt(index); // Elimina también del original
+      notifyListeners();
+    }
   }
 
   void limpiarPagos() {
@@ -93,6 +115,17 @@ class PagosProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+ void actualizarPago(int semana, PagoSeleccionado nuevoPago) {
+  int index = _pagosSeleccionados.indexWhere((p) => p.semana == semana);
+  if (index != -1) {
+    _pagosSeleccionados[index] = nuevoPago;
+    notifyListeners();
+  } else {
+    throw Exception('Pago no encontrado para la semana $semana');
+  }
+}
+
 
   @override
   String toString() {
