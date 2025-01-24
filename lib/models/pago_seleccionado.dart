@@ -18,7 +18,7 @@ class PagoSeleccionado {
     required this.idfechaspagos, // Añadido el campo en el constructor
     this.capitalMasInteres,
     required this.fechaPago,
-    this.saldoFavor = 0.0, // Inicialización por defecto
+    required this.saldoFavor, // Inicialización por defecto
     this.moratorio = 0.0, // Inicialización por defecto
     List<Map<String, dynamic>>? abonos,
     this.saldoEnContra = 0.0, // Inicialización por defecto
