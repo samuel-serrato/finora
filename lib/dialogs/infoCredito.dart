@@ -124,7 +124,7 @@ class _InfoCreditoState extends State<InfoCredito> {
     );
   }
 
- List<Map<String, dynamic>> generarPagoJson(
+  List<Map<String, dynamic>> generarPagoJson(
   List<PagoSeleccionado> pagosSeleccionados,
   List<PagoSeleccionado> pagosOriginales,
 ) {
@@ -146,7 +146,47 @@ class _InfoCreditoState extends State<InfoCredito> {
       }
     }
 
-    // Crear una entrada para los abonos nuevos
+    // Verificar si el tipo de pago es "completo"
+    if (pagoActual.tipoPago?.toLowerCase() == 'completo') {
+      double montoAPagar = (pagoActual.capitalMasInteres ?? 0.0) + (pagoActual.moratorio ?? 0.0);
+      double saldoPendiente = montoAPagar - pagosPrevios;
+
+      // Generar un único pago por el saldo pendiente
+      Map<String, dynamic> pagoJson = {
+        "idfechaspagos": pagoActual.idfechaspagos,
+        "fechaPago": pagoActual.fechaPago,
+        "tipoPago": "Completo",
+        "montoaPagar": montoAPagar,
+        "deposito": saldoPendiente > 0 ? saldoPendiente : 0.0,
+        "moratorio": pagoActual.moratorio ?? 0.0,
+        "saldofavor": saldoPendiente < 0 ? -saldoPendiente : 0.0,
+      };
+
+      pagosJson.add(pagoJson);
+      continue; // No procesar más abonos si es un pago completo
+    }
+
+    // Verificar si el tipo de pago es "Monto Parcial"
+    double deposito = 0.0;
+    double saldoFavor = 0.0;
+    if (pagoActual.tipoPago?.toLowerCase() == 'monto parcial') {
+      // Si el tipo de pago es Monto Parcial, usar el monto indicado
+      deposito = (pagoActual.deposito ?? 0.0);
+      
+      // Calcular el saldo a favor si el deposito excede el monto a pagar
+      double montoAPagar = (pagoActual.capitalMasInteres ?? 0.0);
+      if (deposito > montoAPagar) {
+        saldoFavor = deposito - montoAPagar;
+        deposito = montoAPagar; // Ajustar el depósito al monto a pagar
+      }
+    } else {
+      // Si no es pago parcial, seguimos con el comportamiento de abonos previos o completo
+      deposito = (pagoActual.tipoPago?.toLowerCase() == 'completo')
+          ? (pagoActual.capitalMasInteres ?? 0.0)
+          : pagosPrevios; // Mantener la lógica original para otros tipos de pago
+    }
+
+    // Crear una entrada para los abonos nuevos si no es pago completo
     List<Map<String, dynamic>> abonosNuevos = pagoActual.abonos.where((abono) {
       return !abono.containsKey('idpagosdetalles');
     }).toList();
@@ -164,9 +204,9 @@ class _InfoCreditoState extends State<InfoCredito> {
       double saldoPendiente = montoAPagar - pagosPrevios;
 
       // Calcular el saldo a favor para este nuevo abono
-      double saldoFavor = 0.0;
+      double saldoFavorAbono = 0.0;
       if (depositoAbono > saldoPendiente + (pagoActual.moratorio ?? 0.0)) {
-        saldoFavor = depositoAbono - (saldoPendiente + (pagoActual.moratorio ?? 0.0));
+        saldoFavorAbono = depositoAbono - (saldoPendiente + (pagoActual.moratorio ?? 0.0));
       }
 
       // Actualizar los pagos previos con el abono actual
@@ -180,28 +220,31 @@ class _InfoCreditoState extends State<InfoCredito> {
         "montoaPagar": montoAPagar,
         "deposito": depositoAbono,
         "moratorio": pagoActual.moratorio ?? 0.0,
-        "saldofavor": saldoFavor,
+        "saldofavor": saldoFavorAbono,
       };
 
       pagosJson.add(pagoJson);
+    }
+
+    // Generar el pago para el monto parcial si se especificó un valor en deposito
+    if (pagoActual.tipoPago?.toLowerCase() == 'monto parcial' && deposito > 0) {
+      Map<String, dynamic> pagoJson = {
+        "idfechaspagos": pagoActual.idfechaspagos,
+        "fechaPago": pagoActual.fechaPago,
+        "tipoPago": "Monto Parcial",
+        "montoaPagar": pagoActual.capitalMasInteres ?? 0.0,
+        "deposito": deposito,
+        "moratorio": pagoActual.moratorio ?? 0.0,
+        "saldofavor": saldoFavor, // Aquí se incluye el saldo a favor
+      };
+
+      pagosJson.add(pagoJson);
+      print("Pago parcial procesado con saldo a favor: $pagoJson");
     }
   }
 
   return pagosJson;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 // Método auxiliar para imprimir los datos de un PagoSeleccionado
@@ -314,6 +357,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                 Navigator.of(context).pop(); // Cerrar el diálogo
                 Provider.of<PagosProvider>(context, listen: false)
                     .limpiarPagos();
+                    
 
                 paginaControlKey.currentState?.recargarPagos();
               },
@@ -590,25 +634,24 @@ class _InfoCreditoState extends State<InfoCredito> {
                     child: Text('Reiniciar Datos'),
                   ),
                   ElevatedButton(
-                    onPressed: () {
-                      final pagosSeleccionados =
-                          Provider.of<PagosProvider>(context, listen: false)
-                              .pagosSeleccionados;
-                      final pagosOriginales =
-                          Provider.of<PagosProvider>(context, listen: false)
-                              .pagosOriginales;
+                    onPressed: () async {
+                       final pagosSeleccionados =
+        Provider.of<PagosProvider>(context, listen: false).pagosSeleccionados;
+    final pagosOriginales =
+        Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
 
-                      // Generar JSON solo con los datos modificados
-                      List<Map<String, dynamic>> pagosJson =
-                          generarPagoJson(pagosSeleccionados, pagosOriginales);
+    // Generar JSON solo con los datos modificados
+    List<Map<String, dynamic>> pagosJson =
+        generarPagoJson(pagosSeleccionados, pagosOriginales);
 
-                      // Verificar si hay datos modificados para enviar
-                      if (pagosJson.isNotEmpty) {
-                        print('Datos a enviar: $pagosJson');
-                        // Aquí puedes enviar los datos modificados al servidor o donde sea necesario
-                      } else {
-                        print("No hay cambios para guardar.");
-                      }
+    // Verificar si hay datos modificados para enviar
+    if (pagosJson.isNotEmpty) {
+      print('Datos a enviar: $pagosJson');
+      // Llamar a la función para enviar los datos al servidor
+      await enviarDatosAlServidor(context, pagosSeleccionados);
+    } else {
+      print("No hay cambios para guardar.");
+    }
                     },
                     child: Text('Guardar'),
                   )
@@ -876,36 +919,51 @@ class _PaginaControlState extends State<PaginaControl> {
   }
 
   void recargarPagos() async {
+  setState(() {
+    isLoading = true; // Activa el CircularProgressIndicator
+  });
+
+  // Simula un delay antes de empezar a cargar los pagos
+  await Future.delayed(Duration(milliseconds: 500)); // Delay de 1 segundo
+
+  try {
+    // Realizamos la carga de los pagos con el Future
+    List<Pago> pagos = await _fetchPagos();
+
+    // Si los datos se cargan exitosamente, actualizamos el estado
     setState(() {
-      isLoading = true; // Activa el CircularProgressIndicator
+      _pagosFuture = Future.value(pagos); // Asignamos el resultado del Future
     });
 
-    // Simula un delay antes de empezar a cargar los pagos
-    await Future.delayed(Duration(milliseconds: 500)); // Delay de 1 segundo
+    // Carga los pagos en el PagosProvider
+    final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
+    pagosProvider.cargarPagos(pagos
+        .map((pago) => PagoSeleccionado(
+              semana: pago.semana,
+              tipoPago: pago.tipoPago,
+              deposito: pago.deposito ?? 0.0,
+              saldoFavor: 0.0,
+              abonos: pago.abonos ?? [],
+              idfechaspagos: pago.idfechaspagos ?? '',
+              fechaPago: pago.fechaPago ?? '',
+            ))
+        .toList());
 
-    try {
-      // Realizamos la carga de los pagos con el Future
-      List<Pago> pagos = await _fetchPagos();
+    // Desactivamos el indicador de carga
+    setState(() {
+      isLoading = false;
+    });
+  } catch (e) {
+    // En caso de error, desactivamos el indicador de carga
+    setState(() {
+      isLoading = false;
+    });
 
-      // Si los datos se cargan exitosamente, actualizamos el estado
-      setState(() {
-        _pagosFuture = Future.value(pagos); // Asignamos el resultado del Future
-      });
-
-      // Desactivamos el indicador de carga
-      setState(() {
-        isLoading = false;
-      });
-    } catch (e) {
-      // En caso de error, desactivamos el indicador de carga
-      setState(() {
-        isLoading = false;
-      });
-
-      // Aquí puedes manejar el error, por ejemplo, mostrando un mensaje
-      print("Error al cargar los pagos: $e");
-    }
+    // Aquí puedes manejar el error, por ejemplo, mostrando un mensaje
+    print("Error al cargar los pagos: $e");
   }
+}
+
 
   // Función para formatear fechas
   String formatearFecha(Object? fecha) {
@@ -1220,54 +1278,77 @@ class _PaginaControlState extends State<PaginaControl> {
                                           );
                                         }).toList(),
                                         onChanged: _puedeEditarPago(pago)
-    ? (String? newValue) {
-        setState(() {
-          pago.tipoPago = newValue!;
-          print(
-              "Pago seleccionado: Semana ${pago.semana}, Tipo de pago: $newValue, Fecha de pago: ${pago.fechaPago}, ID Fechas Pagos: ${pago.idfechaspagos}, Monto a Pagar: ${pago.capitalMasInteres}");
+                                            ? (String? newValue) {
+                                                setState(() {
+                                                  pago.tipoPago = newValue!;
+                                                  print(
+                                                      "Pago seleccionado: Semana ${pago.semana}, Tipo de pago: $newValue, Fecha de pago: ${pago.fechaPago}, ID Fechas Pagos: ${pago.idfechaspagos}, Monto a Pagar: ${pago.capitalMasInteres}");
 
-          if (newValue == 'Completo') {
-            // Asegurarse de que `capitalMasInteres` no sea null antes de asignarlo a `deposito`
-            double montoAPagar = pago.capitalMasInteres ?? 0.0;
-            pago.deposito = montoAPagar; // Asignamos el monto a pagar al depósito
+                                                  if (newValue == 'Completo') {
+                                                    // Asegurarse de que `capitalMasInteres` no sea null antes de asignarlo a `deposito`
+                                                    double montoAPagar =
+                                                        pago.capitalMasInteres ??
+                                                            0.0;
+                                                    pago.deposito =
+                                                        montoAPagar; // Asignamos el monto a pagar al depósito
 
-            print("Monto a pagar (deposito): $montoAPagar");
+                                                    print(
+                                                        "Monto a pagar (deposito): $montoAPagar");
 
-            if (pago.fechaPago == null) {
-              pago.fechaPago = DateTime.now().toString();
-            }
+                                                    if (pago.fechaPago ==
+                                                        null) {
+                                                      pago.fechaPago =
+                                                          DateTime.now()
+                                                              .toString();
+                                                    }
 
-            // Convertir Pago a PagoSeleccionado
-            PagoSeleccionado pagoSeleccionado = PagoSeleccionado(
-              semana: pago.semana,
-              tipoPago: pago.tipoPago,
-              deposito: pago.deposito ?? 0.00, // Ahora deposito tiene el monto a pagar
-              fechaPago: pago.fechaPago,
-              idfechaspagos: pago.idfechaspagos,
-              capitalMasInteres: pago.capitalMasInteres,
-              moratorio: pago.moratorios!.moratorios,
-              saldoFavor: pago.saldoFavor,
-              saldoEnContra: pago.saldoEnContra,
-              abonos: pago.abonos,
-            );
+                                                    // Convertir Pago a PagoSeleccionado
+                                                    PagoSeleccionado
+                                                        pagoSeleccionado =
+                                                        PagoSeleccionado(
+                                                      semana: pago.semana,
+                                                      tipoPago: pago.tipoPago,
+                                                      deposito: pago.deposito ??
+                                                          0.00, // Ahora deposito tiene el monto a pagar
+                                                      fechaPago: pago.fechaPago,
+                                                      idfechaspagos:
+                                                          pago.idfechaspagos,
+                                                      capitalMasInteres: pago
+                                                          .capitalMasInteres,
+                                                      moratorio: pago
+                                                          .moratorios!
+                                                          .moratorios,
+                                                      saldoFavor:
+                                                          pago.saldoFavor,
+                                                      saldoEnContra:
+                                                          pago.saldoEnContra,
+                                                      abonos: pago.abonos,
+                                                    );
 
-            // Ahora puedes actualizar el pago en el provider
-            Provider.of<PagosProvider>(context, listen: false)
-                .actualizarPago(pagoSeleccionado.semana, pagoSeleccionado);
-          }
+                                                    // Ahora puedes actualizar el pago en el provider
+                                                    Provider.of<PagosProvider>(
+                                                            context,
+                                                            listen: false)
+                                                        .actualizarPago(
+                                                            pagoSeleccionado
+                                                                .semana,
+                                                            pagoSeleccionado);
+                                                  }
 
-          // Imprimir el estado del provider después de actualización
-          print("Estado del Provider después de actualización:");
-          Provider.of<PagosProvider>(context, listen: false)
-              .pagosSeleccionados
-              .forEach((pago) {
-            print(
-                "Pago en Provider: Semana ${pago.semana}, Tipo de pago: ${pago.tipoPago}, Monto a Pagar: ${pago.capitalMasInteres}, Deposito: ${pago.deposito}");
-          });
-        });
-      }
-    : null,
-
+                                                  // Imprimir el estado del provider después de actualización
+                                                  print(
+                                                      "Estado del Provider después de actualización:");
+                                                  Provider.of<PagosProvider>(
+                                                          context,
+                                                          listen: false)
+                                                      .pagosSeleccionados
+                                                      .forEach((pago) {
+                                                    print(
+                                                        "Pago en Provider: Semana ${pago.semana}, Tipo de pago: ${pago.tipoPago}, Monto a Pagar: ${pago.capitalMasInteres}, Deposito: ${pago.deposito}");
+                                                  });
+                                                });
+                                              }
+                                            : null,
                                         icon: Icon(
                                           // Aquí es donde puedes cambiar el icono
                                           Icons
@@ -1308,105 +1389,178 @@ class _PaginaControlState extends State<PaginaControl> {
                                                     ),
                                                   ],
                                                 ),
-                                                child:
+                                                child: IconButton(
+                                                  icon: Icon(Icons.add,
+                                                      color: Colors.white),
+                                                  onPressed:
+                                                      _puedeEditarPago(pago)
+                                                          ? () async {
+                                                              // Obtén el proveedor y muestra sus detalles
+                                                              final pagosProvider =
+                                                                  Provider.of<
+                                                                          PagosProvider>(
+                                                                      context,
+                                                                      listen:
+                                                                          false);
 
-IconButton(
-  icon: Icon(Icons.add, color: Colors.white),
-  onPressed: _puedeEditarPago(pago)
-      ? () async {
-          // Obtén el proveedor y muestra sus detalles
-          final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
+                                                              // Crear una instancia de Uuid para generar un UID único
+                                                              var uuid = Uuid();
 
-          // Crear una instancia de Uuid para generar un UID único
-          var uuid = Uuid();
+                                                              // Mostrar el diálogo para agregar nuevos abonos
+                                                              List<
+                                                                      Map<String,
+                                                                          dynamic>>
+                                                                  nuevosAbonos =
+                                                                  (await showDialog(
+                                                                        context:
+                                                                            context,
+                                                                        builder:
+                                                                            (context) =>
+                                                                                AbonosDialog(
+                                                                          montoAPagar:
+                                                                              pago.capitalMasInteres,
+                                                                          onConfirm:
+                                                                              (abonos) {
+                                                                            Navigator.of(context).pop(abonos);
+                                                                          },
+                                                                        ),
+                                                                      )) ??
+                                                                      [];
 
-          // Mostrar el diálogo para agregar nuevos abonos
-          List<Map<String, dynamic>> nuevosAbonos = (await showDialog(
-            context: context,
-            builder: (context) => AbonosDialog(
-              montoAPagar: pago.capitalMasInteres,
-              onConfirm: (abonos) {
-                Navigator.of(context).pop(abonos);
-              },
-            ),
-          )) ?? [];
+                                                              print(
+                                                                  'Nuevos abonos recibidos: $nuevosAbonos');
 
-          print('Nuevos abonos recibidos: $nuevosAbonos');
+                                                              setState(() {
+                                                                if (nuevosAbonos
+                                                                    .isNotEmpty) {
+                                                                  // Mostrar los nuevos abonos y asegurarse de que no haya duplicados con la misma fecha y monto
+                                                                  nuevosAbonos
+                                                                      .forEach(
+                                                                          (abono) {
+                                                                    // Asignar un UID único al abono
+                                                                    abono['uid'] =
+                                                                        uuid.v4();
 
-          setState(() {
-            if (nuevosAbonos.isNotEmpty) {
-              // Mostrar los nuevos abonos y asegurarse de que no haya duplicados con la misma fecha y monto
-              nuevosAbonos.forEach((abono) {
-                // Asignar un UID único al abono
-                abono['uid'] = uuid.v4();
+                                                                    // Verificar si ya existe un abono con el mismo UID (para evitar duplicados de UID)
+                                                                    bool existeAbono = pago
+                                                                        .abonos
+                                                                        .any((existeAbono) =>
+                                                                            existeAbono['uid'] ==
+                                                                            abono['uid']);
 
-                // Verificar si ya existe un abono con el mismo UID (para evitar duplicados de UID)
-                bool existeAbono = pago.abonos.any((existeAbono) =>
-                    existeAbono['uid'] == abono['uid']);
+                                                                    if (!existeAbono) {
+                                                                      print(
+                                                                          'Agregando abono con UID: ${abono['uid']}');
+                                                                      pago.abonos
+                                                                          .add(
+                                                                              abono);
+                                                                    } else {
+                                                                      print(
+                                                                          'Abono duplicado detectado con UID: ${abono['uid']}');
+                                                                    }
+                                                                  });
 
-                if (!existeAbono) {
-                  print('Agregando abono con UID: ${abono['uid']}');
-                  pago.abonos.add(abono);
-                } else {
-                  print('Abono duplicado detectado con UID: ${abono['uid']}');
-                }
-              });
+                                                                  // Recalcular saldos solo una vez
+                                                                  double
+                                                                      totalAbonos =
+                                                                      pago.abonos
+                                                                          .fold(
+                                                                    0.0,
+                                                                    (sum, abono) =>
+                                                                        sum +
+                                                                        (abono['deposito'] ??
+                                                                            0.0),
+                                                                  );
 
-              // Recalcular saldos solo una vez
-              double totalAbonos = pago.abonos.fold(
-                0.0,
-                (sum, abono) => sum + (abono['deposito'] ?? 0.0),
-              );
+                                                                  // Monto total pagado (solo abonos, sin incluir depósito de pago inicial)
+                                                                  double
+                                                                      montoPagado =
+                                                                      totalAbonos;
 
-              // Monto total pagado (solo abonos, sin incluir depósito de pago inicial)
-              double montoPagado = totalAbonos;
+                                                                  // Recalcular saldos
+                                                                  if (montoPagado <
+                                                                      pago.capitalMasInteres!) {
+                                                                    pago.saldoEnContra =
+                                                                        pago.capitalMasInteres! -
+                                                                            montoPagado;
+                                                                    pago.saldoFavor =
+                                                                        0.0;
+                                                                  } else {
+                                                                    pago.saldoEnContra =
+                                                                        0.0;
+                                                                    pago.saldoFavor =
+                                                                        montoPagado -
+                                                                            pago.capitalMasInteres!;
+                                                                  }
 
-              // Recalcular saldos
-              if (montoPagado < pago.capitalMasInteres!) {
-                pago.saldoEnContra = pago.capitalMasInteres! - montoPagado;
-                pago.saldoFavor = 0.0;
-              } else {
-                pago.saldoEnContra = 0.0;
-                pago.saldoFavor = montoPagado - pago.capitalMasInteres!;
-              }
+                                                                  print(
+                                                                      'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
 
-              print('Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
+                                                                  // Actualizar el Provider con el nuevo saldo
+                                                                  final index = pagosProvider
+                                                                      .pagosSeleccionados
+                                                                      .indexWhere((p) =>
+                                                                          p.semana ==
+                                                                          pago.semana);
 
-              // Actualizar el Provider con el nuevo saldo
-              final index = pagosProvider.pagosSeleccionados.indexWhere((p) => p.semana == pago.semana);
-
-              if (index != -1) {
-                pagosProvider.pagosSeleccionados[index] = PagoSeleccionado(
-                  semana: pago.semana,
-                  tipoPago: pago.tipoPago,
-                  deposito: pago.deposito ?? 0.0,
-                  saldoFavor: pago.saldoFavor,
-                  abonos: pago.abonos,
-                  idfechaspagos: pago.idfechaspagos,
-                  fechaPago: pago.fechaPago,
-                  capitalMasInteres: pago.capitalMasInteres,
-                  moratorio: pago.moratorios?.moratorios,
-                );
-              } else {
-                pagosProvider.agregarPago(
-                  PagoSeleccionado(
-                    semana: pago.semana,
-                    tipoPago: pago.tipoPago,
-                    deposito: pago.deposito ?? 0.0,
-                    saldoFavor: pago.saldoFavor,
-                    abonos: pago.abonos,
-                    idfechaspagos: pago.idfechaspagos,
-                    fechaPago: pago.fechaPago,
-                    capitalMasInteres: pago.capitalMasInteres,
-                    moratorio: pago.moratorios?.moratorios,
-                  ),
-                );
-              }
-            }
-          });
-        }
-      : null,
-)),
+                                                                  if (index !=
+                                                                      -1) {
+                                                                    pagosProvider
+                                                                            .pagosSeleccionados[index] =
+                                                                        PagoSeleccionado(
+                                                                      semana: pago
+                                                                          .semana,
+                                                                      tipoPago:
+                                                                          pago.tipoPago,
+                                                                      deposito:
+                                                                          pago.deposito ??
+                                                                              0.0,
+                                                                      saldoFavor:
+                                                                          pago.saldoFavor,
+                                                                      abonos: pago
+                                                                          .abonos,
+                                                                      idfechaspagos:
+                                                                          pago.idfechaspagos,
+                                                                      fechaPago:
+                                                                          pago.fechaPago,
+                                                                      capitalMasInteres:
+                                                                          pago.capitalMasInteres,
+                                                                      moratorio: pago
+                                                                          .moratorios
+                                                                          ?.moratorios,
+                                                                    );
+                                                                  } else {
+                                                                    pagosProvider
+                                                                        .agregarPago(
+                                                                      PagoSeleccionado(
+                                                                        semana:
+                                                                            pago.semana,
+                                                                        tipoPago:
+                                                                            pago.tipoPago,
+                                                                        deposito:
+                                                                            pago.deposito ??
+                                                                                0.0,
+                                                                        saldoFavor:
+                                                                            pago.saldoFavor,
+                                                                        abonos:
+                                                                            pago.abonos,
+                                                                        idfechaspagos:
+                                                                            pago.idfechaspagos,
+                                                                        fechaPago:
+                                                                            pago.fechaPago,
+                                                                        capitalMasInteres:
+                                                                            pago.capitalMasInteres,
+                                                                        moratorio: pago
+                                                                            .moratorios
+                                                                            ?.moratorios,
+                                                                      ),
+                                                                    );
+                                                                  }
+                                                                }
+                                                              });
+                                                            }
+                                                          : null,
+                                                )),
                                             SizedBox(
                                                 width:
                                                     8), // Espacio entre los botones
