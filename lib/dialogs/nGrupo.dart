@@ -107,21 +107,21 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   void _agregarGrupo() async {
-    setState(() {
-      _isLoading = true; // Activa el indicador de carga
-    });
+  setState(() {
+    _isLoading = true;
+  });
 
-    // Llamamos a la función que envía los datos
-    final grupoResponse = await _enviarGrupo();
+  final grupoResponse = await _enviarGrupo();
 
-    if (grupoResponse != null) {
-      final idGrupo = grupoResponse["idgrupos"];
-      print("ID del grupo creado: $idGrupo");
+  if (grupoResponse != null) {
+    final idGrupo = grupoResponse["idgrupos"];
+    print("ID del grupo creado: $idGrupo");
 
-      if (idGrupo != null) {
-        // Paso 2: Crear miembros para el grupo
-        await _enviarMiembros(idGrupo);
+    if (idGrupo != null) {
+      // Paso 2: Crear miembros para el grupo
+      final miembrosAgregados = await _enviarMiembros(idGrupo);
 
+      if (miembrosAgregados) {
         // Llama al callback para refrescar la lista de grupos
         widget.onGrupoAgregado();
 
@@ -136,16 +136,21 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         // Cierra el diálogo
         Navigator.of(context).pop();
       } else {
-        print("Error: idGrupo es nulo.");
+        print("Error al agregar miembros. Revisa los mensajes de error.");
+        // No cierres el diálogo; ya se mostró el error.
       }
     } else {
-      print("Error: grupoResponse es nulo.");
+      print("Error: idGrupo es nulo.");
     }
-
-    setState(() {
-      _isLoading = false; // Desactiva el indicador de carga
-    });
+  } else {
+    print("Error: grupoResponse es nulo.");
   }
+
+  setState(() {
+    _isLoading = false;
+  });
+}
+
 
   Future<Map<String, dynamic>?> _enviarGrupo() async {
     final url = Uri.parse('http://$baseUrl/api/v1/grupos');
@@ -205,46 +210,67 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
 // Función para enviar los miembros al grupo
-  Future<void> _enviarMiembros(String idGrupo) async {
-    // Crear una lista de miembros con la estructura esperada
-    List<Map<String, dynamic>> miembros = _selectedPersons.map((persona) {
-      return {
-        'idcliente': persona['idclientes'], // El id del cliente seleccionado
-        'nomCargo': _rolesSeleccionados[persona['idclientes']] ??
-            'Miembro', // Rol seleccionado o 'Miembro' por defecto
-      };
-    }).toList();
-
-    // Crear el objeto de datos para enviar
-    final miembroData = {
-      'idgrupos': idGrupo, // Se pasa el id del grupo creado
-      'clientes': miembros, // Lista de miembros
-      'idusuarios': '9E0T6RGRI5', // id de usuario por defecto
+  Future<bool> _enviarMiembros(String idGrupo) async {
+  List<Map<String, dynamic>> miembros = _selectedPersons.map((persona) {
+    return {
+      'idcliente': persona['idclientes'],
+      'nomCargo': _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
     };
+  }).toList();
 
-    // Imprimir los datos antes de enviarlos
-    print("Datos que se enviarán para agregar los miembros: $miembroData");
+  final miembroData = {
+    'idgrupos': idGrupo,
+    'clientes': miembros,
+    'idusuarios': 'EQ2INREN3T',
+  };
 
-    final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/');
-    final headers = {'Content-Type': 'application/json'};
+  print("Datos que se enviarán para agregar los miembros: $miembroData");
 
-    try {
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: json.encode(miembroData),
+  final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/');
+  final headers = {'Content-Type': 'application/json'};
+
+  try {
+    final response = await http.post(
+      url,
+      headers: headers,
+      body: json.encode(miembroData),
+    );
+
+    if (response.statusCode == 201) {
+      print("Miembros agregados con éxito");
+      return true;
+    } else {
+      print("Error al agregar miembros: ${response.statusCode}");
+      print("Detalles del error: ${response.body}");
+
+      final responseBody = jsonDecode(response.body);
+      final errorCode = responseBody['Error']?['Code'] ?? response.statusCode;
+      final errorMessage = responseBody['Error']?['Message'] ??
+          "Ocurrió un error al agregar los miembros.";
+
+      final formattedMessage =
+          'Error $errorCode: ${errorMessage ?? "Error inesperado."}';
+
+      _mostrarDialogo(
+        title: 'Error al agregar miembros',
+        message: formattedMessage,
+        isSuccess: false,
       );
-
-      if (response.statusCode == 201) {
-        print("Miembros agregados con éxito");
-      } else {
-        print("Error al agregar miembros: ${response.statusCode}");
-        print("Detalles del error: ${response.body}");
-      }
-    } catch (e) {
-      print("Error al enviar miembros: $e");
     }
+  } catch (e) {
+    print("Error al enviar miembros: $e");
+
+    _mostrarDialogo(
+      title: 'Error',
+      message: 'Ocurrió un error inesperado: $e',
+      isSuccess: false,
+    );
   }
+
+  return false; // Devuelve false si ocurre un error
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -422,82 +448,85 @@ class _nGrupoDialogState extends State<nGrupoDialog>
           ),
           SizedBox(width: 50), // Espacio entre la columna y el formulario
           Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(top: 10),
-              child: Column(
-                children: [
-                  // Contenedor circular de fondo rojo con el ícono
-                  Container(
-                    width: 120, // Ajustar tamaño del contenedor
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: Color(0xFFFB2056), // Color de fondo rojo
-                      shape: BoxShape.circle, // Forma circular
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.group,
-                        size: 80, // Tamaño del ícono
-                        color: Colors.white, // Color del ícono
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: Column(
+                  children: [
+                    // Contenedor circular de fondo rojo con el ícono
+                    Container(
+                      width: 120, // Ajustar tamaño del contenedor
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Color(0xFFFB2056), // Color de fondo rojo
+                        shape: BoxShape.circle, // Forma circular
+                      ),
+                      child: Center(
+                        child: Icon(
+                          Icons.group,
+                          size: 70, // Tamaño del ícono
+                          color: Colors.white, // Color del ícono
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: verticalSpacing), // Espacio debajo del ícono
-                  _buildTextField(
-                    controller: nombreGrupoController,
-                    label: 'Nombres del grupo',
-                    icon: Icons.person,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingrese el nombre del grupo';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: verticalSpacing),
-                  _buildDropdown(
-                    value: selectedTipo,
-                    hint: 'Tipo',
-                    items: tiposGrupo,
-                    onChanged: (value) {
-                      setState(() {
-                        selectedTipo = value;
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, seleccione el Tipo de Grupo';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: verticalSpacing),
-                  _buildTextField(
-                    controller: descripcionController,
-                    label: 'Descripción',
-                    icon: Icons.description,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingrese una descripción';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: verticalSpacing),
-                  // Agregar el campo "¿Es Adicional?" como un checkbox
-                  CheckboxListTile(
-                    title: Text('¿Es Adicional?'),
-                    value: esAdicional,
-                    onChanged: (bool? newValue) {
-                      setState(() {
-                        esAdicional = newValue ?? false;
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 0),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
+                    SizedBox(
+                        height: verticalSpacing), // Espacio debajo del ícono
+                    _buildTextField(
+                      controller: nombreGrupoController,
+                      label: 'Nombres del grupo',
+                      icon: Icons.person,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor ingrese el nombre del grupo';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: verticalSpacing),
+                    _buildDropdown(
+                      value: selectedTipo,
+                      hint: 'Tipo',
+                      items: tiposGrupo,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedTipo = value;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, seleccione el Tipo de Grupo';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: verticalSpacing),
+                    _buildTextField(
+                      controller: descripcionController,
+                      label: 'Descripción',
+                      icon: Icons.description,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor ingrese una descripción';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: verticalSpacing),
+                    // Agregar el campo "¿Es Adicional?" como un checkbox
+                    CheckboxListTile(
+                      title: Text('¿Es Adicional?'),
+                      value: esAdicional,
+                      onChanged: (bool? newValue) {
+                        setState(() {
+                          esAdicional = newValue ?? false;
+                        });
+                      },
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 0),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

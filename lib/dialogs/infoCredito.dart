@@ -125,127 +125,148 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   List<Map<String, dynamic>> generarPagoJson(
-  List<PagoSeleccionado> pagosSeleccionados,
-  List<PagoSeleccionado> pagosOriginales,
-) {
-  List<Map<String, dynamic>> pagosJson = [];
+    List<PagoSeleccionado> pagosSeleccionados,
+    List<PagoSeleccionado> pagosOriginales,
+  ) {
+    if (pagosSeleccionados.isEmpty) {
+      print("No hay pagos seleccionados.");
+      return [];
+    }
 
-  for (int i = 0; i < pagosSeleccionados.length; i++) {
-    PagoSeleccionado pagoActual = pagosSeleccionados[i];
+    List<Map<String, dynamic>> pagosJson = [];
 
-    // Sumar los depósitos ya registrados en abonos previos
-    double pagosPrevios = 0.0;
-    for (var abono in pagoActual.abonos) {
-      if (abono.containsKey('idpagosdetalles')) {
-        double depositoPrevio = (abono['deposito'] is double)
+    for (int i = 0; i < pagosSeleccionados.length; i++) {
+      PagoSeleccionado pagoActual = pagosSeleccionados[i];
+      PagoSeleccionado pagoOriginal = pagosOriginales.firstWhere(
+          (pago) => pago.idfechaspagos == pagoActual.idfechaspagos,
+          orElse: () => pagoActual);
+
+      // Verificar si el pago actual tiene cambios
+      bool tieneCambios = _compararPagos(pagoActual, pagoOriginal) ||
+          pagoActual.abonos
+              .any((abono) => !abono.containsKey('idpagosdetalles'));
+
+      if (!tieneCambios) {
+        // Si no hay cambios ni abonos nuevos, omitir este pago
+        continue;
+      }
+
+      double pagosPrevios = 0.0;
+      for (var abono in pagoActual.abonos) {
+        if (abono.containsKey('idpagosdetalles')) {
+          double depositoPrevio = (abono['deposito'] is double)
+              ? abono['deposito']
+              : (abono['deposito'] is int)
+                  ? (abono['deposito'] as int).toDouble()
+                  : 0.0;
+          pagosPrevios += depositoPrevio;
+        }
+      }
+
+      // Manejo para tipo de pago "Completo"
+      if (pagoActual.tipoPago?.toLowerCase() == 'completo') {
+        double montoAPagar = (pagoActual.capitalMasInteres ?? 0.0) +
+            (pagoActual.moratorio ?? 0.0);
+        double saldoPendiente = montoAPagar - pagosPrevios;
+
+        Map<String, dynamic> pagoJson = {
+          "idfechaspagos": pagoActual.idfechaspagos,
+          "fechaPago": pagoActual.fechaPago,
+          "tipoPago": "Completo",
+          "montoaPagar": _redondear(montoAPagar),
+          "deposito": _redondear(saldoPendiente > 0 ? saldoPendiente : 0.0),
+          "saldofavor": _redondear(saldoPendiente < 0 ? -saldoPendiente : 0.0),
+        };
+
+        if (pagoJson['montoaPagar'] != null && pagoJson['deposito'] > 0.0) {
+          pagosJson.add(pagoJson);
+        } else {
+          print("Pago completo descartado por ser inválido: $pagoJson");
+        }
+
+        continue; // Saltar el procesamiento adicional de abonos
+      }
+
+      // Manejo para tipo de pago "Monto Parcial"
+      double deposito = 0.0;
+      double saldoFavor = 0.0;
+
+      if (pagoActual.tipoPago?.toLowerCase() == 'monto parcial') {
+        deposito = _redondear(pagoActual.deposito ?? 0.0);
+
+        double montoAPagar = _redondear(pagoActual.capitalMasInteres ?? 0.0);
+        if (deposito > montoAPagar) {
+          saldoFavor = _redondear(deposito - montoAPagar);
+        }
+      }
+
+      List<Map<String, dynamic>> abonosNuevos =
+          pagoActual.abonos.where((abono) {
+        return !abono.containsKey('idpagosdetalles');
+      }).toList();
+
+      for (var abono in abonosNuevos) {
+        double depositoAbono = (abono['deposito'] is double)
             ? abono['deposito']
             : (abono['deposito'] is int)
                 ? (abono['deposito'] as int).toDouble()
                 : 0.0;
-        pagosPrevios += depositoPrevio;
+        depositoAbono = _redondear(depositoAbono);
+
+        double montoAPagar = _redondear(pagoActual.capitalMasInteres ?? 0.0);
+        double saldoPendiente = _redondear(montoAPagar - pagosPrevios);
+
+        double saldoFavorAbono = 0.0;
+        if (depositoAbono > saldoPendiente + (pagoActual.moratorio ?? 0.0)) {
+          saldoFavorAbono = _redondear(
+              depositoAbono - (saldoPendiente + (pagoActual.moratorio ?? 0.0)));
+        }
+
+        pagosPrevios += depositoAbono;
+
+        Map<String, dynamic> pagoJson = {
+          "idfechaspagos": pagoActual.idfechaspagos,
+          "fechaPago": pagoActual.fechaPago,
+          "tipoPago": pagoActual.tipoPago,
+          "montoaPagar": montoAPagar,
+          "deposito": depositoAbono,
+          "moratorio": _redondear(pagoActual.moratorio ?? 0.0),
+          "saldofavor": saldoFavorAbono,
+        };
+
+        pagosJson.add(pagoJson);
+      }
+
+      if (pagoActual.tipoPago?.toLowerCase() == 'monto parcial' &&
+          deposito > 0) {
+        Map<String, dynamic> pagoJson = {
+          "idfechaspagos": pagoActual.idfechaspagos,
+          "fechaPago": pagoActual.fechaPago,
+          "tipoPago": "Monto Parcial",
+          "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0),
+          "deposito": deposito,
+          "moratorio": _redondear(pagoActual.moratorio ?? 0.0),
+          "saldofavor": saldoFavor,
+        };
+
+        pagosJson.add(pagoJson);
+        print("Pago parcial procesado con saldo a favor: $pagoJson");
       }
     }
 
-    // Verificar si el tipo de pago es "completo"
-    if (pagoActual.tipoPago?.toLowerCase() == 'completo') {
-      double montoAPagar = (pagoActual.capitalMasInteres ?? 0.0) + (pagoActual.moratorio ?? 0.0);
-      double saldoPendiente = montoAPagar - pagosPrevios;
-
-      // Generar un único pago por el saldo pendiente
-      Map<String, dynamic> pagoJson = {
-        "idfechaspagos": pagoActual.idfechaspagos,
-        "fechaPago": pagoActual.fechaPago,
-        "tipoPago": "Completo",
-        "montoaPagar": montoAPagar,
-        "deposito": saldoPendiente > 0 ? saldoPendiente : 0.0,
-        "moratorio": pagoActual.moratorio ?? 0.0,
-        "saldofavor": saldoPendiente < 0 ? -saldoPendiente : 0.0,
-      };
-
-      pagosJson.add(pagoJson);
-      continue; // No procesar más abonos si es un pago completo
-    }
-
-    // Verificar si el tipo de pago es "Monto Parcial"
-    double deposito = 0.0;
-    double saldoFavor = 0.0;
-    if (pagoActual.tipoPago?.toLowerCase() == 'monto parcial') {
-      // Si el tipo de pago es Monto Parcial, usar el monto indicado
-      deposito = (pagoActual.deposito ?? 0.0);
-      
-      // Calcular el saldo a favor si el deposito excede el monto a pagar
-      double montoAPagar = (pagoActual.capitalMasInteres ?? 0.0);
-      if (deposito > montoAPagar) {
-        saldoFavor = deposito - montoAPagar;
-        deposito = montoAPagar; // Ajustar el depósito al monto a pagar
-      }
-    } else {
-      // Si no es pago parcial, seguimos con el comportamiento de abonos previos o completo
-      deposito = (pagoActual.tipoPago?.toLowerCase() == 'completo')
-          ? (pagoActual.capitalMasInteres ?? 0.0)
-          : pagosPrevios; // Mantener la lógica original para otros tipos de pago
-    }
-
-    // Crear una entrada para los abonos nuevos si no es pago completo
-    List<Map<String, dynamic>> abonosNuevos = pagoActual.abonos.where((abono) {
-      return !abono.containsKey('idpagosdetalles');
-    }).toList();
-
-    for (var abono in abonosNuevos) {
-      double depositoAbono = (abono['deposito'] is double)
-          ? abono['deposito']
-          : (abono['deposito'] is int)
-              ? (abono['deposito'] as int).toDouble()
-              : 0.0;
-
-      double montoAPagar = (pagoActual.capitalMasInteres ?? 0.0);
-
-      // Calcular el saldo pendiente considerando los abonos previos
-      double saldoPendiente = montoAPagar - pagosPrevios;
-
-      // Calcular el saldo a favor para este nuevo abono
-      double saldoFavorAbono = 0.0;
-      if (depositoAbono > saldoPendiente + (pagoActual.moratorio ?? 0.0)) {
-        saldoFavorAbono = depositoAbono - (saldoPendiente + (pagoActual.moratorio ?? 0.0));
-      }
-
-      // Actualizar los pagos previos con el abono actual
-      pagosPrevios += depositoAbono;
-
-      // Agregar una entrada para este abono
-      Map<String, dynamic> pagoJson = {
-        "idfechaspagos": pagoActual.idfechaspagos,
-        "fechaPago": pagoActual.fechaPago,
-        "tipoPago": pagoActual.tipoPago,
-        "montoaPagar": montoAPagar,
-        "deposito": depositoAbono,
-        "moratorio": pagoActual.moratorio ?? 0.0,
-        "saldofavor": saldoFavorAbono,
-      };
-
-      pagosJson.add(pagoJson);
-    }
-
-    // Generar el pago para el monto parcial si se especificó un valor en deposito
-    if (pagoActual.tipoPago?.toLowerCase() == 'monto parcial' && deposito > 0) {
-      Map<String, dynamic> pagoJson = {
-        "idfechaspagos": pagoActual.idfechaspagos,
-        "fechaPago": pagoActual.fechaPago,
-        "tipoPago": "Monto Parcial",
-        "montoaPagar": pagoActual.capitalMasInteres ?? 0.0,
-        "deposito": deposito,
-        "moratorio": pagoActual.moratorio ?? 0.0,
-        "saldofavor": saldoFavor, // Aquí se incluye el saldo a favor
-      };
-
-      pagosJson.add(pagoJson);
-      print("Pago parcial procesado con saldo a favor: $pagoJson");
-    }
+    return pagosJson;
   }
 
-  return pagosJson;
-}
+  /// Compara si dos pagos son diferentes
+  bool _compararPagos(PagoSeleccionado actual, PagoSeleccionado original) {
+    return actual.deposito != original.deposito ||
+        actual.capitalMasInteres != original.capitalMasInteres ||
+        actual.moratorio != original.moratorio;
+  }
 
+  double _redondear(double valor, [int decimales = 2]) {
+    return double.parse(valor.toStringAsFixed(decimales));
+  }
 
 // Método auxiliar para imprimir los datos de un PagoSeleccionado
   String _imprimirPago(PagoSeleccionado pago) {
@@ -335,13 +356,13 @@ class _InfoCreditoState extends State<InfoCredito> {
           title: Row(
             children: [
               if (esError) Icon(Icons.error_outline, color: Colors.red),
-              if (!esError) Icon(Icons.info_outline, color: Colors.blue),
+              if (!esError) Icon(Icons.info_outline, color: Colors.green),
               SizedBox(width: 10),
               Text(
                 titulo,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: esError ? Colors.red : Colors.blue,
+                  color: esError ? Colors.red : Colors.green,
                 ),
               ),
             ],
@@ -357,7 +378,6 @@ class _InfoCreditoState extends State<InfoCredito> {
                 Navigator.of(context).pop(); // Cerrar el diálogo
                 Provider.of<PagosProvider>(context, listen: false)
                     .limpiarPagos();
-                    
 
                 paginaControlKey.currentState?.recargarPagos();
               },
@@ -367,7 +387,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                 style: TextStyle(color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: esError ? Colors.red : Colors.blue,
+                backgroundColor: esError ? Colors.red : Colors.green,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10.0),
                 ),
@@ -458,6 +478,10 @@ class _InfoCreditoState extends State<InfoCredito> {
                                       _buildDetailRow(
                                           'Grupo',
                                           creditoData!.nombreGrupo ??
+                                              'No disponible'),
+                                      _buildDetailRow(
+                                          'Tipo',
+                                          creditoData!.tipoPlazo ??
                                               'No disponible'),
                                       _buildDetailRow('Monto Total',
                                           "\$${formatearNumero(creditoData!.montoTotal ?? 0.0)}"),
@@ -635,23 +659,26 @@ class _InfoCreditoState extends State<InfoCredito> {
                   ),
                   ElevatedButton(
                     onPressed: () async {
-                       final pagosSeleccionados =
-        Provider.of<PagosProvider>(context, listen: false).pagosSeleccionados;
-    final pagosOriginales =
-        Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
+                      final pagosSeleccionados =
+                          Provider.of<PagosProvider>(context, listen: false)
+                              .pagosSeleccionados;
+                      final pagosOriginales =
+                          Provider.of<PagosProvider>(context, listen: false)
+                              .pagosOriginales;
 
-    // Generar JSON solo con los datos modificados
-    List<Map<String, dynamic>> pagosJson =
-        generarPagoJson(pagosSeleccionados, pagosOriginales);
+                      // Generar JSON solo con los datos modificados
+                      List<Map<String, dynamic>> pagosJson =
+                          generarPagoJson(pagosSeleccionados, pagosOriginales);
 
-    // Verificar si hay datos modificados para enviar
-    if (pagosJson.isNotEmpty) {
-      print('Datos a enviar: $pagosJson');
-      // Llamar a la función para enviar los datos al servidor
-      await enviarDatosAlServidor(context, pagosSeleccionados);
-    } else {
-      print("No hay cambios para guardar.");
-    }
+                      // Verificar si hay datos modificados para enviar
+                      if (pagosJson.isNotEmpty) {
+                        print('Datos a enviar: $pagosJson');
+                        // Llamar a la función para enviar los datos al servidor
+                        await enviarDatosAlServidor(
+                            context, pagosSeleccionados);
+                      } else {
+                        print("No hay cambios para guardar.");
+                      }
                     },
                     child: Text('Guardar'),
                   )
@@ -919,51 +946,50 @@ class _PaginaControlState extends State<PaginaControl> {
   }
 
   void recargarPagos() async {
-  setState(() {
-    isLoading = true; // Activa el CircularProgressIndicator
-  });
-
-  // Simula un delay antes de empezar a cargar los pagos
-  await Future.delayed(Duration(milliseconds: 500)); // Delay de 1 segundo
-
-  try {
-    // Realizamos la carga de los pagos con el Future
-    List<Pago> pagos = await _fetchPagos();
-
-    // Si los datos se cargan exitosamente, actualizamos el estado
     setState(() {
-      _pagosFuture = Future.value(pagos); // Asignamos el resultado del Future
+      isLoading = true; // Activa el CircularProgressIndicator
     });
 
-    // Carga los pagos en el PagosProvider
-    final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
-    pagosProvider.cargarPagos(pagos
-        .map((pago) => PagoSeleccionado(
-              semana: pago.semana,
-              tipoPago: pago.tipoPago,
-              deposito: pago.deposito ?? 0.0,
-              saldoFavor: 0.0,
-              abonos: pago.abonos ?? [],
-              idfechaspagos: pago.idfechaspagos ?? '',
-              fechaPago: pago.fechaPago ?? '',
-            ))
-        .toList());
+    // Simula un delay antes de empezar a cargar los pagos
+    await Future.delayed(Duration(milliseconds: 500)); // Delay de 1 segundo
 
-    // Desactivamos el indicador de carga
-    setState(() {
-      isLoading = false;
-    });
-  } catch (e) {
-    // En caso de error, desactivamos el indicador de carga
-    setState(() {
-      isLoading = false;
-    });
+    try {
+      // Realizamos la carga de los pagos con el Future
+      List<Pago> pagos = await _fetchPagos();
 
-    // Aquí puedes manejar el error, por ejemplo, mostrando un mensaje
-    print("Error al cargar los pagos: $e");
+      // Si los datos se cargan exitosamente, actualizamos el estado
+      setState(() {
+        _pagosFuture = Future.value(pagos); // Asignamos el resultado del Future
+      });
+
+      // Carga los pagos en el PagosProvider
+      final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
+      pagosProvider.cargarPagos(pagos
+          .map((pago) => PagoSeleccionado(
+                semana: pago.semana,
+                tipoPago: pago.tipoPago,
+                deposito: pago.deposito ?? 0.0,
+                saldoFavor: 0.0,
+                abonos: pago.abonos ?? [],
+                idfechaspagos: pago.idfechaspagos ?? '',
+                fechaPago: pago.fechaPago ?? '',
+              ))
+          .toList());
+
+      // Desactivamos el indicador de carga
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      // En caso de error, desactivamos el indicador de carga
+      setState(() {
+        isLoading = false;
+      });
+
+      // Aquí puedes manejar el error, por ejemplo, mostrando un mensaje
+      print("Error al cargar los pagos: $e");
+    }
   }
-}
-
 
   // Función para formatear fechas
   String formatearFecha(Object? fecha) {
@@ -1069,7 +1095,11 @@ class _PaginaControlState extends State<PaginaControl> {
             double saldoContra = 0.0;
 
             // Usar sumaDepositoMoratorios en lugar de los abonos
-            double sumaDepositoMoratorios;
+            double sumaDepositoMoratorios = pago.abonos.fold(
+                  0.0,
+                  (sum, abono) => sum + (abono['deposito'] ?? 0.0),
+                ) +
+                (pago.deposito ?? 0.0);
 
             // Priorizar `pago.sumaDepositoMoratorisos`
             if (pago.sumaDepositoMoratorisos != null &&
@@ -1105,31 +1135,25 @@ class _PaginaControlState extends State<PaginaControl> {
             // Acumular el pago actual
             totalPagoActual += montoPagado;
 
-            /*  // Verificar si el monto pagado excede lo que debe (capital + intereses + moratorios)
+            // Dentro del bucle for que procesa cada pago:
+
+// Calcular saldos
             if (montoPagado >= totalDeuda) {
               saldoFavor = montoPagado - totalDeuda;
               saldoContra = 0.0;
             } else {
               saldoFavor = 0.0;
               saldoContra = totalDeuda - montoPagado;
-            } */
+            }
 
-            /* // Actualizar los saldos en el pago
+// Actualizar los saldos en el pago (DESCOMENTA ESTAS LÍNEAS)
             pago.saldoFavor = saldoFavor;
-            pago.saldoEnContra = saldoContra; */
+            pago.saldoEnContra = saldoContra;
 
-            // Acumular totales evitando duplicaciones
-            if (saldoFavor > 0) {
-              totalSaldoFavor += saldoFavor;
-            }
-            if (saldoContra > 0) {
-              totalSaldoContra += saldoContra;
-            }
+// Acumular totales (modifica las condiciones si es necesario)
+            totalSaldoFavor += saldoFavor;
+            totalSaldoContra += saldoContra;
           }
-
-// Mostrar los totales correctamente, con "-" en lugar de 0.0 cuando corresponde
-          totalSaldoFavor = totalSaldoFavor > 0.0 ? totalSaldoFavor : 0.0;
-          totalSaldoContra = totalSaldoContra > 0.0 ? totalSaldoContra : 0.0;
 
           print("=== Totales Finales ===");
           print(
@@ -1174,7 +1198,8 @@ class _PaginaControlState extends State<PaginaControl> {
                 ),
               ),
               Container(
-                height: 400,
+                height: MediaQuery.of(context).size.height *
+                    0.5, // 50% de la altura de la pantalla
                 child: SingleChildScrollView(
                   child: Column(
                     children: pagos.map((pago) {
@@ -1801,7 +1826,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                         (pago.moratorios!.moratorios ??
                                                                             0.0);
 
-// Calcular los saldos (a favor y en contra)
+                                                                // Calcular los saldos (a favor y en contra)
                                                                 if (nuevoDeposito >
                                                                     0) {
                                                                   // Si hay depósito, recalcular los abonos y los saldos
@@ -2029,7 +2054,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                       }).toList(),
 
                                                     // Mostrar "Fecha no disponible" solo si no hay pagos y el monto es mayor a 0
-                                                    if (pago.abonos.isEmpty &&
+                                                    /*  if (pago.abonos.isEmpty &&
                                                         (pago.deposito ?? 0) >
                                                             0)
                                                       Padding(
@@ -2043,7 +2068,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                               color: Colors
                                                                   .grey[600]),
                                                         ),
-                                                      ),
+                                                      ), */
                                                   ],
                                                 ),
                                               ),
@@ -2508,7 +2533,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                     ),
                   ),
 
-                  SizedBox(width: 30),
+                  SizedBox(width: 20),
 
                   // Selector de fecha con el botón de agregar
                   Expanded(
@@ -2661,21 +2686,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  SizedBox(width: 100),
-                  Text(
-                    "Monto a Pagar: \$${widget.montoAPagar.toStringAsFixed(2)}", // Usar montoAPagar aquí
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    "Falta: \$${montoFaltante.toStringAsFixed(2)}",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                 
                 ],
               ),
               SizedBox(height: 20),

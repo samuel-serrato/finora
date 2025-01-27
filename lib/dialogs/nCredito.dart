@@ -193,60 +193,62 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   }
 
   Future<void> enviarCredito(Map<String, dynamic> datos) async {
-    // URL del endpoint
-    final String url = 'http://$baseUrl/api/v1/creditos';
+  // URL del endpoint
+  final String url = 'http://$baseUrl/api/v1/creditos';
 
-    // Mostrar un mensaje de carga opcional
-    print("Enviando datos del crédito...");
+  // Mostrar un mensaje de carga opcional
+  print("Enviando datos del crédito...");
 
-    try {
-      // Realizar la solicitud POST
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type':
-              'application/json', // Indicamos que el contenido es JSON
-        },
-        body: jsonEncode(datos), // Convertir datos a JSON
-      );
+  try {
+    // Realizar la solicitud POST
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json', // Indicamos que el contenido es JSON
+      },
+      body: jsonEncode(datos), // Convertir datos a JSON
+    );
 
-      // Validar la respuesta
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // Mostrar Snackbar de éxito
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Crédito guardado exitosamente'),
-            backgroundColor: Colors.green, // Color verde para éxito
-          ),
-        );
-
-        Navigator.of(context).pop(); // Cerrar la vista o diálogo
-      } else {
-        // Mostrar Snackbar de error
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('Error al guardar el crédito: ${response.statusCode}'),
-            backgroundColor: Colors.red, // Color rojo para error
-          ),
-        );
-        print('Error al guardar el crédito: ${response.statusCode}');
-        print('Respuesta del servidor: ${response.body}');
-      }
-    } catch (e) {
-      // Mostrar Snackbar de error de conexión
+    // Validar la respuesta
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      // Mostrar Snackbar de éxito
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text('Error de conexión. Verifica tu red e intenta nuevamente.'),
-          backgroundColor: Colors.red, // Color rojo para error
+          content: Text('Crédito guardado exitosamente'),
+          backgroundColor: Colors.green, // Color verde para éxito
         ),
       );
 
-      // Manejo de errores de conexión u otros
-      print('Error al guardar el crédito: $e');
+      // Llama al callback para refrescar la lista de créditos
+      if (widget.onCreditoAgregado != null) {
+        widget.onCreditoAgregado();
+      }
+
+      Navigator.of(context).pop(); // Cerrar la vista o diálogo
+    } else {
+      // Mostrar Snackbar de error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar el crédito: ${response.statusCode}'),
+          backgroundColor: Colors.red, // Color rojo para error
+        ),
+      );
+      print('Error al guardar el crédito: ${response.statusCode}');
+      print('Respuesta del servidor: ${response.body}');
     }
+  } catch (e) {
+    // Mostrar Snackbar de error de conexión
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error de conexión. Verifica tu red e intenta nuevamente.'),
+        backgroundColor: Colors.red, // Color rojo para error
+      ),
+    );
+
+    // Manejo de errores de conexión u otros
+    print('Error al guardar el crédito: $e');
   }
+}
 
   void _mostrarError(String mensaje) {
     showDialog(
