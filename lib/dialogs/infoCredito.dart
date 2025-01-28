@@ -1220,17 +1220,17 @@ class _PaginaControlState extends State<PaginaControl> {
                         // Monto total pagado (solo abonos)
                         double montoPagado = totalAbonos;
 
-                        // Calcular el total de la deuda (capital + moratorios)
-double totalDeuda = (pago.capitalMasInteres ?? 0.0) + (pago.moratorios?.moratorios ?? 0.0);
-
-// Calcular saldos
-if (montoPagado >= totalDeuda) {
-  pago.saldoFavor = montoPagado - totalDeuda;
-  pago.saldoEnContra = 0.0;
-} else {
-  pago.saldoFavor = 0.0;
-  pago.saldoEnContra = totalDeuda - montoPagado;
-}
+                        // Calcular saldos
+                        if (montoPagado > capitalMasInteres) {
+                          saldoFavor = montoPagado - capitalMasInteres;
+                          saldoContra = 0.0;
+                        } else if (montoPagado < capitalMasInteres) {
+                          saldoContra = capitalMasInteres - montoPagado;
+                          saldoFavor = 0.0;
+                        } else {
+                          saldoFavor = 0.0;
+                          saldoContra = 0.0;
+                        }
 
                         // Si el saldo en contra es igual al capital más intereses, se pone a 0
                         if (saldoContra == capitalMasInteres) {
@@ -2778,7 +2778,7 @@ class PaginaIntegrantes extends StatelessWidget {
     Widget _buildDataCell(String text) {
       return Expanded(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(8.0),
           child:
               Text(text, style: contentTextStyle, textAlign: TextAlign.center),
         ),
