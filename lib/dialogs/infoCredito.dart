@@ -125,49 +125,44 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   List<Map<String, dynamic>> generarPagoJson(
-    List<PagoSeleccionado> pagosSeleccionados,
-    List<PagoSeleccionado> pagosOriginales,
-  ) {
-    if (pagosSeleccionados.isEmpty) {
-      print("No hay pagos seleccionados.");
-      return [];
+  List<PagoSeleccionado> pagosSeleccionados,
+  List<PagoSeleccionado> pagosOriginales,
+) {
+  if (pagosSeleccionados.isEmpty) {
+    print("No hay pagos seleccionados.");
+    return [];
+  }
+
+  List<Map<String, dynamic>> pagosJson = [];
+
+  for (int i = 0; i < pagosSeleccionados.length; i++) {
+    PagoSeleccionado pagoActual = pagosSeleccionados[i];
+    PagoSeleccionado pagoOriginal = pagosOriginales.firstWhere(
+        (pago) => pago.idfechaspagos == pagoActual.idfechaspagos,
+        orElse: () => pagoActual);
+
+    bool tieneCambios = _compararPagos(pagoActual, pagoOriginal) ||
+        pagoActual.abonos.any((abono) => !abono.containsKey('idpagosdetalles'));
+
+    if (!tieneCambios) continue;
+
+    double paidCapital = 0.0;
+    double paidMoratorio = 0.0;
+
+    // Procesar abonos existentes
+    for (var abono in pagoActual.abonos) {
+      if (abono.containsKey('idpagosdetalles')) {
+        double depositoPrevio = (abono['deposito'] as num).toDouble();
+        double moratorioPrevio = (abono['moratorio'] as num).toDouble();
+        paidCapital += depositoPrevio;
+        paidMoratorio += moratorioPrevio;
+      }
     }
 
-    List<Map<String, dynamic>> pagosJson = [];
-
-    for (int i = 0; i < pagosSeleccionados.length; i++) {
-      PagoSeleccionado pagoActual = pagosSeleccionados[i];
-      PagoSeleccionado pagoOriginal = pagosOriginales.firstWhere(
-          (pago) => pago.idfechaspagos == pagoActual.idfechaspagos,
-          orElse: () => pagoActual);
-
-      // Verificar si el pago actual tiene cambios
-      bool tieneCambios = _compararPagos(pagoActual, pagoOriginal) ||
-          pagoActual.abonos
-              .any((abono) => !abono.containsKey('idpagosdetalles'));
-
-      if (!tieneCambios) {
-        // Si no hay cambios ni abonos nuevos, omitir este pago
-        continue;
-      }
-
-      double pagosPrevios = 0.0;
-      for (var abono in pagoActual.abonos) {
-        if (abono.containsKey('idpagosdetalles')) {
-          double depositoPrevio = (abono['deposito'] is double)
-              ? abono['deposito']
-              : (abono['deposito'] is int)
-                  ? (abono['deposito'] as int).toDouble()
-                  : 0.0;
-          pagosPrevios += depositoPrevio;
-        }
-      }
-
-      // Manejo para tipo de pago "Completo"
+     // Manejo para tipo de pago "Completo"
       if (pagoActual.tipoPago?.toLowerCase() == 'completo') {
-        double montoAPagar = (pagoActual.capitalMasInteres ?? 0.0) +
-            (pagoActual.moratorio ?? 0.0);
-        double saldoPendiente = montoAPagar - pagosPrevios;
+        double montoAPagar = (pagoActual.capitalMasInteres ?? 0.0);
+        double saldoPendiente = montoAPagar - paidCapital;
 
         Map<String, dynamic> pagoJson = {
           "idfechaspagos": pagoActual.idfechaspagos,
@@ -183,79 +178,81 @@ class _InfoCreditoState extends State<InfoCredito> {
         } else {
           print("Pago completo descartado por ser inválido: $pagoJson");
         }
-
-        continue; // Saltar el procesamiento adicional de abonos
+        continue;
       }
 
       // Manejo para tipo de pago "Monto Parcial"
-      double deposito = 0.0;
-      double saldoFavor = 0.0;
-
       if (pagoActual.tipoPago?.toLowerCase() == 'monto parcial') {
-        deposito = _redondear(pagoActual.deposito ?? 0.0);
-
+        double totalDepositado = _redondear(pagoActual.deposito ?? 0.0);
         double montoAPagar = _redondear(pagoActual.capitalMasInteres ?? 0.0);
-        if (deposito > montoAPagar) {
-          saldoFavor = _redondear(deposito - montoAPagar);
-        }
-      }
+        double moratorioTotal = _redondear(pagoActual.moratorio ?? 0.0);
 
-      List<Map<String, dynamic>> abonosNuevos =
-          pagoActual.abonos.where((abono) {
-        return !abono.containsKey('idpagosdetalles');
-      }).toList();
+        // Aplicar el depósito a capital y luego a moratorios
+        double remainingCapital = (montoAPagar - paidCapital).clamp(0, montoAPagar);
+        double appliedCapital = totalDepositado >= remainingCapital ? remainingCapital : totalDepositado;
+        double remainingAfterCapital = totalDepositado - appliedCapital;
 
-      for (var abono in abonosNuevos) {
-        double depositoAbono = (abono['deposito'] is double)
-            ? abono['deposito']
-            : (abono['deposito'] is int)
-                ? (abono['deposito'] as int).toDouble()
-                : 0.0;
-        depositoAbono = _redondear(depositoAbono);
+        double remainingMoratorio = (moratorioTotal - paidMoratorio).clamp(0, moratorioTotal);
+        double appliedMoratorio = remainingAfterCapital >= remainingMoratorio ? remainingMoratorio : remainingAfterCapital;
+        double saldoFavor = (remainingAfterCapital - appliedMoratorio).clamp(0, double.infinity);
 
-        double montoAPagar = _redondear(pagoActual.capitalMasInteres ?? 0.0);
-        double saldoPendiente = _redondear(montoAPagar - pagosPrevios);
-
-        double saldoFavorAbono = 0.0;
-        if (depositoAbono > saldoPendiente + (pagoActual.moratorio ?? 0.0)) {
-          saldoFavorAbono = _redondear(
-              depositoAbono - (saldoPendiente + (pagoActual.moratorio ?? 0.0)));
-        }
-
-        pagosPrevios += depositoAbono;
-
-        Map<String, dynamic> pagoJson = {
-          "idfechaspagos": pagoActual.idfechaspagos,
-          "fechaPago": pagoActual.fechaPago,
-          "tipoPago": pagoActual.tipoPago,
-          "montoaPagar": montoAPagar,
-          "deposito": depositoAbono,
-          "moratorio": _redondear(pagoActual.moratorio ?? 0.0),
-          "saldofavor": saldoFavorAbono,
-        };
-
-        pagosJson.add(pagoJson);
-      }
-
-      if (pagoActual.tipoPago?.toLowerCase() == 'monto parcial' &&
-          deposito > 0) {
         Map<String, dynamic> pagoJson = {
           "idfechaspagos": pagoActual.idfechaspagos,
           "fechaPago": pagoActual.fechaPago,
           "tipoPago": "Monto Parcial",
-          "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0),
-          "deposito": deposito,
-          "moratorio": _redondear(pagoActual.moratorio ?? 0.0),
+          "montoaPagar": montoAPagar,
+          "deposito": appliedCapital,
+          "moratorio": appliedMoratorio,
           "saldofavor": saldoFavor,
         };
 
         pagosJson.add(pagoJson);
-        print("Pago parcial procesado con saldo a favor: $pagoJson");
+        print("Pago parcial procesado: $pagoJson");
       }
-    }
 
-    return pagosJson;
+
+    // Manejo de abonos nuevos (corregido)
+    List<Map<String, dynamic>> abonosNuevos = pagoActual.abonos
+        .where((abono) => !abono.containsKey('idpagosdetalles'))
+        .toList();
+
+    for (var abono in abonosNuevos) {
+      double depositoAbono = (abono['deposito'] as num).toDouble();
+      depositoAbono = _redondear(depositoAbono);
+
+      double montoAPagar = _redondear(pagoActual.capitalMasInteres ?? 0.0);
+      double moratorioTotal = _redondear(pagoActual.moratorio ?? 0.0);
+
+      // Aplicar depósito a capital
+      double remainingCapital = (montoAPagar - paidCapital).clamp(0, montoAPagar);
+      double appliedCapital = (depositoAbono >= remainingCapital) ? remainingCapital : depositoAbono;
+      double remainingAfterCapital = depositoAbono - appliedCapital;
+
+      // Aplicar saldo restante a moratorios
+      double remainingMoratorio = (moratorioTotal - paidMoratorio).clamp(0, moratorioTotal);
+      double appliedMoratorio = (remainingAfterCapital >= remainingMoratorio) ? remainingMoratorio : remainingAfterCapital;
+      double saldoFavorAbono = (remainingAfterCapital - appliedMoratorio).clamp(0, double.infinity);
+
+      // Actualizar acumulados
+      paidCapital += appliedCapital;
+      paidMoratorio += appliedMoratorio;
+
+      Map<String, dynamic> pagoJson = {
+        "idfechaspagos": pagoActual.idfechaspagos,
+        "fechaPago": pagoActual.fechaPago,
+        "tipoPago": pagoActual.tipoPago,
+        "montoaPagar": montoAPagar,
+        "deposito": depositoAbono, // Usar el valor original del depósito
+        "moratorio": _redondear(appliedMoratorio),
+        "saldofavor": _redondear(saldoFavorAbono),
+      };
+
+      pagosJson.add(pagoJson);
+    }
   }
+
+  return pagosJson;
+}
 
   /// Compara si dos pagos son diferentes
   bool _compararPagos(PagoSeleccionado actual, PagoSeleccionado original) {
@@ -356,13 +353,13 @@ class _InfoCreditoState extends State<InfoCredito> {
           title: Row(
             children: [
               if (esError) Icon(Icons.error_outline, color: Colors.red),
-              if (!esError) Icon(Icons.info_outline, color: Colors.green),
+              if (!esError) Icon(Icons.info_outline, color: Colors.blue),
               SizedBox(width: 10),
               Text(
                 titulo,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: esError ? Colors.red : Colors.green,
+                  color: esError ? Colors.red : Colors.blue,
                 ),
               ),
             ],
@@ -387,7 +384,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                 style: TextStyle(color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: esError ? Colors.red : Colors.green,
+                backgroundColor: esError ? Colors.red : Colors.blue,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10.0),
                 ),
@@ -674,8 +671,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                       if (pagosJson.isNotEmpty) {
                         print('Datos a enviar: $pagosJson');
                         // Llamar a la función para enviar los datos al servidor
-                        await enviarDatosAlServidor(
-                            context, pagosSeleccionados);
+                        //await enviarDatosAlServidor(
+                         //   context, pagosSeleccionados);
                       } else {
                         print("No hay cambios para guardar.");
                       }
@@ -935,6 +932,7 @@ class _PaginaControlState extends State<PaginaControl> {
                 tipoPago: pago.tipoPago,
                 deposito: pago.deposito ?? 0.0,
                 saldoFavor: 0.0,
+                saldoEnContra: 0.0,
                 abonos: pago.abonos ?? [],
                 idfechaspagos: pago.idfechaspagos ?? '',
                 fechaPago: pago.fechaPago ?? '',
@@ -970,6 +968,7 @@ class _PaginaControlState extends State<PaginaControl> {
                 tipoPago: pago.tipoPago,
                 deposito: pago.deposito ?? 0.0,
                 saldoFavor: 0.0,
+                saldoEnContra: 0.0,
                 abonos: pago.abonos ?? [],
                 idfechaspagos: pago.idfechaspagos ?? '',
                 fechaPago: pago.fechaPago ?? '',
@@ -1078,91 +1077,98 @@ class _PaginaControlState extends State<PaginaControl> {
             totalMonto = capitalMasInteres * totalPagosDelCredito;
           }
 
-          for (int i = 0; i < pagos.length; i++) {
-            final pago = pagos[i];
+          double saldoAcumuladoContra = 0.0;
 
-            // Excluir semana 0 (cuando no hay pagos aún)
-            if (i == 0) {
-              continue; // No se hace ningún cálculo para la semana 0
-            }
+for (int i = 0; i < pagos.length; i++) {
+  final pago = pagos[i];
 
-            double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
-            double deposito = pago.deposito ?? 0.0;
-            double moratorios = pago.moratorios?.moratorios ?? 0.0;
+  // Excluir semana 0 (cuando no hay pagos aún)
+  if (i == 0) {
+    continue; // No se hace ningún cálculo para la semana 0
+  }
 
-            // Restablecer los saldos para evitar acumulaciones previas
-            double saldoFavor = 0.0;
-            double saldoContra = 0.0;
+  double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
+  double deposito = pago.deposito ?? 0.0;
+  double moratorios = pago.moratorios?.moratorios ?? 0.0;
 
-            // Usar sumaDepositoMoratorios en lugar de los abonos
-            double sumaDepositoMoratorios = pago.abonos.fold(
-                  0.0,
-                  (sum, abono) => sum + (abono['deposito'] ?? 0.0),
-                ) +
-                (pago.deposito ?? 0.0);
+  // Usar sumaDepositoMoratorios en lugar de los abonos
+  double sumaDepositoMoratorios = pago.sumaDepositoMoratorisos ?? 0.0;
 
-            // Priorizar `pago.sumaDepositoMoratorisos`
-            if (pago.sumaDepositoMoratorisos != null &&
-                pago.sumaDepositoMoratorisos! > 0.0) {
-              sumaDepositoMoratorios = pago.sumaDepositoMoratorisos!;
-            } else {
-              // Si `pago.sumaDepositoMoratorisos` es nulo o 0, usar los abonos
-              sumaDepositoMoratorios = pago.abonos.fold(
-                    0.0,
-                    (sum, abono) => sum + (abono['deposito'] ?? 0.0),
-                  ) +
-                  (pago.deposito ?? 0.0);
-            }
+  if (sumaDepositoMoratorios == 0.0) {
+    sumaDepositoMoratorios = pago.abonos.fold(
+          0.0,
+          (sum, abono) => sum + (abono['deposito'] ?? 0.0),
+        ) + deposito;
+  }
 
-            // Calcular saldos solo si hay pagos de capital/intereses/moratorios
-            if (capitalMasInteres == 0.0 && moratorios == 0.0) {
-              print("Semana $i: Sin capital/intereses/moratorios.");
-              continue; // No calcular para pagos sin capital, intereses ni moratorios
-            }
+  // Total de la deuda incluye capital + interés + moratorios
+  double totalDeuda = capitalMasInteres + moratorios;
 
-            // Si no hay depósito ni moratorios, no calculamos saldo
-            if (sumaDepositoMoratorios == 0.0) {
-              print("Semana $i: No hay pago realizado.");
-              continue; // Saltamos este pago
-            }
+  // Monto pagado es el valor de sumaDepositoMoratorios
+  double montoPagado = sumaDepositoMoratorios;
 
-            // Total de la deuda incluye capital + interés + moratorios
-            double totalDeuda = capitalMasInteres + moratorios;
+  // Acumular el pago actual
+  totalPagoActual += montoPagado;
 
-            // Monto pagado es el valor de sumaDepositoMoratorios
-            double montoPagado = sumaDepositoMoratorios;
+  // Verificar si el monto pagado excede lo que debe (capital + intereses + moratorios)
+  double saldoFavor = 0.0;
+  double saldoContra = 0.0;
+  if (montoPagado >= totalDeuda) {
+    saldoFavor = montoPagado - totalDeuda;
+  } else {
+    saldoContra = totalDeuda - montoPagado;
+  }
 
-            // Acumular el pago actual
-            totalPagoActual += montoPagado;
+  // Si el saldo en contra es igual al total de la deuda, restablecer a 0
+  if (saldoContra == totalDeuda) {
+    saldoContra = 0.0;
+  }
 
-            // Dentro del bucle for que procesa cada pago:
+  // Si hay saldo a favor, este debe restar del saldo acumulado en contra
+  if (saldoFavor > 0) {
+    // Restamos del saldo en contra si es posible
+    if (saldoAcumuladoContra > 0) {
+      if (saldoAcumuladoContra <= saldoFavor) {
+        saldoFavor -= saldoAcumuladoContra;
+        saldoAcumuladoContra = 0;
+      } else {
+        saldoAcumuladoContra -= saldoFavor;
+        saldoFavor = 0;
+      }
+    }
+    totalSaldoFavor += saldoFavor;
+  }
 
-// Calcular saldos
-            if (montoPagado >= totalDeuda) {
-              saldoFavor = montoPagado - totalDeuda;
-              saldoContra = 0.0;
-            } else {
-              saldoFavor = 0.0;
-              saldoContra = totalDeuda - montoPagado;
-            }
+  // Si no hay saldo a favor, simplemente acumulamos el saldo en contra
+  if (saldoContra > 0) {
+    saldoAcumuladoContra += saldoContra;
+  }
 
-// Actualizar los saldos en el pago (DESCOMENTA ESTAS LÍNEAS)
-            pago.saldoFavor = saldoFavor;
-            pago.saldoEnContra = saldoContra;
+  // Acumular totales evitando duplicaciones
+  if (saldoAcumuladoContra > 0) {
+    totalSaldoContra = saldoAcumuladoContra;
+  }
 
-// Acumular totales (modifica las condiciones si es necesario)
-            totalSaldoFavor += saldoFavor;
-            totalSaldoContra += saldoContra;
-          }
+  // Debugging: Para verificar si los valores son correctos
+  print("Pago $i");
+  print("  Total deuda: $totalDeuda");
+  print("  Monto pagado: $montoPagado");
+  print("  Saldo Favor: $saldoFavor");
+  print("  Saldo Contra: $saldoContra");
+}
 
-          print("=== Totales Finales ===");
-          print(
-              "  Total Monto: $totalMonto"); // Total de la deuda (capital + moratorios)
-          print("  Total Pagos Realizados: $totalPagoActual");
-          print(
-              "  Total Saldo a Favor: ${totalSaldoFavor == 0.0 ? '-' : totalSaldoFavor.toStringAsFixed(2)}");
-          print(
-              "  Total Saldo en Contra: ${totalSaldoContra == 0.0 ? '-' : totalSaldoContra.toStringAsFixed(2)}");
+// Mostrar los totales correctamente
+totalSaldoFavor = totalSaldoFavor > 0.0 ? totalSaldoFavor : 0.0;
+totalSaldoContra = totalSaldoContra > 0.0 ? totalSaldoContra : 0.0;
+
+print("=== Totales Finales ===");
+print("  Total Monto: $totalMonto"); // Total de la deuda (capital + moratorios)
+print("  Total Pagos Realizados: $totalPagoActual");
+print("  Total Saldo a Favor: ${totalSaldoFavor == 0.0 ? '-' : totalSaldoFavor.toStringAsFixed(2)}");
+print("  Total Saldo en Contra: ${totalSaldoContra == 0.0 ? '-' : totalSaldoContra.toStringAsFixed(2)}");
+
+
+
 
           return Column(
             children: [
@@ -1198,8 +1204,7 @@ class _PaginaControlState extends State<PaginaControl> {
                 ),
               ),
               Container(
-                height: MediaQuery.of(context).size.height *
-                    0.5, // 50% de la altura de la pantalla
+                height: 400,
                 child: SingleChildScrollView(
                   child: Column(
                     children: pagos.map((pago) {
@@ -1486,37 +1491,26 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   });
 
                                                                   // Recalcular saldos solo una vez
-                                                                  double
-                                                                      totalAbonos =
-                                                                      pago.abonos
-                                                                          .fold(
-                                                                    0.0,
-                                                                    (sum, abono) =>
-                                                                        sum +
-                                                                        (abono['deposito'] ??
-                                                                            0.0),
-                                                                  );
+                                                                 // Recalcular saldos solo una vez
+double totalAbonos = pago.abonos.fold(
+  0.0,
+  (sum, abono) => sum + (abono['deposito'] ?? 0.0),
+);
 
-                                                                  // Monto total pagado (solo abonos, sin incluir depósito de pago inicial)
-                                                                  double
-                                                                      montoPagado =
-                                                                      totalAbonos;
+// AGREGAR MORATORIOS AL TOTAL DE LA DEUDA
+double totalDeuda = pago.capitalMasInteres! + (pago.moratorios?.moratorios ?? 0.0);
 
-                                                                  // Recalcular saldos
-                                                                  if (montoPagado <
-                                                                      pago.capitalMasInteres!) {
-                                                                    pago.saldoEnContra =
-                                                                        pago.capitalMasInteres! -
-                                                                            montoPagado;
-                                                                    pago.saldoFavor =
-                                                                        0.0;
-                                                                  } else {
-                                                                    pago.saldoEnContra =
-                                                                        0.0;
-                                                                    pago.saldoFavor =
-                                                                        montoPagado -
-                                                                            pago.capitalMasInteres!;
-                                                                  }
+// Monto total pagado (solo abonos, sin incluir depósito de pago inicial)
+double montoPagado = totalAbonos;
+
+// Recalcular saldos
+if (montoPagado < totalDeuda) {  // <-- Usar totalDeuda aquí
+  pago.saldoEnContra = totalDeuda - montoPagado;
+  pago.saldoFavor = 0.0;
+} else {
+  pago.saldoEnContra = 0.0;
+  pago.saldoFavor = montoPagado - totalDeuda; // <-- Usar totalDeuda aquí
+}
 
                                                                   print(
                                                                       'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
@@ -1542,6 +1536,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                               0.0,
                                                                       saldoFavor:
                                                                           pago.saldoFavor,
+                                                                          saldoEnContra:
+                                                          pago.saldoEnContra,
                                                                       abonos: pago
                                                                           .abonos,
                                                                       idfechaspagos:
@@ -1567,6 +1563,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                                 0.0,
                                                                         saldoFavor:
                                                                             pago.saldoFavor,
+                                                                            saldoEnContra:
+                                                          pago.saldoEnContra,
                                                                         abonos:
                                                                             pago.abonos,
                                                                         idfechaspagos:
@@ -1765,208 +1763,100 @@ class _PaginaControlState extends State<PaginaControl> {
                                                             pago), // Usamos la lógica de edición aquí
 
                                                         onChanged: (value) {
-                                                          // Cancelar el Timer anterior si existe
-                                                          if (_debounce
-                                                                  ?.isActive ??
-                                                              false)
-                                                            _debounce?.cancel();
+  // Cancelar el Timer anterior si existe
+  if (_debounce?.isActive ?? false) {
+    _debounce?.cancel();
+  }
 
-                                                          print(
-                                                              "Valor en el TextField (controller): ${controllers[index].text}");
-                                                          print(
-                                                              "Valor en el objeto pago: ${pago.deposito}");
+  // Crear un nuevo Timer para esperar a que el usuario termine de escribir
+  _debounce = Timer(const Duration(milliseconds: 500), () {
+    setState(() {
+      // Convertir el valor ingresado a double y asignar 0.0 si está vacío o es inválido
+      double nuevoDeposito = value.isEmpty ? 0.0 : double.tryParse(value) ?? 0.0;
 
-                                                          // Crear un nuevo Timer para esperar a que el usuario termine de escribir
-                                                          _debounce = Timer(
-                                                              const Duration(
-                                                                  milliseconds:
-                                                                      500), () {
-                                                            setState(() {
-                                                              // Convertir el valor ingresado a double y asignar 0.0 si está vacío o es inválido
-                                                              double
-                                                                  nuevoDeposito =
-                                                                  value.isEmpty
-                                                                      ? 0.0
-                                                                      : double.tryParse(
-                                                                              value) ??
-                                                                          0.0;
+      // Actualizar el depósito en el objeto `pago`
+      pago.deposito = nuevoDeposito;
 
-                                                              // Actualizar el depósito en el objeto `pago`
-                                                              pago.deposito =
-                                                                  nuevoDeposito;
+      // Actualizar la propiedad `sumaDepositoMoratorisos`
+      pago.sumaDepositoMoratorisos = nuevoDeposito;
 
-                                                              // Actualizar la propiedad `sumaDepositoMoratorisos`
-                                                              pago.sumaDepositoMoratorisos =
-                                                                  nuevoDeposito;
+      // Calcular los saldos (a favor y en contra)
+      if (nuevoDeposito > 0) {
+        // Si hay depósito, recalcular los abonos y los saldos
+        double totalMoratorios = pago.moratorios?.moratorios ?? 0.0;
+        double totalPagarConMoratorio = (pago.capitalMasInteres ?? 0.0) + totalMoratorios;
 
-                                                              // Calcular los saldos (a favor y en contra)
-                                                              if (nuevoDeposito >
-                                                                  0) {
-                                                                // Si hay depósito, recalcular los abonos y los saldos
-                                                                double
-                                                                    totalAbonos =
-                                                                    pago.abonos
-                                                                        .fold(
-                                                                  0.0,
-                                                                  (sum, abono) =>
-                                                                      sum +
-                                                                      (abono['deposito'] ??
-                                                                          0.0),
-                                                                );
-                                                                double
-                                                                    montoPagado =
-                                                                    totalAbonos +
-                                                                        nuevoDeposito;
+        // Asignar el depósito primero al monto total a pagar (capital + intereses)
+        double depositoParaCapital = pago.capitalMasInteres ?? 0.0;
+        double depositoParaMoratorio = totalMoratorios;
 
-                                                                // Se calcula el total a pagar sumando capitalMasInteres y moratorio
-                                                                double
-                                                                    montoTotalPagar =
-                                                                    (pago.capitalMasInteres ??
-                                                                            0.0) +
-                                                                        (pago.moratorios!.moratorios ??
-                                                                            0.0);
+        // Si el depósito cubre más de lo que se debe por capital, el resto va al moratorio
+        if (nuevoDeposito > depositoParaCapital) {
+          depositoParaCapital = pago.capitalMasInteres ?? 0.0;
+          double saldoRestante = nuevoDeposito - depositoParaCapital;
+          depositoParaMoratorio = (saldoRestante > totalMoratorios) ? totalMoratorios : saldoRestante;
+        }
 
-                                                                // Calcular los saldos (a favor y en contra)
-                                                                if (nuevoDeposito >
-                                                                    0) {
-                                                                  // Si hay depósito, recalcular los abonos y los saldos
-                                                                  double totalMoratorios = pago
-                                                                          .moratorios!
-                                                                          .moratorios ??
-                                                                      0.0; // Suma de moratorios
-                                                                  double
-                                                                      totalPagarConMoratorio =
-                                                                      (pago.capitalMasInteres ??
-                                                                              0.0) +
-                                                                          totalMoratorios; // Total a pagar incluyendo moratorios
+        // Calcular saldo a favor (lo que sobra después de cubrir el total con moratorios)
+        double saldoFavor = nuevoDeposito - totalPagarConMoratorio;
+        if (saldoFavor < 0) saldoFavor = 0.0;
 
-                                                                  // Asignar el depósito primero al monto total a pagar (capital + intereses)
-                                                                  double
-                                                                      depositoParaCapital =
-                                                                      pago.capitalMasInteres ??
-                                                                          0.0;
-                                                                  double
-                                                                      depositoParaMoratorio =
-                                                                      totalMoratorios;
+        // Asignar los valores calculados
+        pago.deposito = nuevoDeposito;
+        pago.saldoFavor = saldoFavor;
+        pago.saldoEnContra = totalPagarConMoratorio - nuevoDeposito;
 
-                                                                  // Si el depósito cubre más de lo que se debe por capital, el resto va al moratorio
-                                                                  if (nuevoDeposito >
-                                                                      depositoParaCapital) {
-                                                                    depositoParaCapital =
-                                                                        pago.capitalMasInteres ??
-                                                                            0.0; // El capital se cubre primero
-                                                                    double
-                                                                        saldoRestante =
-                                                                        nuevoDeposito -
-                                                                            depositoParaCapital; // Lo que queda para moratorios
+        // Debugging: Imprimir los resultados de los cálculos
+        print("Deposito actualizado: \$${pago.deposito}");
+        print("Monto total a pagar (con moratorio): \$${totalPagarConMoratorio}");
+        print("Saldo en Contra: \$${pago.saldoEnContra}");
+        print("Saldo a Favor: \$${pago.saldoFavor}");
 
-                                                                    // El resto va al moratorio, pero no puede exceder el total de los moratorios
-                                                                    depositoParaMoratorio = (saldoRestante >
-                                                                            totalMoratorios)
-                                                                        ? totalMoratorios
-                                                                        : saldoRestante;
-                                                                  }
+        // Actualizar el Provider
+        final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
 
-                                                                  // Calcular saldo a favor (lo que sobra después de cubrir el total con moratorios)
-                                                                  double
-                                                                      saldoFavor =
-                                                                      nuevoDeposito -
-                                                                          totalPagarConMoratorio;
-                                                                  if (saldoFavor <
-                                                                      0)
-                                                                    saldoFavor =
-                                                                        0.0; // No puede ser negativo
+        // Buscar si ya existe un pago con la misma semana
+        final index = pagosProvider.pagosSeleccionados.indexWhere((p) => p.semana == pago.semana);
 
-                                                                  // Asignar los valores calculados
-                                                                  pago.deposito =
-                                                                      nuevoDeposito;
-                                                                  pago.saldoFavor =
-                                                                      saldoFavor; // Actualizamos el saldo a favor
-                                                                  pago.saldoEnContra =
-                                                                      totalPagarConMoratorio -
-                                                                          nuevoDeposito; // Si el pago no cubre el total, se asigna a saldo en contra
-
-                                                                  // Debugging: Imprimir los resultados de los cálculos
-                                                                  print(
-                                                                      "Deposito actualizado: \$${pago.deposito}");
-                                                                  print(
-                                                                      "Monto total a pagar (con moratorio): \$${totalPagarConMoratorio}");
-                                                                  print(
-                                                                      "Saldo en Contra: \$${pago.saldoEnContra}");
-                                                                  print(
-                                                                      "Saldo a Favor: \$${pago.saldoFavor}");
-
-                                                                  // Actualizar el Provider
-                                                                  final pagosProvider = Provider.of<
-                                                                          PagosProvider>(
-                                                                      context,
-                                                                      listen:
-                                                                          false);
-
-                                                                  // Buscar si ya existe un pago con la misma semana
-                                                                  final index =
-                                                                      pagosProvider
-                                                                          .pagosSeleccionados
-                                                                          .indexWhere(
-                                                                    (p) =>
-                                                                        p.semana ==
-                                                                        pago.semana,
-                                                                  );
-
-                                                                  if (index !=
-                                                                      -1) {
-                                                                    // Actualizar el pago existente
-                                                                    pagosProvider
-                                                                            .pagosSeleccionados[index] =
-                                                                        PagoSeleccionado(
-                                                                      semana: pago
-                                                                          .semana,
-                                                                      tipoPago:
-                                                                          pago.tipoPago,
-                                                                      deposito:
-                                                                          nuevoDeposito,
-                                                                      saldoFavor:
-                                                                          pago.saldoFavor,
-                                                                      idfechaspagos:
-                                                                          pago.idfechaspagos,
-                                                                      fechaPago:
-                                                                          pago.fechaPago,
-                                                                      capitalMasInteres:
-                                                                          pago.capitalMasInteres,
-                                                                      moratorio: pago
-                                                                          .moratorios!
-                                                                          .moratorios,
-                                                                    );
-                                                                  } else {
-                                                                    // Agregar un nuevo pago si no existe
-                                                                    pagosProvider
-                                                                        .agregarPago(
-                                                                      PagoSeleccionado(
-                                                                        semana:
-                                                                            pago.semana,
-                                                                        tipoPago:
-                                                                            pago.tipoPago,
-                                                                        deposito:
-                                                                            nuevoDeposito,
-                                                                        saldoFavor:
-                                                                            pago.saldoFavor,
-                                                                        idfechaspagos:
-                                                                            pago.idfechaspagos,
-                                                                        fechaPago:
-                                                                            pago.fechaPago,
-                                                                        capitalMasInteres:
-                                                                            pago.capitalMasInteres,
-                                                                        moratorio: pago
-                                                                            .moratorios!
-                                                                            .moratorios,
-                                                                      ),
-                                                                    );
-                                                                  }
-                                                                }
-                                                              }
-                                                            });
-                                                          });
-                                                        },
+        if (index != -1) {
+          // Actualizar el pago existente
+          pagosProvider.pagosSeleccionados[index] = PagoSeleccionado(
+            semana: pago.semana,
+            tipoPago: pago.tipoPago,
+            deposito: nuevoDeposito,
+            saldoFavor: pago.saldoFavor,
+            saldoEnContra:
+                                                          pago.saldoEnContra,
+            idfechaspagos: pago.idfechaspagos,
+            fechaPago: pago.fechaPago,
+            capitalMasInteres: pago.capitalMasInteres,
+            moratorio: pago.moratorios?.moratorios,
+          );
+        } else {
+          // Agregar un nuevo pago si no existe
+          pagosProvider.agregarPago(
+            PagoSeleccionado(
+              semana: pago.semana,
+              tipoPago: pago.tipoPago,
+              deposito: nuevoDeposito,
+              saldoFavor: pago.saldoFavor,
+              saldoEnContra:
+                                                          pago.saldoEnContra,
+              idfechaspagos: pago.idfechaspagos,
+              fechaPago: pago.fechaPago,
+              capitalMasInteres: pago.capitalMasInteres,
+              moratorio: pago.moratorios?.moratorios,
+            ),
+          );
+        }
+      } else {
+        // Si el valor está vacío, establecer el saldo en contra a 0
+        pago.saldoEnContra = 0.0;
+        pago.saldoFavor = 0.0;
+      }
+    });
+  });
+},
 
                                                         decoration:
                                                             InputDecoration(
@@ -2054,7 +1944,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                       }).toList(),
 
                                                     // Mostrar "Fecha no disponible" solo si no hay pagos y el monto es mayor a 0
-                                                    /*  if (pago.abonos.isEmpty &&
+                                                   /*  if (pago.abonos.isEmpty &&
                                                         (pago.deposito ?? 0) >
                                                             0)
                                                       Padding(
@@ -2533,7 +2423,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                     ),
                   ),
 
-                  SizedBox(width: 20),
+                  SizedBox(width: 30),
 
                   // Selector de fecha con el botón de agregar
                   Expanded(
@@ -2686,7 +2576,21 @@ class _AbonosDialogState extends State<AbonosDialog> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                 
+                  SizedBox(width: 100),
+                  Text(
+                    "Monto a Pagar: \$${widget.montoAPagar.toStringAsFixed(2)}", // Usar montoAPagar aquí
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    "Falta: \$${montoFaltante.toStringAsFixed(2)}",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
               SizedBox(height: 20),
