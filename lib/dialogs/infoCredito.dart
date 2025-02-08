@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -6,7 +7,9 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:money_facil/ip.dart';
 import 'package:money_facil/models/pago_seleccionado.dart';
+import 'package:money_facil/screens/login.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/pagos_provider.dart';
 import 'package:collection/collection.dart';
@@ -23,6 +26,7 @@ class InfoCredito extends StatefulWidget {
 class _InfoCreditoState extends State<InfoCredito> {
   Credito? creditoData; // Ahora es de tipo Credito? (nulo permitido)
   bool isLoading = true;
+    bool errorDeConexion = false; // Para indicar si hubo un error de conexión.
   bool dialogShown = false;
   Timer? _timer;
   late ScrollController _scrollController;
@@ -44,85 +48,107 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   Future<void> _fetchCreditoData() async {
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && isLoading) {
-        setState(() {
-          isLoading = false;
-        });
-        _showErrorDialog(
-            'No se pudo conectar al servidor. Por favor, revisa tu conexión de red.');
-      }
-    });
+  _timer = Timer(Duration(seconds: 10), () {
+    if (mounted && isLoading) {
+      setState(() {
+        isLoading = false;
+      });
+      _showErrorDialog(
+          'No se pudo conectar al servidor. Por favor, revisa tu conexión de red.');
+    }
+  });
 
+  if (mounted) {
     setState(() {
       isLoading = true;
     });
+  }
 
-    try {
-      final url = 'http://$baseUrl/api/v1/creditos/${widget.folio}';
-      final response = await http.get(Uri.parse(url));
+  bool dialogShown = false;
 
-      _timer?.cancel();
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+    final url = 'http://$baseUrl/api/v1/creditos/${widget.folio}';
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {'tokenauth': token},
+    );
 
-        if (data is List && data.isNotEmpty) {
+    _timer?.cancel();
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data is List && data.isNotEmpty) {
+        if (mounted) {
           setState(() {
             creditoData = Credito.fromJson(data[0]);
             isLoading = false;
           });
-        } else {
-          setState(() {
-            isLoading = false;
-          });
-          if (!dialogShown) {
-            dialogShown = true;
-            _showErrorDialog(
-                'Error en la carga de datos. La respuesta no contiene créditos.');
-          }
         }
-        idCredito = creditoData!.idcredito;
       } else {
-        setState(() {
-          isLoading = false;
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          _showErrorDialog(
-              'Error en la carga de datos. Código de error: ${response.statusCode}');
-        }
+        _handleError(dialogShown, 'Error en la carga de datos...');
       }
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-      if (!dialogShown) {
-        dialogShown = true;
-        _showErrorDialog('Error de conexión o inesperado: $e');
+      idCredito = creditoData!.idcredito;
+    } else if (response.statusCode == 404) {
+      final errorData = json.decode(response.body);
+      if (errorData["Error"]["Message"] == "jwt expired") {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('tokenauth');
+        _handleError(dialogShown,
+            'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.',
+            redirectToLogin: true);
+      } else {
+        _handleError(dialogShown, 'Error: ${response.statusCode}');
       }
+    } else {
+      _handleError(dialogShown, 'Error: ${response.statusCode}');
     }
+  } catch (e) {
+    _handleError(dialogShown, 'Error: $e');
+  }
+}
+
+void _handleError(bool dialogShown, String mensaje, {bool redirectToLogin = false}) {
+  _timer?.cancel();
+
+  if (mounted) {
+    setState(() {
+      isLoading = false;
+      errorDeConexion = true;
+    });
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Error'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Cerrar'),
-            ),
-          ],
-        );
-      },
-    );
+  if (!dialogShown) {
+    dialogShown = true;
+    _showErrorDialog(mensaje, onClose: redirectToLogin ? () {
+      Navigator.push(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+    } : null);
   }
+}
+
+void _showErrorDialog(String mensaje, {VoidCallback? onClose}) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Error'),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (onClose != null) onClose();
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 
   List<Map<String, dynamic>> generarPagoJson(
     List<PagoSeleccionado> pagosSeleccionados,
@@ -275,63 +301,79 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   Future<void> enviarDatosAlServidor(
-    BuildContext context, // Asegúrate de pasar el contexto
-    List<PagoSeleccionado> pagosSeleccionados,
-  ) async {
-    // Obtener los pagos originales del provider
-    final pagosOriginales =
-        Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
+  BuildContext context, 
+  List<PagoSeleccionado> pagosSeleccionados,
+) async {
+  // Obtener los pagos originales del provider
+  final pagosOriginales =
+      Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
 
-    // Generar los datos JSON con la función que ya tienes
-    List<Map<String, dynamic>> pagosJson =
-        generarPagoJson(pagosSeleccionados, pagosOriginales);
+  // Generar los datos JSON con la función que ya tienes
+  List<Map<String, dynamic>> pagosJson =
+      generarPagoJson(pagosSeleccionados, pagosOriginales);
 
-    // URL del servidor
-    final url = Uri.parse('http://$baseUrl/api/v1/pagos');
+  // URL del servidor
+  final url = Uri.parse('http://$baseUrl/api/v1/pagos');
 
-    // Datos a enviar
-    print('Datos a enviar: $pagosJson');
+  // Obtener el token de SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('tokenauth') ?? '';
 
-    // Hacer la solicitud POST
-    try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json', // Asegúrate de enviar como JSON
-        },
-        body: json.encode(pagosJson), // Convertir los datos a formato JSON
-      );
-
-      // Verificar la respuesta del servidor
-      if (response.statusCode == 201) {
-        print('Datos enviados exitosamente');
-        mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
-        // Llama a recargarPagos en PaginaControl
-        // paginaControlKey.currentState?.recargarPagos();
-      } else {
-        // Imprimir detalles del error si la respuesta no es 200
-        print('Error al enviar datos: ${response.statusCode}');
-        print('Respuesta del servidor: ${response.body}');
-
-        // Parsear la respuesta del servidor
-        final Map<String, dynamic> respuesta = json.decode(response.body);
-        final int codigoError = respuesta['Error']['Code'];
-        final String mensajeError = respuesta['Error']['Message'];
-
-        // Mostrar el error usando la misma función
-        mostrarDialogo(
-          context,
-          'Error $codigoError',
-          mensajeError,
-          esError: true,
-        );
-      }
-    } catch (e) {
-      print('Error al hacer la solicitud: $e');
-      mostrarDialogo(context, 'Error', 'Ocurrió un error: $e', esError: true);
-    }
+  // Verificar que el token esté disponible
+  if (token.isEmpty) {
+    _handleError(false, 'Token de autenticación no encontrado. Por favor, inicia sesión.', redirectToLogin: true);
+    return;
   }
 
+  // Datos a enviar
+  print('Datos a enviar: $pagosJson');
+
+  try {
+    // Hacer la solicitud POST
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json', // Asegúrate de enviar como JSON
+        'tokenauth': token, // Agregar el token al header
+      },
+      body: json.encode(pagosJson), // Convertir los datos a formato JSON
+    );
+
+    // Verificar la respuesta del servidor
+    if (response.statusCode == 201) {
+      print('Datos enviados exitosamente');
+      mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
+      // Llama a recargarPagos en PaginaControl
+      // paginaControlKey.currentState?.recargarPagos();
+    } else {
+      // Verificar si la sesión ha expirado
+      if (response.statusCode == 401) { // Código para sesión expirada
+        _handleError(false, 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.', redirectToLogin: true);
+        return;
+      }
+
+      // Imprimir detalles del error si la respuesta no es 201
+      print('Error al enviar datos: ${response.statusCode}');
+      print('Respuesta del servidor: ${response.body}');
+
+      // Parsear la respuesta del servidor
+      final Map<String, dynamic> respuesta = json.decode(response.body);
+      final int codigoError = respuesta['Error']['Code'];
+      final String mensajeError = respuesta['Error']['Message'];
+
+      // Mostrar el error usando la misma función
+      mostrarDialogo(
+        context,
+        'Error $codigoError',
+        mensajeError,
+        esError: true,
+      );
+    }
+  } catch (e) {
+    print('Error al hacer la solicitud: $e');
+    mostrarDialogo(context, 'Error', 'Ocurrió un error: $e', esError: true);
+  }
+}
 // Función para mostrar un diálogo genérico o de error con diseño
   void mostrarDialogo(BuildContext context, String titulo, String mensaje,
       {bool esError = false}) {
@@ -872,8 +914,7 @@ class Credito {
 class PaginaControl extends StatefulWidget {
   final String idCredito;
 
-  PaginaControl({Key? key, required this.idCredito})
-      : super(key: key); // Pasamos key al constructor de StatefulWidget
+  PaginaControl({Key? key, required this.idCredito}) : super(key: key);
 
   @override
   _PaginaControlState createState() => _PaginaControlState();
@@ -881,108 +922,149 @@ class PaginaControl extends StatefulWidget {
 
 class _PaginaControlState extends State<PaginaControl> {
   late Future<List<Pago>> _pagosFuture;
-// Mapa para controlar si cada pago está siendo editado
-  Map<int, bool> editingState = {}; // Usamos un mapa para el control por pago
+  Map<int, bool> editingState = {};
   List<TextEditingController> controllers = [];
-  bool isLoading =
-      true; // Agregar esta variable para controlar el estado de carga
-
-  //Variable para el Timer
+  bool isLoading = true;
   Timer? _debounce;
+  bool dialogShown = false;
 
   @override
   void initState() {
     super.initState();
-
-    _pagosFuture = _fetchPagos().then((pagos) {
-      setState(() {
-        isLoading =
-            false; // Una vez que se carguen los pagos, desactivamos la carga
-      });
-
-      for (var pago in pagos) {
-        if (pago.sumaDepositoMoratorisos == null) {
-          pago.sumaDepositoMoratorisos = 0.0; // Solo si no tiene valor
-        }
-      }
-
-      // Inicializamos los controladores para cada pago
-      controllers = List.generate(pagos.length, (index) {
-        return TextEditingController(
-          text: pagos[index].sumaDepositoMoratorisos != null &&
-                  pagos[index].sumaDepositoMoratorisos! > 0
-              ? pagos[index].sumaDepositoMoratorisos!.toStringAsFixed(2)
-              : '', // Si el valor de deposito es 0, no mostrar nada
-        );
-      });
-
-      // Carga los datos en el PagosProvider
-      final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
-      pagosProvider.cargarPagos(pagos
-          .map((pago) => PagoSeleccionado(
-                semana: pago.semana,
-                tipoPago: pago.tipoPago,
-                deposito: pago.deposito ?? 0.0,
-                saldoFavor: 0.0,
-                saldoEnContra: 0.0,
-                abonos: pago.abonos ?? [],
-                idfechaspagos: pago.idfechaspagos ?? '',
-                fechaPago: pago.fechaPago ?? '',
-              ))
-          .toList());
-
-      return pagos;
-    });
+    _pagosFuture = _fetchPagos();
   }
 
-  void recargarPagos() async {
-    setState(() {
-      isLoading = true; // Activa el CircularProgressIndicator
-    });
+  Future<void> recargarPagos() async {
+    if (mounted) {
+      setState(() => isLoading = true);
+    }
 
-    // Simula un delay antes de empezar a cargar los pagos
-    await Future.delayed(Duration(milliseconds: 500)); // Delay de 1 segundo
+    await Future.delayed(Duration(milliseconds: 500));
 
     try {
-      // Realizamos la carga de los pagos con el Future
       List<Pago> pagos = await _fetchPagos();
+      if (mounted) {
+        setState(() {
+          _pagosFuture = Future.value(pagos);
+          isLoading = false;
+        });
 
-      // Si los datos se cargan exitosamente, actualizamos el estado
-      setState(() {
-        _pagosFuture = Future.value(pagos); // Asignamos el resultado del Future
-      });
-
-      // Carga los pagos en el PagosProvider
-      final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
-      pagosProvider.cargarPagos(pagos
-          .map((pago) => PagoSeleccionado(
-                semana: pago.semana,
-                tipoPago: pago.tipoPago,
-                deposito: pago.deposito ?? 0.0,
-                saldoFavor: 0.0,
-                saldoEnContra: 0.0,
-                abonos: pago.abonos ?? [],
-                idfechaspagos: pago.idfechaspagos ?? '',
-                fechaPago: pago.fechaPago ?? '',
-              ))
-          .toList());
-
-      // Desactivamos el indicador de carga
-      setState(() {
-        isLoading = false;
-      });
+        // Actualizar el PagosProvider con los nuevos pagos
+        _actualizarProviderConPagos(pagos);
+      }
     } catch (e) {
-      // En caso de error, desactivamos el indicador de carga
-      setState(() {
-        isLoading = false;
-      });
-
-      // Aquí puedes manejar el error, por ejemplo, mostrando un mensaje
-      print("Error al cargar los pagos: $e");
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+      _mostrarDialogoError('Error al cargar los pagos: $e');
     }
   }
 
-  // Función para formatear fechas
+  Future<List<Pago>> _fetchPagos() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.get(
+        Uri.parse('http://$baseUrl/api/v1/creditos/calendario/${widget.idCredito}'),
+        headers: {'tokenauth': token, 'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        List<Pago> pagos = data.map((pago) => Pago.fromJson(pago)).toList();
+
+        for (var pago in pagos) {
+          double totalDeuda = (pago.capitalMasInteres ?? 0.0) + (pago.moratorios?.moratorios ?? 0.0);
+          double montoPagado = pago.sumaDepositoMoratorisos ?? 0.0;
+          bool sinActividad = pago.abonos.isEmpty && montoPagado == 0.0;
+
+          if (sinActividad) {
+            pago.saldoEnContra = 0.0;
+            pago.saldoFavor = 0.0;
+          } else {
+            if (montoPagado < totalDeuda) {
+              pago.saldoEnContra = totalDeuda - montoPagado;
+              pago.saldoFavor = 0.0;
+            } else {
+              pago.saldoFavor = montoPagado - totalDeuda;
+              pago.saldoEnContra = 0.0;
+            }
+          }
+        }
+
+        // Cargar los pagos en el provider
+        _actualizarProviderConPagos(pagos);
+
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+
+        return pagos;
+      } else {
+        throw Exception('Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+      _mostrarDialogoError('Error: $e');
+      throw Exception(e);
+    }
+  }
+
+  void _actualizarProviderConPagos(List<Pago> pagos) {
+    final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
+    pagosProvider.cargarPagos(pagos
+        .map((pago) => PagoSeleccionado(
+              semana: pago.semana,
+              tipoPago: pago.tipoPago,
+              deposito: pago.deposito ?? 0.0,
+              saldoFavor: 0.0,
+              saldoEnContra: 0.0,
+              abonos: pago.abonos ?? [],
+              idfechaspagos: pago.idfechaspagos ?? '',
+              fechaPago: pago.fechaPago ?? '',
+            ))
+        .toList());
+
+    // Inicializamos los controladores para cada pago
+    controllers = List.generate(pagos.length, (index) {
+      return TextEditingController(
+        text: pagos[index].sumaDepositoMoratorisos != null &&
+                pagos[index].sumaDepositoMoratorisos! > 0
+            ? pagos[index].sumaDepositoMoratorisos!.toStringAsFixed(2)
+            : '', // Si el valor de deposito es 0, no mostrar nada
+      );
+    });
+  }
+
+  void _mostrarDialogoError(String mensaje) {
+    if (!dialogShown && mounted) {
+      dialogShown = true;
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Error'),
+            content: Text(mensaje),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  dialogShown = false;
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
   String formatearFecha(Object? fecha) {
     try {
       if (fecha is String && fecha.isNotEmpty) {
@@ -992,49 +1074,9 @@ class _PaginaControlState extends State<PaginaControl> {
         return DateFormat('dd/MM/yyyy').format(fecha);
       }
     } catch (e) {
-      print('Error formateando la fecha: $e'); // Logging de errores
+      print('Error formateando la fecha: $e');
     }
     return 'Fecha no válida';
-  }
-
-  Future<List<Pago>> _fetchPagos() async {
-    final response = await http.get(Uri.parse(
-        'http://$baseUrl/api/v1/creditos/calendario/${widget.idCredito}'));
-
-    //print('Respuesta del servidor: ${response.body}');
-
-    if (response.statusCode == 200) {
-      List<dynamic> data = json.decode(response.body);
-      List<Pago> pagos = data.map((pago) => Pago.fromJson(pago)).toList();
-
-      // Calcular saldos iniciales para cada pago
-      // Dentro de _fetchPagos:
-      for (var pago in pagos) {
-        double totalDeuda = (pago.capitalMasInteres ?? 0.0) +
-            (pago.moratorios?.moratorios ?? 0.0);
-        double montoPagado = pago.sumaDepositoMoratorisos ?? 0.0;
-
-        // Si no hay pagos previos, no mostrar saldo en contra
-        bool sinActividad = (pago.abonos.isEmpty && montoPagado == 0.0);
-
-        if (sinActividad) {
-          pago.saldoEnContra = 0.0; // <- Forzar a 0
-          pago.saldoFavor = 0.0;
-        } else {
-          if (montoPagado < totalDeuda) {
-            pago.saldoEnContra = totalDeuda - montoPagado;
-            pago.saldoFavor = 0.0;
-          } else {
-            pago.saldoFavor = montoPagado - totalDeuda;
-            pago.saldoEnContra = 0.0;
-          }
-        }
-      }
-
-      return pagos;
-    } else {
-      throw Exception('Failed to load pagos');
-    }
   }
 
   String formatearNumero(double numero) {
@@ -1042,17 +1084,14 @@ class _PaginaControlState extends State<PaginaControl> {
     return formatter.format(numero);
   }
 
-  // Método para determinar si un pago puede ser editable
   bool _puedeEditarPago(Pago pago) {
     if (pago.moratorios != null) {
-      // Caso con moratorios
       return pago.moratorios!.montoTotal > pago.sumaDepositoMoratorisos!;
     } else {
-      // Caso sin moratorios
-      return (pago.capitalMasInteres ?? 0) >
-          (pago.sumaDepositoMoratorisos ?? 0);
+      return (pago.capitalMasInteres ?? 0) > (pago.sumaDepositoMoratorisos ?? 0);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1223,7 +1262,7 @@ class _PaginaControlState extends State<PaginaControl> {
                 ),
               ),
               Container(
-                height: 400,
+                height: MediaQuery.of(context).size.height * 0.52, // ← Ajusta el porcentaje
                 child: SingleChildScrollView(
                   child: Column(
                     children: pagos.map((pago) {
@@ -1419,365 +1458,278 @@ class _PaginaControlState extends State<PaginaControl> {
                               SizedBox(width: 20),
                               // Dos botones: uno para agregar abonos, otro para ver abonos
                               _buildTableCell(
-                                pago.tipoPago == 'En Abonos'
-                                    ? Padding(
-                                        padding: const EdgeInsets.only(left: 5),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            // Botón para agregar un abono
-                                            Container(
-                                                decoration: BoxDecoration(
-                                                  color: _puedeEditarPago(pago)
-                                                      ? Color(0xFFFB2056)
-                                                      : Colors
-                                                          .grey, // Cambiar el color según la condición
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black26,
-                                                      blurRadius: 5,
-                                                      offset: Offset(2, 2),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: IconButton(
-                                                  icon: Icon(Icons.add,
-                                                      color: Colors.white),
-                                                  onPressed:
-                                                      _puedeEditarPago(pago)
-                                                          ? () async {
-                                                              // Obtén el proveedor y muestra sus detalles
-                                                              final pagosProvider =
-                                                                  Provider.of<
-                                                                          PagosProvider>(
-                                                                      context,
-                                                                      listen:
-                                                                          false);
+  pago.tipoPago == 'En Abonos'
+      ? Padding(
+          padding: const EdgeInsets.only(left: 5),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Botón para agregar un abono
+              Container(
+                decoration: BoxDecoration(
+                  color: _puedeEditarPago(pago)
+                      ? const Color(0xFFFB2056)
+                      : Colors.grey,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 5,
+                      offset: Offset(2, 2),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  onPressed: _puedeEditarPago(pago)
+                      ? () async {
+                          // Obtén el provider y muestra el diálogo para agregar abonos
+                          final pagosProvider = Provider.of<PagosProvider>(
+                              context,
+                              listen: false);
+                          var uuid = Uuid();
 
-                                                              // Crear una instancia de Uuid para generar un UID único
-                                                              var uuid = Uuid();
+                          List<Map<String, dynamic>> nuevosAbonos =
+                              (await showDialog(
+                                    context: context,
+                                    builder: (context) => AbonosDialog(
+                                      montoAPagar: pago.capitalMasInteres,
+                                      onConfirm: (abonos) {
+                                        Navigator.of(context).pop(abonos);
+                                      },
+                                    ),
+                                  )) ??
+                                  [];
 
-                                                              // Mostrar el diálogo para agregar nuevos abonos
-                                                              List<
-                                                                      Map<String,
-                                                                          dynamic>>
-                                                                  nuevosAbonos =
-                                                                  (await showDialog(
-                                                                        context:
-                                                                            context,
-                                                                        builder:
-                                                                            (context) =>
-                                                                                AbonosDialog(
-                                                                          montoAPagar:
-                                                                              pago.capitalMasInteres,
-                                                                          onConfirm:
-                                                                              (abonos) {
-                                                                            Navigator.of(context).pop(abonos);
-                                                                          },
-                                                                        ),
-                                                                      )) ??
-                                                                      [];
+                          print('Nuevos abonos recibidos: $nuevosAbonos');
 
-                                                              print(
-                                                                  'Nuevos abonos recibidos: $nuevosAbonos');
+                          setState(() {
+                            if (nuevosAbonos.isNotEmpty) {
+                              nuevosAbonos.forEach((abono) {
+                                // Asigna un UID único a cada abono
+                                abono['uid'] = uuid.v4();
 
-                                                              setState(() {
-                                                                if (nuevosAbonos
-                                                                    .isNotEmpty) {
-                                                                  // Mostrar los nuevos abonos y asegurarse de que no haya duplicados con la misma fecha y monto
-                                                                  nuevosAbonos
-                                                                      .forEach(
-                                                                          (abono) {
-                                                                    // Asignar un UID único al abono
-                                                                    abono['uid'] =
-                                                                        uuid.v4();
+                                // Evita duplicados comparando UID
+                                bool existeAbono = pago.abonos.any(
+                                    (existeAbono) =>
+                                        existeAbono['uid'] == abono['uid']);
+                                if (!existeAbono) {
+                                  print(
+                                      'Agregando abono con UID: ${abono['uid']}');
+                                  pago.abonos.add(abono);
+                                } else {
+                                  print(
+                                      'Abono duplicado detectado con UID: ${abono['uid']}');
+                                }
+                              });
 
-                                                                    // Verificar si ya existe un abono con el mismo UID (para evitar duplicados de UID)
-                                                                    bool existeAbono = pago
-                                                                        .abonos
-                                                                        .any((existeAbono) =>
-                                                                            existeAbono['uid'] ==
-                                                                            abono['uid']);
+                              // Recalcular totales
+                              double totalAbonos = pago.abonos.fold(
+                                  0.0,
+                                  (sum, abono) =>
+                                      sum + (abono['deposito'] ?? 0.0));
 
-                                                                    if (!existeAbono) {
-                                                                      print(
-                                                                          'Agregando abono con UID: ${abono['uid']}');
-                                                                      pago.abonos
-                                                                          .add(
-                                                                              abono);
-                                                                    } else {
-                                                                      print(
-                                                                          'Abono duplicado detectado con UID: ${abono['uid']}');
-                                                                    }
-                                                                  });
+                              // Se suma el moratorio si existe (consulta en el objeto moratorios)
+                              double totalDeuda = pago.capitalMasInteres! +
+                                  (pago.moratorios?.moratorios ?? 0.0);
 
-                                                                  // Recalcular saldos solo una vez
-                                                                  // Recalcular saldos solo una vez
-                                                                  double
-                                                                      totalAbonos =
-                                                                      pago.abonos
-                                                                          .fold(
-                                                                    0.0,
-                                                                    (sum, abono) =>
-                                                                        sum +
-                                                                        (abono['deposito'] ??
-                                                                            0.0),
-                                                                  );
+                              double montoPagado = totalAbonos;
 
-// AGREGAR MORATORIOS AL TOTAL DE LA DEUDA
-                                                                  double totalDeuda = pago
-                                                                          .capitalMasInteres! +
-                                                                      (pago.moratorios
-                                                                              ?.moratorios ??
-                                                                          0.0);
+                              if (montoPagado < totalDeuda) {
+                                pago.saldoEnContra = totalDeuda - montoPagado;
+                                pago.saldoFavor = 0.0;
+                              } else {
+                                pago.saldoEnContra = 0.0;
+                                pago.saldoFavor = montoPagado - totalDeuda;
+                              }
 
-// Monto total pagado (solo abonos, sin incluir depósito de pago inicial)
-                                                                  double
-                                                                      montoPagado =
-                                                                      totalAbonos;
+                              print(
+                                  'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
 
-// Recalcular saldos
-                                                                  if (montoPagado <
-                                                                      totalDeuda) {
-                                                                    // <-- Usar totalDeuda aquí
-                                                                    pago.saldoEnContra =
-                                                                        totalDeuda -
-                                                                            montoPagado;
-                                                                    pago.saldoFavor =
-                                                                        0.0;
-                                                                  } else {
-                                                                    pago.saldoEnContra =
-                                                                        0.0;
-                                                                    pago.saldoFavor =
-                                                                        montoPagado -
-                                                                            totalDeuda; // <-- Usar totalDeuda aquí
-                                                                  }
+                              // Actualiza el Provider
+                              final index = pagosProvider.pagosSeleccionados
+                                  .indexWhere((p) => p.semana == pago.semana);
+                              final pagoActualizado = PagoSeleccionado(
+                                semana: pago.semana,
+                                tipoPago: pago.tipoPago,
+                                deposito: pago.deposito ?? 0.0,
+                                saldoFavor: pago.saldoFavor,
+                                saldoEnContra: pago.saldoEnContra,
+                                abonos: pago.abonos,
+                                idfechaspagos: pago.idfechaspagos,
+                                fechaPago: pago.fechaPago,
+                                capitalMasInteres: pago.capitalMasInteres,
+                                moratorio: pago.moratorios?.moratorios,
+                              );
+                              if (index != -1) {
+                                pagosProvider.pagosSeleccionados[index] =
+                                    pagoActualizado;
+                              } else {
+                                pagosProvider.agregarPago(pagoActualizado);
+                              }
+                            }
+                          });
+                        }
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Botón para ver los abonos realizados (PopupMenu)
+              Container(
+  decoration: BoxDecoration(
+    color: Colors.blueAccent,
+    borderRadius: BorderRadius.circular(8),
+    boxShadow: const [
+      BoxShadow(
+        color: Colors.black26,
+        blurRadius: 5,
+        offset: Offset(2, 2),
+      ),
+    ],
+  ),
+  child: PopupMenuButton<Map<String, dynamic>>(
+    tooltip: 'Mostrar Abonos',
+    icon: const Icon(Icons.visibility, color: Colors.white),
+    color: Colors.white,
+    offset: const Offset(0, 40),
+    onSelected: (item) {
+      // Aquí podrías manejar acciones según el item seleccionado (abono o moratorio)
+    },
+    itemBuilder: (context) {
+      List<PopupMenuEntry<Map<String, dynamic>>> items = [];
 
-                                                                  print(
-                                                                      'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
+      // Agregar los abonos existentes
+      for (var abono in pago.abonos) {
+        final fecha = formatearFecha(abono['fechaDeposito']);
+        final monto = (abono['deposito'] is num)
+            ? (abono['deposito'] as num).toDouble()
+            : 0.0;
+        items.add(
+          PopupMenuItem(
+            value: abono,
+            child: Container(
+              width: 300,
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.monetization_on, color: Colors.green, size: 16),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Fecha: $fecha, Monto: \$${monto.toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
 
-                                                                  // Actualizar el Provider con el nuevo saldo
-                                                                  final index = pagosProvider
-                                                                      .pagosSeleccionados
-                                                                      .indexWhere((p) =>
-                                                                          p.semana ==
-                                                                          pago.semana);
+      // Agregar los moratorios como "abonos" adicionales
+      for (var moratorio in pago.pagosMoratorios) {
+        final sumaMoratorios = (moratorio['sumaMoratorios'] is num)
+            ? (moratorio['sumaMoratorios'] as num).toDouble()
+            : 0.0;
+        final fecha = 'Moratorio'; // Puedes ajustar la representación (o incluir fecha si lo deseas)
+        items.add(
+          PopupMenuItem(
+            value: moratorio,
+            child: Container(
+              width: 300,
+              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.monetization_on, color: Colors.green, size: 16),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      "Monto: \$${sumaMoratorios.toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
 
-                                                                  if (index !=
-                                                                      -1) {
-                                                                    pagosProvider
-                                                                            .pagosSeleccionados[index] =
-                                                                        PagoSeleccionado(
-                                                                      semana: pago
-                                                                          .semana,
-                                                                      tipoPago:
-                                                                          pago.tipoPago,
-                                                                      deposito:
-                                                                          pago.deposito ??
-                                                                              0.0,
-                                                                      saldoFavor:
-                                                                          pago.saldoFavor,
-                                                                      saldoEnContra:
-                                                                          pago.saldoEnContra,
-                                                                      abonos: pago
-                                                                          .abonos,
-                                                                      idfechaspagos:
-                                                                          pago.idfechaspagos,
-                                                                      fechaPago:
-                                                                          pago.fechaPago,
-                                                                      capitalMasInteres:
-                                                                          pago.capitalMasInteres,
-                                                                      moratorio: pago
-                                                                          .moratorios
-                                                                          ?.moratorios,
-                                                                    );
-                                                                  } else {
-                                                                    pagosProvider
-                                                                        .agregarPago(
-                                                                      PagoSeleccionado(
-                                                                        semana:
-                                                                            pago.semana,
-                                                                        tipoPago:
-                                                                            pago.tipoPago,
-                                                                        deposito:
-                                                                            pago.deposito ??
-                                                                                0.0,
-                                                                        saldoFavor:
-                                                                            pago.saldoFavor,
-                                                                        saldoEnContra:
-                                                                            pago.saldoEnContra,
-                                                                        abonos:
-                                                                            pago.abonos,
-                                                                        idfechaspagos:
-                                                                            pago.idfechaspagos,
-                                                                        fechaPago:
-                                                                            pago.fechaPago,
-                                                                        capitalMasInteres:
-                                                                            pago.capitalMasInteres,
-                                                                        moratorio: pago
-                                                                            .moratorios
-                                                                            ?.moratorios,
-                                                                      ),
-                                                                    );
-                                                                  }
-                                                                }
-                                                              });
-                                                            }
-                                                          : null,
-                                                )),
-                                            SizedBox(
-                                                width:
-                                                    8), // Espacio entre los botones
-                                            // Botón para ver los abonos realizados en PopUpMenu
-                                            Container(
-                                              decoration: BoxDecoration(
-                                                color: Colors.blueAccent,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black26,
-                                                    blurRadius: 5,
-                                                    offset: Offset(2, 2),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: PopupMenuButton<
-                                                  Map<String, dynamic>>(
-                                                tooltip: 'Mostrar Abonos',
-                                                icon: Icon(Icons.visibility,
-                                                    color: Colors.white),
-                                                color: Colors.white,
-                                                offset: Offset(0, 40),
-                                                onSelected: (abono) {
-                                                  // Aquí podrías manejar acciones con los abonos seleccionados
-                                                },
-                                                itemBuilder: (context) {
-                                                  print(
-                                                      'Abonos actuales antes de mostrar: ${pago.abonos}');
+      // Calcular el total de abonos, sumando depósitos y los moratorios (sumaMoratorios)
+      double totalAbonos = pago.abonos.fold(
+            0.0,
+            (sum, abono) => sum +
+                ((abono['deposito'] is num)
+                    ? (abono['deposito'] as num).toDouble()
+                    : 0.0),
+          ) +
+          pago.pagosMoratorios.fold(
+            0.0,
+            (sum, moratorio) => sum +
+                ((moratorio['sumaMoratorios'] is num)
+                    ? (moratorio['sumaMoratorios'] as num).toDouble()
+                    : 0.0),
+          );
 
-                                                  // Calcula el total de los abonos
-                                                  double totalAbonos =
-                                                      pago.abonos.fold(
-                                                          0.0,
-                                                          (sum, abono) =>
-                                                              sum +
-                                                              (abono['deposito'] ??
-                                                                  0.0));
+      // Agregar un item que muestre el total de abonos
+      items.add(
+        PopupMenuItem(
+  enabled: false,
+  child: Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      const Divider(
+        color: Colors.black26, // Color de la línea; puedes ajustarlo
+        thickness: 1,         // Grosor de la línea
+      ),
+      Container(
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+        child: Row(
+          children: [
+            const Icon(Icons.payment, color: Colors.black, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "Total Abonos: \$${totalAbonos.toStringAsFixed(2)}",
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  ),
+),
 
-                                                  return [
-                                                    ...pago.abonos.map((abono) {
-                                                      final fecha =
-                                                          formatearFecha(abono[
-                                                              'fechaDeposito']);
-                                                      final monto =
-                                                          abono['deposito'] ??
-                                                              0.0;
+      );
 
-                                                      print(
-                                                          'Abono individual: fecha=${abono['fechaDeposito']}, monto=${abono['deposito']}');
+      return items;
+    },
+    constraints: const BoxConstraints(
+      maxWidth: 500,
+    ),
+  ),
+)
 
-                                                      return PopupMenuItem(
-                                                        value: abono,
-                                                        child: Container(
-                                                          width: 300,
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                                  vertical: 8.0,
-                                                                  horizontal:
-                                                                      12.0),
-                                                          child: Row(
-                                                            children: [
-                                                              Icon(
-                                                                  Icons.payment,
-                                                                  color: Colors
-                                                                      .green,
-                                                                  size: 16),
-                                                              SizedBox(
-                                                                  width: 10),
-                                                              Expanded(
-                                                                child: Text(
-                                                                  "Fecha: ${fecha}, Monto: \$${monto.toStringAsFixed(2)}",
-                                                                  style:
-                                                                      TextStyle(
-                                                                    fontSize:
-                                                                        12,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w500,
-                                                                    color: Colors
-                                                                        .black87,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      );
-                                                    }).toList(),
-                                                    PopupMenuItem(
-                                                      enabled: false,
-                                                      child: Container(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .symmetric(
-                                                                vertical: 8.0,
-                                                                horizontal:
-                                                                    12.0),
-                                                        child: Column(
-                                                          children: [
-                                                            Divider(
-                                                                color: Colors
-                                                                    .black26,
-                                                                height: 1),
-                                                            SizedBox(
-                                                                height: 10),
-                                                            Row(
-                                                              children: [
-                                                                Icon(
-                                                                    Icons
-                                                                        .attach_money,
-                                                                    color: Colors
-                                                                        .black,
-                                                                    size: 16),
-                                                                SizedBox(
-                                                                    width: 10),
-                                                                Expanded(
-                                                                  child: Text(
-                                                                    "Total Abonos: \$${totalAbonos.toStringAsFixed(2)}",
-                                                                    style:
-                                                                        TextStyle(
-                                                                      fontSize:
-                                                                          12,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                      color: Colors
-                                                                          .black87,
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ];
-                                                },
+              
+            ],
+          ),
+        )
+      
 
-                                                constraints: BoxConstraints(
-                                                    maxWidth:
-                                                        500), // Ajusta el ancho máximo del menú
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )
                                     : esPago1
                                         ? "-"
                                         : pago.tipoPago == 'Monto Parcial'
@@ -2306,10 +2258,12 @@ class Pago {
   double? montoPorCuota;
   List<Map<String, dynamic>> abonos;
   List<String?> fechasDepositos;
-  String? idfechaspagos; // Agregado el campo idfechaspagos
+  String? idfechaspagos; // Campo idfechaspagos
   double? sumaDepositosFavor;
   double? sumaDepositoMoratorisos;
-  Moratorios? moratorios; // Agregado el campo de moratorios
+  Moratorios? moratorios; // Campo de moratorios
+  // Nuevo: pagosMoratorios
+  List<Map<String, dynamic>> pagosMoratorios;
 
   Pago({
     required this.semana,
@@ -2331,6 +2285,7 @@ class Pago {
     this.sumaDepositosFavor,
     this.sumaDepositoMoratorisos,
     this.moratorios, // Incluir en el constructor
+    this.pagosMoratorios = const [], // Valor por defecto vacío
   });
 
   factory Pago.fromJson(Map<String, dynamic> json) {
@@ -2341,6 +2296,12 @@ class Pago {
         fechasDepositos.add(pago['fechaDeposito']);
       }
     }
+
+    // Parsear pagosMoratorios si existen, de lo contrario asigna una lista vacía
+    List<Map<String, dynamic>> pagosMoratorios = (json['pagosMoratorios'] as List?)
+            ?.map((moratorio) => Map<String, dynamic>.from(moratorio))
+            .toList() ??
+        [];
 
     return Pago(
       semana: json['semana'] ?? 0,
@@ -2385,11 +2346,14 @@ class Pago {
       fechasDepositos: fechasDepositos,
       idfechaspagos: json['idfechaspagos'], // Parsear el idfechaspagos
       moratorios: json['moratorios'] is Map<String, dynamic>
-          ? Moratorios.fromJson(Map<String, dynamic>.from(json['moratorios']))
-          : null, // Verificar si es un Map antes de parsear
+          ? Moratorios.fromJson(
+              Map<String, dynamic>.from(json['moratorios']))
+          : null,
+      pagosMoratorios: pagosMoratorios, // Asigna los pagosMoratorios parseados
     );
   }
 }
+
 
 class Moratorios {
   double montoTotal;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,8 @@ import 'package:money_facil/dialogs/renovarGrupo.dart';
 import 'dart:convert';
 
 import 'package:money_facil/ip.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InfoGrupo extends StatefulWidget {
   final String idGrupo;
@@ -21,171 +24,255 @@ class InfoGrupo extends StatefulWidget {
 class _InfoGrupoState extends State<InfoGrupo> {
   Map<String, dynamic>? grupoData;
   bool isLoading = true;
-  Timer? _timer;
+  Timer? _timerData;
+  Timer? _timerHistorial;
   bool dialogShown = false;
   late ScrollController _scrollController;
   List<dynamic> historialData = [];
+  bool errorDeConexion = false;
+  bool noGroupsFound = false;
 
   @override
   void initState() {
     _scrollController = ScrollController();
     super.initState();
-    fetchGrupoData();
-    fetchGrupoHistorial(widget.nombreGrupo); // Obtener el historial del grupo
+    fetchAllData();
+  }
+
+  Future<void> fetchAllData() async {
+    setState(() => isLoading = true);
+    try {
+      await Future.wait([
+        fetchGrupoData(),
+        fetchGrupoHistorial(widget.nombreGrupo),
+      ]);
+    } catch (e) {
+      print('Error en fetchAllData: $e');
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _timerData?.cancel();
+    _timerHistorial?.cancel();
     super.dispose();
     _scrollController.dispose();
   }
 
   Future<void> fetchGrupoData() async {
-    // Cancelamos cualquier temporizador anterior antes de crear uno nuevo
-    _timer?.cancel();
+  bool dialogShown = false;
 
-    // Inicializamos el estado de carga
-    setState(() {
-      isLoading = true; // Indicamos que está cargando
-    });
+  try {
+    print('Iniciando petición de datos del grupo ${widget.idGrupo}');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
 
-    // Iniciamos un nuevo temporizador de 10 segundos
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && isLoading) {
-        // Solo si sigue cargando después de 10 segundos
+    final response = await http.get(
+      Uri.parse('http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}'),
+      headers: {
+        'tokenauth': token,
+        'Content-Type': 'application/json',
+      },
+    ).timeout(Duration(seconds: 10));
+
+    print('Respuesta recibida (grupo): ${response.statusCode}');
+    
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      if (responseData is List && responseData.isNotEmpty) {
         setState(() {
-          isLoading = false; // Detenemos el indicador de carga
-        });
-        mostrarDialogoError(
-            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
-      }
-    });
-
-    try {
-      final response = await http.get(
-          Uri.parse('http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}'));
-
-      // Cancelamos el temporizador si la solicitud fue exitosa
-      _timer?.cancel();
-
-      if (response.statusCode == 200) {
-        setState(() {
-          grupoData = json.decode(response.body)[0];
-          isLoading = false; // Fin de la carga
+          grupoData = responseData[0];
+          errorDeConexion = false;
         });
       } else {
-        // Si la respuesta tiene un código de error, también dejamos de cargar
-        setState(() {
-          isLoading = false; // Fin de la carga
-        });
+        throw Exception('Datos del grupo no encontrados');
+      }
+    } 
+    else if (response.statusCode == 401) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('tokenauth');
+        _timerData?.cancel();
+        
         if (!dialogShown) {
           dialogShown = true;
           mostrarDialogoError(
-              'Error en la carga de datos. Código de error: ${response.statusCode}');
-        }
-      }
-    } catch (e) {
-      // Si hay un error en la solicitud
-      if (mounted) {
-        setState(() {
-          isLoading = false; // Fin de la carga
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError('Error de conexión o inesperado: $e');
+            'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+            onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            }
+          );
         }
       }
     }
-  }
-
-  Future<void> fetchGrupoHistorial(String nombreGrupo) async {
-    _timer?.cancel();
-
-    setState(() {
-      isLoading = true; // Indicamos que está cargando
-    });
-
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && isLoading) {
-        setState(() {
-          isLoading = false;
-        });
-        mostrarDialogoError(
-            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
-      }
-    });
-
-    try {
-      final response = await http.get(Uri.parse(
-          'http://$baseUrl/api/v1/grupodetalles/historial/$nombreGrupo'));
-
-      _timer?.cancel();
-
-      if (response.statusCode == 200) {
-        setState(() {
-          historialData = json.decode(response.body); // Guarda el historial
-          // Ordenar los datos por fecha
-          historialData.sort((a, b) {
-            DateTime dateA = DateTime.parse(a['fCreacion']);
-            DateTime dateB = DateTime.parse(b['fCreacion']);
-            return dateB.compareTo(dateA); // Orden descendente
-          });
-          isLoading = false;
-        });
-      } else if (response.statusCode == 400) {
-        final responseBody = json.decode(response.body);
-        final errorMessage = responseBody["Error"]["Message"];
-
-        if (errorMessage ==
-            "No hay detalle de grupos registrados con este nombre") {
-          setState(() {
-            isLoading = false;
-            historialData = []; // Vaciar el historial si no hay datos
-          });
-        } else {
+    else if (response.statusCode == 404) {
+      final errorData = json.decode(response.body);
+      if (errorData["Error"]["Message"] == "jwt expired") {
+        if (mounted) {
+          setState(() => isLoading = false);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('tokenauth');
+          _timerData?.cancel();
+          
           if (!dialogShown) {
             dialogShown = true;
             mostrarDialogoError(
-                'Error en la carga de datos del historial. Código de error: ${response.statusCode}, Mensaje: $errorMessage');
+              'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+              onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              }
+            );
           }
         }
+        return;
       } else {
-        setState(() {
-          isLoading = false;
-        });
+        throw Exception('Endpoint no encontrado');
+      }
+    }
+    else {
+      throw Exception('Error del servidor: ${response.statusCode}');
+    }
+    
+  } on SocketException {
+    setErrorState(dialogShown, SocketException('Error de conexión'));
+  } on TimeoutException {
+    setErrorState(dialogShown, TimeoutException('Timeout'));
+  } catch (e) {
+    setErrorState(dialogShown, e);
+  }
+}
+
+
+  Future<void> fetchGrupoHistorial(String nombreGrupo) async {
+  bool dialogShown = false;
+  
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    final nombreCodificado = Uri.encodeComponent(nombreGrupo.trim());
+    final uri = Uri.parse('http://$baseUrl/api/v1/grupodetalles/historial/$nombreCodificado');
+
+    final response = await http.get(
+      uri,
+      headers: {'tokenauth': token},
+    ).timeout(Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      // ... (tu procesamiento normal de datos) ...
+    } 
+    else if (response.statusCode == 400) {
+      // ... (manejo de "no hay registros" como antes) ...
+    }
+    else if (response.statusCode == 404) {
+      final errorData = json.decode(response.body);
+      if (errorData["Error"]["Message"] == "jwt expired") {
+        if (mounted) {
+          setState(() => isLoading = false);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('tokenauth');
+          _timerHistorial?.cancel();
+          
+          if (!dialogShown) {
+            dialogShown = true;
+            mostrarDialogoError(
+              'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+              onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              }
+            );
+          }
+        }
+        return;
+      } else {
+        throw Exception('Endpoint no encontrado');
+      }
+    }
+    else if (response.statusCode == 401) {
+      // Manejo alternativo para 401 (no basado en mensaje)
+      if (mounted) {
+        setState(() => isLoading = false);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('tokenauth');
+        _timerHistorial?.cancel();
+        
         if (!dialogShown) {
           dialogShown = true;
           mostrarDialogoError(
-              'Error en la carga de datos del historial. Código de error: ${response.statusCode}');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError('Error de conexión o inesperado: $e');
+            'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+            onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            }
+          );
         }
       }
     }
+    else {
+      throw Exception('Error del servidor: ${response.statusCode}');
+    }
+    
+  } on SocketException {
+    setErrorState(dialogShown, SocketException('Error de conexión'));
+  } on TimeoutException {
+    setErrorState(dialogShown, TimeoutException('Timeout'));
+  } catch (e) {
+    setErrorState(dialogShown, e);
   }
+}
 
-  void mostrarDialogoError(String mensaje) {
+// Mantenemos tu método setErrorState original
+void setErrorState(bool dialogShown, [dynamic error]) {
+  if (!mounted || dialogShown) return;
+  
+  setState(() {
+    isLoading = false;
+    errorDeConexion = true;
+  });
+  
+  if (error is SocketException) {
+    mostrarDialogoError('Error de conexión. Verifica tu red.');
+  } 
+  else if (error is TimeoutException) {
+    mostrarDialogoError('El servidor no respondió a tiempo');
+  }
+  else {
+    mostrarDialogoError('Ocurrió un error inesperado: ${error.toString()}');
+  }
+}
+
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          title: Text('Error de conexión'),
+          title: const Text('Error'),
           content: Text(mensaje),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                onClose?.call();
+                dialogShown = false;
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
           ],
         );

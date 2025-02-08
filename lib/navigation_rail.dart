@@ -7,6 +7,18 @@ import 'package:money_facil/screens/creditos.dart';
 import 'package:money_facil/screens/simulador.dart';
 
 class NavigationScreen extends StatefulWidget {
+  final String username; // Nuevo parámetro
+  final String rol;
+  final String userId;
+  final String userType;
+
+  const NavigationScreen({
+    required this.username,
+    required this.rol,
+    required this.userId,
+    required this.userType,
+  }); // Constructor actualizado
+
   @override
   _NavigationScreenState createState() => _NavigationScreenState();
 }
@@ -116,6 +128,42 @@ class _NavigationScreenState extends State<NavigationScreen> {
                   icon: const Icon(Icons.edit_document),
                 ),
               ],
+              footer: Container(
+                alignment: Alignment.bottomCenter,
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isMenuOpen) ...[
+                      SizedBox(height: 4),
+                      Text(
+                        'Developed by',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 10,
+                          fontFamily: 'Verdana',
+                          fontWeight: FontWeight.w100,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      Container(
+                        alignment: Alignment.center,
+                        height: 30,
+                        width: 60,
+                        child: SizedBox(
+                          width: 70,
+                          height: 70,
+                          child: Image.asset(
+                            'assets/codx_transparente_full_negro.png',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
           Container(
@@ -127,11 +175,11 @@ class _NavigationScreenState extends State<NavigationScreen> {
             child: PageView(
               controller: pageController,
               children: [
-                HomeScreen(username: 'samuel'),
-                SeguimientoScreen(),
-                GruposScreen(),
-                ClientesScreen(),
-                SimuladorScreen(username: 'samuel'),
+                HomeScreen(username: widget.username, tipoUsuario: widget.userType),
+                SeguimientoScreen(username: widget.username, tipoUsuario: widget.userType),
+                GruposScreen(username: widget.username, tipoUsuario: widget.userType),
+                ClientesScreen(username: widget.username, tipoUsuario: widget.userType),
+                SimuladorScreen(username: widget.username, tipoUsuario: widget.userType),
               ],
             ),
           ),

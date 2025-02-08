@@ -11,6 +11,11 @@ import 'dart:async';
 import 'package:money_facil/ip.dart';
 
 class ClientesScreen extends StatefulWidget {
+    final String username;
+    final String tipoUsuario;
+
+  const ClientesScreen({required this.username, required this.tipoUsuario});
+
   @override
   State<ClientesScreen> createState() => _ClientesScreenState();
 }
@@ -273,6 +278,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
         isDarkMode: _isDarkMode,
         toggleDarkMode: _toggleDarkMode,
         title: 'Clientes', // Título específico para esta pantalla
+        nombre: widget.username,
+        tipoUsuario: widget.tipoUsuario,
       ),
       body: isLoading
           ? Center(

@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:money_facil/navigation_rail.dart';
-import 'package:provider/provider.dart'; // Importa Provider
-import 'package:money_facil/providers/pagos_provider.dart'; // Importa tu PagosProvider
-
+import 'package:money_facil/providers/pagos_provider.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'constants/routes.dart'; // Añade esta importación
 
 void main() async {
-  // Inicializa los datos de localización para formato de fechas
-  await initializeDateFormatting('es'); // 'es' para español
-
-  // Lanza la aplicación Flutter
+  await initializeDateFormatting('es');
+  
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => PagosProvider()), // Proveedor global
+        ChangeNotifierProvider(create: (_) => PagosProvider()),
       ],
       child: MyApp(),
     ),
@@ -25,16 +24,39 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      locale: Locale('es', 'ES'), // Establece el idioma español
-      supportedLocales: [
-        Locale('es', 'ES'), // Español (España)
-        Locale('en', 'US'), // Inglés (EE.UU.)
+      locale: const Locale('es', 'ES'),
+      supportedLocales: const [
+        Locale('es', 'ES'),
+        Locale('en', 'US'),
       ],
-      localizationsDelegates: [
-        GlobalMaterialLocalizations.delegate, // Necesario para el DatePicker
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
-      home: NavigationScreen(),
+      initialRoute: AppRoutes.login, // Ruta inicial
+      routes: {
+        AppRoutes.login: (context) => LoginScreen(),
+      },
+      onGenerateRoute: (settings) {
+  // Manejo seguro del tipo
+  if (settings.name == AppRoutes.navigation) {
+    if (settings.arguments is! Map<String, dynamic>) {
+      return _errorRoute();
+    }
+    
+    final args = settings.arguments as Map<String, dynamic>;
+    
+    return MaterialPageRoute(
+      builder: (context) => NavigationScreen(
+        username: args['username'] ?? 'Usuario',
+        rol: args['rol'] ?? 'sin_rol',
+        userId: args['userId'] ?? '',
+        userType: args['userType'] ?? 'standard',
+      ),
+    );
+  }
+  return _errorRoute();
+},
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorSchemeSeed: const Color(0xff6750a4),
@@ -42,4 +64,15 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
+
+// Ruta de error genérica
+Route<dynamic> _errorRoute() {
+  return MaterialPageRoute(
+    builder: (_) => Scaffold(
+      body: Center(
+        child: Text('Error de navegación'),
+      ),
+    ),
+  );
 }

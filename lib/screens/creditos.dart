@@ -7,9 +7,16 @@ import 'package:money_facil/custom_app_bar.dart';
 import 'package:intl/intl.dart';
 import 'package:money_facil/dialogs/infoCredito.dart';
 import 'package:money_facil/dialogs/nCredito.dart';
-import 'package:money_facil/ip.dart'; // Para manejar fechas
+import 'package:money_facil/ip.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Para manejar fechas
 
 class SeguimientoScreen extends StatefulWidget {
+  final String username;
+  final String tipoUsuario;
+
+  const SeguimientoScreen({required this.username, required this.tipoUsuario});
+
   @override
   State<SeguimientoScreen> createState() => _SeguimientoScreenState();
 }
@@ -30,6 +37,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     obtenerCreditos();
   }
 
+  @override
+  void dispose() {
+    _timer?.cancel(); // Cancela el temporizador al destruir el widget
+    super.dispose();
+  }
+
   Future<void> obtenerCreditos() async {
     setState(() {
       isLoading = true;
@@ -41,14 +54,29 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
     Future<void> fetchData() async {
       try {
-        final response =
-            await http.get(Uri.parse('http://$baseUrl/api/v1/creditos'));
+        //Recuperar el token de Shared Preferences
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('tokenauth') ?? '';
+
+        final response = await http.get(
+          Uri.parse('http://$baseUrl/api/v1/creditos'),
+          headers: {
+            'tokenauth': token, // Agregar el token al header
+            'Content-Type': 'application/json',
+          },
+        );
 
         print('Status code: ${response.statusCode}');
         print('Response body: ${response.body}');
 
         if (mounted) {
           if (response.statusCode == 200) {
+            // Agrega estos prints
+            print('✅ GET exitoso');
+            print('📦 Token usado: $token');
+            print('🌐 Endpoint: http://$baseUrl/api/v1/creditos');
+            print('📡 Response headers: ${response.headers}');
+
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaCreditos =
@@ -57,6 +85,29 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               errorDeConexion = false;
             });
             _timer?.cancel();
+          } else if (response.statusCode == 404) {
+            final errorData = json.decode(response.body);
+            if (errorData["Error"]["Message"] == "jwt expired") {
+              if (mounted) {
+                setState(() => isLoading = false);
+                // Limpiar token y redirigir
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('tokenauth');
+                _timer?.cancel(); // Cancela el temporizador antes de navegar
+
+                mostrarDialogoError(
+                    'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+                    onClose: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                });
+              }
+              return;
+            } else {
+              setErrorState(dialogShown);
+            }
           } else if (response.statusCode == 400) {
             final errorData = json.decode(response.body);
             if (errorData["Error"]["Message"] ==
@@ -101,6 +152,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   void setErrorState(bool dialogShown, [dynamic error]) {
+    _timer?.cancel(); // Cancela el temporizador antes de navegar
     setState(() {
       isLoading = false;
       errorDeConexion = true;
@@ -116,19 +168,20 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     }
   }
 
-  void mostrarDialogoError(String mensaje) {
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Error de conexión'),
+          title: const Text('Error'),
           content: Text(mensaje),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                if (onClose != null) onClose();
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
           ],
         );
@@ -151,6 +204,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         isDarkMode: _isDarkMode,
         toggleDarkMode: _toggleDarkMode,
         title: 'Créditos Activos',
+        nombre: widget.username,
+        tipoUsuario: widget.tipoUsuario,
       ),
       backgroundColor: Color(0xFFF7F8FA),
       body: content(context),

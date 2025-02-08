@@ -10,8 +10,15 @@ import 'package:money_facil/dialogs/infoGrupo.dart';
 import 'package:money_facil/dialogs/nCliente.dart';
 import 'package:money_facil/dialogs/nGrupo.dart';
 import 'package:money_facil/ip.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GruposScreen extends StatefulWidget {
+  final String username;
+  final String tipoUsuario;
+
+  const GruposScreen({required this.username, required this.tipoUsuario});
+
   @override
   State<GruposScreen> createState() => _GruposScreenState();
 }
@@ -39,7 +46,7 @@ class _GruposScreenState extends State<GruposScreen> {
   final double textHeaderTableSize = 12.0;
   final double textTableSize = 12.0;
 
-  Future<void> obtenerGrupos() async {
+   Future<void> obtenerGrupos() async {
     setState(() {
       isLoading = true;
       errorDeConexion = false;
@@ -50,11 +57,16 @@ class _GruposScreenState extends State<GruposScreen> {
 
     Future<void> fetchData() async {
       try {
-        final response =
-            await http.get(Uri.parse('http://$baseUrl/api/v1/grupodetalles'));
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('tokenauth') ?? '';
 
-        print('Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
+        final response = await http.get(
+          Uri.parse('http://$baseUrl/api/v1/grupodetalles'),
+          headers: {
+            'tokenauth': token, 
+            'Content-Type': 'application/json',
+          },
+        );
 
         if (mounted) {
           if (response.statusCode == 200) {
@@ -65,18 +77,37 @@ class _GruposScreenState extends State<GruposScreen> {
               errorDeConexion = false;
             });
             _timer?.cancel();
+          } else if (response.statusCode == 404) {
+            final errorData = json.decode(response.body);
+            if (errorData["Error"]["Message"] == "jwt expired") {
+              if (mounted) {
+                setState(() => isLoading = false);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('tokenauth');
+                _timer?.cancel();
+                mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+                  onClose: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  }
+                );
+              }
+              return;
+            } else {
+              setErrorState(dialogShown);
+            }
           } else if (response.statusCode == 400) {
             final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] == "No hay grupos registrados" ||
-                errorData["Error"]["Message"] ==
-                    "No hay detalle de grupos registrados") {
+            if (errorData["Error"]["Message"] == "No hay grupos registrados") {
               setState(() {
                 listaGrupos = [];
                 isLoading = false;
                 noGroupsFound = true;
               });
-              _timer
-                  ?.cancel(); // Detener intentos de reconexión si no hay grupos
+              _timer?.cancel();
             } else {
               setErrorState(dialogShown);
             }
@@ -120,9 +151,32 @@ class _GruposScreenState extends State<GruposScreen> {
       } else {
         mostrarDialogoError('Ocurrió un error inesperado.');
       }
-      _timer?.cancel(); // Detener intentos de reconexión en caso de error
+      _timer?.cancel(); 
     }
   }
+
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (onClose != null) onClose();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
 
   String formatDate(String dateString) {
     DateTime date = DateTime.parse(dateString);
@@ -145,6 +199,8 @@ class _GruposScreenState extends State<GruposScreen> {
         isDarkMode: _isDarkMode,
         toggleDarkMode: _toggleDarkMode,
         title: 'Grupos', // Título específico para esta pantalla
+        nombre: widget.username,
+        tipoUsuario: widget.tipoUsuario,
       ),
       body: isLoading
           ? Center(
@@ -431,26 +487,7 @@ class _GruposScreenState extends State<GruposScreen> {
     );
   }
 
-  // Función para mostrar el diálogo de error
-  void mostrarDialogoError(String mensaje) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Error de conexión'),
-          content: Text(mensaje),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+
 
   void mostrarDialogoEditarCliente(String idGrupo) {
     showDialog(

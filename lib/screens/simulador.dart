@@ -8,11 +8,14 @@ import 'package:money_facil/widgets/CardUserWidget.dart';
 import 'package:money_facil/formateador.dart';
 
 class SimuladorScreen extends StatefulWidget {
+    final String username;
+    final String tipoUsuario;
+
+
   @override
   State<SimuladorScreen> createState() => _SimuladorScreenState();
 
-  final String username; // Agregar esta línea
-  const SimuladorScreen({Key? key, required this.username}) : super(key: key);
+  const SimuladorScreen({Key? key, required this.username, required this.tipoUsuario}) : super(key: key);
 }
 
 class _SimuladorScreenState extends State<SimuladorScreen> {
@@ -74,6 +77,8 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
         isDarkMode: _isDarkMode,
         toggleDarkMode: _toggleDarkMode,
         title: 'Simulador', // Título específico para esta pantalla
+        nombre: widget.username,
+        tipoUsuario: widget.tipoUsuario,
       ),
       body: content(context),
     );

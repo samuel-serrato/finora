@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:money_facil/custom_app_bar.dart';
 import '../widgets/CardUserWidget.dart';
 //import 'nusuario.dart';
 import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
-  final String username;
-  const HomeScreen({Key? key, required this.username}) : super(key: key);
+    final String username;
+    final String tipoUsuario;
+
+  const HomeScreen({Key? key, required this.username, required this.tipoUsuario}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -22,7 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Nota> listaNotas = []; // Lista vacía de notas
   bool isLoading = false; // Establecer como falso ya que no se carga nada
   //bool showErrorDialog = false;
-  String username = '';
   String nombre = '';
   String formattedDate = DateFormat('EEEE, d MMMM yyyy').format(DateTime.now());
   String formattedDateTime = DateFormat('h:mm:ss a').format(DateTime.now());
@@ -30,7 +32,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    username = widget.username;
 
     // Actualizar la fecha y la hora cada segundo
     timer = Timer.periodic(Duration(seconds: 1), (Timer timer) {
@@ -48,6 +49,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  bool _isDarkMode = false;
+
+  void _toggleDarkMode(bool value) {
+    setState(() {
+      _isDarkMode = value;
+    });
+  }
 
 
   @override
@@ -57,13 +65,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Color(0xFFF7F8FA),
       body: content(),
-      appBar: isMobile
-          ? AppBar(
-              automaticallyImplyLeading: false,
-              title: Text(''),
-              toolbarHeight: 0,
-            )
-          : null,
+      appBar: CustomAppBar(
+        isDarkMode: _isDarkMode,
+        toggleDarkMode: _toggleDarkMode,
+        title: 'Home',
+        nombre: widget.username,
+        tipoUsuario: widget.tipoUsuario,
+      ),
     );
   }
 
@@ -71,36 +79,10 @@ class _HomeScreenState extends State<HomeScreen> {
       bool isMobile = MediaQuery.of(context).size.width < 600;
 
       return Padding(
-        padding: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
+        padding: const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
         child: Column(
           children: [
-            Expanded(
-              flex: 22,
-              child: Container(
-                //color: Colors.purple,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      //color: Colors.amber,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          fechayHora(),
-                        ],
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: CardUserWidget(
-                        username: widget.username,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            
             Expanded(
               flex: 25,
               child: Container(

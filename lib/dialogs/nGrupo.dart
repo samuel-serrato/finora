@@ -221,7 +221,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   final miembroData = {
     'idgrupos': idGrupo,
     'clientes': miembros,
-    'idusuarios': 'EQ2INREN3T',
+    'idusuarios': '8T9F0D7ZSL',
   };
 
   print("Datos que se enviarán para agregar los miembros: $miembroData");
