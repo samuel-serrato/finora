@@ -102,7 +102,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
         if (!dialogShown) {
           dialogShown = true;
           mostrarDialogoError(
-            'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+            'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
             onClose: () {
               Navigator.push(
                 context,
@@ -125,7 +125,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
           if (!dialogShown) {
             dialogShown = true;
             mostrarDialogoError(
-              'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
               onClose: () {
                 Navigator.push(
                   context,
@@ -187,7 +187,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
           if (!dialogShown) {
             dialogShown = true;
             mostrarDialogoError(
-              'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
               onClose: () {
                 Navigator.push(
                   context,
@@ -213,7 +213,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
         if (!dialogShown) {
           dialogShown = true;
           mostrarDialogoError(
-            'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+            'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
             onClose: () {
               Navigator.push(
                 context,

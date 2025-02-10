@@ -86,7 +86,7 @@ class _GruposScreenState extends State<GruposScreen> {
                 await prefs.remove('tokenauth');
                 _timer?.cancel();
                 mostrarDialogoError(
-                  'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
                   onClose: () {
                     Navigator.push(
                       context,

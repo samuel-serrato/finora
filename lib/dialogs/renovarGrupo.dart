@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
 import 'package:money_facil/ip.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class renovarGrupoDialog extends StatefulWidget {
   final VoidCallback onGrupoRenovado;
@@ -56,6 +59,8 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
   Map<String, dynamic> grupoData = {};
   Timer? _timer; // Temporizador para el tiempo de espera
   bool dialogShown = false; // Evitar mostrar múltiples diálogos de error
+  bool _dialogShown = false;
+
 
   @override
   void initState() {
@@ -72,57 +77,54 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
   }
 
   // Función para obtener los detalles del grupo
-  Future<void> fetchGrupoData() async {
-    print('Ejecutando fetchGrupoData');
+  // Función para obtener los detalles del grupo con manejo de token y errores
+Future<void> fetchGrupoData() async {
+  if (!mounted) return;
+  
+  print('Ejecutando fetchGrupoData');
+  _timer?.cancel();
 
+  setState(() => _isLoading = true);
+
+  _timer = Timer(const Duration(seconds: 10), () {
+    if (mounted && _isLoading && !_dialogShown) {
+      setState(() => _isLoading = false);
+      mostrarDialogoError('Error de conexión. Revise su red.');
+      _dialogShown = true;
+    }
+  });
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    
+    final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {'tokenauth': token},
+    );
+
+    if (!mounted) return;
     _timer?.cancel();
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body)[0];
+      List<Map<String, dynamic>> clientesActuales = [];
 
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && _isLoading) {
-        setState(() {
-          _isLoading = false;
-        });
-        mostrarDialogoError(
-          'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
-        );
-      }
-    });
-
-    try {
-      final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
-      print('URL solicitada: $url');
-      final response = await http.get(Uri.parse(url));
-
-      _timer?.cancel();
-
-      if (response.statusCode == 200) {
-        print('Respuesta recibida: ${response.body}');
-        final data = json.decode(response.body)[0];
-
-        // Lista para almacenar los clientes
-        List<Map<String, dynamic>> clientesActuales = [];
-
-        // Procesamos los datos del grupo
+      if (mounted) {
         setState(() {
           grupoData = data;
           _isLoading = false;
-
           nombreGrupoController.text = data['nombreGrupo'] ?? '';
           descripcionController.text = data['detalles'] ?? '';
           selectedTipo = data['tipoGrupo'];
-
           _selectedPersons.clear();
           _cargosSeleccionados.clear();
 
           if (data['clientes'] != null) {
-            clientesActuales =
-                List<Map<String, dynamic>>.from(data['clientes']);
+            clientesActuales = List<Map<String, dynamic>>.from(data['clientes']);
             _selectedPersons.addAll(clientesActuales);
-
+            
             for (var cliente in clientesActuales) {
               String? idCliente = cliente['idclientes'];
               String? cargo = cliente['cargo'];
@@ -133,58 +135,44 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
             }
           }
         });
-
-        // Imprimir los nombres de los clientes en consola
-        print('Clientes actuales del grupo:');
-        for (var cliente in clientesActuales) {
-          print(
-              'id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}, Cargo: ${cliente['cargo']}');
-        }
-      } else {
-        print('Error en la respuesta: ${response.statusCode}');
-        setState(() {
-          _isLoading = false;
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError(
-            'Error en la carga de datos. Código de error: ${response.statusCode}',
-          );
-        }
       }
-    } catch (e) {
-      print('Error durante la solicitud: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError('Error de conexión o inesperado: $e');
-        }
-      }
+      
+      print('Clientes actuales del grupo:');
+      clientesActuales.forEach((cliente) => print('id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}'));
+    } else {
+      _handleApiError(response, 'Error cargando grupo');
+    }
+  } catch (e) {
+    _handleNetworkError(e);
+  } finally {
+    if (mounted && _isLoading) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   // Función para mostrar el diálogo de error
-  void mostrarDialogoError(String mensaje) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Error'),
-          content: Text(mensaje),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Aceptar'),
-            ),
-          ],
-        );
-      },
-    );
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Error'),
+            content: Text(mensaje),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  if (onClose != null) onClose();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   bool _validarFormularioActual() {
@@ -197,116 +185,150 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
   }
 
   Future<List<Map<String, dynamic>>> findPersons(String query) async {
-    final url = Uri.parse('http://$baseUrl/api/v1/clientes/$query');
-    final response = await http.get(url);
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    
+    final response = await http.get(
+      Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
+      headers: {'tokenauth': token},
+    );
 
     if (response.statusCode == 200) {
-      List<dynamic> data = json.decode(response.body);
-      return List<Map<String, dynamic>>.from(data);
+      return List<Map<String, dynamic>>.from(json.decode(response.body));
     } else {
-      throw Exception('Error al cargar los datos: ${response.statusCode}');
+      _handleApiError(response, 'Error buscando personas');
+      return [];
     }
+  } catch (e) {
+    _handleNetworkError(e);
+    return [];
   }
+}
+
 
   void _renovarGrupo() async {
-    setState(() {
-      _isLoading = true; // Activa el indicador de carga
-    });
+  if (!mounted) return;
+  
+  setState(() => _isLoading = true);
 
-    try {
-      // Datos del grupo a renovar
-      final Map<String, dynamic> data = {
-        'idgrupos': widget.idGrupo,
-        'nombreGrupo':
-            nombreGrupoController.text, // Mantiene el nombre original
-        'detalles':
-            descripcionController.text, // Permite modificar la descripción
-        'tipoGrupo': selectedTipo, // Permite cambiar el tipo
-      };
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    
+    final Map<String, dynamic> data = {
+      'idgrupos': widget.idGrupo,
+      'nombreGrupo': nombreGrupoController.text,
+      'detalles': descripcionController.text,
+      'tipoGrupo': selectedTipo,
+    };
 
-      // Imprimir los datos que se enviarán
-      print("Datos que se enviarán para renovar el grupo: $data");
+    final response = await http.post(
+      Uri.parse('http://$baseUrl/api/v1/grupos/renovacion'),
+      headers: {
+        'Content-Type': 'application/json',
+        'tokenauth': token,
+      },
+      body: json.encode(data),
+    );
 
-      // Enviar solicitud POST para crear un nuevo grupo con los mismos datos
-      final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/grupos/renovacion'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(data),
-      );
+    if (!mounted) return;
 
-      if (response.statusCode == 201) {
-        final responseBody = jsonDecode(response.body);
-        final idNuevoGrupo = responseBody['idgrupos'];
-        print("Nuevo grupo creado con ID: $idNuevoGrupo");
+    if (response.statusCode == 201) {
+      final responseBody = jsonDecode(response.body);
+      final idNuevoGrupo = responseBody['idgrupos'];
+      
+      if (_selectedPersons.isNotEmpty) {
+        await _enviarMiembros(idNuevoGrupo, token);
+      }
 
-        // Agregar los miembros del grupo original al nuevo grupo
-        if (_selectedPersons.isNotEmpty) {
-          await _enviarMiembros(idNuevoGrupo);
-        }
-
-        // Llama al callback para refrescar la lista de grupos
-        widget.onGrupoRenovado();
-
-        // Muestra mensaje de éxito
+      if (mounted) {
+        widget.onGrupoRenovado?.call();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Grupo renovado correctamente'),
             backgroundColor: Colors.green,
           ),
         );
-
-        //Navigator.of(context).pop(); // Cierra el diálogo
-      } else {
-        print("Error en la renovación: ${response.statusCode}");
-        print("Detalles del error: ${response.body}");
-        mostrarDialogoError("Error al renovar el grupo.");
       }
-    } catch (e) {
-      print("Error al renovar grupo: $e");
-      mostrarDialogoError("Error inesperado al renovar el grupo: $e");
-    } finally {
-      setState(() {
-        _isLoading = false; // Desactiva el indicador de carga
-      });
-    }
-  }
-
-  Future<void> _enviarMiembros(String idGrupo) async {
-  // Crear una lista de miembros con la estructura esperada
-  List<Map<String, dynamic>> miembros = _selectedPersons.map((persona) {
-    return {
-      'idclientes': persona['idclientes'], // ID de cliente existente
-      'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro', // Rol seleccionado o 'Miembro' por defecto
-    };
-  }).toList();
-
-  // Crear el objeto de datos para enviar
-  final miembroData = {
-    'idgrupos': idGrupo, // Asigna al nuevo grupo
-    'clientes': miembros, // Lista de miembros
-    'idusuarios': 'WVI8HMQAG5', // ID de usuario por defecto
-  };
-
-  print("Datos para agregar miembros en renovación: $miembroData");
-
-  final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/renovacion');
-  final headers = {'Content-Type': 'application/json'};
-
-  try {
-    final response = await http.post(
-      url,
-      headers: headers,
-      body: json.encode(miembroData),
-    );
-
-    if (response.statusCode == 201) {
-      print("Miembros agregados con éxito en renovación");
     } else {
-      print("Error al agregar miembros en renovación: ${response.statusCode}");
-      print("Detalles del error: ${response.body}");
+      _handleApiError(response, 'Error renovando grupo');
     }
   } catch (e) {
-    print("Error al agregar miembros en renovación: $e");
+    _handleNetworkError(e);
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
+
+  Future<void> _enviarMiembros(String idGrupo, String token) async {
+  try {
+    final miembros = _selectedPersons.map((persona) => {
+      'idclientes': persona['idclientes'],
+      'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
+    }).toList();
+
+    final response = await http.post(
+      Uri.parse('http://$baseUrl/api/v1/grupodetalles/renovacion'),
+      headers: {
+        'Content-Type': 'application/json',
+        'tokenauth': token,
+      },
+      body: json.encode({
+        'idgrupos': idGrupo,
+        'clientes': miembros,
+        'idusuarios': 'WVI8HMQAG5',
+      }),
+    );
+
+    if (response.statusCode != 201) {
+      _handleApiError(response, 'Error agregando miembros');
+    }
+  } catch (e) {
+    _handleNetworkError(e);
+  }
+}
+
+void _handleApiError(http.Response response, String mensajeBase) {
+  try {
+    final errorData = json.decode(response.body);
+    final errorMessage = (errorData['Error']?['Message'] ?? 
+                        errorData['error']?['message'] ?? 
+                        'Error desconocido').toString();
+
+    if ([401, 403, 404].contains(response.statusCode) && 
+       (errorMessage.toLowerCase().contains('jwt') || 
+        errorMessage.toLowerCase().contains('token'))) {
+      _handleTokenExpiration();
+    } else {
+      mostrarDialogoError('$mensajeBase: $errorMessage');
+    }
+  } catch (e) {
+    mostrarDialogoError('$mensajeBase: Error desconocido');
+  }
+}
+
+void _handleNetworkError(dynamic error) {
+  if (error is SocketException) {
+    mostrarDialogoError('Error de conexión. Verifique su internet');
+  } else {
+    mostrarDialogoError('Error inesperado: ${error.toString()}');
+  }
+}
+
+void _handleTokenExpiration() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('tokenauth');
+  
+  if (mounted) {
+    mostrarDialogoError(
+      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+      onClose: () => Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+        (route) => false,
+      ),
+    );
   }
 }
 

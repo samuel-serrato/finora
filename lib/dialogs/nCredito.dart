@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:money_facil/ip.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class nCreditoDialog extends StatefulWidget {
   final VoidCallback onCreditoAgregado;
@@ -192,63 +194,66 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     await enviarCredito(datosParaServidor);
   }
 
+  // Actualiza el método enviarCredito
   Future<void> enviarCredito(Map<String, dynamic> datos) async {
-  // URL del endpoint
-  final String url = 'http://$baseUrl/api/v1/creditos';
+    final String url = 'http://$baseUrl/api/v1/creditos';
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
 
-  // Mostrar un mensaje de carga opcional
-  print("Enviando datos del crédito...");
-
-  try {
-    // Realizar la solicitud POST
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json', // Indicamos que el contenido es JSON
-      },
-      body: jsonEncode(datos), // Convertir datos a JSON
-    );
-
-    // Validar la respuesta
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      // Mostrar Snackbar de éxito
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Crédito guardado exitosamente'),
-          backgroundColor: Colors.green, // Color verde para éxito
-        ),
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(datos),
       );
 
-      // Llama al callback para refrescar la lista de créditos
-      if (widget.onCreditoAgregado != null) {
-        widget.onCreditoAgregado();
+      if (mounted) {
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Crédito guardado exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          widget.onCreditoAgregado();
+          Navigator.of(context).pop();
+        } else if (response.statusCode == 404) {
+          final errorData = json.decode(response.body);
+          if (errorData["Error"]["Message"] == "jwt expired") {
+            await prefs.remove('tokenauth');
+            mostrarDialogoError(
+              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+              onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              }
+            );
+          } else {
+            _mostrarError('Error al guardar el crédito: ${response.statusCode}');
+          }
+        } else {
+          _mostrarError('Error al guardar el crédito: ${response.statusCode}');
+        }
       }
-
-      Navigator.of(context).pop(); // Cerrar la vista o diálogo
-    } else {
-      // Mostrar Snackbar de error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al guardar el crédito: ${response.statusCode}'),
-          backgroundColor: Colors.red, // Color rojo para error
-        ),
-      );
-      print('Error al guardar el crédito: ${response.statusCode}');
-      print('Respuesta del servidor: ${response.body}');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de conexión. Verifica tu red.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        print('Error al guardar el crédito: $e');
+      }
     }
-  } catch (e) {
-    // Mostrar Snackbar de error de conexión
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error de conexión. Verifica tu red e intenta nuevamente.'),
-        backgroundColor: Colors.red, // Color rojo para error
-      ),
-    );
-
-    // Manejo de errores de conexión u otros
-    print('Error al guardar el crédito: $e');
   }
-}
+
 
   void _mostrarError(String mensaje) {
     showDialog(
@@ -281,11 +286,16 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
     Future<void> fetchData() async {
       try {
-        final response =
-            await http.get(Uri.parse('http://$baseUrl/api/v1/grupodetalles'));
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('tokenauth') ?? '';
 
-        print('Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
+        final response = await http.get(
+          Uri.parse('http://$baseUrl/api/v1/grupodetalles'),
+          headers: {
+            'tokenauth': token,
+            'Content-Type': 'application/json',
+          },
+        );
 
         if (mounted) {
           if (response.statusCode == 200) {
@@ -296,6 +306,28 @@ class _nCreditoDialogState extends State<nCreditoDialog>
               errorDeConexion = false;
             });
             _timer?.cancel();
+          } else if (response.statusCode == 404) {
+            final errorData = json.decode(response.body);
+            if (errorData["Error"]["Message"] == "jwt expired") {
+              if (mounted) {
+                setState(() => isLoading = false);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('tokenauth');
+                _timer?.cancel();
+                mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  }
+                );
+              }
+              return;
+            } else {
+              setErrorState(dialogShown);
+            }
           } else if (response.statusCode == 400) {
             final errorData = json.decode(response.body);
             if (errorData["Error"]["Message"] == "No hay grupos registrados") {
@@ -304,8 +336,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                 isLoading = false;
                 noGroupsFound = true;
               });
-              _timer
-                  ?.cancel(); // Detener intentos de reconexión si no hay grupos
+              _timer?.cancel();
             } else {
               setErrorState(dialogShown);
             }
@@ -354,24 +385,27 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   }
 
   // Función para mostrar el diálogo de error
-  void mostrarDialogoError(String mensaje) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Error de conexión'),
-          content: Text(mensaje),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Error'),
+            content: Text(mensaje),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  if (onClose != null) onClose();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   @override

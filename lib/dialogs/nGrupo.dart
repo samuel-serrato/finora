@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
 import 'package:money_facil/ip.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class nGrupoDialog extends StatefulWidget {
   final VoidCallback onGrupoAgregado;
@@ -48,6 +52,10 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   bool _isLoading = false;
   bool esAdicional = false; // Variable para el estado del checkbox
 
+  Timer? _timer;
+  bool _dialogShown = false;
+  bool _errorDeConexion = false;
+
   @override
   void initState() {
     super.initState();
@@ -68,207 +76,228 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     return false;
   }
 
-  Future<List<Map<String, dynamic>>> findPersons(String query) async {
-    final url = Uri.parse('http://$baseUrl/api/v1/clientes/$query');
-    final response = await http.get(url);
-
-    if (response.statusCode == 200) {
-      List<dynamic> data = json.decode(response.body);
-      return List<Map<String, dynamic>>.from(data);
-    } else {
-      throw Exception('Error al cargar los datos: ${response.statusCode}');
-    }
-  }
-
-  void _mostrarDialogo(
-      {required String title,
-      required String message,
-      required bool isSuccess}) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            title,
-            style: TextStyle(color: isSuccess ? Colors.green : Colors.red),
-          ),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Cierra el diálogo
-              },
-              child: Text('Aceptar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _agregarGrupo() async {
-  setState(() {
-    _isLoading = true;
-  });
-
-  final grupoResponse = await _enviarGrupo();
-
-  if (grupoResponse != null) {
-    final idGrupo = grupoResponse["idgrupos"];
-    print("ID del grupo creado: $idGrupo");
-
-    if (idGrupo != null) {
-      // Paso 2: Crear miembros para el grupo
-      final miembrosAgregados = await _enviarMiembros(idGrupo);
-
-      if (miembrosAgregados) {
-        // Llama al callback para refrescar la lista de grupos
-        widget.onGrupoAgregado();
-
-        // Muestra el SnackBar de éxito
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Grupo agregado correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Cierra el diálogo
-        Navigator.of(context).pop();
-      } else {
-        print("Error al agregar miembros. Revisa los mensajes de error.");
-        // No cierres el diálogo; ya se mostró el error.
-      }
-    } else {
-      print("Error: idGrupo es nulo.");
-    }
-  } else {
-    print("Error: grupoResponse es nulo.");
-  }
-
-  setState(() {
-    _isLoading = false;
-  });
-}
-
-
-  Future<Map<String, dynamic>?> _enviarGrupo() async {
-    final url = Uri.parse('http://$baseUrl/api/v1/grupos');
-    final headers = {'Content-Type': 'application/json'};
-
-    final Map<String, dynamic> data = {
-      'nombreGrupo': nombreGrupoController.text,
-      'detalles': descripcionController.text,
-      'tipoGrupo': selectedTipo,
-      'isAdicional': esAdicional
-          ? 'Sí'
-          : 'No', // Se manda 'Sí' o 'No' según el valor del checkbox
-    };
-
-    // Imprimir los datos antes de enviarlos
-    print("Datos que se enviarán para crear el grupo: $data");
-
+   Future<List<Map<String, dynamic>>> findPersons(String query) async {
+    if (query.isEmpty) return [];
+    
     try {
-      final response = await http.post(
-        url,
-        headers: headers,
-        body: json.encode(data),
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      
+      final response = await http.get(
+        Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
       );
 
-      print("Código de estado de la respuesta: ${response.statusCode}");
-      print("Cuerpo de la respuesta: ${response.body}");
-
-      if (response.statusCode == 201) {
-        final responseBody = jsonDecode(response.body);
-        print("Cuerpo decodificado: $responseBody");
-        return responseBody; // Devuelve el objeto completo si la creación fue exitosa
-      } else {
-        print("Error en crear grupo: ${response.statusCode}");
-
-        // Formatea el mensaje de error
-        final responseBody = jsonDecode(response.body);
-        final errorCode = responseBody['Error']?['Code'];
-        final errorMessage = responseBody['Error']?['Message'];
-
-        final formattedMessage =
-            'Error $errorCode: ${errorMessage ?? "Ocurrió un error inesperado."}';
-
-        print("Error en crear grupo: $formattedMessage");
-
-        // Muestra el error en el diálogo
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      } else if (response.statusCode == 404) {
+        final errorData = json.decode(response.body);
+        if (errorData["Error"]["Message"] == "jwt expired") {
+          _handleTokenExpiration();
+        }
+      }
+      return [];
+    } catch (e) {
+      if (mounted && !_dialogShown) {
         _mostrarDialogo(
           title: 'Error',
-          message: formattedMessage,
+          message: 'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
           isSuccess: false,
         );
       }
-    } catch (e) {
-      print("Error al enviar grupo: $e");
+      return [];
     }
-
-    return null; // Si algo falla, retorna null
   }
 
-// Función para enviar los miembros al grupo
-  Future<bool> _enviarMiembros(String idGrupo) async {
-  List<Map<String, dynamic>> miembros = _selectedPersons.map((persona) {
-    return {
-      'idcliente': persona['idclientes'],
-      'nomCargo': _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
-    };
-  }).toList();
-
-  final miembroData = {
-    'idgrupos': idGrupo,
-    'clientes': miembros,
-    'idusuarios': '8T9F0D7ZSL',
-  };
-
-  print("Datos que se enviarán para agregar los miembros: $miembroData");
-
-  final url = Uri.parse('http://$baseUrl/api/v1/grupodetalles/');
-  final headers = {'Content-Type': 'application/json'};
-
-  try {
-    final response = await http.post(
-      url,
-      headers: headers,
-      body: json.encode(miembroData),
-    );
-
-    if (response.statusCode == 201) {
-      print("Miembros agregados con éxito");
-      return true;
-    } else {
-      print("Error al agregar miembros: ${response.statusCode}");
-      print("Detalles del error: ${response.body}");
-
-      final responseBody = jsonDecode(response.body);
-      final errorCode = responseBody['Error']?['Code'] ?? response.statusCode;
-      final errorMessage = responseBody['Error']?['Message'] ??
-          "Ocurrió un error al agregar los miembros.";
-
-      final formattedMessage =
-          'Error $errorCode: ${errorMessage ?? "Error inesperado."}';
-
+  void _handleTokenExpiration() async {
+    if (mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('tokenauth');
+      
       _mostrarDialogo(
-        title: 'Error al agregar miembros',
-        message: formattedMessage,
+        title: 'Sesión expirada',
+        message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+        isSuccess: false,
+        onClose: () => Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        ),
+      );
+    }
+  }
+  
+  void _agregarGrupo() async {
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+      _errorDeConexion = false;
+      _dialogShown = false;
+    });
+
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && !_dialogShown) {
+        setState(() {
+          _isLoading = false;
+          _errorDeConexion = true;
+        });
+        _mostrarDialogo(
+          title: 'Error',
+          message: 'Tiempo de espera agotado. Verifica tu conexión.',
+          isSuccess: false,
+        );
+      }
+    });
+
+    try {
+      final grupoResponse = await _enviarGrupo();
+      if (!mounted) return;
+
+      if (grupoResponse != null) {
+        final idGrupo = grupoResponse["idgrupos"];
+        if (idGrupo != null) {
+          final miembrosAgregados = await _enviarMiembros(idGrupo);
+          if (!mounted) return;
+
+          if (miembrosAgregados) {
+            widget.onGrupoAgregado();
+            Navigator.of(context).pop();
+          }
+        }
+      }
+    } finally {
+      _timer?.cancel();
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+
+  Future<Map<String, dynamic>?> _enviarGrupo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      
+      final response = await http.post(
+        Uri.parse('http://$baseUrl/api/v1/grupos'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'nombreGrupo': nombreGrupoController.text,
+          'detalles': descripcionController.text,
+          'tipoGrupo': selectedTipo,
+          'isAdicional': esAdicional ? 'Sí' : 'No',
+        }),
+      );
+
+      if (!mounted) return null;
+
+      if (response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else {
+        _handleResponseError(response);
+      }
+    } catch (e) {
+      if (mounted && !_dialogShown) {
+        _mostrarDialogo(
+          title: 'Error',
+          message: 'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+          isSuccess: false);
+      }
+    }
+    return null;
+  }
+
+  void _handleResponseError(http.Response response) {
+    final responseBody = jsonDecode(response.body);
+    final errorCode = responseBody['Error']?['Code'] ?? response.statusCode;
+    final errorMessage = responseBody['Error']?['Message'] ?? "Error desconocido";
+
+    if (response.statusCode == 401 && errorMessage == "jwt expired") {
+      _handleTokenExpiration();
+    } else {
+      _mostrarDialogo(
+        title: 'Error ${response.statusCode}',
+        message: errorMessage,
         isSuccess: false,
       );
     }
-  } catch (e) {
-    print("Error al enviar miembros: $e");
-
-    _mostrarDialogo(
-      title: 'Error',
-      message: 'Ocurrió un error inesperado: $e',
-      isSuccess: false,
-    );
   }
 
-  return false; // Devuelve false si ocurre un error
-}
+// Función para enviar los miembros al grupo
+ Future<bool> _enviarMiembros(String idGrupo) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      
+      final response = await http.post(
+        Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'idgrupos': idGrupo,
+          'clientes': _selectedPersons.map((persona) => {
+            'idcliente': persona['idclientes'],
+            'nomCargo': _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
+          }).toList(),
+          'idusuarios': '8T9F0D7ZSL',
+        }),
+      );
+
+      if (!mounted) return false;
+
+      if (response.statusCode == 201) return true;
+      
+      _handleResponseError(response);
+      return false;
+    } catch (e) {
+      if (mounted && !_dialogShown) {
+        _mostrarDialogo(
+          title: 'Error',
+          message: 'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+          isSuccess: false,
+        );
+      }
+      return false;
+    }
+  }
+
+  void _mostrarDialogo({
+    required String title,
+    required String message,
+    required bool isSuccess,
+    VoidCallback? onClose,
+  }) {
+    if (!mounted || _dialogShown) return;
+    
+    _dialogShown = true;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title, style: TextStyle(color: isSuccess ? Colors.green : Colors.red)),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              onClose?.call();
+            },
+            child: Text('Aceptar'),
+          ),
+        ],
+      ),
+    ).then((_) => _dialogShown = false);
+  }
+
 
 
 

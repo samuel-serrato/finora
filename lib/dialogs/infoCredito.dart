@@ -26,7 +26,7 @@ class InfoCredito extends StatefulWidget {
 class _InfoCreditoState extends State<InfoCredito> {
   Credito? creditoData; // Ahora es de tipo Credito? (nulo permitido)
   bool isLoading = true;
-    bool errorDeConexion = false; // Para indicar si hubo un error de conexión.
+  bool errorDeConexion = false; // Para indicar si hubo un error de conexión.
   bool dialogShown = false;
   Timer? _timer;
   late ScrollController _scrollController;
@@ -48,107 +48,111 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   Future<void> _fetchCreditoData() async {
-  _timer = Timer(Duration(seconds: 10), () {
-    if (mounted && isLoading) {
-      setState(() {
-        isLoading = false;
-      });
-      _showErrorDialog(
-          'No se pudo conectar al servidor. Por favor, revisa tu conexión de red.');
-    }
-  });
-
-  if (mounted) {
-    setState(() {
-      isLoading = true;
-    });
-  }
-
-  bool dialogShown = false;
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-
-    final url = 'http://$baseUrl/api/v1/creditos/${widget.folio}';
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {'tokenauth': token},
-    );
-
-    _timer?.cancel();
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data is List && data.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            creditoData = Credito.fromJson(data[0]);
-            isLoading = false;
-          });
-        }
-      } else {
-        _handleError(dialogShown, 'Error en la carga de datos...');
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && isLoading) {
+        setState(() {
+          isLoading = false;
+        });
+        _showErrorDialog(
+            'No se pudo conectar al servidor. Por favor, revisa tu conexión de red.');
       }
-      idCredito = creditoData!.idcredito;
-    } else if (response.statusCode == 404) {
-      final errorData = json.decode(response.body);
-      if (errorData["Error"]["Message"] == "jwt expired") {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('tokenauth');
-        _handleError(dialogShown,
-            'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.',
-            redirectToLogin: true);
+    });
+
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+      });
+    }
+
+    bool dialogShown = false;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final url = 'http://$baseUrl/api/v1/creditos/${widget.folio}';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'tokenauth': token},
+      );
+
+      _timer?.cancel();
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data is List && data.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              creditoData = Credito.fromJson(data[0]);
+              isLoading = false;
+            });
+          }
+        } else {
+          _handleError(dialogShown, 'Error en la carga de datos...');
+        }
+        idCredito = creditoData!.idcredito;
+      } else if (response.statusCode == 404) {
+        final errorData = json.decode(response.body);
+        if (errorData["Error"]["Message"] == "jwt expired") {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('tokenauth');
+          _handleError(dialogShown,
+              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+              redirectToLogin: true);
+        } else {
+          _handleError(dialogShown, 'Error: ${response.statusCode}');
+        }
       } else {
         _handleError(dialogShown, 'Error: ${response.statusCode}');
       }
-    } else {
-      _handleError(dialogShown, 'Error: ${response.statusCode}');
+    } catch (e) {
+      _handleError(dialogShown, 'Error: $e');
     }
-  } catch (e) {
-    _handleError(dialogShown, 'Error: $e');
-  }
-}
-
-void _handleError(bool dialogShown, String mensaje, {bool redirectToLogin = false}) {
-  _timer?.cancel();
-
-  if (mounted) {
-    setState(() {
-      isLoading = false;
-      errorDeConexion = true;
-    });
   }
 
-  if (!dialogShown) {
-    dialogShown = true;
-    _showErrorDialog(mensaje, onClose: redirectToLogin ? () {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => LoginScreen()));
-    } : null);
+  void _handleError(bool dialogShown, String mensaje,
+      {bool redirectToLogin = false}) {
+    _timer?.cancel();
+
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true;
+      });
+    }
+
+    if (!dialogShown) {
+      dialogShown = true;
+      _showErrorDialog(mensaje,
+          onClose: redirectToLogin
+              ? () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()));
+                }
+              : null);
+    }
   }
-}
 
-void _showErrorDialog(String mensaje, {VoidCallback? onClose}) {
-  showDialog(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('Error'),
-        content: Text(mensaje),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              if (onClose != null) onClose();
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
+  void _showErrorDialog(String mensaje, {VoidCallback? onClose}) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (onClose != null) onClose();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   List<Map<String, dynamic>> generarPagoJson(
     List<PagoSeleccionado> pagosSeleccionados,
@@ -180,6 +184,33 @@ void _showErrorDialog(String mensaje, {VoidCallback? onClose}) {
 
       double totalDeuda =
           (pagoActual.capitalMasInteres ?? 0.0) + (pagoActual.moratorio ?? 0.0);
+
+          // ===== Lógica para "Garantia" =====
+      if (pagoActual.tipoPago?.toLowerCase() == 'garantia') {
+        double totalDepositado = pagoActual.deposito ?? 0.0;
+        double capitalPendiente = pagoActual.capitalMasInteres! - paidCapital;
+        double moratorioPendiente = pagoActual.moratorio! - paidMoratorio;
+
+        // Aplicar a capital primero
+        double aplicadoCapital = totalDepositado.clamp(0.0, capitalPendiente);
+        double remanente = totalDepositado - aplicadoCapital;
+
+        // Aplicar remanente a moratorios
+        double aplicadoMoratorio = remanente.clamp(0.0, moratorioPendiente);
+        double saldofavor = (totalDepositado - (aplicadoCapital + aplicadoMoratorio))
+            .clamp(0.0, double.infinity);
+
+        pagosJson.add({
+          "idfechaspagos": pagoActual.idfechaspagos,
+          "fechaPago": pagoActual.fechaPago,
+          "tipoPago": "Garantia",
+          "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0),
+          "deposito": _redondear(aplicadoCapital),
+          "moratorio": _redondear(aplicadoMoratorio),
+          "saldofavor": _redondear(saldofavor),
+        });
+        continue;
+      }
 
       // ===== Lógica para "Completo" =====
       if (pagoActual.tipoPago?.toLowerCase() == 'completo') {
@@ -220,7 +251,7 @@ void _showErrorDialog(String mensaje, {VoidCallback? onClose}) {
           "idfechaspagos": pagoActual.idfechaspagos,
           "fechaPago": pagoActual.fechaPago,
           "tipoPago": "Monto Parcial",
-          "montoaPagar": _redondear(pagoActual.capitalMasInteres??0.0),
+          "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0),
           "deposito": _redondear(aplicadoCapital),
           "moratorio": _redondear(aplicadoMoratorio),
           "saldofavor": _redondear(saldofavor),
@@ -301,79 +332,85 @@ void _showErrorDialog(String mensaje, {VoidCallback? onClose}) {
   }
 
   Future<void> enviarDatosAlServidor(
-  BuildContext context, 
-  List<PagoSeleccionado> pagosSeleccionados,
-) async {
-  // Obtener los pagos originales del provider
-  final pagosOriginales =
-      Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
+    BuildContext context,
+    List<PagoSeleccionado> pagosSeleccionados,
+  ) async {
+    // Obtener los pagos originales del provider
+    final pagosOriginales =
+        Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
 
-  // Generar los datos JSON con la función que ya tienes
-  List<Map<String, dynamic>> pagosJson =
-      generarPagoJson(pagosSeleccionados, pagosOriginales);
+    // Generar los datos JSON con la función que ya tienes
+    List<Map<String, dynamic>> pagosJson =
+        generarPagoJson(pagosSeleccionados, pagosOriginales);
 
-  // URL del servidor
-  final url = Uri.parse('http://$baseUrl/api/v1/pagos');
+    // URL del servidor
+    final url = Uri.parse('http://$baseUrl/api/v1/pagos');
 
-  // Obtener el token de SharedPreferences
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('tokenauth') ?? '';
+    // Obtener el token de SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
 
-  // Verificar que el token esté disponible
-  if (token.isEmpty) {
-    _handleError(false, 'Token de autenticación no encontrado. Por favor, inicia sesión.', redirectToLogin: true);
-    return;
-  }
-
-  // Datos a enviar
-  print('Datos a enviar: $pagosJson');
-
-  try {
-    // Hacer la solicitud POST
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json', // Asegúrate de enviar como JSON
-        'tokenauth': token, // Agregar el token al header
-      },
-      body: json.encode(pagosJson), // Convertir los datos a formato JSON
-    );
-
-    // Verificar la respuesta del servidor
-    if (response.statusCode == 201) {
-      print('Datos enviados exitosamente');
-      mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
-      // Llama a recargarPagos en PaginaControl
-      // paginaControlKey.currentState?.recargarPagos();
-    } else {
-      // Verificar si la sesión ha expirado
-      if (response.statusCode == 401) { // Código para sesión expirada
-        _handleError(false, 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.', redirectToLogin: true);
-        return;
-      }
-
-      // Imprimir detalles del error si la respuesta no es 201
-      print('Error al enviar datos: ${response.statusCode}');
-      print('Respuesta del servidor: ${response.body}');
-
-      // Parsear la respuesta del servidor
-      final Map<String, dynamic> respuesta = json.decode(response.body);
-      final int codigoError = respuesta['Error']['Code'];
-      final String mensajeError = respuesta['Error']['Message'];
-
-      // Mostrar el error usando la misma función
-      mostrarDialogo(
-        context,
-        'Error $codigoError',
-        mensajeError,
-        esError: true,
-      );
+    // Verificar que el token esté disponible
+    if (token.isEmpty) {
+      _handleError(false,
+          'Token de autenticación no encontrado. Por favor, inicia sesión.',
+          redirectToLogin: true);
+      return;
     }
-  } catch (e) {
-    print('Error al hacer la solicitud: $e');
-    mostrarDialogo(context, 'Error', 'Ocurrió un error: $e', esError: true);
+
+    // Datos a enviar
+    print('Datos a enviar: $pagosJson');
+
+    try {
+      // Hacer la solicitud POST
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json', // Asegúrate de enviar como JSON
+          'tokenauth': token, // Agregar el token al header
+        },
+        body: json.encode(pagosJson), // Convertir los datos a formato JSON
+      );
+
+      // Verificar la respuesta del servidor
+      if (response.statusCode == 201) {
+        print('Datos enviados exitosamente');
+        mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
+        // Llama a recargarPagos en PaginaControl
+        // paginaControlKey.currentState?.recargarPagos();
+      } else {
+        // Verificar si la sesión ha expirado
+        if (response.statusCode == 401) {
+          // Código para sesión expirada
+          _handleError(false,
+              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+              redirectToLogin: true);
+          return;
+        }
+
+        // Imprimir detalles del error si la respuesta no es 201
+        print('Error al enviar datos: ${response.statusCode}');
+        print('Respuesta del servidor: ${response.body}');
+
+        // Parsear la respuesta del servidor
+        final Map<String, dynamic> respuesta = json.decode(response.body);
+        final int codigoError = respuesta['Error']['Code'];
+        final String mensajeError = respuesta['Error']['Message'];
+
+        // Mostrar el error usando la misma función
+        mostrarDialogo(
+          context,
+          'Error $codigoError',
+          mensajeError,
+          esError: true,
+        );
+      }
+    } catch (e) {
+      print('Error al hacer la solicitud: $e');
+      mostrarDialogo(context, 'Error', 'Ocurrió un error: $e', esError: true);
+    }
   }
-}
+
 // Función para mostrar un diálogo genérico o de error con diseño
   void mostrarDialogo(BuildContext context, String titulo, String mensaje,
       {bool esError = false}) {
@@ -611,8 +648,11 @@ void _showErrorDialog(String mensaje, {VoidCallback? onClose}) {
                                                 _buildSectionTitle(
                                                     'Control de Pagos'),
                                                 PaginaControl(
-                                                    key: paginaControlKey,
-                                                    idCredito: idCredito),
+                                                  key: paginaControlKey,
+                                                  idCredito: idCredito,
+                                                  montoGarantia: creditoData!
+                                                      .montoGarantia ?? 0.0,
+                                                ),
                                               ],
                                             ),
                                           ),
@@ -705,8 +745,8 @@ void _showErrorDialog(String mensaje, {VoidCallback? onClose}) {
                       if (pagosJson.isNotEmpty) {
                         print('Datos a enviar: $pagosJson');
                         // Llamar a la función para enviar los datos al servidor
-                        await enviarDatosAlServidor(
-                          context, pagosSeleccionados);
+                        //await enviarDatosAlServidor(
+                          //    context, pagosSeleccionados);
                       } else {
                         print("No hay cambios para guardar.");
                       }
@@ -836,6 +876,7 @@ class Credito {
   final double ti_mensual;
   final String folio;
   final String garantia;
+  final double montoGarantia;
   final double montoDesembolsado;
   final double interesGlobal;
   final double semanalCapital; // Nuevo campo
@@ -861,6 +902,7 @@ class Credito {
     required this.ti_mensual,
     required this.folio,
     required this.garantia,
+    required this.montoGarantia,
     required this.montoDesembolsado,
     required this.interesGlobal,
     required this.semanalCapital, // Nuevo campo
@@ -891,6 +933,7 @@ class Credito {
       ti_mensual: (json['ti_mensual'] as num?)?.toDouble() ?? 0.0,
       folio: json['folio'] ?? "",
       garantia: json['garantia'] ?? "",
+      montoGarantia: (json['montoGarantia'] as num?)?.toDouble() ?? 0.0,
       montoDesembolsado: (json['montoDesembolsado'] as num?)?.toDouble() ?? 0.0,
       interesGlobal: (json['interesGlobal'] as num?)?.toDouble() ?? 0.0,
       semanalCapital: (json['semanalCapital'] as num?)?.toDouble() ?? 0.0,
@@ -913,8 +956,11 @@ class Credito {
 
 class PaginaControl extends StatefulWidget {
   final String idCredito;
+  final double montoGarantia;
 
-  PaginaControl({Key? key, required this.idCredito}) : super(key: key);
+  PaginaControl(
+      {Key? key, required this.idCredito, required this.montoGarantia})
+      : super(key: key);
 
   @override
   _PaginaControlState createState() => _PaginaControlState();
@@ -966,7 +1012,8 @@ class _PaginaControlState extends State<PaginaControl> {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/creditos/calendario/${widget.idCredito}'),
+        Uri.parse(
+            'http://$baseUrl/api/v1/creditos/calendario/${widget.idCredito}'),
         headers: {'tokenauth': token, 'Content-Type': 'application/json'},
       );
 
@@ -975,7 +1022,8 @@ class _PaginaControlState extends State<PaginaControl> {
         List<Pago> pagos = data.map((pago) => Pago.fromJson(pago)).toList();
 
         for (var pago in pagos) {
-          double totalDeuda = (pago.capitalMasInteres ?? 0.0) + (pago.moratorios?.moratorios ?? 0.0);
+          double totalDeuda = (pago.capitalMasInteres ?? 0.0) +
+              (pago.moratorios?.moratorios ?? 0.0);
           double montoPagado = pago.sumaDepositoMoratorisos ?? 0.0;
           bool sinActividad = pago.abonos.isEmpty && montoPagado == 0.0;
 
@@ -1088,10 +1136,10 @@ class _PaginaControlState extends State<PaginaControl> {
     if (pago.moratorios != null) {
       return pago.moratorios!.montoTotal > pago.sumaDepositoMoratorisos!;
     } else {
-      return (pago.capitalMasInteres ?? 0) > (pago.sumaDepositoMoratorisos ?? 0);
+      return (pago.capitalMasInteres ?? 0) >
+          (pago.sumaDepositoMoratorisos ?? 0);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -1262,7 +1310,8 @@ class _PaginaControlState extends State<PaginaControl> {
                 ),
               ),
               Container(
-                height: MediaQuery.of(context).size.height * 0.52, // ← Ajusta el porcentaje
+                height: MediaQuery.of(context).size.height *
+                    0.52, // ← Ajusta el porcentaje
                 child: SingleChildScrollView(
                   child: Column(
                     children: pagos.map((pago) {
@@ -1340,396 +1389,505 @@ class _PaginaControlState extends State<PaginaControl> {
                               ),
                               // Celda para tipo de pago
                               _buildTableCell(
-                                esPago1
-                                    ? "-"
-                                    : DropdownButton<String?>(
-                                        value: pago.tipoPago.isEmpty
-                                            ? null
-                                            : pago.tipoPago,
-                                        hint: Text(
-                                          pago.tipoPago.isEmpty
-                                              ? "Seleccionar Pago"
-                                              : "",
-                                          style: TextStyle(fontSize: 12),
-                                        ),
-                                        items: <String>[
-                                          'Completo',
-                                          'Monto Parcial',
-                                          'En Abonos',
-                                        ].map((String value) {
-                                          return DropdownMenuItem<String?>(
-                                            value: value,
-                                            child: Text(
-                                              value,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: _puedeEditarPago(pago)
-                                                    ? Colors.black
-                                                    : Colors.grey[700],
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                        onChanged: _puedeEditarPago(pago)
-                                            ? (String? newValue) {
-                                                setState(() {
-                                                  pago.tipoPago = newValue!;
-                                                  print(
-                                                      "Pago seleccionado: Semana ${pago.semana}, Tipo de pago: $newValue, Fecha de pago: ${pago.fechaPago}, ID Fechas Pagos: ${pago.idfechaspagos}, Monto a Pagar: ${pago.capitalMasInteres}");
+  esPago1
+      ? "-"
+      : DropdownButton<String?>(
+          value: pago.tipoPago.isEmpty ? null : pago.tipoPago,
+          hint: Text(
+            pago.tipoPago.isEmpty ? "Seleccionar Pago" : "",
+            style: TextStyle(fontSize: 12),
+          ),
+          items: <String>[
+            'Completo',
+            'Monto Parcial',
+            'En Abonos',
+            if (pago.semana >= totalPagosDelCredito - 1) 'Garantia',
+          ].map((String value) {
+            return DropdownMenuItem<String?>(
+              value: value,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _puedeEditarPago(pago) ? Colors.black : Colors.grey[700],
+                ),
+              ),
+            );
+          }).toList(),
+          onChanged: _puedeEditarPago(pago)
+              ? (String? newValue) {
+                  setState(() {
+                    pago.tipoPago = newValue!;
+                    print("Pago seleccionado: Semana ${pago.semana}, Tipo de pago: $newValue, Fecha de pago: ${pago.fechaPago}, ID Fechas Pagos: ${pago.idfechaspagos}, Monto a Pagar: ${pago.capitalMasInteres}");
 
-                                                  if (newValue == 'Completo') {
-                                                    // Asegurarse de que `capitalMasInteres` no sea null antes de asignarlo a `deposito`
-                                                    double montoAPagar =
-                                                        pago.capitalMasInteres ??
-                                                            0.0;
-                                                    pago.deposito =
-                                                        montoAPagar; // Asignamos el monto a pagar al depósito
+                    // Manejar diferentes tipos de pago
+                    if (newValue == 'Completo') {
+                      double montoAPagar = pago.capitalMasInteres ?? 0.0;
+                      pago.deposito = montoAPagar;
+                      
+                      if (pago.fechaPago == null) {
+                        pago.fechaPago = DateTime.now().toString();
+                      }
+                    } 
+                    else if (newValue == 'Garantia') {
+                      // Asignar valor de garantía desde el widget
+                      pago.deposito = widget.montoGarantia;
+                      pago.saldoFavor = 0.0;
+                      pago.saldoEnContra = 0.0;
+                    }
 
-                                                    print(
-                                                        "Monto a pagar (deposito): $montoAPagar");
+                    // Crear objeto PagoSeleccionado
+                    PagoSeleccionado pagoSeleccionado = PagoSeleccionado(
+                      semana: pago.semana,
+                      tipoPago: pago.tipoPago,
+                      deposito: pago.deposito ?? 0.00,
+                      fechaPago: pago.fechaPago ?? '',
+                      idfechaspagos: pago.idfechaspagos ?? '',
+                      capitalMasInteres: pago.capitalMasInteres,
+                      moratorio: pago.moratorios?.moratorios,
+                      saldoFavor: pago.saldoFavor,
+                      saldoEnContra: pago.saldoEnContra,
+                      abonos: pago.abonos,
+                    );
 
-                                                    if (pago.fechaPago ==
-                                                        null) {
-                                                      pago.fechaPago =
-                                                          DateTime.now()
-                                                              .toString();
-                                                    }
+                    // Actualizar provider
+                    Provider.of<PagosProvider>(context, listen: false)
+                        .actualizarPago(pagoSeleccionado.semana, pagoSeleccionado);
 
-                                                    // Convertir Pago a PagoSeleccionado
-                                                    PagoSeleccionado
-                                                        pagoSeleccionado =
-                                                        PagoSeleccionado(
-                                                      semana: pago.semana,
-                                                      tipoPago: pago.tipoPago,
-                                                      deposito: pago.deposito ??
-                                                          0.00, // Ahora deposito tiene el monto a pagar
-                                                      fechaPago: pago.fechaPago,
-                                                      idfechaspagos:
-                                                          pago.idfechaspagos,
-                                                      capitalMasInteres: pago
-                                                          .capitalMasInteres,
-                                                      moratorio: pago
-                                                          .moratorios!
-                                                          .moratorios,
-                                                      saldoFavor:
-                                                          pago.saldoFavor,
-                                                      saldoEnContra:
-                                                          pago.saldoEnContra,
-                                                      abonos: pago.abonos,
-                                                    );
-
-                                                    // Ahora puedes actualizar el pago en el provider
-                                                    Provider.of<PagosProvider>(
-                                                            context,
-                                                            listen: false)
-                                                        .actualizarPago(
-                                                            pagoSeleccionado
-                                                                .semana,
-                                                            pagoSeleccionado);
-                                                  }
-
-                                                  // Imprimir el estado del provider después de actualización
-                                                  print(
-                                                      "Estado del Provider después de actualización:");
-                                                  Provider.of<PagosProvider>(
-                                                          context,
-                                                          listen: false)
-                                                      .pagosSeleccionados
-                                                      .forEach((pago) {
-                                                    print(
-                                                        "Pago en Provider: Semana ${pago.semana}, Tipo de pago: ${pago.tipoPago}, Monto a Pagar: ${pago.capitalMasInteres}, Deposito: ${pago.deposito}");
-                                                  });
-                                                });
-                                              }
-                                            : null,
-                                        icon: Icon(
-                                          // Aquí es donde puedes cambiar el icono
-                                          Icons
-                                              .arrow_drop_down, // Puedes cambiarlo por cualquier otro icono
-                                          color: _puedeEditarPago(pago)
-                                              ? Color(0xFFFB2056)
-                                              : Colors.grey[
-                                                  400], // Cambiar el color del icono
-                                        ),
-                                      ),
-                                flex: 22,
-                              ),
+                    // Debug: Imprimir estado actualizado
+                    print("Estado del Provider después de actualización:");
+                    Provider.of<PagosProvider>(context, listen: false)
+                        .pagosSeleccionados
+                        .forEach((pago) {
+                      print("Pago en Provider: Semana ${pago.semana}, Tipo de pago: ${pago.tipoPago}, Monto a Pagar: ${pago.capitalMasInteres}, Deposito: ${pago.deposito}");
+                    });
+                  });
+                }
+              : null,
+          icon: Icon(
+            Icons.arrow_drop_down,
+            color: _puedeEditarPago(pago) ? Color(0xFFFB2056) : Colors.grey[400],
+          ),
+        ),
+  flex: 22,
+),
 
                               SizedBox(width: 20),
                               // Dos botones: uno para agregar abonos, otro para ver abonos
                               _buildTableCell(
-  pago.tipoPago == 'En Abonos'
-      ? Padding(
-          padding: const EdgeInsets.only(left: 5),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Botón para agregar un abono
-              Container(
-                decoration: BoxDecoration(
-                  color: _puedeEditarPago(pago)
-                      ? const Color(0xFFFB2056)
-                      : Colors.grey,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 5,
-                      offset: Offset(2, 2),
-                    ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  onPressed: _puedeEditarPago(pago)
-                      ? () async {
-                          // Obtén el provider y muestra el diálogo para agregar abonos
-                          final pagosProvider = Provider.of<PagosProvider>(
-                              context,
-                              listen: false);
-                          var uuid = Uuid();
+                                pago.tipoPago == 'En Abonos'
+                                    ? Padding(
+                                        padding: const EdgeInsets.only(left: 5),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            // Botón para agregar un abono
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: _puedeEditarPago(pago)
+                                                    ? const Color(0xFFFB2056)
+                                                    : Colors.grey,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                boxShadow: const [
+                                                  BoxShadow(
+                                                    color: Colors.black26,
+                                                    blurRadius: 5,
+                                                    offset: Offset(2, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: IconButton(
+                                                icon: const Icon(Icons.add,
+                                                    color: Colors.white),
+                                                onPressed: _puedeEditarPago(
+                                                        pago)
+                                                    ? () async {
+                                                        // Obtén el provider y muestra el diálogo para agregar abonos
+                                                        final pagosProvider =
+                                                            Provider.of<
+                                                                    PagosProvider>(
+                                                                context,
+                                                                listen: false);
+                                                        var uuid = Uuid();
 
-                          List<Map<String, dynamic>> nuevosAbonos =
-                              (await showDialog(
-                                    context: context,
-                                    builder: (context) => AbonosDialog(
-                                      montoAPagar: pago.capitalMasInteres,
-                                      onConfirm: (abonos) {
-                                        Navigator.of(context).pop(abonos);
-                                      },
-                                    ),
-                                  )) ??
-                                  [];
+                                                        List<
+                                                                Map<String,
+                                                                    dynamic>>
+                                                            nuevosAbonos =
+                                                            (await showDialog(
+                                                                  context:
+                                                                      context,
+                                                                  builder:
+                                                                      (context) =>
+                                                                          AbonosDialog(
+                                                                    montoAPagar:
+                                                                        pago.capitalMasInteres,
+                                                                    onConfirm:
+                                                                        (abonos) {
+                                                                      Navigator.of(
+                                                                              context)
+                                                                          .pop(
+                                                                              abonos);
+                                                                    },
+                                                                  ),
+                                                                )) ??
+                                                                [];
 
-                          print('Nuevos abonos recibidos: $nuevosAbonos');
+                                                        print(
+                                                            'Nuevos abonos recibidos: $nuevosAbonos');
 
-                          setState(() {
-                            if (nuevosAbonos.isNotEmpty) {
-                              nuevosAbonos.forEach((abono) {
-                                // Asigna un UID único a cada abono
-                                abono['uid'] = uuid.v4();
+                                                        setState(() {
+                                                          if (nuevosAbonos
+                                                              .isNotEmpty) {
+                                                            nuevosAbonos
+                                                                .forEach(
+                                                                    (abono) {
+                                                              // Asigna un UID único a cada abono
+                                                              abono['uid'] =
+                                                                  uuid.v4();
 
-                                // Evita duplicados comparando UID
-                                bool existeAbono = pago.abonos.any(
-                                    (existeAbono) =>
-                                        existeAbono['uid'] == abono['uid']);
-                                if (!existeAbono) {
-                                  print(
-                                      'Agregando abono con UID: ${abono['uid']}');
-                                  pago.abonos.add(abono);
-                                } else {
-                                  print(
-                                      'Abono duplicado detectado con UID: ${abono['uid']}');
-                                }
-                              });
+                                                              // Evita duplicados comparando UID
+                                                              bool existeAbono = pago
+                                                                  .abonos
+                                                                  .any((existeAbono) =>
+                                                                      existeAbono[
+                                                                          'uid'] ==
+                                                                      abono[
+                                                                          'uid']);
+                                                              if (!existeAbono) {
+                                                                print(
+                                                                    'Agregando abono con UID: ${abono['uid']}');
+                                                                pago.abonos
+                                                                    .add(abono);
+                                                              } else {
+                                                                print(
+                                                                    'Abono duplicado detectado con UID: ${abono['uid']}');
+                                                              }
+                                                            });
 
-                              // Recalcular totales
-                              double totalAbonos = pago.abonos.fold(
-                                  0.0,
-                                  (sum, abono) =>
-                                      sum + (abono['deposito'] ?? 0.0));
+                                                            // Recalcular totales
+                                                            double totalAbonos =
+                                                                pago.abonos.fold(
+                                                                    0.0,
+                                                                    (sum, abono) =>
+                                                                        sum +
+                                                                        (abono['deposito'] ??
+                                                                            0.0));
 
-                              // Se suma el moratorio si existe (consulta en el objeto moratorios)
-                              double totalDeuda = pago.capitalMasInteres! +
-                                  (pago.moratorios?.moratorios ?? 0.0);
+                                                            // Se suma el moratorio si existe (consulta en el objeto moratorios)
+                                                            double totalDeuda = pago
+                                                                    .capitalMasInteres! +
+                                                                (pago.moratorios
+                                                                        ?.moratorios ??
+                                                                    0.0);
 
-                              double montoPagado = totalAbonos;
+                                                            double montoPagado =
+                                                                totalAbonos;
 
-                              if (montoPagado < totalDeuda) {
-                                pago.saldoEnContra = totalDeuda - montoPagado;
-                                pago.saldoFavor = 0.0;
-                              } else {
-                                pago.saldoEnContra = 0.0;
-                                pago.saldoFavor = montoPagado - totalDeuda;
-                              }
+                                                            if (montoPagado <
+                                                                totalDeuda) {
+                                                              pago.saldoEnContra =
+                                                                  totalDeuda -
+                                                                      montoPagado;
+                                                              pago.saldoFavor =
+                                                                  0.0;
+                                                            } else {
+                                                              pago.saldoEnContra =
+                                                                  0.0;
+                                                              pago.saldoFavor =
+                                                                  montoPagado -
+                                                                      totalDeuda;
+                                                            }
 
-                              print(
-                                  'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
+                                                            print(
+                                                                'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
 
-                              // Actualiza el Provider
-                              final index = pagosProvider.pagosSeleccionados
-                                  .indexWhere((p) => p.semana == pago.semana);
-                              final pagoActualizado = PagoSeleccionado(
-                                semana: pago.semana,
-                                tipoPago: pago.tipoPago,
-                                deposito: pago.deposito ?? 0.0,
-                                saldoFavor: pago.saldoFavor,
-                                saldoEnContra: pago.saldoEnContra,
-                                abonos: pago.abonos,
-                                idfechaspagos: pago.idfechaspagos,
-                                fechaPago: pago.fechaPago,
-                                capitalMasInteres: pago.capitalMasInteres,
-                                moratorio: pago.moratorios?.moratorios,
-                              );
-                              if (index != -1) {
-                                pagosProvider.pagosSeleccionados[index] =
-                                    pagoActualizado;
-                              } else {
-                                pagosProvider.agregarPago(pagoActualizado);
-                              }
-                            }
-                          });
-                        }
-                      : null,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Botón para ver los abonos realizados (PopupMenu)
-              Container(
-  decoration: BoxDecoration(
-    color: Colors.blueAccent,
-    borderRadius: BorderRadius.circular(8),
-    boxShadow: const [
-      BoxShadow(
-        color: Colors.black26,
-        blurRadius: 5,
-        offset: Offset(2, 2),
-      ),
-    ],
-  ),
-  child: PopupMenuButton<Map<String, dynamic>>(
-    tooltip: 'Mostrar Abonos',
-    icon: const Icon(Icons.visibility, color: Colors.white),
-    color: Colors.white,
-    offset: const Offset(0, 40),
-    onSelected: (item) {
-      // Aquí podrías manejar acciones según el item seleccionado (abono o moratorio)
-    },
-    itemBuilder: (context) {
-      List<PopupMenuEntry<Map<String, dynamic>>> items = [];
+                                                            // Actualiza el Provider
+                                                            final index = pagosProvider
+                                                                .pagosSeleccionados
+                                                                .indexWhere((p) =>
+                                                                    p.semana ==
+                                                                    pago.semana);
+                                                            final pagoActualizado =
+                                                                PagoSeleccionado(
+                                                              semana:
+                                                                  pago.semana,
+                                                              tipoPago:
+                                                                  pago.tipoPago,
+                                                              deposito:
+                                                                  pago.deposito ??
+                                                                      0.0,
+                                                              saldoFavor: pago
+                                                                  .saldoFavor,
+                                                              saldoEnContra: pago
+                                                                  .saldoEnContra,
+                                                              abonos:
+                                                                  pago.abonos,
+                                                              idfechaspagos: pago
+                                                                  .idfechaspagos,
+                                                              fechaPago: pago
+                                                                  .fechaPago,
+                                                              capitalMasInteres:
+                                                                  pago.capitalMasInteres,
+                                                              moratorio: pago
+                                                                  .moratorios
+                                                                  ?.moratorios,
+                                                            );
+                                                            if (index != -1) {
+                                                              pagosProvider
+                                                                          .pagosSeleccionados[
+                                                                      index] =
+                                                                  pagoActualizado;
+                                                            } else {
+                                                              pagosProvider
+                                                                  .agregarPago(
+                                                                      pagoActualizado);
+                                                            }
+                                                          }
+                                                        });
+                                                      }
+                                                    : null,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            // Botón para ver los abonos realizados (PopupMenu)
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: Colors.blueAccent,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                boxShadow: const [
+                                                  BoxShadow(
+                                                    color: Colors.black26,
+                                                    blurRadius: 5,
+                                                    offset: Offset(2, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: PopupMenuButton<
+                                                  Map<String, dynamic>>(
+                                                tooltip: 'Mostrar Abonos',
+                                                icon: const Icon(
+                                                    Icons.visibility,
+                                                    color: Colors.white),
+                                                color: Colors.white,
+                                                offset: const Offset(0, 40),
+                                                onSelected: (item) {
+                                                  // Aquí podrías manejar acciones según el item seleccionado (abono o moratorio)
+                                                },
+                                                itemBuilder: (context) {
+                                                  List<
+                                                          PopupMenuEntry<
+                                                              Map<String,
+                                                                  dynamic>>>
+                                                      items = [];
 
-      // Agregar los abonos existentes
-      for (var abono in pago.abonos) {
-        final fecha = formatearFecha(abono['fechaDeposito']);
-        final monto = (abono['deposito'] is num)
-            ? (abono['deposito'] as num).toDouble()
-            : 0.0;
-        items.add(
-          PopupMenuItem(
-            value: abono,
-            child: Container(
-              width: 300,
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.monetization_on, color: Colors.green, size: 16),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      "Fecha: $fecha, Monto: \$${monto.toStringAsFixed(2)}",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }
+                                                  // Agregar los abonos existentes
+                                                  for (var abono
+                                                      in pago.abonos) {
+                                                    final fecha =
+                                                        formatearFecha(abono[
+                                                            'fechaDeposito']);
+                                                    final monto =
+                                                        (abono['deposito']
+                                                                is num)
+                                                            ? (abono['deposito']
+                                                                    as num)
+                                                                .toDouble()
+                                                            : 0.0;
+                                                    items.add(
+                                                      PopupMenuItem(
+                                                        value: abono,
+                                                        child: Container(
+                                                          width: 300,
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  vertical: 8.0,
+                                                                  horizontal:
+                                                                      12.0),
+                                                          child: Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons
+                                                                      .monetization_on,
+                                                                  color: Colors
+                                                                      .green,
+                                                                  size: 16),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Expanded(
+                                                                child: Text(
+                                                                  "Fecha: $fecha, Monto: \$${monto.toStringAsFixed(2)}",
+                                                                  style:
+                                                                      const TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                    color: Colors
+                                                                        .black87,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
 
-      // Agregar los moratorios como "abonos" adicionales
-      for (var moratorio in pago.pagosMoratorios) {
-        final sumaMoratorios = (moratorio['sumaMoratorios'] is num)
-            ? (moratorio['sumaMoratorios'] as num).toDouble()
-            : 0.0;
-        final fecha = 'Moratorio'; // Puedes ajustar la representación (o incluir fecha si lo deseas)
-        items.add(
-          PopupMenuItem(
-            value: moratorio,
-            child: Container(
-              width: 300,
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.monetization_on, color: Colors.green, size: 16),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      "Monto: \$${sumaMoratorios.toStringAsFixed(2)}",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }
+                                                  // Agregar los moratorios como "abonos" adicionales
+                                                  for (var moratorio
+                                                      in pago.pagosMoratorios) {
+                                                    final sumaMoratorios = (moratorio[
+                                                                'sumaMoratorios']
+                                                            is num)
+                                                        ? (moratorio[
+                                                                    'sumaMoratorios']
+                                                                as num)
+                                                            .toDouble()
+                                                        : 0.0;
+                                                    final fecha =
+                                                        'Moratorio'; // Puedes ajustar la representación (o incluir fecha si lo deseas)
+                                                    items.add(
+                                                      PopupMenuItem(
+                                                        value: moratorio,
+                                                        child: Container(
+                                                          width: 300,
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  vertical: 8.0,
+                                                                  horizontal:
+                                                                      12.0),
+                                                          child: Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons
+                                                                      .monetization_on,
+                                                                  color: Colors
+                                                                      .green,
+                                                                  size: 16),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Expanded(
+                                                                child: Text(
+                                                                  "Monto: \$${sumaMoratorios.toStringAsFixed(2)}",
+                                                                  style:
+                                                                      const TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                    color: Colors
+                                                                        .black87,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
 
-      // Calcular el total de abonos, sumando depósitos y los moratorios (sumaMoratorios)
-      double totalAbonos = pago.abonos.fold(
-            0.0,
-            (sum, abono) => sum +
-                ((abono['deposito'] is num)
-                    ? (abono['deposito'] as num).toDouble()
-                    : 0.0),
-          ) +
-          pago.pagosMoratorios.fold(
-            0.0,
-            (sum, moratorio) => sum +
-                ((moratorio['sumaMoratorios'] is num)
-                    ? (moratorio['sumaMoratorios'] as num).toDouble()
-                    : 0.0),
-          );
+                                                  // Calcular el total de abonos, sumando depósitos y los moratorios (sumaMoratorios)
+                                                  double totalAbonos =
+                                                      pago.abonos.fold(
+                                                            0.0,
+                                                            (sum, abono) =>
+                                                                sum +
+                                                                ((abono['deposito']
+                                                                        is num)
+                                                                    ? (abono['deposito']
+                                                                            as num)
+                                                                        .toDouble()
+                                                                    : 0.0),
+                                                          ) +
+                                                          pago.pagosMoratorios
+                                                              .fold(
+                                                            0.0,
+                                                            (sum, moratorio) =>
+                                                                sum +
+                                                                ((moratorio['sumaMoratorios']
+                                                                        is num)
+                                                                    ? (moratorio['sumaMoratorios']
+                                                                            as num)
+                                                                        .toDouble()
+                                                                    : 0.0),
+                                                          );
 
-      // Agregar un item que muestre el total de abonos
-      items.add(
-        PopupMenuItem(
-  enabled: false,
-  child: Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      const Divider(
-        color: Colors.black26, // Color de la línea; puedes ajustarlo
-        thickness: 1,         // Grosor de la línea
-      ),
-      Container(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
-        child: Row(
-          children: [
-            const Icon(Icons.payment, color: Colors.black, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                "Total Abonos: \$${totalAbonos.toStringAsFixed(2)}",
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ],
-  ),
-),
+                                                  // Agregar un item que muestre el total de abonos
+                                                  items.add(
+                                                    PopupMenuItem(
+                                                      enabled: false,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          const Divider(
+                                                            color: Colors
+                                                                .black26, // Color de la línea; puedes ajustarlo
+                                                            thickness:
+                                                                1, // Grosor de la línea
+                                                          ),
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                    vertical:
+                                                                        8.0,
+                                                                    horizontal:
+                                                                        12.0),
+                                                            child: Row(
+                                                              children: [
+                                                                const Icon(
+                                                                    Icons
+                                                                        .payment,
+                                                                    color: Colors
+                                                                        .black,
+                                                                    size: 18),
+                                                                const SizedBox(
+                                                                    width: 10),
+                                                                Expanded(
+                                                                  child: Text(
+                                                                    "Total Abonos: \$${totalAbonos.toStringAsFixed(2)}",
+                                                                    style:
+                                                                        const TextStyle(
+                                                                      fontSize:
+                                                                          12,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      color: Colors
+                                                                          .black87,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  );
 
-      );
-
-      return items;
-    },
-    constraints: const BoxConstraints(
-      maxWidth: 500,
-    ),
-  ),
-)
-
-              
-            ],
-          ),
-        )
-      
-
+                                                  return items;
+                                                },
+                                                constraints:
+                                                    const BoxConstraints(
+                                                  maxWidth: 500,
+                                                ),
+                                              ),
+                                            )
+                                          ],
+                                        ),
+                                      )
                                     : esPago1
                                         ? "-"
                                         : pago.tipoPago == 'Monto Parcial'
@@ -2298,10 +2456,11 @@ class Pago {
     }
 
     // Parsear pagosMoratorios si existen, de lo contrario asigna una lista vacía
-    List<Map<String, dynamic>> pagosMoratorios = (json['pagosMoratorios'] as List?)
-            ?.map((moratorio) => Map<String, dynamic>.from(moratorio))
-            .toList() ??
-        [];
+    List<Map<String, dynamic>> pagosMoratorios =
+        (json['pagosMoratorios'] as List?)
+                ?.map((moratorio) => Map<String, dynamic>.from(moratorio))
+                .toList() ??
+            [];
 
     return Pago(
       semana: json['semana'] ?? 0,
@@ -2346,14 +2505,12 @@ class Pago {
       fechasDepositos: fechasDepositos,
       idfechaspagos: json['idfechaspagos'], // Parsear el idfechaspagos
       moratorios: json['moratorios'] is Map<String, dynamic>
-          ? Moratorios.fromJson(
-              Map<String, dynamic>.from(json['moratorios']))
+          ? Moratorios.fromJson(Map<String, dynamic>.from(json['moratorios']))
           : null,
       pagosMoratorios: pagosMoratorios, // Asigna los pagosMoratorios parseados
     );
   }
 }
-
 
 class Moratorios {
   double montoTotal;

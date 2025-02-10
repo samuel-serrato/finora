@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,8 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:money_facil/ip.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class nClienteDialog extends StatefulWidget {
   final VoidCallback? onClienteAgregado; // Cambia a opcional
@@ -80,6 +83,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   bool dialogShown = false;
   dynamic clienteData; // Almacena los datos del cliente
   Timer? _timer;
+  bool _dialogShown = false;
 
   Map<String, dynamic> originalData = {};
 
@@ -205,21 +209,30 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Future<void> fetchClienteData() async {
-    // Configura el temporizador para mostrar un diálogo después de 10 segundos si no hay respuesta
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && !dialogShown) {
-        setState(() {
-          _isLoading = false;
-        });
-        dialogShown = true;
-        mostrarDialogoError(
-            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
+    if (!mounted) return;
+
+    _timer?.cancel();
+    setState(() => _isLoading = true);
+
+    _timer = Timer(const Duration(seconds: 10), () {
+      if (mounted && !_dialogShown) {
+        setState(() => _isLoading = false);
+        _dialogShown = true;
+        mostrarDialogoError('Error de conexión. Revise su red.');
       }
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
       final response = await http.get(
-          Uri.parse('http://$baseUrl/api/v1/clientes/${widget.idCliente}'));
+        Uri.parse('http://$baseUrl/api/v1/clientes/${widget.idCliente}'),
+        headers: {'tokenauth': token},
+      );
+
+      if (!mounted) return;
+      _timer?.cancel();
 
       if (response.statusCode == 200) {
         setState(() {
@@ -607,25 +620,68 @@ class _nClienteDialogState extends State<nClienteDialog>
         _timer
             ?.cancel(); // Cancela el temporizador al completar la carga exitosa
       } else {
-        setState(() {
-          _isLoading = false;
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError(
-              'Error en la carga de datos. Código de error: ${response.statusCode}');
-        }
+        _handleErrorResponse(response);
       }
     } catch (e) {
+      _handleNetworkError(e);
+    } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError('Error de conexión o inesperado: $e');
-        }
+        setState(() => _isLoading = false);
+        _dialogShown = false;
       }
+    }
+  }
+
+  void _handleErrorResponse(http.Response response) {
+  try {
+    final errorData = json.decode(response.body);
+    final statusCode = response.statusCode;
+    
+    // Extraer mensaje de error con diferentes posibles estructuras
+    final errorMessage = (errorData['Error']?['Message'] ?? 
+                        errorData['error']?['message'] ?? 
+                        errorData['message'] ?? '')
+                        .toString().toLowerCase();
+
+    // Manejar casos de token expirado
+    if ((statusCode == 401 || 
+        statusCode == 403 || 
+        statusCode == 404) && 
+        (errorMessage.contains('jwt expired') || 
+         errorMessage.contains('token expired'))) {
+      _handleTokenExpiration();
+    }
+    // Manejar otros errores
+    else if (statusCode == 404) {
+      mostrarDialogoError('Recurso no encontrado (404)');
+    } else {
+      mostrarDialogoError('Error $statusCode: ${errorMessage.isNotEmpty ? errorMessage : 'Error desconocido'}');
+    }
+  } catch (e) {
+    mostrarDialogoError('Error ${response.statusCode}: No se pudo procesar la respuesta');
+  }
+}
+
+  void _handleNetworkError(dynamic error) {
+    if (error is SocketException) {
+      mostrarDialogoError('Error de conexión. Verifique su internet');
+    } else {
+      mostrarDialogoError('Error inesperado: ${error.toString()}');
+    }
+  }
+
+  void _handleTokenExpiration() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tokenauth');
+
+    if (mounted) {
+      mostrarDialogoError(
+        'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+        onClose: () => Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        ),
+      );
     }
   }
 
@@ -819,272 +875,279 @@ class _nClienteDialogState extends State<nClienteDialog>
     List<int> idreferencias,
     String iddomiciliosRef,
   ) async {
-    print('idcuentabank dentro de sendedited: $idcuantabank');
-    idingegr.forEach((idingegr) {
-      print('idingegr dentro de sendedited: $idingegr');
-    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      bool anyErrors = false;
+      bool tokenExpired = false;
+      print('idcuentabank dentro de sendedited: $idcuantabank');
 
-    idreferencias.forEach((idreferencias) {
-      print('idreferencias dentro de sendedited: $idreferencias');
-    });
+      idingegr.forEach((idingegr) {
+        print('idingegr dentro de sendedited: $idingegr');
+      });
 
-    // Preparar los datos de las referencias editadas
-    List<Map<String, dynamic>> referenciasList = [];
-    if (isEndpointEdited["Referencias"] ?? false) {
-      for (int i = 0; i < referencias.length; i++) {
-        var ref = referencias[i];
-        var originalRef = originalData['referencias'][i];
+      idreferencias.forEach((idreferencias) {
+        print('idreferencias dentro de sendedited: $idreferencias');
+      });
 
-        var referenceMap = {
-          "idreferencias":
-              idreferencias[i], // Aquí obtienes el id de la referencia
-          "nombres": ref['nombresRef'] ?? "",
-          "apellidoP": ref['apellidoPRef'] ?? "",
-          "apellidoM": ref['apellidoMRef'] ?? "",
-          "parentescoRefProp": ref['parentescoRef'] ?? "",
-          "telefono": ref['telefonoRef'] ?? "",
-          "tiempoCo": ref['tiempoConocerRef'] ?? "",
-        };
+      // Preparar los datos de las referencias editadas
+      List<Map<String, dynamic>> referenciasList = [];
+      if (isEndpointEdited["Referencias"] ?? false) {
+        for (int i = 0; i < referencias.length; i++) {
+          var ref = referencias[i];
+          var originalRef = originalData['referencias'][i];
 
-        bool isEdited = referenceMap.keys.any((key) {
-          var originalValue = originalRef[key];
-          var newValue = referenceMap[key];
+          var referenceMap = {
+            "idreferencias": idreferencias[i],
+            "nombres": ref['nombresRef'] ?? "",
+            "apellidoP": ref['apellidoPRef'] ?? "",
+            "apellidoM": ref['apellidoMRef'] ?? "",
+            "parentescoRefProp": ref['parentescoRef'] ?? "",
+            "telefono": ref['telefonoRef'] ?? "",
+            "tiempoCo": ref['tiempoConocerRef'] ?? "",
+          };
 
-          if (originalValue is String && newValue is String) {
-            originalValue = originalValue.trim();
-            newValue = newValue.trim();
+          bool isEdited = referenceMap.keys.any((key) {
+            var originalValue = originalRef[key];
+            var newValue = referenceMap[key];
+
+            if (originalValue is String && newValue is String) {
+              originalValue = originalValue.trim();
+              newValue = newValue.trim();
+            }
+            return newValue != originalValue;
+          });
+
+          if (isEdited) {
+            print("Referencia editada: ${jsonEncode(referenceMap)}");
+            referenciasList.add(referenceMap);
           }
-          return newValue != originalValue;
-        });
-
-        if (isEdited) {
-          print("Referencia editada: ${jsonEncode(referenceMap)}");
-          referenciasList.add(referenceMap);
         }
       }
-    }
 
-    Map<String, String> endpointUrls = {
-      "Cliente": "http://$baseUrl/api/v1/clientes/$clientId",
-      "Cuenta Banco": "http://$baseUrl/api/v1/cuentabanco/$idcuantabank",
-      "Domicilio": "http://$baseUrl/api/v1/domicilios/$clientId",
-      "DomicilioReferencia":
-          "http://$baseUrl/api/v1/domicilios/${idreferencias[0]}", // Cambiar $clientId por $idreferencia
-      "Datos Adicionales": "http://$baseUrl/api/v1/datosadicionales/$clientId",
-      "Ingresos": "http://$baseUrl/api/v1/ingresos/$clientId",
-      "Referencias": "http://$baseUrl/api/v1/referencia/$clientId",
-    };
-
-    bool anyErrors = false;
-
-    // Preparar los datos de "Ingresos"
-    List<Map<String, dynamic>> ingresosList = [];
-    for (int i = 0; i < ingresosEgresos.length; i++) {
-      var ingresoEgreso = ingresosEgresos[i];
-      int idInfo = tiposIngresoEgresoIds[ingresoEgreso['tipo_info']] ?? 0;
-
-      var ingresoData = {
-        "idingegr": idingegr[i],
-        "idinfo": idInfo,
-        "años_actividad": ingresoEgreso['años_actividad'],
-        "descripcion": ingresoEgreso['descripcion'],
-        "monto_semanal": ingresoEgreso['monto_semanal']
+      Map<String, String> endpointUrls = {
+        "Cliente": "http://$baseUrl/api/v1/clientes/$clientId",
+        "Cuenta Banco": "http://$baseUrl/api/v1/cuentabanco/$idcuantabank",
+        "Domicilio": "http://$baseUrl/api/v1/domicilios/$clientId",
+        "DomicilioReferencia":
+            "http://$baseUrl/api/v1/domicilios/${idreferencias[0]}",
+        "Datos Adicionales":
+            "http://$baseUrl/api/v1/datosadicionales/$clientId",
+        "Ingresos": "http://$baseUrl/api/v1/ingresos/$clientId",
+        "Referencias": "http://$baseUrl/api/v1/referencia/$clientId",
       };
-      ingresosList.add(ingresoData);
-    }
 
-    // Preparar los datos de DomicilioReferencia
-    List<Map<String, dynamic>> domicilioReferenciaList = [];
-    if (isEndpointEdited["DomicilioReferencia"] ?? false) {
-      for (int i = 0; i < idreferencias.length; i++) {
-        var ref = referencias[i];
-        var originalRef = originalData['referencias'][i];
+      // Preparar los datos de "Ingresos"
+      List<Map<String, dynamic>> ingresosList = [];
+      for (int i = 0; i < ingresosEgresos.length; i++) {
+        var ingresoEgreso = ingresosEgresos[i];
+        int idInfo = tiposIngresoEgresoIds[ingresoEgreso['tipo_info']] ?? 0;
 
-        // Aquí cambiamos iddomicilios por el id correspondiente de la referencia
-        var domicilioReferenciaMap = {
-          "idreferencias":
-              idreferencias[i], // Asegúrate de mandar el idreferencias aquí
-          "iddomicilios": iddomiciliosRef ??
-              iddomicilios, // Agregar iddomicilios específico de la referencia
-          "calle": ref['calleRef'] ?? "",
-          "entreCalle": ref['entreCalleRef'] ?? "",
-          "colonia": ref['coloniaRef'] ?? "",
-          "cp": ref['cpRef'] ?? "",
-          "nExt": ref['nExtRef'] ?? "",
-          "nInt": ref['nIntRef'] ?? "",
-          "estado": ref['estadoRef'] ?? "",
-          "municipio": ref['municipioRef'] ?? "",
-          "tipo_domicilio": ref['tipoDomicilioRef'] ?? "",
-          "nombre_propietario": ref['nombrePropietarioRef'] ?? "",
-          "parentescoRefDomProp": ref['parentescoRefProp'] ?? "",
-          "tiempoViviendo": ref['tiempoViviendoRef'] ?? "",
+        var ingresoData = {
+          "idingegr": idingegr[i],
+          "idinfo": idInfo,
+          "años_actividad": ingresoEgreso['años_actividad'],
+          "descripcion": ingresoEgreso['descripcion'],
+          "monto_semanal": ingresoEgreso['monto_semanal']
         };
+        ingresosList.add(ingresoData);
+      }
 
-        bool isEdited = domicilioReferenciaMap.keys.any((key) {
-          var originalValue = originalRef[key];
-          var newValue = domicilioReferenciaMap[key];
+      // Preparar los datos de DomicilioReferencia
+      List<Map<String, dynamic>> domicilioReferenciaList = [];
+      if (isEndpointEdited["DomicilioReferencia"] ?? false) {
+        for (int i = 0; i < idreferencias.length; i++) {
+          var ref = referencias[i];
+          var originalRef = originalData['referencias'][i];
 
-          if (originalValue is String && newValue is String) {
-            originalValue = originalValue.trim();
-            newValue = newValue.trim();
+          var domicilioReferenciaMap = {
+            "idreferencias": idreferencias[i],
+            "iddomicilios": iddomiciliosRef ?? iddomicilios,
+            "calle": ref['calleRef'] ?? "",
+            "entreCalle": ref['entreCalleRef'] ?? "",
+            "colonia": ref['coloniaRef'] ?? "",
+            "cp": ref['cpRef'] ?? "",
+            "nExt": ref['nExtRef'] ?? "",
+            "nInt": ref['nIntRef'] ?? "",
+            "estado": ref['estadoRef'] ?? "",
+            "municipio": ref['municipioRef'] ?? "",
+            "tipo_domicilio": ref['tipoDomicilioRef'] ?? "",
+            "nombre_propietario": ref['nombrePropietarioRef'] ?? "",
+            "parentescoRefDomProp": ref['parentescoRefProp'] ?? "",
+            "tiempoViviendo": ref['tiempoViviendoRef'] ?? "",
+          };
+
+          bool isEdited = domicilioReferenciaMap.keys.any((key) {
+            var originalValue = originalRef[key];
+            var newValue = domicilioReferenciaMap[key];
+
+            if (originalValue is String && newValue is String) {
+              originalValue = originalValue.trim();
+              newValue = newValue.trim();
+            }
+
+            return newValue != originalValue;
+          });
+
+          if (isEdited) {
+            print(
+                "DomicilioReferencia editado: ${jsonEncode(domicilioReferenciaMap)}");
+            domicilioReferenciaList.add(domicilioReferenciaMap);
           }
-
-          return newValue != originalValue;
-        });
-
-        if (isEdited) {
-          print(
-              "DomicilioReferencia editado: ${jsonEncode(domicilioReferenciaMap)}");
-          domicilioReferenciaList.add(domicilioReferenciaMap);
         }
       }
-    }
 
-    // Enviar los datos para cada endpoint editado
-    for (var entry in isEndpointEdited.entries) {
-      String endpoint = entry.key;
-      bool wasEdited = entry.value;
+      // Enviar los datos para cada endpoint editado
+      for (var entry in isEndpointEdited.entries) {
+        if (tokenExpired) break;
 
-      if (wasEdited) {
-        String? url = endpointUrls[endpoint];
-        if (url != null) {
-          dynamic dataToSendEndpoint; // Variable específica para cada endpoint
+        String endpoint = entry.key;
+        bool wasEdited = entry.value;
 
-          // Imprimir la URL antes de enviar la solicitud
-          print("Enviando datos a la URL: $url");
+        if (wasEdited) {
+          String? url = endpointUrls[endpoint];
+          if (url != null) {
+            dynamic dataToSendEndpoint;
 
-          if (endpoint == "Referencias") {
-            dataToSendEndpoint =
-                referenciasList.isNotEmpty ? referenciasList : [];
-            print(
-                "Datos de referencias a enviar: ${jsonEncode(dataToSendEndpoint)}");
-          } else if (endpoint == "Ingresos") {
-            dataToSendEndpoint = ingresosList;
-            print("Datos de ingresos a enviar: ${jsonEncode(ingresosList)}");
-          } else if (endpoint == "DomicilioReferencia") {
-            // Preparar los datos para DomicilioReferencia
-            List<Map<String, dynamic>> domicilioReferenciaList = [];
-            for (int i = 0; i < idreferencias.length; i++) {
-              var ref = referencias[i];
-              var domicilioReferenciaMap = {
-                "iddomicilios": iddomiciliosRef,
-                "calle": ref['calleRef'] ?? "",
-                "entreCalle": ref['entreCalleRef'] ?? "",
-                "colonia": ref['coloniaRef'] ?? "",
-                "cp": ref['cpRef'] ?? "",
-                "nExt": ref['nExtRef'] ?? "",
-                "nInt": ref['nIntRef'] ?? "",
-                "estado": ref['estadoRef'] ?? "",
-                "municipio": ref['municipioRef'] ?? "",
-                "tipo_domicilio": ref['tipoDomicilioRef'] ?? "",
-                "nombre_propietario": ref['nombrePropietarioRef'] ?? "",
-                "parentescoRefDomProp": ref['parentescoRefProp'] ?? "",
-                "tiempoViviendo": ref['tiempoViviendoRef'] ?? "",
-              };
+            print("Enviando datos a la URL: $url");
 
-              // Agregar los datos editados
-              domicilioReferenciaList.add(domicilioReferenciaMap);
-            }
-
-            dataToSendEndpoint = domicilioReferenciaList.isNotEmpty
-                ? domicilioReferenciaList
-                : [];
-            print(
-                "Datos de DomicilioReferencia a enviar: ${jsonEncode(dataToSendEndpoint)}");
-          } else {
-            dataToSendEndpoint = allFieldsByEndpoint[endpoint]!;
-          }
-
-          if (endpoint == "Cuenta Banco") {
-            dataToSendEndpoint["iddetallegrupos"] = "";
-            if (!dataToSendEndpoint.containsKey("idclientes")) {
-              dataToSendEndpoint["idclientes"] = clientId;
-            }
-          }
-
-          if (endpoint == "Domicilio") {
-            dataToSendEndpoint["iddomicilios"] = iddomicilios;
-          }
-
-          final body = (endpoint == "Domicilio")
-              ? [dataToSendEndpoint] // Enviar con corchetes solo para Domicilio
-              : dataToSendEndpoint; // Enviar sin corchetes para DomicilioReferencia y otros endpoints
-
-          print("Datos a enviar para $endpoint: ${jsonEncode(body)}");
-
-          try {
-            final response = await http.put(
-              Uri.parse(url),
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: jsonEncode(body),
-            );
-
-            print("Respuesta de $endpoint: ${response.body}");
-
-            if (response.statusCode == 200) {
-              // _showSnackbar(context,"Datos enviados correctamente para $endpoint", Colors.green);
+            if (endpoint == "Referencias") {
+              dataToSendEndpoint =
+                  referenciasList.isNotEmpty ? referenciasList : [];
+              print(
+                  "Datos de referencias a enviar: ${jsonEncode(dataToSendEndpoint)}");
+            } else if (endpoint == "Ingresos") {
+              dataToSendEndpoint = ingresosList;
+              print("Datos de ingresos a enviar: ${jsonEncode(ingresosList)}");
+            } else if (endpoint == "DomicilioReferencia") {
+              dataToSendEndpoint = domicilioReferenciaList.isNotEmpty
+                  ? domicilioReferenciaList
+                  : [];
+              print(
+                  "Datos de DomicilioReferencia a enviar: ${jsonEncode(dataToSendEndpoint)}");
             } else {
-              anyErrors = true;
-              _showSnackbar(
-                  context,
-                  "Error al enviar datos para $endpoint: ${response.statusCode}",
-                  Colors.red);
+              dataToSendEndpoint = allFieldsByEndpoint[endpoint]!;
             }
-          } catch (e) {
-            anyErrors = true;
-            _showSnackbar(context,
-                "Excepción al enviar datos para $endpoint: $e", Colors.red);
+
+            if (endpoint == "Cuenta Banco") {
+              dataToSendEndpoint["iddetallegrupos"] = "";
+              if (!dataToSendEndpoint.containsKey("idclientes")) {
+                dataToSendEndpoint["idclientes"] = clientId;
+              }
+            }
+
+            if (endpoint == "Domicilio") {
+              dataToSendEndpoint["iddomicilios"] = iddomicilios;
+            }
+
+            final body = (endpoint == "Domicilio")
+                ? [dataToSendEndpoint]
+                : dataToSendEndpoint;
+
+            print("Datos a enviar para $endpoint: ${jsonEncode(body)}");
+
+            try {
+              final response = await http.put(
+                Uri.parse(url),
+                headers: {
+                  "Content-Type": "application/json",
+                  "tokenauth": token,
+                },
+                body: jsonEncode(body),
+              );
+
+              print("Respuesta de $endpoint: ${response.body}");
+
+              if (response.statusCode == 200) {
+                // _showSnackbar(context,"Datos enviados correctamente para $endpoint", Colors.green);
+              } else {
+                final errorData = jsonDecode(response.body);
+                final errorMessage = (errorData['error']?['message'] ??
+                        errorData['Error']?['Message'] ??
+                        '')
+                    .toString()
+                    .toLowerCase();
+
+                if (response.statusCode == 401 ||
+                    response.statusCode == 403 ||
+                    errorMessage.contains('jwt') ||
+                    errorMessage.contains('token')) {
+                  tokenExpired = true;
+                  _handleTokenExpiration();
+                  break;
+                } else {
+                  anyErrors = true;
+                  _showSnackbar(
+                      context,
+                      "Error ${response.statusCode}: ${errorData['error']?['message'] ?? 'Error desconocido'}",
+                      Colors.red);
+                }
+              }
+            } catch (e) {
+              anyErrors = true;
+              _showSnackbar(context,
+                  "Excepción al enviar datos para $endpoint: $e", Colors.red);
+            }
           }
-        } else {
-          anyErrors = true;
-          _showSnackbar(context, "URL no definida para el endpoint $endpoint",
-              Colors.red);
         }
       }
-    }
 
-    if (!anyErrors) {
-      //_showSnackbar(context, "Todos los datos fueron enviados correctamente", Colors.green);
-      _showSnackbar(context, "Cliente actualizado correctamente", Colors.green);
-      Navigator.pop(context);
+      if (tokenExpired) return;
 
-      if (widget.onClienteEditado != null) {
-        widget.onClienteEditado!();
+      if (!anyErrors) {
+        _handleSuccess(context);
+      } else {
+        _showSnackbar(
+            context, "Hubo errores al enviar algunos datos", Colors.red);
       }
-    } else {
-      _showSnackbar(
-          context, "Hubo errores al enviar algunos datos", Colors.red);
+    } catch (e) {
+      if (e is SocketException) {
+        _showSnackbar(
+            context, "Error de conexión. Verifique su internet", Colors.red);
+      } else {
+        _showSnackbar(context, "Error inesperado: ${e.toString()}", Colors.red);
+      }
+    }
+  }
+
+  void _handleSuccess(BuildContext context) {
+    if (!mounted) return;
+
+    _showSnackbar(context, "Cliente actualizado correctamente", Colors.green);
+    Navigator.pop(context);
+
+    if (widget.onClienteEditado != null) {
+      widget.onClienteEditado!();
     }
   }
 
   void _showSnackbar(BuildContext context, String message, Color color) {
-    final snackBar = SnackBar(
-      content: Text(message),
-      backgroundColor: color,
-      duration: Duration(seconds: 3),
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
+      ),
     );
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
-  void mostrarDialogoError(String mensaje) {
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Error'),
-          content: Text(mensaje),
-          actions: <Widget>[
-            TextButton(
-              child: Text('OK'),
+      builder: (context) => AlertDialog(
+        title: const Text('Error'),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.pop(context);
+                onClose?.call();
               },
-            ),
-          ],
-        );
-      },
+              child: const Text('Aceptar')),
+        ],
+      ),
     );
   }
 
@@ -3277,6 +3340,9 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Future<Map<String, dynamic>?> _enviarCliente() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
     final url = Uri.parse("http://$baseUrl/api/v1/clientes");
 
     final datosCliente = {
@@ -3301,7 +3367,10 @@ class _nClienteDialogState extends State<nClienteDialog>
     try {
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "tokenauth": token, // Agregar token
+        },
         body: jsonEncode(datosCliente),
       );
       print("Código de estado de la respuesta: ${response.statusCode}");
@@ -3309,20 +3378,20 @@ class _nClienteDialogState extends State<nClienteDialog>
           "Cuerpo de la respuesta: ${response.body}"); // Imprime el cuerpo completo
 
       if (response.statusCode == 201) {
-        final responseBody = jsonDecode(response.body);
-        print(
-            "Cuerpo decodificado: $responseBody"); // Verifica cómo se ve el JSON decodificado
-        return responseBody; // Devuelve el objeto completo
+        return jsonDecode(response.body);
       } else {
-        print("Error en crear cliente: ${response.statusCode}");
+        _handleApiError(response, 'Error al crear cliente');
       }
     } catch (e) {
-      print("Error al enviar cliente: $e");
+      _handleNetworkError(e);
     }
     return null;
   }
 
   Future<void> _enviarCuentaBanco(String idCliente) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
     final url = Uri.parse("http://$baseUrl/api/v1/cuentabanco");
 
     final datosCuentaBanco = {
@@ -3339,7 +3408,10 @@ class _nClienteDialogState extends State<nClienteDialog>
     try {
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "tokenauth": token,
+        },
         body: jsonEncode(datosCuentaBanco),
       );
       print(
@@ -3349,14 +3421,17 @@ class _nClienteDialogState extends State<nClienteDialog>
       if (response.statusCode == 201) {
         print("Cuenta bancaria creada correctamente");
       } else {
-        print("Error al crear cuenta bancaria: ${response.statusCode}");
+        _handleApiError(response, 'Error en cuenta bancaria');
       }
     } catch (e) {
-      print("Error al enviar cuenta bancaria: $e");
+      _handleNetworkError(e);
     }
   }
 
   Future<void> _enviarDomicilio(String idCliente) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
     final url = Uri.parse("http://$baseUrl/api/v1/domicilios");
 
     // Convertir los datos en un array que contiene un solo map
@@ -3384,21 +3459,26 @@ class _nClienteDialogState extends State<nClienteDialog>
     try {
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "tokenauth": token,
+        },
         body: jsonEncode(datosDomicilio),
       );
       if (response.statusCode == 201) {
         print("Domicilio agregado correctamente");
       } else {
-        print("Error en agregar domicilio: ${response.statusCode}");
-        print("Cuerpo de la respuesta: ${response.body}");
+        _handleApiError(response, 'Error al crear domicilio');
       }
     } catch (e) {
-      print("Error al enviar domicilio: $e");
+      _handleNetworkError(e);
     }
   }
 
   Future<void> _enviarDatosAdicionales(String idCliente) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
     final url = Uri.parse("http://$baseUrl/api/v1/datosadicionales");
 
     final datosAdicionales = {
@@ -3416,21 +3496,27 @@ class _nClienteDialogState extends State<nClienteDialog>
     try {
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "tokenauth": token, // Agregar token
+        },
         body: jsonEncode(datosAdicionales),
       );
       if (response.statusCode == 201) {
         print("Datos adicionales agregados correctamente");
       } else {
-        print("Error en agregar datos adicionales: ${response.statusCode}");
-        print("Cuerpo de la respuesta: ${response.body}");
+        _handleApiError(response, 'Error al crear Datos Adicionales');
       }
     } catch (e) {
-      print("Error al enviar datos adicionales: $e");
+      _handleNetworkError(e);
     }
+    return null;
   }
 
   Future<void> _enviarIngresos(String idCliente) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
     final url = Uri.parse("http://$baseUrl/api/v1/ingresos");
 
     final ingresosData = ingresosEgresos
@@ -3451,21 +3537,27 @@ class _nClienteDialogState extends State<nClienteDialog>
     try {
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+          "Content-Type": "application/json",
+          "tokenauth": token, // Agregar token
+        },
         body: jsonEncode(ingresosData),
       );
       if (response.statusCode == 201) {
         print("Ingresos agregados correctamente");
       } else {
-        print("Error en agregar ingresos: ${response.statusCode}");
-        print("Cuerpo de la respuesta: ${response.body}");
+        _handleApiError(response, 'Error al crear ingresos');
       }
     } catch (e) {
-      print("Error al enviar ingresos: $e");
+      _handleNetworkError(e);
     }
+    return null;
   }
 
   Future<void> _enviarReferencias(String idCliente) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
     final url = Uri.parse("http://$baseUrl/api/v1/referencia");
 
     final referenciasData = referencias
@@ -3498,19 +3590,21 @@ class _nClienteDialogState extends State<nClienteDialog>
     try {
       final response = await http.post(
         url,
-        headers: {"Content-Type": "application/json"},
+        headers: {
+        "Content-Type": "application/json",
+        "tokenauth": token, // Agregar token
+      },
         body: jsonEncode(referenciasData),
       );
       if (response.statusCode == 201) {
         print("Referencias agregadas correctamente");
       } else {
-        print("Error en agregar referencias: ${response.statusCode}");
-        print("Cuerpo de la respuesta: ${response.body}");
-      }
-    } catch (e) {
-      print("Error al enviar referencias: $e");
+      _handleApiError(response, 'Error en crear referencias');
     }
+  } catch (e) {
+    _handleNetworkError(e);
   }
+}
 
   void imprimirDatosCliente() {
     final datosCliente = {
@@ -3582,6 +3676,31 @@ class _nClienteDialogState extends State<nClienteDialog>
       print(jsonEncode(datosCliente));
     } catch (e) {
       print("Error al convertir a JSON: $e");
+    }
+  }
+
+// Métodos de ayuda para manejo de errores
+  void _handleApiError(http.Response response, String mensajeBase) {
+    try {
+      final errorData = jsonDecode(response.body);
+      final errorMessage =
+          errorData['error']?['message']?.toString().toLowerCase() ?? '';
+
+      if (response.statusCode == 401 ||
+          response.statusCode == 403 ||
+          errorMessage.contains('jwt') ||
+          errorMessage.contains('token')) {
+        _handleTokenExpiration();
+      } else {
+        final mensajeError =
+            errorData['error']?['message'] ?? 'Error desconocido';
+        _showSnackbar(
+            context,
+            '$mensajeBase: $mensajeError (Código: ${response.statusCode})',
+            Colors.red);
+      }
+    } catch (e) {
+      _showSnackbar(context, '$mensajeBase: Error desconocido', Colors.red);
     }
   }
 }

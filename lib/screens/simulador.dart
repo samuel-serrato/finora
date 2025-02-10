@@ -95,7 +95,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
 
   Widget filaTitulo(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(right: 10, left: 10, top: 0, bottom: 10),
+      padding: EdgeInsets.only(right: 10, left: 10, top: 10, bottom: 10),
       child: Row(
         children: <Widget>[
           Spacer(), // Espacio flexible para empujar los ChoiceChip a la derecha

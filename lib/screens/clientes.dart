@@ -9,10 +9,12 @@ import 'package:money_facil/dialogs/nCliente.dart';
 import 'dart:async';
 
 import 'package:money_facil/ip.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ClientesScreen extends StatefulWidget {
-    final String username;
-    final String tipoUsuario;
+  final String username;
+  final String tipoUsuario;
 
   const ClientesScreen({required this.username, required this.tipoUsuario});
 
@@ -24,10 +26,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
   List<Cliente> listaClientes = [];
   bool isLoading = true;
   bool showErrorDialog = false;
-  Timer? _timer; // Usar un Timer que se pueda cancelar
-
-  bool errorDeConexion =
-      false; // Nueva variable para indicar el estado de error de conexión
+  Timer? _timer;
+  bool errorDeConexion = false;
+  bool noClientsFound = false;
 
   @override
   void initState() {
@@ -35,148 +36,145 @@ class _ClientesScreenState extends State<ClientesScreen> {
     obtenerClientes();
   }
 
-  // Define el tamaño de texto aquí
-  final double textHeaderTableSize = 12.0;
-  final double textTableSize = 12.0; // Tamaño de texto más pequeño
-
   @override
   void dispose() {
-    print('dispose() called: Cancelling timer if it exists');
-    _timer?.cancel(); // Cancelar el timer si existe
+    _timer?.cancel();
     super.dispose();
   }
 
+  final double textHeaderTableSize = 12.0;
+  final double textTableSize = 12.0;
+
   Future<void> obtenerClientes() async {
-    print('obtenerClientes() called');
     setState(() {
       isLoading = true;
-      errorDeConexion =
-          false; // Reinicia el estado de error de conexión al intentar cargar
+      errorDeConexion = false;
+      noClientsFound = false;
     });
 
     bool dialogShown = false;
-    bool noClientsFound =
-        false; // Nuevo control para manejar el caso de "No hay ningun cliente registrado"
 
     Future<void> fetchData() async {
       try {
-        print('Fetching data...');
-        final response =
-            await http.get(Uri.parse('http://$baseUrl/api/v1/clientes'));
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('tokenauth') ?? '';
+
+        final response = await http.get(
+          Uri.parse('http://$baseUrl/api/v1/clientes'),
+          headers: {
+            'tokenauth': token,
+            'Content-Type': 'application/json',
+          },
+        );
+
         if (mounted) {
-          print('Response received: ${response.statusCode}');
           if (response.statusCode == 200) {
             List<dynamic> data = json.decode(response.body);
             setState(() {
-              listaClientes =
-                  data.map((item) => Cliente.fromJson(item)).toList();
+              listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
               isLoading = false;
               errorDeConexion = false;
-              print('Data successfully loaded: ${listaClientes.length} items');
             });
             _timer?.cancel();
-            print('Timer cancelled after successful data load');
-          } else if (response.statusCode == 400) {
-            // Caso específico para manejar la respuesta 400
+          } else if (response.statusCode == 404) {
             final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] ==
-                "No hay ningun cliente registrado") {
-              // Si el mensaje es "No hay ningun cliente registrado", no mostramos el error
-              setState(() {
-                isLoading = false;
-                listaClientes = []; // Asegura que la lista está vacía
-              });
-              noClientsFound = true; // Marcar que no hay clientes
-              print('No clients found: ${errorData["Error"]["Message"]}');
-            } else {
-              setState(() {
-                isLoading = false;
-                errorDeConexion = true;
-              });
-              if (!dialogShown) {
-                dialogShown = true;
+            if (errorData["Error"]["Message"] == "jwt expired") {
+              if (mounted) {
+                setState(() => isLoading = false);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('tokenauth');
+                _timer?.cancel();
                 mostrarDialogoError(
-                    'Error en la carga de datos. Código de error: ${response.statusCode}');
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  }
+                );
               }
+              return;
+            } else {
+              setErrorState(dialogShown);
+            }
+          } else if (response.statusCode == 400) {
+            final errorData = json.decode(response.body);
+            if (errorData["Error"]["Message"] == "No hay ningun cliente registrado") {
+              setState(() {
+                listaClientes = [];
+                isLoading = false;
+                noClientsFound = true;
+              });
+              _timer?.cancel();
+            } else {
+              setErrorState(dialogShown);
             }
           } else {
-            setState(() {
-              isLoading = false;
-              errorDeConexion = true;
-              print('Error loading data: ${response.statusCode}');
-            });
-            if (!dialogShown) {
-              dialogShown = true;
-              mostrarDialogoError(
-                  'Error en la carga de datos. Código de error: ${response.statusCode}');
-            }
+            setErrorState(dialogShown);
           }
         }
       } catch (e) {
         if (mounted) {
-          print('Exception caught: $e');
-          setState(() {
-            isLoading = false;
-            errorDeConexion = true;
-          });
-          if (!dialogShown) {
-            dialogShown = true;
-            if (e is SocketException) {
-              mostrarDialogoError(
-                  'Error de conexión. No se puede acceder al servidor. Verifica tu red.');
-            } else {
-              mostrarDialogoError('Ocurrió un error inesperado: $e');
-            }
-          }
+          setErrorState(dialogShown, e);
         }
       }
     }
 
     fetchData();
 
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && !dialogShown) {
-        print('10 seconds elapsed: Showing timeout dialog');
-
-        // Solo mostrar el error de conexión si no hemos encontrado la condición de "No hay ningun cliente registrado"
-        if (!noClientsFound) {
+    if (!noClientsFound) {
+      _timer = Timer(Duration(seconds: 10), () {
+        if (mounted && !dialogShown && !noClientsFound) {
           setState(() {
             isLoading = false;
-            errorDeConexion = true; // Indica un problema de tiempo de espera
+            errorDeConexion = true;
           });
           dialogShown = true;
           mostrarDialogoError(
-              'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
-        } else {
-          // Si no hay clientes, no mostramos el error de conexión
-          print('No clients found, not showing connection error.');
+              'No se pudo conectar al servidor. Verifica tu red.');
         }
-      } else {
-        print('Timer cancelled or dialog already shown before 10 seconds');
-      }
-    });
+      });
+    }
   }
 
-// Función para mostrar el diálogo de error
-  void mostrarDialogoError(String mensaje) {
+  void setErrorState(bool dialogShown, [dynamic error]) {
+    setState(() {
+      isLoading = false;
+      errorDeConexion = true;
+    });
+    if (!dialogShown) {
+      dialogShown = true;
+      if (error is SocketException) {
+        mostrarDialogoError('Error de conexión. Verifica tu red.');
+      } else {
+        mostrarDialogoError('Ocurrió un error inesperado.');
+      }
+      _timer?.cancel();
+    }
+  }
+
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Error de conexión'),
+          title: const Text('Error'),
           content: Text(mensaje),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
+                if (onClose != null) onClose();
               },
-              child: Text('OK'),
+              child: const Text('OK'),
             ),
           ],
         );
       },
     );
   }
+
 
   String formatDate(String dateString) {
     DateTime date = DateTime.parse(dateString);

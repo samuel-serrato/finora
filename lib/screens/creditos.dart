@@ -96,7 +96,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 _timer?.cancel(); // Cancela el temporizador antes de navegar
 
                 mostrarDialogoError(
-                    'Tu sesión ha expirado. Por favor inicia sesión de nuevo.',
+                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
                     onClose: () {
                   Navigator.push(
                     context,

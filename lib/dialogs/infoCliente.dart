@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:money_facil/ip.dart';
+import 'package:money_facil/screens/login.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InfoCliente extends StatefulWidget {
   final String idCliente;
@@ -19,8 +22,9 @@ class InfoCliente extends StatefulWidget {
 class _InfoClienteState extends State<InfoCliente> {
   Map<String, dynamic>? clienteData;
   bool isLoading = true;
-  Timer? _timer; // Agrega el temporizador como variable de instancia
+  Timer? _timer;
   bool dialogShown = false;
+  bool errorDeConexion = false;
   late ScrollController _scrollController;
 
   @override
@@ -32,77 +36,130 @@ class _InfoClienteState extends State<InfoCliente> {
 
   @override
   void dispose() {
-    _timer?.cancel(); // Cancela el temporizador en dispose
+    _timer?.cancel();
     super.dispose();
-    _scrollController.dispose(); // Asegúrate de llamar a dispose aquí
+    _scrollController.dispose();
   }
 
   Future<void> fetchClienteData() async {
-    // Configura el temporizador para mostrar un diálogo después de 10 segundos si no hay respuesta
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && !dialogShown) {
-        setState(() {
-          isLoading = false;
-        });
-        dialogShown = true;
-        mostrarDialogoError(
-            'No se pudo conectar al servidor. Por favor, revise su conexión de red.');
-      }
+    setState(() {
+      isLoading = true;
+      errorDeConexion = false;
     });
 
-    try {
-      final response = await http.get(
-          Uri.parse('http://$baseUrl/api/v1/clientes/${widget.idCliente}'));
+    bool localDialogShown = false;
 
-      if (response.statusCode == 200) {
-        setState(() {
-          clienteData = json.decode(response.body)[0];
-          isLoading = false;
-        });
-        _timer
-            ?.cancel(); // Cancela el temporizador al completar la carga exitosa
-      } else {
-        setState(() {
-          isLoading = false;
-        });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError(
-              'Error en la carga de datos. Código de error: ${response.statusCode}');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.get(
+        Uri.parse('http://$baseUrl/api/v1/clientes/${widget.idCliente}'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data is List && data.isNotEmpty) {
+            setState(() {
+              clienteData = data[0];
+              isLoading = false;
+            });
+          } else {
+            setErrorState(localDialogShown);
+          }
+          _timer?.cancel();
+        } else if (response.statusCode == 404) {
+          final errorData = json.decode(response.body);
+          if (errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              setState(() => isLoading = false);
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                }
+              );
+            }
+            return;
+          } else {
+            setErrorState(localDialogShown);
+          }
+        } else {
+          setErrorState(localDialogShown);
         }
       }
     } catch (e) {
       if (mounted) {
+        setErrorState(localDialogShown, e);
+      }
+    }
+
+    // Configurar el timer solo si no se ha obtenido respuesta
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && !localDialogShown && isLoading) {
         setState(() {
           isLoading = false;
+          errorDeConexion = true;
         });
-        if (!dialogShown) {
-          dialogShown = true;
-          mostrarDialogoError('Error de conexión o inesperado: $e');
+        localDialogShown = true;
+        mostrarDialogoError(
+          'No se pudo conectar al servidor. Verifica tu red.',
+        );
+      }
+    });
+  }
+
+  void setErrorState(bool dialogShown, [dynamic error]) {
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true;
+      });
+      if (!dialogShown) {
+        dialogShown = true;
+        if (error is SocketException) {
+          mostrarDialogoError('Error de conexión. Verifica tu red.');
+        } else {
+          mostrarDialogoError('Ocurrió un error inesperado.');
         }
       }
+      _timer?.cancel();
     }
   }
 
-  void mostrarDialogoError(String mensaje) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Error de conexión'),
-          content: Text(mensaje),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Error'),
+            content: Text(mensaje),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  if (onClose != null) onClose();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
