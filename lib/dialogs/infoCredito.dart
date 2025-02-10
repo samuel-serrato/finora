@@ -646,7 +646,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 _buildSectionTitle(
-                                                    'Control de Pagos'),
+                                                    'Control de Pagoss'),
                                                 PaginaControl(
                                                   key: paginaControlKey,
                                                   idCredito: idCredito,
