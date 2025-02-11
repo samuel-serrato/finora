@@ -13,6 +13,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../providers/pagos_provider.dart';
 import 'package:collection/collection.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:open_file/open_file.dart';
+
+
 
 class InfoCredito extends StatefulWidget {
   final String folio;
@@ -103,6 +108,7 @@ class _InfoCreditoState extends State<InfoCredito> {
           _handleError(dialogShown, 'Error: ${response.statusCode}');
         }
       } else {
+        print('Respuesta:${response.body}');
         _handleError(dialogShown, 'Error: ${response.statusCode}');
       }
     } catch (e) {
@@ -185,7 +191,7 @@ class _InfoCreditoState extends State<InfoCredito> {
       double totalDeuda =
           (pagoActual.capitalMasInteres ?? 0.0) + (pagoActual.moratorio ?? 0.0);
 
-          // ===== Lógica para "Garantia" =====
+      // ===== Lógica para "Garantia" =====
       if (pagoActual.tipoPago?.toLowerCase() == 'garantia') {
         double totalDepositado = pagoActual.deposito ?? 0.0;
         double capitalPendiente = pagoActual.capitalMasInteres! - paidCapital;
@@ -197,8 +203,9 @@ class _InfoCreditoState extends State<InfoCredito> {
 
         // Aplicar remanente a moratorios
         double aplicadoMoratorio = remanente.clamp(0.0, moratorioPendiente);
-        double saldofavor = (totalDepositado - (aplicadoCapital + aplicadoMoratorio))
-            .clamp(0.0, double.infinity);
+        double saldofavor =
+            (totalDepositado - (aplicadoCapital + aplicadoMoratorio))
+                .clamp(0.0, double.infinity);
 
         pagosJson.add({
           "idfechaspagos": pagoActual.idfechaspagos,
@@ -651,7 +658,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                   key: paginaControlKey,
                                                   idCredito: idCredito,
                                                   montoGarantia: creditoData!
-                                                      .montoGarantia ?? 0.0,
+                                                          .montoGarantia ??
+                                                      0.0,
                                                 ),
                                               ],
                                             ),
@@ -679,11 +687,10 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 _buildSectionTitle('Otros'),
-                                                Text(
-                                                  "Aquí puedes agregar otros detalles o información adicional.",
-                                                  style:
-                                                      TextStyle(fontSize: 16),
-                                                ),
+                                                PaginaDescargables(
+                                                  tipo: creditoData!.tipo,
+                                                  folio: creditoData!.folio,
+                                                )
                                               ],
                                             ),
                                           ),
@@ -745,8 +752,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                       if (pagosJson.isNotEmpty) {
                         print('Datos a enviar: $pagosJson');
                         // Llamar a la función para enviar los datos al servidor
-                        //await enviarDatosAlServidor(
-                          //    context, pagosSeleccionados);
+                        await enviarDatosAlServidor(
+                            context, pagosSeleccionados);
                       } else {
                         print("No hay cambios para guardar.");
                       }
@@ -1052,6 +1059,7 @@ class _PaginaControlState extends State<PaginaControl> {
 
         return pagos;
       } else {
+        print('Respuesta:${response.body}');
         throw Exception('Error: ${response.statusCode}');
       }
     } catch (e) {
@@ -1389,88 +1397,123 @@ class _PaginaControlState extends State<PaginaControl> {
                               ),
                               // Celda para tipo de pago
                               _buildTableCell(
-  esPago1
-      ? "-"
-      : DropdownButton<String?>(
-          value: pago.tipoPago.isEmpty ? null : pago.tipoPago,
-          hint: Text(
-            pago.tipoPago.isEmpty ? "Seleccionar Pago" : "",
-            style: TextStyle(fontSize: 12),
-          ),
-          items: <String>[
-            'Completo',
-            'Monto Parcial',
-            'En Abonos',
-            if (pago.semana >= totalPagosDelCredito - 1) 'Garantia',
-          ].map((String value) {
-            return DropdownMenuItem<String?>(
-              value: value,
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _puedeEditarPago(pago) ? Colors.black : Colors.grey[700],
-                ),
-              ),
-            );
-          }).toList(),
-          onChanged: _puedeEditarPago(pago)
-              ? (String? newValue) {
-                  setState(() {
-                    pago.tipoPago = newValue!;
-                    print("Pago seleccionado: Semana ${pago.semana}, Tipo de pago: $newValue, Fecha de pago: ${pago.fechaPago}, ID Fechas Pagos: ${pago.idfechaspagos}, Monto a Pagar: ${pago.capitalMasInteres}");
+                                esPago1
+                                    ? "-"
+                                    : DropdownButton<String?>(
+                                        value: pago.tipoPago.isEmpty
+                                            ? null
+                                            : pago.tipoPago,
+                                        hint: Text(
+                                          pago.tipoPago.isEmpty
+                                              ? "Seleccionar Pago"
+                                              : "",
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                        items: <String>[
+                                          'Completo',
+                                          'Monto Parcial',
+                                          'En Abonos',
+                                          if (pago.semana >=
+                                              totalPagosDelCredito - 1)
+                                            'Garantia',
+                                        ].map((String value) {
+                                          return DropdownMenuItem<String?>(
+                                            value: value,
+                                            child: Text(
+                                              value,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: _puedeEditarPago(pago)
+                                                    ? Colors.black
+                                                    : Colors.grey[700],
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                        onChanged: _puedeEditarPago(pago)
+                                            ? (String? newValue) {
+                                                setState(() {
+                                                  pago.tipoPago = newValue!;
+                                                  print(
+                                                      "Pago seleccionado: Semana ${pago.semana}, Tipo de pago: $newValue, Fecha de pago: ${pago.fechaPago}, ID Fechas Pagos: ${pago.idfechaspagos}, Monto a Pagar: ${pago.capitalMasInteres}");
 
-                    // Manejar diferentes tipos de pago
-                    if (newValue == 'Completo') {
-                      double montoAPagar = pago.capitalMasInteres ?? 0.0;
-                      pago.deposito = montoAPagar;
-                      
-                      if (pago.fechaPago == null) {
-                        pago.fechaPago = DateTime.now().toString();
-                      }
-                    } 
-                    else if (newValue == 'Garantia') {
-                      // Asignar valor de garantía desde el widget
-                      pago.deposito = widget.montoGarantia;
-                      pago.saldoFavor = 0.0;
-                      pago.saldoEnContra = 0.0;
-                    }
+                                                  // Manejar diferentes tipos de pago
+                                                  if (newValue == 'Completo') {
+                                                    double montoAPagar =
+                                                        pago.capitalMasInteres ??
+                                                            0.0;
+                                                    pago.deposito = montoAPagar;
 
-                    // Crear objeto PagoSeleccionado
-                    PagoSeleccionado pagoSeleccionado = PagoSeleccionado(
-                      semana: pago.semana,
-                      tipoPago: pago.tipoPago,
-                      deposito: pago.deposito ?? 0.00,
-                      fechaPago: pago.fechaPago ?? '',
-                      idfechaspagos: pago.idfechaspagos ?? '',
-                      capitalMasInteres: pago.capitalMasInteres,
-                      moratorio: pago.moratorios?.moratorios,
-                      saldoFavor: pago.saldoFavor,
-                      saldoEnContra: pago.saldoEnContra,
-                      abonos: pago.abonos,
-                    );
+                                                    if (pago.fechaPago ==
+                                                        null) {
+                                                      pago.fechaPago =
+                                                          DateTime.now()
+                                                              .toString();
+                                                    }
+                                                  } else if (newValue ==
+                                                      'Garantia') {
+                                                    // Asignar valor de garantía desde el widget
+                                                    pago.deposito =
+                                                        widget.montoGarantia;
+                                                    pago.saldoFavor = 0.0;
+                                                    pago.saldoEnContra = 0.0;
+                                                  }
 
-                    // Actualizar provider
-                    Provider.of<PagosProvider>(context, listen: false)
-                        .actualizarPago(pagoSeleccionado.semana, pagoSeleccionado);
+                                                  // Crear objeto PagoSeleccionado
+                                                  PagoSeleccionado
+                                                      pagoSeleccionado =
+                                                      PagoSeleccionado(
+                                                    semana: pago.semana,
+                                                    tipoPago: pago.tipoPago,
+                                                    deposito:
+                                                        pago.deposito ?? 0.00,
+                                                    fechaPago:
+                                                        pago.fechaPago ?? '',
+                                                    idfechaspagos:
+                                                        pago.idfechaspagos ??
+                                                            '',
+                                                    capitalMasInteres:
+                                                        pago.capitalMasInteres,
+                                                    moratorio: pago
+                                                        .moratorios?.moratorios,
+                                                    saldoFavor: pago.saldoFavor,
+                                                    saldoEnContra:
+                                                        pago.saldoEnContra,
+                                                    abonos: pago.abonos,
+                                                  );
 
-                    // Debug: Imprimir estado actualizado
-                    print("Estado del Provider después de actualización:");
-                    Provider.of<PagosProvider>(context, listen: false)
-                        .pagosSeleccionados
-                        .forEach((pago) {
-                      print("Pago en Provider: Semana ${pago.semana}, Tipo de pago: ${pago.tipoPago}, Monto a Pagar: ${pago.capitalMasInteres}, Deposito: ${pago.deposito}");
-                    });
-                  });
-                }
-              : null,
-          icon: Icon(
-            Icons.arrow_drop_down,
-            color: _puedeEditarPago(pago) ? Color(0xFFFB2056) : Colors.grey[400],
-          ),
-        ),
-  flex: 22,
-),
+                                                  // Actualizar provider
+                                                  Provider.of<PagosProvider>(
+                                                          context,
+                                                          listen: false)
+                                                      .actualizarPago(
+                                                          pagoSeleccionado
+                                                              .semana,
+                                                          pagoSeleccionado);
+
+                                                  // Debug: Imprimir estado actualizado
+                                                  print(
+                                                      "Estado del Provider después de actualización:");
+                                                  Provider.of<PagosProvider>(
+                                                          context,
+                                                          listen: false)
+                                                      .pagosSeleccionados
+                                                      .forEach((pago) {
+                                                    print(
+                                                        "Pago en Provider: Semana ${pago.semana}, Tipo de pago: ${pago.tipoPago}, Monto a Pagar: ${pago.capitalMasInteres}, Deposito: ${pago.deposito}");
+                                                  });
+                                                });
+                                              }
+                                            : null,
+                                        icon: Icon(
+                                          Icons.arrow_drop_down,
+                                          color: _puedeEditarPago(pago)
+                                              ? Color(0xFFFB2056)
+                                              : Colors.grey[400],
+                                        ),
+                                      ),
+                                flex: 22,
+                              ),
 
                               SizedBox(width: 20),
                               // Dos botones: uno para agregar abonos, otro para ver abonos
@@ -1751,8 +1794,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 as num)
                                                             .toDouble()
                                                         : 0.0;
-                                                    final fecha =
-                                                        'Moratorio'; // Puedes ajustar la representación (o incluir fecha si lo deseas)
+                                                    final fecha = formatearFecha(
+                                                        moratorio[
+                                                            'fCreacion']); // Puedes ajustar la representación (o incluir fecha si lo deseas)
                                                     items.add(
                                                       PopupMenuItem(
                                                         value: moratorio,
@@ -1776,7 +1820,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   width: 10),
                                                               Expanded(
                                                                 child: Text(
-                                                                  "Monto: \$${sumaMoratorios.toStringAsFixed(2)}",
+                                                                  "Fecha: $fecha, Monto: \$${sumaMoratorios.toStringAsFixed(2)}",
                                                                   style:
                                                                       const TextStyle(
                                                                     fontSize:
@@ -3054,6 +3098,180 @@ class PaginaIntegrantes extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// Clase PaginaIntegrantes: Widget que muestra la tabla
+// Clase PaginaDescargables
+class PaginaDescargables extends StatefulWidget {
+  final String tipo;
+  final String folio;
+  final bool descargando; // Nuevo parámetro para controlar el estado
+
+  const PaginaDescargables({
+    Key? key,
+    required this.tipo,
+    required this.folio,
+    this.descargando = false,
+  }) : super(key: key);
+
+  @override
+  State<PaginaDescargables> createState() => _PaginaDescargablesState();
+}
+
+class _PaginaDescargablesState extends State<PaginaDescargables> {
+  bool _descargando = false;
+
+  Future<void> _descargarDocumento(String documento) async {
+  setState(() => _descargando = true);
+
+  try {
+    final response = await http.get(Uri.parse(
+      'http://192.168.0.116:3000/api/v1/formato/'
+      '${documento.toLowerCase()}/'
+      '${widget.tipo.toLowerCase()}/'
+      '${widget.folio.toUpperCase()}'
+    ));
+
+    if (response.statusCode == 200) {
+      // Inicialización explícita de FilePicker
+      FilePicker.platform; // <-- Añade esta línea
+
+      final String? savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar documento',
+        fileName: '${documento}_${widget.folio}.docx',
+        allowedExtensions: ['docx'],
+        type: FileType.custom,
+      );
+
+      if (savePath != null) {
+        final file = File(savePath);
+        await file.writeAsBytes(response.bodyBytes);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Archivo guardado en:\n$savePath'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error: ${e.toString()}'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    setState(() => _descargando = false);
+  }
+}
+
+
+// Método auxiliar para mostrar errores
+void _mostrarError(String mensaje) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(mensaje),
+      backgroundColor: Colors.red,
+      duration: const Duration(seconds: 3),
+    ),
+  );
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tipo: ${widget.tipo}',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Folio: ${widget.folio}',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 20),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Column(
+                children: [
+                  _buildBotonDescarga(
+                    context,
+                    titulo: 'Descargar Contrato',
+                    icono: Icons.assignment,
+                    color: Colors.blue[800]!,
+                    onTap: () => _descargarDocumento('contrato'),
+                  ),
+                  const SizedBox(height: 15),
+                  _buildBotonDescarga(
+                    context,
+                    titulo: 'Descargar Pagaré',
+                    icono: Icons.monetization_on,
+                    color: Colors.green[700]!,
+                    onTap: () => _descargarDocumento('pagare'),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBotonDescarga(
+    BuildContext context, {
+    required String titulo,
+    required IconData icono,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      borderRadius: BorderRadius.circular(10),
+      elevation: 3,
+      child: InkWell(
+        onTap: widget.descargando ? null : onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: widget.descargando
+              ? const Center(
+                  child: CircularProgressIndicator(color: Colors.white))
+              : Row(
+                  children: [
+                    Icon(icono, color: Colors.white, size: 28),
+                    const SizedBox(width: 20),
+                    Text(
+                      titulo,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.download, color: Colors.white, size: 24),
+                  ],
+                ),
+        ),
       ),
     );
   }

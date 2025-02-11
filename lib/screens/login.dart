@@ -128,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
     },
     {
       'title': 'Protección y\nSeguridad Garantizada',
-      'image': 'assets/security.png',
+      'image': 'assets/securityy.png',
       'color': Colors.green,
     },
     {

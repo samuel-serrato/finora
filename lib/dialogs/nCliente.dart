@@ -39,6 +39,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   final TextEditingController estadoController = TextEditingController();
   final TextEditingController municipioController = TextEditingController();
   final TextEditingController curpController = TextEditingController();
+    final TextEditingController claveElectorController = TextEditingController();
   final TextEditingController rfcController = TextEditingController();
   final TextEditingController tiempoViviendoController =
       TextEditingController();
@@ -1971,6 +1972,8 @@ class _nClienteDialogState extends State<nClienteDialog>
                             } else if (value.length != 18) {
                               return 'El dato tener exactamente 18 dígitos';
                             }
+                              curpController.text = value.toUpperCase();
+
                             return null; // Si es válido
                           },
                         ),
@@ -1993,8 +1996,33 @@ class _nClienteDialogState extends State<nClienteDialog>
                                   value.length != 13) {
                                 return 'El RFC debe tener 12 o 13 caracteres';
                               }
+
+                                rfcController.text = value.toUpperCase();
+
                               return null;
                             }),
+                      ),
+
+                      SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: _buildTextField(
+                          controller: claveElectorController,
+                          label: 'Clave de Elector',
+                          icon: Icons
+                              .switch_account_rounded, // Ícono de identificación más relevante
+                          maxLength: 18, // Especificar la longitud máxima aquí
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor ingrese la Clave de Elector';
+                            } else if (value.length != 18) {
+                              return 'El dato tener exactamente 18 dígitos';
+                            }
+                              claveElectorController.text = value.toUpperCase();
+
+                            return null; // Si es válido
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -2007,6 +2035,7 @@ class _nClienteDialogState extends State<nClienteDialog>
       ),
     );
   }
+  
 
   Widget _paginaCuentaBancaria() {
     @override
@@ -3155,32 +3184,31 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    String? Function(String?)? validator,
-    double fontSize = 12.0, // Tamaño de fuente por defecto
-    int? maxLength, // Longitud máxima opcional
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: TextStyle(fontSize: fontSize),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        labelStyle: TextStyle(fontSize: fontSize),
-      ),
-      validator: validator, // Asignar el validador
-      inputFormatters: maxLength != null
-          ? [
-              LengthLimitingTextInputFormatter(maxLength)
-            ] // Limita a la longitud especificada
-          : [], // Sin limitación si maxLength es null
-    );
-  }
+  required TextEditingController controller,
+  required String label,
+  required IconData icon,
+  TextInputType keyboardType = TextInputType.text,
+  String? Function(String?)? validator,
+  double fontSize = 12.0,
+  int? maxLength,
+}) {
+  return TextFormField(
+    controller: controller,
+    keyboardType: keyboardType,
+    style: TextStyle(fontSize: fontSize),
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      labelStyle: TextStyle(fontSize: fontSize),
+    ),
+    textCapitalization: TextCapitalization.characters, // Convierte a mayúsculas
+    validator: validator,
+    inputFormatters: maxLength != null
+        ? [LengthLimitingTextInputFormatter(maxLength)]
+        : [],
+  );
+}
 
   Widget _buildDropdown({
     required String? value,
@@ -3485,12 +3513,14 @@ class _nClienteDialogState extends State<nClienteDialog>
       "idclientes": idCliente,
       "curp": curpController.text,
       "rfc": rfcController.text,
+      "clvElector": claveElectorController.text
     };
 
     print('IMPRESION datos adicionales!');
     print(jsonEncode({
       "curp": curpController.text,
       "rfc": rfcController.text,
+      "clvElector": claveElectorController.text
     }));
 
     try {
@@ -3505,6 +3535,7 @@ class _nClienteDialogState extends State<nClienteDialog>
       if (response.statusCode == 201) {
         print("Datos adicionales agregados correctamente");
       } else {
+        print('Respuesta ${response.body}');
         _handleApiError(response, 'Error al crear Datos Adicionales');
       }
     } catch (e) {

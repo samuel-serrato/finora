@@ -222,6 +222,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
           widget.onCreditoAgregado();
           Navigator.of(context).pop();
         } else if (response.statusCode == 404) {
+          print('Respuesta ${response.body}');
           final errorData = json.decode(response.body);
           if (errorData["Error"]["Message"] == "jwt expired") {
             await prefs.remove('tokenauth');
