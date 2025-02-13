@@ -5,9 +5,10 @@ import 'package:money_facil/screens/grupos.dart';
 import 'package:money_facil/screens/home.dart';
 import 'package:money_facil/screens/creditos.dart';
 import 'package:money_facil/screens/simulador.dart';
+import 'package:money_facil/screens/usuarios.dart';
 
 class NavigationScreen extends StatefulWidget {
-  final String username; // Nuevo parámetro
+  final String username;
   final String rol;
   final String userId;
   final String userType;
@@ -17,7 +18,7 @@ class NavigationScreen extends StatefulWidget {
     required this.rol,
     required this.userId,
     required this.userType,
-  }); // Constructor actualizado
+  });
 
   @override
   _NavigationScreenState createState() => _NavigationScreenState();
@@ -42,8 +43,69 @@ class _NavigationScreenState extends State<NavigationScreen> {
     });
   }
 
+  List<Widget> _buildPages() {
+    List<Widget> pages = [
+      HomeScreen(username: widget.username, tipoUsuario: widget.userType),
+      SeguimientoScreen(username: widget.username, tipoUsuario: widget.userType),
+      GruposScreen(username: widget.username, tipoUsuario: widget.userType),
+      ClientesScreen(username: widget.username, tipoUsuario: widget.userType),
+      SimuladorScreen(username: widget.username, tipoUsuario: widget.userType),
+    ];
+
+    if (widget.userType == 'Admin') {
+      pages.add(GestionUsuariosScreen(username: widget.username, tipoUsuario: widget.userType));
+    }
+
+    return pages;
+  }
+
+  List<SideMenuItem> _buildMenuItems() {
+    List<SideMenuItem> items = [
+      SideMenuItem(
+        title: 'Home',
+        onTap: (index, _) => sideMenu.changePage(0),
+        icon: const Icon(Icons.home),
+      ),
+      SideMenuItem(
+        title: 'Créditos',
+        onTap: (index, _) => sideMenu.changePage(1),
+        icon: const Icon(Icons.request_page),
+      ),
+      SideMenuItem(
+        title: 'Grupos',
+        onTap: (index, _) => sideMenu.changePage(2),
+        icon: const Icon(Icons.group),
+      ),
+      SideMenuItem(
+        title: 'Clientes',
+        onTap: (index, _) => sideMenu.changePage(3),
+        icon: const Icon(Icons.person),
+      ),
+      SideMenuItem(
+        title: 'Simulador',
+        onTap: (index, _) => sideMenu.changePage(4),
+        icon: const Icon(Icons.edit_document),
+      ),
+    ];
+
+    if (widget.userType == 'Admin') {
+      items.add(
+        SideMenuItem(
+          title: 'Usuarios',
+          onTap: (index, _) => sideMenu.changePage(5),
+          icon: const Icon(Icons.manage_accounts),
+        ),
+      );
+    }
+
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final List<Widget> pages = _buildPages();
+    final List<SideMenuItem> menuItems = _buildMenuItems();
+
     return Scaffold(
       body: Row(
         children: [
@@ -68,17 +130,14 @@ class _NavigationScreenState extends State<NavigationScreen> {
               title: Padding(
                 padding: const EdgeInsets.symmetric(
                     vertical: 8.0,
-                    horizontal: 10), // Reduce el padding vertical
+                    horizontal: 10),
                 child: Row(
                   children: [
                     SizedBox(
                       width: isMenuOpen ? 140 : 70,
-                      height: isMenuOpen
-                          ? 100
-                          : 70, // Ajusta la altura cuando el menú esté abierto
+                      height: isMenuOpen ? 100 : 70,
                       child: Image.asset('assets/mf_logo.png',
-                          fit: BoxFit
-                              .contain), // Ajuste para evitar espacios innecesarios
+                          fit: BoxFit.contain),
                     ),
                     if (isMenuOpen) Spacer(),
                     Center(
@@ -101,33 +160,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                   ],
                 ),
               ),
-              items: [
-                SideMenuItem(
-                  title: 'Home',
-                  onTap: (index, _) => sideMenu.changePage(0),
-                  icon: const Icon(Icons.home),
-                ),
-                SideMenuItem(
-                  title: 'Créditos',
-                  onTap: (index, _) => sideMenu.changePage(1),
-                  icon: const Icon(Icons.request_page),
-                ),
-                SideMenuItem(
-                  title: 'Grupos',
-                  onTap: (index, _) => sideMenu.changePage(2),
-                  icon: const Icon(Icons.group),
-                ),
-                SideMenuItem(
-                  title: 'Clientes',
-                  onTap: (index, _) => sideMenu.changePage(3),
-                  icon: const Icon(Icons.person),
-                ),
-                SideMenuItem(
-                  title: 'Simulador',
-                  onTap: (index, _) => sideMenu.changePage(4),
-                  icon: const Icon(Icons.edit_document),
-                ),
-              ],
+              items: menuItems,
               footer: Container(
                 alignment: Alignment.bottomCenter,
                 padding: EdgeInsets.symmetric(vertical: 10),
@@ -174,13 +207,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
           Expanded(
             child: PageView(
               controller: pageController,
-              children: [
-                HomeScreen(username: widget.username, tipoUsuario: widget.userType),
-                SeguimientoScreen(username: widget.username, tipoUsuario: widget.userType),
-                GruposScreen(username: widget.username, tipoUsuario: widget.userType),
-                ClientesScreen(username: widget.username, tipoUsuario: widget.userType),
-                SimuladorScreen(username: widget.username, tipoUsuario: widget.userType),
-              ],
+              children: pages,
             ),
           ),
         ],

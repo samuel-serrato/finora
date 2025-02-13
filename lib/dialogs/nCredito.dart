@@ -118,6 +118,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     _scrollControllerIntegrantes.dispose();
     _scrollControllerCPagos.dispose();
     super.dispose();
+    _timer?.cancel(); // <--- Asegurar cancelación
   }
 
   Future<void> _mostrarDialogoAdvertencia(BuildContext context) async {
@@ -197,7 +198,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   // Actualiza el método enviarCredito
   Future<void> enviarCredito(Map<String, dynamic> datos) async {
     final String url = 'http://$baseUrl/api/v1/creditos';
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
@@ -227,16 +228,16 @@ class _nCreditoDialogState extends State<nCreditoDialog>
           if (errorData["Error"]["Message"] == "jwt expired") {
             await prefs.remove('tokenauth');
             mostrarDialogoError(
-              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-              onClose: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                );
-              }
-            );
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            });
           } else {
-            _mostrarError('Error al guardar el crédito: ${response.statusCode}');
+            _mostrarError(
+                'Error al guardar el crédito: ${response.statusCode}');
           }
         } else {
           _mostrarError('Error al guardar el crédito: ${response.statusCode}');
@@ -254,7 +255,6 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       }
     }
   }
-
 
   void _mostrarError(String mensaje) {
     showDialog(
@@ -302,7 +302,11 @@ class _nCreditoDialogState extends State<nCreditoDialog>
           if (response.statusCode == 200) {
             List<dynamic> data = json.decode(response.body);
             setState(() {
-              listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
+              listaGrupos = data
+                  .map((item) => Grupo.fromJson(item))
+                  .where((grupo) =>
+                      grupo.estado == "Disponible") // Filtrar por estado
+                  .toList();
               isLoading = false;
               errorDeConexion = false;
             });
@@ -316,14 +320,13 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                 await prefs.remove('tokenauth');
                 _timer?.cancel();
                 mostrarDialogoError(
-                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                  onClose: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
-                    );
-                  }
-                );
+                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                    onClose: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                });
               }
               return;
             } else {
@@ -972,7 +975,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     double interesPorcentaje = 0.0;
     double pagoTotal = 0.0;
     interesTotal = 0.0;
-    interesGlobal = (tasaInteresMensualCalculada / 4) * plazoNumerico; // Interés anualizado
+    interesGlobal =
+        (tasaInteresMensualCalculada / 4) * plazoNumerico; // Interés anualizado
 
     print('interesGlobal print: $interesGlobal');
 
@@ -998,13 +1002,13 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       interesTotal = interesPago * pagosTotales;
       pagoTotal = capitalPago + interesPago;
     }
-  
+
     totalARecuperar = monto + interesTotal;
 
     print('capitalL: $capitalPago');
     print('interesPAGOo: $interesPago');
     print('interesTOTALa: $interesTotal');
-    print('montoO: $monto'); 
+    print('montoO: $monto');
     print('total a RECUPERAR A: $totalARecuperar');
 
     print('pago seamanal: $pagoTotal');
@@ -1659,18 +1663,19 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
     // Generar las fechas de pago
     int pagosTotales =
-    frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
+        frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
 
 // Añadir el pago 0 con la fecha inicial
-datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaInicio));
+    datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaInicio));
 
-for (int index = 0; index < pagosTotales; index++) {
-  DateTime fechaPago = frecuenciaPago == "Semanal"
-      ? fechaInicio.add(Duration(days: (index + 1) * 7))
-      : fechaInicio.add(Duration(days: (index + 1) * 15)); // Ejemplo para quincenal
+    for (int index = 0; index < pagosTotales; index++) {
+      DateTime fechaPago = frecuenciaPago == "Semanal"
+          ? fechaInicio.add(Duration(days: (index + 1) * 7))
+          : fechaInicio
+              .add(Duration(days: (index + 1) * 15)); // Ejemplo para quincenal
 
-  datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaPago));
-}
+      datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaPago));
+    }
 
     // Generar los montos individuales
     for (var integrante in integrantes) {

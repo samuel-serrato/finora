@@ -28,6 +28,10 @@ class _nGrupoDialogState extends State<nGrupoDialog>
 
   final List<Map<String, dynamic>> _selectedPersons = [];
   final TextEditingController _controller = TextEditingController();
+  List<Usuario> _usuarios = [];
+  Usuario? _selectedUsuario;
+    bool _isLoadingUsuarios = true; // Nueva variable de estado
+
 
   String? selectedTipo;
 
@@ -65,6 +69,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         _currentIndex = _tabController.index;
       });
     });
+    obtenerUsuarios(); // Agregar esta línea
   }
 
   bool _validarFormularioActual() {
@@ -76,13 +81,40 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     return false;
   }
 
-   Future<List<Map<String, dynamic>>> findPersons(String query) async {
+  Future<void> obtenerUsuarios() async {
+  setState(() => _isLoadingUsuarios = true);
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    final response = await http.get(
+      Uri.parse('http://$baseUrl/api/v1/usuarios/tipo/campo'),
+      headers: {
+        'tokenauth': token,
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      setState(() {
+        _usuarios = data.map((item) => Usuario.fromJson(item)).toList();
+      });
+    }
+  } catch (e) {
+    print('Error obteniendo usuarios: $e');
+  } finally {
+    setState(() => _isLoadingUsuarios = false);
+  }
+}
+
+  Future<List<Map<String, dynamic>>> findPersons(String query) async {
     if (query.isEmpty) return [];
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
-      
+
       final response = await http.get(
         Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
         headers: {
@@ -105,7 +137,8 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       if (mounted && !_dialogShown) {
         _mostrarDialogo(
           title: 'Error',
-          message: 'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+          message:
+              'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
           isSuccess: false,
         );
       }
@@ -117,7 +150,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     if (mounted) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('tokenauth');
-      
+
       _mostrarDialogo(
         title: 'Sesión expirada',
         message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
@@ -129,10 +162,10 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       );
     }
   }
-  
+
   void _agregarGrupo() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
       _errorDeConexion = false;
@@ -177,12 +210,11 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     }
   }
 
-
   Future<Map<String, dynamic>?> _enviarGrupo() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
-      
+
       final response = await http.post(
         Uri.parse('http://$baseUrl/api/v1/grupos'),
         headers: {
@@ -207,9 +239,10 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     } catch (e) {
       if (mounted && !_dialogShown) {
         _mostrarDialogo(
-          title: 'Error',
-          message: 'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
-          isSuccess: false);
+            title: 'Error',
+            message:
+                'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+            isSuccess: false);
       }
     }
     return null;
@@ -218,7 +251,8 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   void _handleResponseError(http.Response response) {
     final responseBody = jsonDecode(response.body);
     final errorCode = responseBody['Error']?['Code'] ?? response.statusCode;
-    final errorMessage = responseBody['Error']?['Message'] ?? "Error desconocido";
+    final errorMessage =
+        responseBody['Error']?['Message'] ?? "Error desconocido";
 
     if (response.statusCode == 401 && errorMessage == "jwt expired") {
       _handleTokenExpiration();
@@ -232,11 +266,11 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
 // Función para enviar los miembros al grupo
- Future<bool> _enviarMiembros(String idGrupo) async {
+  Future<bool> _enviarMiembros(String idGrupo) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
-      
+
       final response = await http.post(
         Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
         headers: {
@@ -245,25 +279,29 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         },
         body: json.encode({
           'idgrupos': idGrupo,
-          'clientes': _selectedPersons.map((persona) => {
-            'idcliente': persona['idclientes'],
-            'nomCargo': _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
-          }).toList(),
-          'idusuarios': '8T9F0D7ZSL',
+          'clientes': _selectedPersons
+              .map((persona) => {
+                    'idcliente': persona['idclientes'],
+                    'nomCargo':
+                        _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
+                  })
+              .toList(),
+          'idusuarios': _selectedUsuario?.idusuarios, // Agregar esta línea
         }),
       );
 
       if (!mounted) return false;
 
       if (response.statusCode == 201) return true;
-      
+
       _handleResponseError(response);
       return false;
     } catch (e) {
       if (mounted && !_dialogShown) {
         _mostrarDialogo(
           title: 'Error',
-          message: 'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+          message:
+              'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
           isSuccess: false,
         );
       }
@@ -278,12 +316,13 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     VoidCallback? onClose,
   }) {
     if (!mounted || _dialogShown) return;
-    
+
     _dialogShown = true;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title, style: TextStyle(color: isSuccess ? Colors.green : Colors.red)),
+        title: Text(title,
+            style: TextStyle(color: isSuccess ? Colors.green : Colors.red)),
         content: Text(message),
         actions: [
           TextButton(
@@ -298,108 +337,125 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     ).then((_) => _dialogShown = false);
   }
 
-
-
-
   @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width * 0.8;
-    final height = MediaQuery.of(context).size.height * 0.8;
+Widget build(BuildContext context) {
+  final width = MediaQuery.of(context).size.width * 0.8;
+  final height = MediaQuery.of(context).size.height * 0.8;
 
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        width: width,
-        height: height,
-        padding: EdgeInsets.all(20),
-        child: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(),
-              )
-            : Column(
+  return Dialog(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    child: Container(
+      width: width,
+      height: height,
+      padding: EdgeInsets.all(20),
+      child: _isLoadingUsuarios // Verificación principal aquí
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  CircularProgressIndicator(
+                    color: Color(0xFFFB2056),
+                  ),
+                  SizedBox(height: 20),
                   Text(
-                    'Agregar Grupo',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 10),
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: Color(0xFFFB2056),
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: Color(0xFFFB2056),
-                    tabs: [
-                      Tab(text: 'Información del Grupo'),
-                      Tab(text: 'Miembros del Grupo'),
-                    ],
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              right: 30, top: 10, bottom: 10, left: 0),
-                          child: _paginaInfoGrupo(),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              right: 30, top: 10, bottom: 10, left: 0),
-                          child: _paginaMiembros(),
-                        ),
-                      ],
+                    'Cargando usuarios...',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 16,
                     ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.grey,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text('Cancelar'),
-                      ),
-                      Row(
-                        children: [
-                          if (_currentIndex > 0)
-                            TextButton(
-                              onPressed: () {
-                                _tabController.animateTo(_currentIndex - 1);
-                              },
-                              child: Text('Atrás'),
-                            ),
-                          if (_currentIndex < 1)
-                            ElevatedButton(
-                              onPressed: () {
-                                if (_validarFormularioActual()) {
-                                  _tabController.animateTo(_currentIndex + 1);
-                                } else {
-                                  print(
-                                      "Validación fallida en la pestaña $_currentIndex");
-                                }
-                              },
-                              child: Text('Siguiente'),
-                            ),
-                          if (_currentIndex == 1)
-                            ElevatedButton(
-                              onPressed: _agregarGrupo,
-                              child: Text('Agregar'),
-                            ),
-                        ],
-                      ),
-                    ],
                   ),
                 ],
               ),
-      ),
-    );
-  }
+            )
+          : _isLoading
+              ? Center(
+                  child: CircularProgressIndicator(),
+                )
+              : Column(
+                  children: [
+                    Text(
+                      'Agregar Grupo',
+                      style: TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 10),
+                    TabBar(
+                      controller: _tabController,
+                      labelColor: Color(0xFFFB2056),
+                      unselectedLabelColor: Colors.grey,
+                      indicatorColor: Color(0xFFFB2056),
+                      tabs: [
+                        Tab(text: 'Información del Grupo'),
+                        Tab(text: 'Miembros del Grupo'),
+                      ],
+                    ),
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                right: 30, top: 10, bottom: 10, left: 0),
+                            child: _paginaInfoGrupo(),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                right: 30, top: 10, bottom: 10, left: 0),
+                            child: _paginaMiembros(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.grey,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text('Cancelar'),
+                        ),
+                        Row(
+                          children: [
+                            if (_currentIndex > 0)
+                              TextButton(
+                                onPressed: () {
+                                  _tabController.animateTo(_currentIndex - 1);
+                                },
+                                child: Text('Atrás'),
+                              ),
+                            if (_currentIndex < 1)
+                              ElevatedButton(
+                                onPressed: () {
+                                  if (_validarFormularioActual()) {
+                                    _tabController.animateTo(_currentIndex + 1);
+                                  } else {
+                                    print(
+                                        "Validación fallida en la pestaña $_currentIndex");
+                                  }
+                                },
+                                child: Text('Siguiente'),
+                              ),
+                            if (_currentIndex == 1)
+                              ElevatedButton(
+                                onPressed: _agregarGrupo,
+                                child: Text('Agregar'),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+    ),
+  );
+}
 
   // Función que crea cada paso con el círculo y el texto
   Widget _buildPasoItem(int numeroPaso, String titulo, bool isActive) {
@@ -528,6 +584,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                         return null;
                       },
                     ),
+
                     SizedBox(height: verticalSpacing),
                     _buildTextField(
                       controller: descripcionController,
@@ -536,6 +593,23 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Por favor ingrese una descripción';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: verticalSpacing),
+                    _buildUsuarioDropdown(
+                      value: _selectedUsuario,
+                      hint: 'Seleccionar Usuario',
+                      usuarios: _usuarios,
+                      onChanged: (Usuario? newValue) {
+                        setState(() {
+                          _selectedUsuario = newValue;
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null) {
+                          return 'Seleccione un usuario';
                         }
                         return null;
                       },
@@ -765,6 +839,51 @@ Widget _buildTextField({
   );
 }
 
+Widget _buildUsuarioDropdown({
+  required Usuario? value,
+  required String hint,
+  required List<Usuario> usuarios,
+  required void Function(Usuario?) onChanged,
+  double fontSize = 12.0,
+  String? Function(Usuario?)? validator,
+}) {
+  return DropdownButtonFormField<Usuario>(
+    value: value,
+    hint: Text(
+      hint,
+      style: TextStyle(fontSize: fontSize, color: Colors.black),
+    ),
+    items: usuarios.map((usuario) {
+      return DropdownMenuItem<Usuario>(
+        value: usuario,
+        child: Text(
+          usuario.nombreCompleto,
+          style: TextStyle(fontSize: fontSize, color: Colors.black),
+        ),
+      );
+    }).toList(),
+    onChanged: onChanged,
+    validator: validator,
+    decoration: InputDecoration(
+      labelText: value != null ? hint : null,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.black),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey.shade700),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.black),
+      ),
+      prefixIcon: Icon(Icons.person), // Icono agregado
+    ),
+    style: TextStyle(fontSize: fontSize, color: Colors.black),
+  );
+}
+
 Widget _buildDropdown({
   required String? value,
   required String hint,
@@ -809,4 +928,30 @@ Widget _buildDropdown({
     ),
     style: TextStyle(fontSize: fontSize, color: Colors.black),
   );
+}
+
+class Usuario {
+  final String idusuarios;
+  final String usuario;
+  final String tipoUsuario;
+  final String nombreCompleto;
+  final String fCreacion;
+
+  Usuario({
+    required this.idusuarios,
+    required this.usuario,
+    required this.tipoUsuario,
+    required this.nombreCompleto,
+    required this.fCreacion,
+  });
+
+  factory Usuario.fromJson(Map<String, dynamic> json) {
+    return Usuario(
+      idusuarios: json['idusuarios'],
+      usuario: json['usuario'],
+      tipoUsuario: json['tipoUsuario'],
+      nombreCompleto: json['nombreCompleto'],
+      fCreacion: json['fCreacion'],
+    );
+  }
 }

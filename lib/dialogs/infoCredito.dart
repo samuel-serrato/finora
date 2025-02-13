@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:money_facil/ip.dart';
 import 'package:money_facil/models/pago_seleccionado.dart';
 import 'package:money_facil/screens/login.dart';
+import 'package:process_run/process_run.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -641,7 +642,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                       tabs: [
                                         Tab(text: 'Control'),
                                         Tab(text: 'Integrantes'),
-                                        Tab(text: 'Otros'),
+                                        Tab(text: 'Descargables'),
                                       ],
                                     ),
                                     Expanded(
@@ -671,6 +672,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                               children: [
                                                 _buildSectionTitle(
                                                     'Integrantes'),
+                                                    SizedBox(height: 12),
                                                 PaginaIntegrantes(
                                                   clientesMontosInd:
                                                       creditoData!
@@ -686,7 +688,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                _buildSectionTitle('Otros'),
+                                                _buildSectionTitle('Descargables'),
                                                 PaginaDescargables(
                                                   tipo: creditoData!.tipo,
                                                   folio: creditoData!.folio,
@@ -3122,65 +3124,71 @@ class PaginaDescargables extends StatefulWidget {
 }
 
 class _PaginaDescargablesState extends State<PaginaDescargables> {
-  bool _descargando = false;
+  String? _documentoDescargando; // null, 'contrato' o 'pagare'
 
   Future<void> _descargarDocumento(String documento) async {
-  setState(() => _descargando = true);
+    setState(() => _documentoDescargando = documento);
 
-  try {
-    final response = await http.get(Uri.parse(
-      'http://192.168.0.116:3000/api/v1/formato/'
-      '${documento.toLowerCase()}/'
-      '${widget.tipo.toLowerCase()}/'
-      '${widget.folio.toUpperCase()}'
-    ));
+    try {
+      final response = await http.get(Uri.parse(
+        'http://192.168.0.116:3000/api/v1/formato/'
+        '${documento.toLowerCase()}/'
+        '${widget.tipo.toLowerCase()}/'
+        '${widget.folio.toUpperCase()}'
+      ));
 
-    if (response.statusCode == 200) {
-      // Inicialización explícita de FilePicker
-      FilePicker.platform; // <-- Añade esta línea
-
-      final String? savePath = await FilePicker.platform.saveFile(
-        dialogTitle: 'Guardar documento',
-        fileName: '${documento}_${widget.folio}.docx',
-        allowedExtensions: ['docx'],
-        type: FileType.custom,
-      );
-
-      if (savePath != null) {
-        final file = File(savePath);
-        await file.writeAsBytes(response.bodyBytes);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Archivo guardado en:\n$savePath'),
-            backgroundColor: Colors.green,
-          ),
+      if (response.statusCode == 200) {
+        final String? savePath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Guardar documento',
+          fileName: '${documento}_${widget.folio}.docx',
+          allowedExtensions: ['docx'],
+          type: FileType.custom,
         );
+
+        if (savePath != null) {
+          final file = File(savePath);
+          await file.writeAsBytes(response.bodyBytes);
+          
+          // Abrir archivo automáticamente
+          await _abrirArchivoGuardado(savePath);
+        }
+      } else {
+        _mostrarError('Error de servidor: ${response.statusCode}');
       }
+    } catch (e) {
+      _mostrarError('Error: ${e.toString().split(':').first}');
+    } finally {
+            setState(() => _documentoDescargando = null);
+
     }
-  } catch (e) {
+  }
+
+  Future<void> _abrirArchivoGuardado(String path) async {
+    try {
+      await run('open "$path"'); // Abrir con aplicación predeterminada en macOS
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Documento abierto en:\n${path.split('/').last}'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      _mostrarError('No se pudo abrir el archivo: ${e.toString().split(':').first}');
+    }
+  }
+
+  void _mostrarError(String mensaje) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Error: ${e.toString()}'),
-        backgroundColor: Colors.red,
+        content: Text(mensaje),
+        backgroundColor: Colors.red[800]!,
+        duration: const Duration(seconds: 3),
       ),
     );
-  } finally {
-    setState(() => _descargando = false);
   }
-}
-
-
-// Método auxiliar para mostrar errores
-void _mostrarError(String mensaje) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(mensaje),
-      backgroundColor: Colors.red,
-      duration: const Duration(seconds: 3),
-    ),
-  );
-}
 
   @override
   Widget build(BuildContext context) {
@@ -3189,90 +3197,116 @@ void _mostrarError(String mensaje) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Tipo: ${widget.tipo}',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
-          ),
+         /*  _buildInfoRow('Tipo:', widget.tipo),
           const SizedBox(height: 4),
-          Text(
-            'Folio: ${widget.folio}',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 20),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Column(
-                children: [
-                  _buildBotonDescarga(
-                    context,
-                    titulo: 'Descargar Contrato',
-                    icono: Icons.assignment,
-                    color: Colors.blue[800]!,
-                    onTap: () => _descargarDocumento('contrato'),
-                  ),
-                  const SizedBox(height: 15),
-                  _buildBotonDescarga(
-                    context,
-                    titulo: 'Descargar Pagaré',
-                    icono: Icons.monetization_on,
-                    color: Colors.green[700]!,
-                    onTap: () => _descargarDocumento('pagare'),
-                  ),
-                ],
-              );
-            },
-          ),
+          _buildInfoRow('Folio:', widget.folio),
+          const SizedBox(height: 20), */
+          _buildBotonesDescarga(),
         ],
       ),
     );
   }
 
-  Widget _buildBotonDescarga(
-    BuildContext context, {
-    required String titulo,
-    required IconData icono,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      borderRadius: BorderRadius.circular(10),
-      elevation: 3,
-      child: InkWell(
-        onTap: widget.descargando ? null : onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: widget.descargando
-              ? const Center(
-                  child: CircularProgressIndicator(color: Colors.white))
-              : Row(
-                  children: [
-                    Icon(icono, color: Colors.white, size: 28),
-                    const SizedBox(width: 20),
-                    Text(
-                      titulo,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    const Icon(Icons.download, color: Colors.white, size: 24),
-                  ],
-                ),
+  Widget _buildInfoRow(String titulo, String valor) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$titulo ', style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        )),
+        Expanded(
+          child: Text(valor,
+            style: TextStyle(
+              color: Colors.grey[800],
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            )),
+        ),
+      ],
+    );
+  }
+
+  _buildBotonesDescarga() {
+  return Column(
+    children: [
+      _buildBotonDescarga(
+        titulo: 'Descargar Contrato',
+        icono: Icons.description,
+        color: Colors.blue[800]!,
+        documento: 'contrato', // Nuevo parámetro
+        onTap: () => _descargarDocumento('contrato'),
+      ),
+      const SizedBox(height: 15),
+      _buildBotonDescarga(
+        titulo: 'Descargar Pagaré',
+        icono: Icons.monetization_on_rounded,
+        color: Colors.green[700]!,
+        documento: 'pagare', // Nuevo parámetro
+        onTap: () => _descargarDocumento('pagare'),
+      ),
+    ],
+  );
+}
+
+  Widget _buildBotonDescarga({
+  required String titulo,
+  required IconData icono,
+  required Color color,
+  required String documento, // Nuevo parámetro
+  required VoidCallback onTap,
+}) {
+  final estaDescargando = _documentoDescargando == documento;
+  
+  return Material(
+    borderRadius: BorderRadius.circular(12),
+    elevation: 3,
+    child: InkWell(
+      onTap: estaDescargando ? null : onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: estaDescargando
+            ? _buildLoadingIndicator()
+            : _buildButtonContent(titulo, icono),
+      ),
+    ),
+  );
+}
+
+  Widget _buildLoadingIndicator() {
+    return const Center(
+      child: SizedBox(
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          color: Colors.white,
         ),
       ),
+    );
+  }
+
+  Widget _buildButtonContent(String titulo, IconData icono) {
+    return Row(
+      children: [
+        Icon(icono, color: Colors.white, size: 28),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(titulo,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            )),
+        ),
+        const Icon(Icons.download_rounded, color: Colors.white, size: 24),
+      ],
     );
   }
 }

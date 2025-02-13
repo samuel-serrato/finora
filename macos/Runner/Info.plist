@@ -28,5 +28,10 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+<string>Necesitamos acceso para guardar archivos en Descargas</string>
+
+<key>NSDocumentsFolderUsageDescription</key>
+<string>Permite guardar documentos en tu carpeta de Documentos</string>
 </dict>
 </plist>

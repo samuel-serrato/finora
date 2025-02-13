@@ -71,7 +71,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
           if (response.statusCode == 200) {
             List<dynamic> data = json.decode(response.body);
             setState(() {
-              listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
+              listaClientes =
+                  data.map((item) => Cliente.fromJson(item)).toList();
               isLoading = false;
               errorDeConexion = false;
             });
@@ -85,14 +86,13 @@ class _ClientesScreenState extends State<ClientesScreen> {
                 await prefs.remove('tokenauth');
                 _timer?.cancel();
                 mostrarDialogoError(
-                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                  onClose: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
-                    );
-                  }
-                );
+                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                    onClose: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                });
               }
               return;
             } else {
@@ -100,7 +100,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
             }
           } else if (response.statusCode == 400) {
             final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] == "No hay ningun cliente registrado") {
+            if (errorData["Error"]["Message"] ==
+                "No hay ningun cliente registrado") {
               setState(() {
                 listaClientes = [];
                 isLoading = false;
@@ -175,7 +176,6 @@ class _ClientesScreenState extends State<ClientesScreen> {
     );
   }
 
-
   String formatDate(String dateString) {
     DateTime date = DateTime.parse(dateString);
     return DateFormat('dd/MM/yyyy').format(date);
@@ -204,27 +204,41 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
       // Realiza la solicitud DELETE a la API
       try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('tokenauth') ?? '';
+
         final response = await http.delete(
-          Uri.parse('http://192.168.0.111:3000/api/v1/clientes/$idCliente'),
+          Uri.parse('http://$baseUrl/api/v1/clientes/$idCliente'),
+          headers: {
+            'tokenauth': token,
+            'Content-Type': 'application/json',
+          },
         );
 
         if (response.statusCode == 200) {
-          // Si la eliminación fue exitosa
-          print(
-              'Cliente eliminado con éxito. ID: $idCliente'); // Imprime en consola
-          mostrarSnackBar(context,
-              'Cliente eliminado correctamente'); // Muestra un SnackBar
-
-          // Recarga los datos
-          obtenerClientes(); // Asume que esta función recarga la lista de clientes
+          print('Cliente eliminado con éxito. ID: $idCliente');
+          mostrarSnackBar(context, 'Cliente eliminado correctamente');
+          obtenerClientes();
         } else {
-          // Si hubo un error, muestra un mensaje
-          mostrarMensajeError(context, 'Error al eliminar el cliente');
+          // Intenta decodificar la respuesta del servidor
+          try {
+            final Map<String, dynamic> errorData = json.decode(response.body);
+            final errorMessage =
+                errorData["Error"]["Message"] ?? "Error desconocido";
+
+            print('Error al eliminar el cliente: ${response.statusCode}');
+            print('Respuesta del servidor: ${response.body}');
+
+            mostrarMensajeError(context, errorMessage);
+          } catch (e) {
+            // Si no se puede decodificar el JSON, muestra un mensaje genérico
+            print('Error al decodificar la respuesta del servidor: $e');
+            print('Respuesta del servidor sin decodificar: ${response.body}');
+            mostrarMensajeError(context, 'Error al eliminar el cliente');
+          }
         }
       } catch (e) {
-        // Manejo de errores de red u otros
-        print(
-            'Error al eliminar el cliente: $e'); // Imprime el error en consola
+        print('Error de conexión al eliminar el cliente: $e');
         mostrarMensajeError(context, 'Error de conexión');
       } finally {
         Navigator.pop(context); // Cierra el CircularProgressIndicator
