@@ -187,7 +187,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
         ),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.4,
+            maxWidth: MediaQuery.of(context).size.width * 0.5,
             maxHeight: MediaQuery.of(context).size.height * 0.8,
           ),
           child: isLoading
@@ -233,7 +233,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
                   children: [
                     _buildInfoItem('Usuario', userData!['usuario']),
                     _buildInfoItem('Nombre', userData!['nombreCompleto']),
-                    _buildInfoItem('Email', userData!['email']),
+                    //_buildInfoItem('Email', userData!['email']),
                   ],
                 ),
                 const SizedBox(height: 25),
@@ -277,11 +277,11 @@ class _InfoUsuarioState extends State<InfoUsuario> {
         // Avatar
         CircleAvatar(
           radius: 40,
-          backgroundColor: Colors.white.withOpacity(0.2),
+          backgroundColor: Colors.black.withOpacity(0.2),
           child: Icon(
             Icons.person_rounded,
             size: 50,
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withOpacity(0.9),
           ),
         ),
         const SizedBox(width: 20),
@@ -309,7 +309,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.black.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(

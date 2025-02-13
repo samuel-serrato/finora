@@ -18,8 +18,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_file/open_file.dart';
 
-
-
 class InfoCredito extends StatefulWidget {
   final String folio;
 
@@ -672,7 +670,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                               children: [
                                                 _buildSectionTitle(
                                                     'Integrantes'),
-                                                    SizedBox(height: 12),
+                                                SizedBox(height: 12),
                                                 PaginaIntegrantes(
                                                   clientesMontosInd:
                                                       creditoData!
@@ -688,7 +686,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                _buildSectionTitle('Descargables'),
+                                                _buildSectionTitle(
+                                                    'Descargables'),
                                                 PaginaDescargables(
                                                   tipo: creditoData!.tipo,
                                                   folio: creditoData!.folio,
@@ -1452,14 +1451,23 @@ class _PaginaControlState extends State<PaginaControl> {
                                                           DateTime.now()
                                                               .toString();
                                                     }
-                                                  } else if (newValue ==
-                                                      'Garantia') {
-                                                    // Asignar valor de garantía desde el widget
-                                                    pago.deposito =
-                                                        widget.montoGarantia;
-                                                    pago.saldoFavor = 0.0;
-                                                    pago.saldoEnContra = 0.0;
-                                                  }
+                                                  } else if (newValue == 'Garantia') {
+  // Asignar valor de garantía desde el widget
+  pago.deposito = widget.montoGarantia;
+  
+  // Calcular totalDeuda incluyendo moratorios
+  double totalDeuda = (pago.capitalMasInteres ?? 0.0) + 
+                      (pago.moratorios?.moratorios ?? 0.0);
+  
+  // Calcular saldos basados en el monto de garantía
+  if (widget.montoGarantia >= totalDeuda) {
+    pago.saldoFavor = widget.montoGarantia - totalDeuda;
+    pago.saldoEnContra = 0.0;
+  } else {
+    pago.saldoEnContra = totalDeuda - widget.montoGarantia;
+    pago.saldoFavor = 0.0;
+  }
+}
 
                                                   // Crear objeto PagoSeleccionado
                                                   PagoSeleccionado
@@ -1718,7 +1726,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                     Icons.visibility,
                                                     color: Colors.white),
                                                 color: Colors.white,
-                                                offset: const Offset(0, 40),
+                                                offset: const Offset(0, 45),
                                                 onSelected: (item) {
                                                   // Aquí podrías manejar acciones según el item seleccionado (abono o moratorio)
                                                 },
@@ -1742,40 +1750,100 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                     as num)
                                                                 .toDouble()
                                                             : 0.0;
+                                                    final esGarantia =
+                                                        abono['garantia'] ==
+                                                            "Si";
+
                                                     items.add(
                                                       PopupMenuItem(
                                                         value: abono,
                                                         child: Container(
-                                                          width: 300,
+                                                          width: double
+                                                              .infinity, // Usa todo el ancho disponible
                                                           padding:
                                                               const EdgeInsets
                                                                   .symmetric(
-                                                                  vertical: 8.0,
+                                                                  vertical: 6.0,
                                                                   horizontal:
-                                                                      12.0),
+                                                                      10.0),
                                                           child: Row(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .center,
                                                             children: [
-                                                              const Icon(
-                                                                  Icons
-                                                                      .monetization_on,
-                                                                  color: Colors
-                                                                      .green,
-                                                                  size: 16),
+                                                              Icon(
+                                                                Icons
+                                                                    .monetization_on,
+                                                                color: esGarantia
+                                                                    ? Colors
+                                                                        .orange
+                                                                    : Colors
+                                                                        .green,
+                                                                size: 18,
+                                                              ),
                                                               const SizedBox(
-                                                                  width: 10),
+                                                                  width:
+                                                                      10), // Espaciado más uniforme
                                                               Expanded(
-                                                                child: Text(
-                                                                  "Fecha: $fecha, Monto: \$${monto.toStringAsFixed(2)}",
-                                                                  style:
-                                                                      const TextStyle(
-                                                                    fontSize:
-                                                                        12,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w500,
-                                                                    color: Colors
-                                                                        .black87,
-                                                                  ),
+                                                                child: Column(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .start,
+                                                                  children: [
+                                                                    Text(
+                                                                      fecha,
+                                                                      style:
+                                                                          const TextStyle(
+                                                                        fontSize:
+                                                                            12,
+                                                                        fontWeight:
+                                                                            FontWeight.w500,
+                                                                        color: Colors
+                                                                            .black54,
+                                                                      ),
+                                                                    ),
+                                                                    const SizedBox(
+                                                                        height:
+                                                                            2), // Espacio reducido entre fecha y monto
+                                                                    Row(
+                                                                      mainAxisAlignment:
+                                                                          MainAxisAlignment
+                                                                              .spaceBetween,
+                                                                      children: [
+                                                                        Text(
+                                                                          "\$${monto.toStringAsFixed(2)}",
+                                                                          style:
+                                                                              const TextStyle(
+                                                                            fontSize:
+                                                                                14,
+                                                                            fontWeight:
+                                                                                FontWeight.bold,
+                                                                            color:
+                                                                                Colors.black87,
+                                                                          ),
+                                                                        ),
+                                                                        if (esGarantia)
+                                                                          Container(
+                                                                            padding:
+                                                                                const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                                            decoration:
+                                                                                BoxDecoration(
+                                                                              color: Colors.orange.withOpacity(0.2),
+                                                                              borderRadius: BorderRadius.circular(6),
+                                                                            ),
+                                                                            child:
+                                                                                const Text(
+                                                                              "Garantía",
+                                                                              style: TextStyle(
+                                                                                fontSize: 10,
+                                                                                fontWeight: FontWeight.bold,
+                                                                                color: Colors.orange,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                      ],
+                                                                    ),
+                                                                  ],
                                                                 ),
                                                               ),
                                                             ],
@@ -1786,8 +1854,13 @@ class _PaginaControlState extends State<PaginaControl> {
                                                   }
 
                                                   // Agregar los moratorios como "abonos" adicionales
-                                                  for (var moratorio
+                                                  // Agregar los pagos moratorios con el mismo estilo
+                                                  /* for (var moratorio
                                                       in pago.pagosMoratorios) {
+                                                    final fecha =
+                                                        formatearFecha(
+                                                            moratorio[
+                                                                'fCreacion']);
                                                     final sumaMoratorios = (moratorio[
                                                                 'sumaMoratorios']
                                                             is num)
@@ -1796,43 +1869,97 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 as num)
                                                             .toDouble()
                                                         : 0.0;
-                                                    final fecha = formatearFecha(
-                                                        moratorio[
-                                                            'fCreacion']); // Puedes ajustar la representación (o incluir fecha si lo deseas)
+
                                                     items.add(
                                                       PopupMenuItem(
                                                         value: moratorio,
                                                         child: Container(
-                                                          width: 300,
+                                                          width:
+                                                              double.infinity,
                                                           padding:
                                                               const EdgeInsets
                                                                   .symmetric(
-                                                                  vertical: 8.0,
+                                                                  vertical: 6.0,
                                                                   horizontal:
-                                                                      12.0),
+                                                                      10.0),
                                                           child: Row(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .center,
                                                             children: [
                                                               const Icon(
-                                                                  Icons
-                                                                      .monetization_on,
-                                                                  color: Colors
-                                                                      .green,
-                                                                  size: 16),
+                                                                Icons
+                                                                    .warning_amber_rounded,
+                                                                color: Colors
+                                                                    .redAccent,
+                                                                size: 18,
+                                                              ),
                                                               const SizedBox(
                                                                   width: 10),
                                                               Expanded(
-                                                                child: Text(
-                                                                  "Fecha: $fecha, Monto: \$${sumaMoratorios.toStringAsFixed(2)}",
-                                                                  style:
-                                                                      const TextStyle(
-                                                                    fontSize:
-                                                                        12,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w500,
-                                                                    color: Colors
-                                                                        .black87,
-                                                                  ),
+                                                                child: Column(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .start,
+                                                                  children: [
+                                                                    Text(
+                                                                      fecha,
+                                                                      style:
+                                                                          const TextStyle(
+                                                                        fontSize:
+                                                                            12,
+                                                                        fontWeight:
+                                                                            FontWeight.w500,
+                                                                        color: Colors
+                                                                            .black54,
+                                                                      ),
+                                                                    ),
+                                                                    const SizedBox(
+                                                                        height:
+                                                                            2),
+                                                                    Row(
+                                                                      mainAxisAlignment:
+                                                                          MainAxisAlignment
+                                                                              .spaceBetween,
+                                                                      children: [
+                                                                        Text(
+                                                                          "\$${sumaMoratorios.toStringAsFixed(2)}",
+                                                                          style:
+                                                                              const TextStyle(
+                                                                            fontSize:
+                                                                                14,
+                                                                            fontWeight:
+                                                                                FontWeight.bold,
+                                                                            color:
+                                                                                Colors.black87,
+                                                                          ),
+                                                                        ),
+                                                                        Container(
+                                                                          padding: const EdgeInsets
+                                                                              .symmetric(
+                                                                              horizontal: 6,
+                                                                              vertical: 2),
+                                                                          decoration:
+                                                                              BoxDecoration(
+                                                                            color:
+                                                                                Colors.redAccent.withOpacity(0.2),
+                                                                            borderRadius:
+                                                                                BorderRadius.circular(6),
+                                                                          ),
+                                                                          child:
+                                                                              const Text(
+                                                                            "Moratorio",
+                                                                            style:
+                                                                                TextStyle(
+                                                                              fontSize: 10,
+                                                                              fontWeight: FontWeight.bold,
+                                                                              color: Colors.redAccent,
+                                                                            ),
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  ],
                                                                 ),
                                                               ),
                                                             ],
@@ -1840,7 +1967,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                         ),
                                                       ),
                                                     );
-                                                  }
+                                                  } */
 
                                                   // Calcular el total de abonos, sumando depósitos y los moratorios (sumaMoratorios)
                                                   double totalAbonos =
@@ -1854,7 +1981,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                             as num)
                                                                         .toDouble()
                                                                     : 0.0),
-                                                          ) +
+                                                          );/* +
                                                           pago.pagosMoratorios
                                                               .fold(
                                                             0.0,
@@ -1866,7 +1993,10 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                             as num)
                                                                         .toDouble()
                                                                     : 0.0),
-                                                          );
+                                                          ); */
+                                                  final estaLiquidado = pago
+                                                          .estado ==
+                                                      "Pagado"; // Asumiendo que `pago.estado` es accesible
 
                                                   // Agregar un item que muestre el total de abonos
                                                   items.add(
@@ -1877,10 +2007,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                                             MainAxisSize.min,
                                                         children: [
                                                           const Divider(
-                                                            color: Colors
-                                                                .black26, // Color de la línea; puedes ajustarlo
-                                                            thickness:
-                                                                1, // Grosor de la línea
+                                                            color: Colors.grey,
+                                                            thickness: 0.8,
+                                                            height: 10,
                                                           ),
                                                           Container(
                                                             padding:
@@ -1891,28 +2020,79 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                     horizontal:
                                                                         12.0),
                                                             child: Row(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .center,
                                                               children: [
-                                                                const Icon(
-                                                                    Icons
-                                                                        .payment,
-                                                                    color: Colors
-                                                                        .black,
-                                                                    size: 18),
+                                                                Icon(
+                                                                  Icons
+                                                                      .calculate_rounded,
+                                                                  color: Colors
+                                                                          .blue[
+                                                                      700],
+                                                                  size: 20,
+                                                                ),
                                                                 const SizedBox(
-                                                                    width: 10),
+                                                                    width: 12),
                                                                 Expanded(
-                                                                  child: Text(
-                                                                    "Total Abonos: \$${totalAbonos.toStringAsFixed(2)}",
-                                                                    style:
-                                                                        const TextStyle(
-                                                                      fontSize:
-                                                                          12,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                      color: Colors
-                                                                          .black87,
-                                                                    ),
+                                                                  child: Column(
+                                                                    crossAxisAlignment:
+                                                                        CrossAxisAlignment
+                                                                            .start,
+                                                                    children: [
+                                                                      Text(
+                                                                        'TOTAL ABONOS',
+                                                                        style:
+                                                                            TextStyle(
+                                                                          fontSize:
+                                                                              10,
+                                                                          fontWeight:
+                                                                              FontWeight.w600,
+                                                                          color:
+                                                                              Colors.grey[600],
+                                                                          letterSpacing:
+                                                                              0.5,
+                                                                        ),
+                                                                      ),
+                                                                      const SizedBox(
+                                                                          height:
+                                                                              4),
+                                                                      Row(
+                                                                        mainAxisAlignment:
+                                                                            MainAxisAlignment.spaceBetween,
+                                                                        children: [
+                                                                          Text(
+                                                                            '\$${totalAbonos.toStringAsFixed(2)}',
+                                                                            style:
+                                                                                TextStyle(
+                                                                              fontSize: 16,
+                                                                              fontWeight: FontWeight.bold,
+                                                                              color: Colors.blue[800],
+                                                                            ),
+                                                                          ),
+                                                                          if (estaLiquidado) // Solo muestra el badge si está liquidado
+                                                                            Container(
+                                                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                                              decoration: BoxDecoration(
+                                                                                color: Colors.blue[100],
+                                                                                borderRadius: BorderRadius.circular(8),
+                                                                                border: Border.all(
+                                                                                  color: Colors.blue[300]!,
+                                                                                  width: 0.5,
+                                                                                ),
+                                                                              ),
+                                                                              child: Text(
+                                                                                'LIQUIDADO',
+                                                                                style: TextStyle(
+                                                                                  fontSize: 10,
+                                                                                  fontWeight: FontWeight.bold,
+                                                                                  color: Colors.blue[800],
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                        ],
+                                                                      ),
+                                                                    ],
                                                                   ),
                                                                 ),
                                                               ],
@@ -1942,244 +2122,282 @@ class _PaginaControlState extends State<PaginaControl> {
                                                     left: 10),
                                                 child: (editingState[index] ??
                                                         true) // Inicialmente será true
-                                                    ? TextField(
-                                                        controller:
-                                                            controllers[index],
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                        style: TextStyle(
-                                                          fontSize: 14,
+                                                    ? Column(
+                                                        children: [
+                                                          TextField(
+                                                            controller:
+                                                                controllers[
+                                                                    index],
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                            style: TextStyle(
+                                                              fontSize: 14,
 
-                                                          color: _puedeEditarPago(
-                                                                  pago)
-                                                              ? Colors.black
-                                                              : Colors.grey[
-                                                                  700], // Cambiar color de texto
-                                                        ),
-                                                        keyboardType:
-                                                            TextInputType
-                                                                .number,
-                                                        enabled: _puedeEditarPago(
-                                                            pago), // Usamos la lógica de edición aquí
+                                                              color: _puedeEditarPago(
+                                                                      pago)
+                                                                  ? Colors.black
+                                                                  : Colors.grey[
+                                                                      700], // Cambiar color de texto
+                                                            ),
+                                                            keyboardType:
+                                                                TextInputType
+                                                                    .number,
+                                                            enabled:
+                                                                _puedeEditarPago(
+                                                                    pago), // Usamos la lógica de edición aquí
 
-                                                        onChanged: (value) {
-                                                          // Cancelar el Timer anterior si existe
-                                                          if (_debounce
-                                                                  ?.isActive ??
-                                                              false) {
-                                                            _debounce?.cancel();
-                                                          }
+                                                            onChanged: (value) {
+                                                              // Cancelar el Timer anterior si existe
+                                                              if (_debounce
+                                                                      ?.isActive ??
+                                                                  false) {
+                                                                _debounce
+                                                                    ?.cancel();
+                                                              }
 
-                                                          // Crear un nuevo Timer para esperar a que el usuario termine de escribir
-                                                          _debounce = Timer(
-                                                              const Duration(
-                                                                  milliseconds:
-                                                                      500), () {
-                                                            setState(() {
-                                                              // Convertir el valor ingresado a double y asignar 0.0 si está vacío o es inválido
-                                                              double
-                                                                  nuevoDeposito =
-                                                                  value.isEmpty
-                                                                      ? 0.0
-                                                                      : double.tryParse(
-                                                                              value) ??
-                                                                          0.0;
+                                                              // Crear un nuevo Timer para esperar a que el usuario termine de escribir
+                                                              _debounce = Timer(
+                                                                  const Duration(
+                                                                      milliseconds:
+                                                                          500),
+                                                                  () {
+                                                                setState(() {
+                                                                  // Convertir el valor ingresado a double y asignar 0.0 si está vacío o es inválido
+                                                                  double
+                                                                      nuevoDeposito =
+                                                                      value.isEmpty
+                                                                          ? 0.0
+                                                                          : double.tryParse(value) ??
+                                                                              0.0;
 
-                                                              // Actualizar el depósito en el objeto `pago`
-                                                              pago.deposito =
-                                                                  nuevoDeposito;
+                                                                  // Actualizar el depósito en el objeto `pago`
+                                                                  pago.deposito =
+                                                                      nuevoDeposito;
 
-                                                              // Actualizar la propiedad `sumaDepositoMoratorisos`
-                                                              pago.sumaDepositoMoratorisos =
-                                                                  nuevoDeposito;
+                                                                  // Actualizar la propiedad `sumaDepositoMoratorisos`
+                                                                  pago.sumaDepositoMoratorisos =
+                                                                      nuevoDeposito;
 
-                                                              // Calcular los saldos (a favor y en contra)
-                                                              if (nuevoDeposito >
-                                                                  0) {
-                                                                // Si hay depósito, recalcular los abonos y los saldos
-                                                                double
-                                                                    totalMoratorios =
-                                                                    pago.moratorios
-                                                                            ?.moratorios ??
-                                                                        0.0;
-                                                                double
-                                                                    totalPagarConMoratorio =
-                                                                    (pago.capitalMasInteres ??
-                                                                            0.0) +
+                                                                  // Calcular los saldos (a favor y en contra)
+                                                                  if (nuevoDeposito >
+                                                                      0) {
+                                                                    // Si hay depósito, recalcular los abonos y los saldos
+                                                                    double
+                                                                        totalMoratorios =
+                                                                        pago.moratorios?.moratorios ??
+                                                                            0.0;
+                                                                    double
+                                                                        totalPagarConMoratorio =
+                                                                        (pago.capitalMasInteres ??
+                                                                                0.0) +
+                                                                            totalMoratorios;
+
+                                                                    // Asignar el depósito primero al monto total a pagar (capital + intereses)
+                                                                    double
+                                                                        depositoParaCapital =
+                                                                        pago.capitalMasInteres ??
+                                                                            0.0;
+                                                                    double
+                                                                        depositoParaMoratorio =
                                                                         totalMoratorios;
 
-                                                                // Asignar el depósito primero al monto total a pagar (capital + intereses)
-                                                                double
-                                                                    depositoParaCapital =
-                                                                    pago.capitalMasInteres ??
-                                                                        0.0;
-                                                                double
-                                                                    depositoParaMoratorio =
-                                                                    totalMoratorios;
+                                                                    // Si el depósito cubre más de lo que se debe por capital, el resto va al moratorio
+                                                                    if (nuevoDeposito >
+                                                                        depositoParaCapital) {
+                                                                      depositoParaCapital =
+                                                                          pago.capitalMasInteres ??
+                                                                              0.0;
+                                                                      double
+                                                                          saldoRestante =
+                                                                          nuevoDeposito -
+                                                                              depositoParaCapital;
+                                                                      depositoParaMoratorio = (saldoRestante >
+                                                                              totalMoratorios)
+                                                                          ? totalMoratorios
+                                                                          : saldoRestante;
+                                                                    }
 
-                                                                // Si el depósito cubre más de lo que se debe por capital, el resto va al moratorio
-                                                                if (nuevoDeposito >
-                                                                    depositoParaCapital) {
-                                                                  depositoParaCapital =
-                                                                      pago.capitalMasInteres ??
+                                                                    // Calcular saldo a favor (lo que sobra después de cubrir el total con moratorios)
+                                                                    double
+                                                                        saldoFavor =
+                                                                        nuevoDeposito -
+                                                                            totalPagarConMoratorio;
+                                                                    if (saldoFavor <
+                                                                        0)
+                                                                      saldoFavor =
                                                                           0.0;
-                                                                  double
-                                                                      saldoRestante =
-                                                                      nuevoDeposito -
-                                                                          depositoParaCapital;
-                                                                  depositoParaMoratorio = (saldoRestante >
-                                                                          totalMoratorios)
-                                                                      ? totalMoratorios
-                                                                      : saldoRestante;
-                                                                }
 
-                                                                // Calcular saldo a favor (lo que sobra después de cubrir el total con moratorios)
-                                                                double
-                                                                    saldoFavor =
-                                                                    nuevoDeposito -
-                                                                        totalPagarConMoratorio;
-                                                                if (saldoFavor <
-                                                                    0)
-                                                                  saldoFavor =
-                                                                      0.0;
-
-                                                                // Asignar los valores calculados
-                                                                pago.deposito =
-                                                                    nuevoDeposito;
-                                                                pago.saldoFavor =
-                                                                    saldoFavor;
-                                                                pago.saldoEnContra =
-                                                                    totalPagarConMoratorio -
+                                                                    // Asignar los valores calculados
+                                                                    pago.deposito =
                                                                         nuevoDeposito;
+                                                                    pago.saldoFavor =
+                                                                        saldoFavor;
+                                                                    pago.saldoEnContra =
+                                                                        totalPagarConMoratorio -
+                                                                            nuevoDeposito;
 
-                                                                // Debugging: Imprimir los resultados de los cálculos
-                                                                print(
-                                                                    "Deposito actualizado: \$${pago.deposito}");
-                                                                print(
-                                                                    "Monto total a pagar (con moratorio): \$${totalPagarConMoratorio}");
-                                                                print(
-                                                                    "Saldo en Contra: \$${pago.saldoEnContra}");
-                                                                print(
-                                                                    "Saldo a Favor: \$${pago.saldoFavor}");
+                                                                    // Debugging: Imprimir los resultados de los cálculos
+                                                                    print(
+                                                                        "Deposito actualizado: \$${pago.deposito}");
+                                                                    print(
+                                                                        "Monto total a pagar (con moratorio): \$${totalPagarConMoratorio}");
+                                                                    print(
+                                                                        "Saldo en Contra: \$${pago.saldoEnContra}");
+                                                                    print(
+                                                                        "Saldo a Favor: \$${pago.saldoFavor}");
 
-                                                                // Actualizar el Provider
-                                                                final pagosProvider =
-                                                                    Provider.of<
+                                                                    // Actualizar el Provider
+                                                                    final pagosProvider = Provider.of<
                                                                             PagosProvider>(
                                                                         context,
                                                                         listen:
                                                                             false);
 
-                                                                // Buscar si ya existe un pago con la misma semana
-                                                                final index = pagosProvider
-                                                                    .pagosSeleccionados
-                                                                    .indexWhere((p) =>
-                                                                        p.semana ==
-                                                                        pago.semana);
+                                                                    // Buscar si ya existe un pago con la misma semana
+                                                                    final index = pagosProvider
+                                                                        .pagosSeleccionados
+                                                                        .indexWhere((p) =>
+                                                                            p.semana ==
+                                                                            pago.semana);
 
-                                                                if (index !=
-                                                                    -1) {
-                                                                  // Actualizar el pago existente
-                                                                  pagosProvider
-                                                                              .pagosSeleccionados[
-                                                                          index] =
-                                                                      PagoSeleccionado(
-                                                                    semana: pago
-                                                                        .semana,
-                                                                    tipoPago: pago
-                                                                        .tipoPago,
-                                                                    deposito:
-                                                                        nuevoDeposito,
-                                                                    saldoFavor:
-                                                                        pago.saldoFavor,
-                                                                    saldoEnContra:
-                                                                        pago.saldoEnContra,
-                                                                    idfechaspagos:
-                                                                        pago.idfechaspagos,
-                                                                    fechaPago: pago
-                                                                        .fechaPago,
-                                                                    capitalMasInteres:
-                                                                        pago.capitalMasInteres,
-                                                                    moratorio: pago
-                                                                        .moratorios
-                                                                        ?.moratorios,
-                                                                  );
-                                                                } else {
-                                                                  // Agregar un nuevo pago si no existe
-                                                                  pagosProvider
-                                                                      .agregarPago(
-                                                                    PagoSeleccionado(
-                                                                      semana: pago
-                                                                          .semana,
-                                                                      tipoPago:
-                                                                          pago.tipoPago,
-                                                                      deposito:
-                                                                          nuevoDeposito,
-                                                                      saldoFavor:
-                                                                          pago.saldoFavor,
-                                                                      saldoEnContra:
-                                                                          pago.saldoEnContra,
-                                                                      idfechaspagos:
-                                                                          pago.idfechaspagos,
-                                                                      fechaPago:
-                                                                          pago.fechaPago,
-                                                                      capitalMasInteres:
-                                                                          pago.capitalMasInteres,
-                                                                      moratorio: pago
-                                                                          .moratorios
-                                                                          ?.moratorios,
-                                                                    ),
-                                                                  );
-                                                                }
-                                                              } else {
-                                                                // Si el valor está vacío, establecer el saldo en contra a 0
-                                                                pago.saldoEnContra =
-                                                                    0.0;
-                                                                pago.saldoFavor =
-                                                                    0.0;
-                                                              }
-                                                            });
-                                                          });
-                                                        },
+                                                                    if (index !=
+                                                                        -1) {
+                                                                      // Actualizar el pago existente
+                                                                      pagosProvider
+                                                                              .pagosSeleccionados[index] =
+                                                                          PagoSeleccionado(
+                                                                        semana:
+                                                                            pago.semana,
+                                                                        tipoPago:
+                                                                            pago.tipoPago,
+                                                                        deposito:
+                                                                            nuevoDeposito,
+                                                                        saldoFavor:
+                                                                            pago.saldoFavor,
+                                                                        saldoEnContra:
+                                                                            pago.saldoEnContra,
+                                                                        idfechaspagos:
+                                                                            pago.idfechaspagos,
+                                                                        fechaPago:
+                                                                            pago.fechaPago,
+                                                                        capitalMasInteres:
+                                                                            pago.capitalMasInteres,
+                                                                        moratorio: pago
+                                                                            .moratorios
+                                                                            ?.moratorios,
+                                                                      );
+                                                                    } else {
+                                                                      // Agregar un nuevo pago si no existe
+                                                                      pagosProvider
+                                                                          .agregarPago(
+                                                                        PagoSeleccionado(
+                                                                          semana:
+                                                                              pago.semana,
+                                                                          tipoPago:
+                                                                              pago.tipoPago,
+                                                                          deposito:
+                                                                              nuevoDeposito,
+                                                                          saldoFavor:
+                                                                              pago.saldoFavor,
+                                                                          saldoEnContra:
+                                                                              pago.saldoEnContra,
+                                                                          idfechaspagos:
+                                                                              pago.idfechaspagos,
+                                                                          fechaPago:
+                                                                              pago.fechaPago,
+                                                                          capitalMasInteres:
+                                                                              pago.capitalMasInteres,
+                                                                          moratorio: pago
+                                                                              .moratorios
+                                                                              ?.moratorios,
+                                                                        ),
+                                                                      );
+                                                                    }
+                                                                  } else {
+                                                                    // Si el valor está vacío, establecer el saldo en contra a 0
+                                                                    pago.saldoEnContra =
+                                                                        0.0;
+                                                                    pago.saldoFavor =
+                                                                        0.0;
+                                                                  }
+                                                                });
+                                                              });
+                                                            },
 
-                                                        decoration:
-                                                            InputDecoration(
-                                                          hintText:
-                                                              'Monto Parcial',
-                                                          hintStyle: TextStyle(
-                                                              fontSize: 12,
-                                                              color: Colors
-                                                                  .grey[700]),
-                                                          enabledBorder:
-                                                              OutlineInputBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        15.0),
-                                                            borderSide: BorderSide(
-                                                                color: Colors
-                                                                    .grey[400]!,
-                                                                width: 1.5),
-                                                          ),
-                                                          focusedBorder:
-                                                              OutlineInputBorder(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        15.0),
-                                                            borderSide: BorderSide(
-                                                                color: Color(
-                                                                    0xFFFB2056),
-                                                                width: 1.5),
-                                                          ),
-                                                          contentPadding:
-                                                              EdgeInsets
-                                                                  .symmetric(
+                                                            decoration:
+                                                                InputDecoration(
+                                                              hintText:
+                                                                  'Monto Parcial',
+                                                              hintStyle: TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: Colors
+                                                                          .grey[
+                                                                      700]),
+                                                              prefixText:
+                                                                  '\$', // Mostrar el símbolo "$" dentro del campo
+                                                              prefixStyle:
+                                                                  TextStyle(
+                                                                fontSize: 14,
+                                                                color: _puedeEditarPago(
+                                                                        pago)
+                                                                    ? Colors
+                                                                        .black
+                                                                    : Colors.grey[
+                                                                        700],
+                                                              ),
+                                                              enabledBorder:
+                                                                  OutlineInputBorder(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            15.0),
+                                                                borderSide: BorderSide(
+                                                                    color: Colors
+                                                                            .grey[
+                                                                        400]!,
+                                                                    width: 1.5),
+                                                              ),
+                                                              focusedBorder:
+                                                                  OutlineInputBorder(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            15.0),
+                                                                borderSide: BorderSide(
+                                                                    color: Color(
+                                                                        0xFFFB2056),
+                                                                    width: 1.5),
+                                                              ),
+                                                              contentPadding:
+                                                                  EdgeInsets.symmetric(
                                                                       vertical:
                                                                           10,
                                                                       horizontal:
                                                                           10),
-                                                        ),
+                                                            ),
+                                                          ),
+                                                          if (pago.abonos
+                                                              .isNotEmpty)
+                                                            ...pago.abonos
+                                                                .map((abono) {
+                                                              return Padding(
+                                                                padding:
+                                                                    const EdgeInsets
+                                                                        .only(
+                                                                        top:
+                                                                            4.0),
+                                                                child: Text(
+                                                                  'Pagado: ${abono["fechaDeposito"]}',
+                                                                  style: TextStyle(
+                                                                      fontSize:
+                                                                          10,
+                                                                      color: Colors
+                                                                              .grey[
+                                                                          600]),
+                                                                ),
+                                                              );
+                                                            }).toList(),
+                                                        ],
                                                       )
                                                     : Text(
                                                         "\$${pago.deposito?.toStringAsFixed(2) ?? '0.00'}",
@@ -2232,7 +2450,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                 flex: 20,
                               ),
 
-// Para "Saldo a Favor":
+                              // Para "Saldo a Favor":
                               _buildTableCell(
                                 esPago1
                                     ? "-"
@@ -3125,17 +3343,29 @@ class PaginaDescargables extends StatefulWidget {
 
 class _PaginaDescargablesState extends State<PaginaDescargables> {
   String? _documentoDescargando; // null, 'contrato' o 'pagare'
+  bool dialogShown = false; // Controlar diálogos mostrados
 
   Future<void> _descargarDocumento(String documento) async {
     setState(() => _documentoDescargando = documento);
 
     try {
-      final response = await http.get(Uri.parse(
-        'http://192.168.0.116:3000/api/v1/formato/'
-        '${documento.toLowerCase()}/'
-        '${widget.tipo.toLowerCase()}/'
-        '${widget.folio.toUpperCase()}'
-      ));
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.get(
+        Uri.parse(
+          'http://$baseUrl/api/v1/formato/'
+          '${documento.toLowerCase()}/'
+          '${widget.tipo.toLowerCase()}/'
+          '${widget.folio.toUpperCase()}',
+        ),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (!mounted) return; // Verificar si el widget está montado
 
       if (response.statusCode == 200) {
         final String? savePath = await FilePicker.platform.saveFile(
@@ -3145,49 +3375,111 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
           type: FileType.custom,
         );
 
+        if (!mounted) return; // Verificar si el widget está montado
+
         if (savePath != null) {
           final file = File(savePath);
           await file.writeAsBytes(response.bodyBytes);
-          
-          // Abrir archivo automáticamente
+          if (!mounted) return; // Verificar si el widget está montado
           await _abrirArchivoGuardado(savePath);
+        }
+      } else if (response.statusCode == 401) {
+        // Manejar token expirado
+        final errorData = json.decode(response.body);
+        if (errorData["Error"]["Message"] == "jwt expired") {
+          if (mounted) {
+            setState(() => _documentoDescargando = null);
+            await prefs.remove('tokenauth'); // Limpiar token
+            _mostrarDialogoError(
+              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+              onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              },
+            );
+          }
+          return; // Salir de la función
+        } else {
+          _mostrarError('Error de servidor: ${response.statusCode}');
         }
       } else {
         _mostrarError('Error de servidor: ${response.statusCode}');
       }
     } catch (e) {
-      _mostrarError('Error: ${e.toString().split(':').first}');
+      if (mounted) {
+        _mostrarError('Error: ${e.toString().split(':').first}');
+      }
     } finally {
-            setState(() => _documentoDescargando = null);
-
+      if (mounted) {
+        setState(() => _documentoDescargando = null);
+      }
     }
+  }
+
+  void _mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    if (!mounted || dialogShown) return; // Evitar múltiples diálogos
+
+    dialogShown = true;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Error', style: TextStyle(color: Colors.red)),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              onClose?.call();
+            },
+            child: Text('Aceptar'),
+          ),
+        ],
+      ),
+    ).then((_) => dialogShown = false);
+  }
+
+  void _mostrarError(String mensaje) {
+    if (!mounted || dialogShown) return; // Evitar múltiples diálogos
+
+    dialogShown = true;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Error', style: TextStyle(color: Colors.red)),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('Aceptar'),
+          ),
+        ],
+      ),
+    ).then((_) => dialogShown = false);
   }
 
   Future<void> _abrirArchivoGuardado(String path) async {
     try {
-      await run('open "$path"'); // Abrir con aplicación predeterminada en macOS
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Documento abierto en:\n${path.split('/').last}'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      _mostrarError('No se pudo abrir el archivo: ${e.toString().split(':').first}');
-    }
-  }
+      final openResult = await OpenFile.open(path); // Abre el archivo
 
-  void _mostrarError(String mensaje) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensaje),
-        backgroundColor: Colors.red[800]!,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+      if (openResult.type == ResultType.done) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Documento abierto en:\n${path.split('/').last}'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        _mostrarError('No se pudo abrir el archivo: ${openResult.message}');
+      }
+    } catch (e) {
+      _mostrarError(
+          'Error al abrir el archivo: ${e.toString().split(':').first}');
+    }
   }
 
   @override
@@ -3197,7 +3489,7 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-         /*  _buildInfoRow('Tipo:', widget.tipo),
+          /*  _buildInfoRow('Tipo:', widget.tipo),
           const SizedBox(height: 4),
           _buildInfoRow('Folio:', widget.folio),
           const SizedBox(height: 20), */
@@ -3211,73 +3503,74 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('$titulo ', style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        )),
+        Text('$titulo ',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            )),
         Expanded(
           child: Text(valor,
-            style: TextStyle(
-              color: Colors.grey[800],
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            )),
+              style: TextStyle(
+                color: Colors.grey[800],
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              )),
         ),
       ],
     );
   }
 
   _buildBotonesDescarga() {
-  return Column(
-    children: [
-      _buildBotonDescarga(
-        titulo: 'Descargar Contrato',
-        icono: Icons.description,
-        color: Colors.blue[800]!,
-        documento: 'contrato', // Nuevo parámetro
-        onTap: () => _descargarDocumento('contrato'),
-      ),
-      const SizedBox(height: 15),
-      _buildBotonDescarga(
-        titulo: 'Descargar Pagaré',
-        icono: Icons.monetization_on_rounded,
-        color: Colors.green[700]!,
-        documento: 'pagare', // Nuevo parámetro
-        onTap: () => _descargarDocumento('pagare'),
-      ),
-    ],
-  );
-}
+    return Column(
+      children: [
+        _buildBotonDescarga(
+          titulo: 'Descargar Contrato',
+          icono: Icons.description,
+          color: Colors.blue[800]!,
+          documento: 'contrato', // Nuevo parámetro
+          onTap: () => _descargarDocumento('contrato'),
+        ),
+        const SizedBox(height: 15),
+        _buildBotonDescarga(
+          titulo: 'Descargar Pagaré',
+          icono: Icons.monetization_on_rounded,
+          color: Colors.green[700]!,
+          documento: 'pagare', // Nuevo parámetro
+          onTap: () => _descargarDocumento('pagare'),
+        ),
+      ],
+    );
+  }
 
   Widget _buildBotonDescarga({
-  required String titulo,
-  required IconData icono,
-  required Color color,
-  required String documento, // Nuevo parámetro
-  required VoidCallback onTap,
-}) {
-  final estaDescargando = _documentoDescargando == documento;
-  
-  return Material(
-    borderRadius: BorderRadius.circular(12),
-    elevation: 3,
-    child: InkWell(
-      onTap: estaDescargando ? null : onTap,
+    required String titulo,
+    required IconData icono,
+    required Color color,
+    required String documento, // Nuevo parámetro
+    required VoidCallback onTap,
+  }) {
+    final estaDescargando = _documentoDescargando == documento;
+
+    return Material(
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
+      elevation: 3,
+      child: InkWell(
+        onTap: estaDescargando ? null : onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: estaDescargando
+              ? _buildLoadingIndicator()
+              : _buildButtonContent(titulo, icono),
         ),
-        child: estaDescargando
-            ? _buildLoadingIndicator()
-            : _buildButtonContent(titulo, icono),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildLoadingIndicator() {
     return const Center(
@@ -3299,11 +3592,11 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
         const SizedBox(width: 16),
         Expanded(
           child: Text(titulo,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            )),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              )),
         ),
         const Icon(Icons.download_rounded, color: Colors.white, size: 24),
       ],
