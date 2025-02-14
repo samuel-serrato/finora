@@ -531,12 +531,13 @@ class _nCreditoDialogState extends State<nCreditoDialog>
           ),
         ),
         // Overlay de carga
-         // Overlay de carga con fondo blanco
+        // Overlay de carga con fondo blanco
         if (_isSaving)
-          IgnorePointer(  // Bloquea las interacciones
+          IgnorePointer(
+            // Bloquea las interacciones
             child: Container(
-              width: double.infinity,
-              height: double.infinity,
+              width: width,
+              height: height,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),

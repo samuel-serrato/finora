@@ -471,11 +471,14 @@ class _GruposScreenState extends State<GruposScreen> {
   }
 
   Future<void> _eliminarGrupo(String idGrupo) async {
+  print('[ELIMINAR GRUPO] Iniciando proceso...');
+
+  // Diálogo de confirmación
   bool confirmado = await showDialog(
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Eliminar Grupo'),
-      content: const Text('¿Estás seguro de eliminar este grupo?'),
+      content: const Text('¿Estás seguro de eliminar este grupo y todos sus clientes asociados?'),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
@@ -489,40 +492,99 @@ class _GruposScreenState extends State<GruposScreen> {
     ),
   );
 
+  print('[ELIMINAR GRUPO] Confirmación del usuario: ${confirmado ? "Aceptada" : "Cancelada"}');
   if (confirmado != true) return;
 
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('tokenauth') ?? '';
-  
+  print('[ELIMINAR GRUPO] Token obtenido: ${token.isNotEmpty ? "OK" : "ERROR - Token vacío"}');
+
   try {
-    final response = await http.delete(
-      Uri.parse('http://$baseUrl/api/v1/grupos/$idGrupo'),
+    // 1. Obtener la lista de clientes asociados al grupo
+    final urlClientes = 'http://$baseUrl/api/v1/grupodetalles/$idGrupo';
+    print('[ELIMINAR GRUPO] URL para obtener clientes: $urlClientes');
+
+    final responseClientes = await http.get(
+      Uri.parse(urlClientes),
       headers: {'tokenauth': token},
     );
 
-    if (response.statusCode == 200) {
-      obtenerGrupos(); // Actualizar lista
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Grupo eliminado exitosamente'),
-          backgroundColor: Colors.green,
-        ),
+    print('[ELIMINAR GRUPO] Respuesta obtener clientes - Código: ${responseClientes.statusCode}');
+    print('[ELIMINAR GRUPO] Respuesta obtener clientes - Body: ${responseClientes.body}');
+
+    if (responseClientes.statusCode == 200) {
+      final data = json.decode(responseClientes.body) as List;
+      print('[ELIMINAR GRUPO] Número de grupos encontrados: ${data.length}');
+
+      // Recorrer cada grupo (aunque debería ser solo uno)
+      for (var grupo in data) {
+        final clientes = grupo['clientes'] as List;
+        print('[ELIMINAR GRUPO] Número de clientes en el grupo: ${clientes.length}');
+
+        // 2. Eliminar cada cliente asociado al grupo
+        for (var cliente in clientes) {
+          final idCliente = cliente['idclientes'];
+          final urlEliminarCliente = 'http://$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente';
+          print('[ELIMINAR GRUPO] URL para eliminar cliente: $urlEliminarCliente');
+
+          final responseEliminarCliente = await http.delete(
+            Uri.parse(urlEliminarCliente),
+            headers: {'tokenauth': token},
+          );
+
+          print('[ELIMINAR GRUPO] Respuesta eliminar cliente $idCliente - Código: ${responseEliminarCliente.statusCode}');
+          print('[ELIMINAR GRUPO] Respuesta eliminar cliente $idCliente - Body: ${responseEliminarCliente.body}');
+
+          if (responseEliminarCliente.statusCode != 200) {
+            print('[ELIMINAR GRUPO] Error al eliminar cliente $idCliente');
+            final errorData = json.decode(responseEliminarCliente.body);
+            print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
+            mostrarDialogoError('Error al eliminar cliente $idCliente');
+            return;
+          }
+        }
+      }
+
+      // 3. Eliminar el grupo
+      final urlEliminarGrupo = 'http://$baseUrl/api/v1/grupos/$idGrupo';
+      print('[ELIMINAR GRUPO] URL para eliminar grupo: $urlEliminarGrupo');
+
+      final responseEliminarGrupo = await http.delete(
+        Uri.parse(urlEliminarGrupo),
+        headers: {'tokenauth': token},
       );
-    } else if (response.statusCode == 401 || response.statusCode == 403) {
-      mostrarDialogoError('Sesión expirada. Inicia sesión nuevamente.', onClose: () {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-          (route) => false,
+
+      print('[ELIMINAR GRUPO] Respuesta eliminar grupo - Código: ${responseEliminarGrupo.statusCode}');
+      print('[ELIMINAR GRUPO] Respuesta eliminar grupo - Body: ${responseEliminarGrupo.body}');
+
+      if (responseEliminarGrupo.statusCode == 200) {
+        print('[ELIMINAR GRUPO] Eliminación exitosa, actualizando lista...');
+        obtenerGrupos();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Grupo y clientes asociados eliminados exitosamente'),
+            backgroundColor: Colors.green,
+          ),
         );
-      });
+      } else {
+        print('[ELIMINAR GRUPO] Error al eliminar grupo');
+        final errorData = json.decode(responseEliminarGrupo.body);
+        print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
+        mostrarDialogoError(errorData['Error']['Message'] ?? 'Error al eliminar el grupo');
+      }
     } else {
-      final errorData = json.decode(response.body);
-      mostrarDialogoError(errorData['Error']['Message'] ?? 'Error al eliminar');
+      print('[ELIMINAR GRUPO] Error al obtener clientes del grupo');
+      final errorData = json.decode(responseClientes.body);
+      print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
+      mostrarDialogoError(errorData['Error']['Message'] ?? 'Error al obtener los clientes del grupo');
     }
   } catch (e) {
+    print('[ELIMINAR GRUPO] Excepción capturada: $e');
+    print('[ELIMINAR GRUPO] StackTrace: ${e is Error ? e.stackTrace : ""}');
     mostrarDialogoError('Error de conexión: $e');
   }
+
+  print('[ELIMINAR GRUPO] Proceso finalizado');
 }
 
   void mostrarDialogAgregarGrupo() {

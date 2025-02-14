@@ -36,6 +36,7 @@ class _InfoCreditoState extends State<InfoCredito> {
   late ScrollController _scrollController;
   String idCredito = '';
   final GlobalKey<_PaginaControlState> paginaControlKey = GlobalKey();
+  bool isSending = false; // Nuevo estado para controlar la carga
 
   @override
   void initState() {
@@ -269,51 +270,57 @@ class _InfoCreditoState extends State<InfoCredito> {
       // ===== Lógica para "En Abonos" =====
       // ===== Lógica para "En Abonos" =====
       // ===== Lógica para "En Abonos" =====
-List<Map<String, dynamic>> nuevosAbonos = pagoActual.abonos
-    .where((abono) => !abono.containsKey('idpagosdetalles'))
-    .toList();
+      List<Map<String, dynamic>> nuevosAbonos = pagoActual.abonos
+          .where((abono) => !abono.containsKey('idpagosdetalles'))
+          .toList();
 
-for (var abono in nuevosAbonos) {
-  double montoAbono = (abono['deposito'] as num).toDouble();
-  double remainingDeuda = totalDeuda - (paidCapital + paidMoratorio);
+      for (var abono in nuevosAbonos) {
+        double montoAbono = (abono['deposito'] as num).toDouble();
+        double remainingDeuda = totalDeuda - (paidCapital + paidMoratorio);
 
-  double aplicadoCapital = 0.0;
-  double aplicadoMoratorio = 0.0;
-  double saldofavor = 0.0;
+        double aplicadoCapital = 0.0;
+        double aplicadoMoratorio = 0.0;
+        double saldofavor = 0.0;
 
-  // Calcular saldos pendientes, asegurando que no sean negativos
-  double remainingCapital = (pagoActual.capitalMasInteres! - paidCapital).clamp(0.0, double.infinity);
-  double remainingMoratorio = (pagoActual.moratorio! - paidMoratorio).clamp(0.0, double.infinity);
+        // Calcular saldos pendientes, asegurando que no sean negativos
+        double remainingCapital = (pagoActual.capitalMasInteres! - paidCapital)
+            .clamp(0.0, double.infinity);
+        double remainingMoratorio =
+            (pagoActual.moratorio! - paidMoratorio).clamp(0.0, double.infinity);
 
-  if (remainingDeuda > 0) {
-    aplicadoCapital = montoAbono.clamp(0.0, remainingCapital); // Usar remainingCapital ajustado
-    double remanente = montoAbono - aplicadoCapital;
-    aplicadoMoratorio = remanente.clamp(0.0, remainingMoratorio); // Usar remainingMoratorio ajustado
-    saldofavor = (montoAbono - (aplicadoCapital + aplicadoMoratorio)).clamp(0.0, double.infinity);
-  } else {
-    saldofavor = montoAbono;
-  }
+        if (remainingDeuda > 0) {
+          aplicadoCapital = montoAbono.clamp(
+              0.0, remainingCapital); // Usar remainingCapital ajustado
+          double remanente = montoAbono - aplicadoCapital;
+          aplicadoMoratorio = remanente.clamp(
+              0.0, remainingMoratorio); // Usar remainingMoratorio ajustado
+          saldofavor = (montoAbono - (aplicadoCapital + aplicadoMoratorio))
+              .clamp(0.0, double.infinity);
+        } else {
+          saldofavor = montoAbono;
+        }
 
-  print('montoaPagar: ${pagoActual.capitalMasInteres}');
+        print('montoaPagar: ${pagoActual.capitalMasInteres}');
 
-  // Solo agregar entrada si hay aplicación a deuda o saldo a favor
-  if (aplicadoCapital > 0 || aplicadoMoratorio > 0 || saldofavor > 0) {
-    pagosJson.add({
-      "idfechaspagos": pagoActual.idfechaspagos,
-      "fechaPago": pagoActual.fechaPago,
-      "tipoPago": "En Abonos",
-      "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0), // Monto REAL aplicado
-      "deposito": _redondear(aplicadoCapital),
-      "moratorio": _redondear(aplicadoMoratorio),
-      "saldofavor": _redondear(saldofavor),
-    });
-  }
+        // Solo agregar entrada si hay aplicación a deuda o saldo a favor
+        if (aplicadoCapital > 0 || aplicadoMoratorio > 0 || saldofavor > 0) {
+          pagosJson.add({
+            "idfechaspagos": pagoActual.idfechaspagos,
+            "fechaPago": pagoActual.fechaPago,
+            "tipoPago": "En Abonos",
+            "montoaPagar": _redondear(
+                pagoActual.capitalMasInteres ?? 0.0), // Monto REAL aplicado
+            "deposito": _redondear(aplicadoCapital),
+            "moratorio": _redondear(aplicadoMoratorio),
+            "saldofavor": _redondear(saldofavor),
+          });
+        }
 
-  // Actualizar acumulados
-  paidCapital += aplicadoCapital;
-  paidMoratorio += aplicadoMoratorio;
-}
-       print('\n==== Procesando pago: ${pagoActual.idfechaspagos} ====');
+        // Actualizar acumulados
+        paidCapital += aplicadoCapital;
+        paidMoratorio += aplicadoMoratorio;
+      }
+      print('\n==== Procesando pago: ${pagoActual.idfechaspagos} ====');
       print('Tipo de pago: ${pagoActual.tipoPago}');
       print('Capital + Interés: ${pagoActual.capitalMasInteres}');
       print('Moratorios: ${pagoActual.moratorio}');
@@ -356,33 +363,33 @@ for (var abono in nuevosAbonos) {
     BuildContext context,
     List<PagoSeleccionado> pagosSeleccionados,
   ) async {
-    // Obtener los pagos originales del provider
-    final pagosOriginales =
-        Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
-
-    // Generar los datos JSON con la función que ya tienes
-    List<Map<String, dynamic>> pagosJson =
-        generarPagoJson(pagosSeleccionados, pagosOriginales);
-
-    // URL del servidor
-    final url = Uri.parse('http://$baseUrl/api/v1/pagos');
-
-    // Obtener el token de SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-
-    // Verificar que el token esté disponible
-    if (token.isEmpty) {
-      _handleError(false,
-          'Token de autenticación no encontrado. Por favor, inicia sesión.',
-          redirectToLogin: true);
-      return;
-    }
-
-    // Datos a enviar
-    print('Datos a enviar: $pagosJson');
-
     try {
+      // Obtener los pagos originales del provider
+      final pagosOriginales =
+          Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
+
+      // Generar los datos JSON con la función que ya tienes
+      List<Map<String, dynamic>> pagosJson =
+          generarPagoJson(pagosSeleccionados, pagosOriginales);
+
+      // URL del servidor
+      final url = Uri.parse('http://$baseUrl/api/v1/pagos');
+
+      // Obtener el token de SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      // Verificar que el token esté disponible
+      if (token.isEmpty) {
+        _handleError(false,
+            'Token de autenticación no encontrado. Por favor, inicia sesión.',
+            redirectToLogin: true);
+        return;
+      }
+
+      // Datos a enviar
+      print('Datos a enviar: $pagosJson');
+
       // Hacer la solicitud POST
       final response = await http.post(
         url,
@@ -397,8 +404,6 @@ for (var abono in nuevosAbonos) {
       if (response.statusCode == 201) {
         print('Datos enviados exitosamente');
         mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
-        // Llama a recargarPagos en PaginaControl
-        // paginaControlKey.currentState?.recargarPagos();
       } else {
         // Verificar si la sesión ha expirado
         if (response.statusCode == 401) {
@@ -429,6 +434,10 @@ for (var abono in nuevosAbonos) {
     } catch (e) {
       print('Error al hacer la solicitud: $e');
       mostrarDialogo(context, 'Error', 'Ocurrió un error: $e', esError: true);
+    } finally {
+      setState(() {
+        isSending = false; // Asegurarse de desactivar el indicador de carga
+      });
     }
   }
 
@@ -497,292 +506,367 @@ for (var abono in nuevosAbonos) {
       backgroundColor: Color(0xFFF7F8FA),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: EdgeInsets.all(16),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 30),
-        width: width,
-        height: height,
-        child: Column(
-          children: [
-            Expanded(
-              child: isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : creditoData != null
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Columna izquierda con la información del crédito
-                            Expanded(
-                              flex: 25,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Color(0xFFFB2056),
-                                      Color.fromARGB(255, 197, 35, 78)
-                                    ],
-                                    begin: Alignment.centerRight,
-                                    end: Alignment.centerLeft,
-                                  ),
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(20)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 8,
-                                      offset: Offset(0, 4),
-                                    )
-                                  ],
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                    vertical: 20, horizontal: 16),
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 50,
-                                        backgroundColor: Colors.white,
-                                        child: Icon(
-                                          Icons.account_balance_wallet_rounded,
-                                          size: 60,
-                                          color: Color(0xFFFB2056),
-                                        ),
-                                      ),
-                                      SizedBox(height: 16),
-                                      Text(
-                                        'Información del Crédito',
-                                        style: TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      SizedBox(height: 2),
-                                      Divider(
-                                          color: Colors.white.withOpacity(0.5),
-                                          thickness: 1),
-                                      _buildDetailRow('Folio',
-                                          creditoData!.folio.toString()),
-                                      _buildDetailRow(
-                                          'Grupo',
-                                          creditoData!.nombreGrupo ??
-                                              'No disponible'),
-                                      _buildDetailRow(
-                                          'Tipo',
-                                          creditoData!.tipoPlazo ??
-                                              'No disponible'),
-                                      _buildDetailRow('Monto Total',
-                                          "\$${formatearNumero(creditoData!.montoTotal ?? 0.0)}"),
-                                      _buildDetailRow('Interés Mensual',
-                                          "${creditoData!.ti_mensual ?? 0.0}%"),
-                                      _buildDetailRow('Garantía',
-                                          "\$${creditoData!.garantia ?? 0.0}"),
-                                      _buildDetailRow(
-                                        'Monto Desembolsado',
-                                        "\$${formatearNumero(creditoData!.montoDesembolsado ?? 0.0)}",
-                                      ),
-                                      _buildDetailRow('Interés Global',
-                                          "${creditoData!.interesGlobal ?? 0.0}%"),
-                                      _buildDetailRow(
-                                        'Día de Pago',
-                                        creditoData!.diaPago ?? 'Desconocido',
-                                      ),
-                                      SizedBox(height: 3),
-                                      Divider(
-                                          color: Colors.white.withOpacity(0.5),
-                                          thickness: 1),
-                                      SizedBox(height: 3),
-                                      _buildDetailRow(
-                                          creditoData!.tipoPlazo == 'Semanal'
-                                              ? 'Capital Semanal'
-                                              : 'Capital Quincenal',
-                                          "\$${formatearNumero(creditoData!.semanalCapital ?? 0.0)}"),
-                                      _buildDetailRow('Capital Total',
-                                          "\$${formatearNumero((creditoData!.semanalCapital * creditoData!.plazo) ?? 0.0)}"),
-                                      _buildDetailRow(
-                                          creditoData!.tipoPlazo == 'Semanal'
-                                              ? 'Interés Semanal'
-                                              : 'Interés Quincenal',
-                                          "\$${formatearNumero(creditoData!.semanalInteres ?? 0.0)}"),
-                                      _buildDetailRow('Interés Total',
-                                          "\$${formatearNumero(creditoData!.interesTotal ?? 0.0)}"),
-                                      SizedBox(height: 3),
-                                      Divider(
-                                          color: Colors.white.withOpacity(0.5),
-                                          thickness: 1),
-                                      SizedBox(height: 3),
-                                      _buildDetailRow(
-                                        creditoData!.tipoPlazo == 'Semanal'
-                                            ? 'Pago Semanal'
-                                            : 'Pago Quincenal',
-                                        "\$${formatearNumero(creditoData!.pagoCuota ?? 0.0)}",
-                                      ),
-                                      _buildDetailRow(
-                                        'Monto a Recuperar',
-                                        "\$${formatearNumero(creditoData!.montoMasInteres ?? 0.0)}",
-                                      ),
-                                      _buildDetailRow(
-                                        'Estado',
-                                        creditoData!.estado != null
-                                            ? creditoData!.estado.toString()
-                                            : 'No disponible',
-                                      ),
-                                      _buildDetailRow(
-                                        'Fecha de Creación',
-                                        formatearFecha(creditoData?.fCreacion ??
-                                            DateTime.now()),
-                                      ),
-                                      SizedBox(height: 30),
+      child: Stack(children: [
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 30),
+          width: width,
+          height: height,
+          child: Column(
+            children: [
+              Expanded(
+                child: isLoading
+                    ? Center(child: CircularProgressIndicator())
+                    : creditoData != null
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Columna izquierda con la información del crédito
+                              Expanded(
+                                flex: 25,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Color(0xFFFB2056),
+                                        Color.fromARGB(255, 197, 35, 78)
+                                      ],
+                                      begin: Alignment.centerRight,
+                                      end: Alignment.centerLeft,
+                                    ),
+                                    borderRadius:
+                                        BorderRadius.all(Radius.circular(20)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 8,
+                                        offset: Offset(0, 4),
+                                      )
                                     ],
                                   ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 16),
-                            // Columna derecha con pestañas
-                            Expanded(
-                              flex: 75,
-                              child: DefaultTabController(
-                                length: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    TabBar(
-                                      labelColor: Color(0xFFFB2056),
-                                      unselectedLabelColor: Colors.grey,
-                                      indicatorColor: Color(0xFFFB2056),
-                                      tabs: [
-                                        Tab(text: 'Control'),
-                                        Tab(text: 'Integrantes'),
-                                        Tab(text: 'Descargables'),
+                                  padding: EdgeInsets.symmetric(
+                                      vertical: 20, horizontal: 16),
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 40,
+                                          backgroundColor: Colors.white,
+                                          child: Icon(
+                                            Icons
+                                                .account_balance_wallet_rounded,
+                                            size: 50,
+                                            color: Color(0xFFFB2056),
+                                          ),
+                                        ),
+                                        SizedBox(height: 16),
+                                        Text(
+                                          'Información del Crédito',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Divider(
+                                            color:
+                                                Colors.white.withOpacity(0.5),
+                                            thickness: 1),
+                                        _buildDetailRow('Folio',
+                                            creditoData!.folio.toString()),
+                                        _buildDetailRow(
+                                            'Grupo',
+                                            creditoData!.nombreGrupo ??
+                                                'No disponible'),
+                                        _buildDetailRow(
+                                            'Tipo',
+                                            creditoData!.tipoPlazo ??
+                                                'No disponible'),
+                                        _buildDetailRow('Monto Total',
+                                            "\$${formatearNumero(creditoData!.montoTotal ?? 0.0)}"),
+                                        _buildDetailRow('Interés Mensual',
+                                            "${creditoData!.ti_mensual ?? 0.0}%"),
+                                        _buildDetailRow('Garantía',
+                                            "\$${creditoData!.garantia ?? 0.0}"),
+                                        _buildDetailRow('Garantía Monto',
+                                            "\$${creditoData!.montoGarantia ?? 0.0}"),
+                                        _buildDetailRow(
+                                          'Monto Desembolsado',
+                                          "\$${formatearNumero(creditoData!.montoDesembolsado ?? 0.0)}",
+                                        ),
+                                        _buildDetailRow('Interés Global',
+                                            "${creditoData!.interesGlobal ?? 0.0}%"),
+                                        _buildDetailRow(
+                                          'Día de Pago',
+                                          creditoData!.diaPago ?? 'Desconocido',
+                                        ),
+                                        SizedBox(height: 3),
+                                        Divider(
+                                            color:
+                                                Colors.white.withOpacity(0.5),
+                                            thickness: 1),
+                                        SizedBox(height: 3),
+                                        _buildDetailRow(
+                                            creditoData!.tipoPlazo == 'Semanal'
+                                                ? 'Capital Semanal'
+                                                : 'Capital Quincenal',
+                                            "\$${formatearNumero(creditoData!.semanalCapital ?? 0.0)}"),
+                                        _buildDetailRow('Capital Total',
+                                            "\$${formatearNumero((creditoData!.semanalCapital * creditoData!.plazo) ?? 0.0)}"),
+                                        _buildDetailRow(
+                                            creditoData!.tipoPlazo == 'Semanal'
+                                                ? 'Interés Semanal'
+                                                : 'Interés Quincenal',
+                                            "\$${formatearNumero(creditoData!.semanalInteres ?? 0.0)}"),
+                                        _buildDetailRow('Interés Total',
+                                            "\$${formatearNumero(creditoData!.interesTotal ?? 0.0)}"),
+                                        SizedBox(height: 3),
+                                        Divider(
+                                            color:
+                                                Colors.white.withOpacity(0.5),
+                                            thickness: 1),
+                                        SizedBox(height: 3),
+                                        _buildDetailRow(
+                                          creditoData!.tipoPlazo == 'Semanal'
+                                              ? 'Pago Semanal'
+                                              : 'Pago Quincenal',
+                                          "\$${formatearNumero(creditoData!.pagoCuota ?? 0.0)}",
+                                        ),
+                                        _buildDetailRow(
+                                          'Monto a Recuperar',
+                                          "\$${formatearNumero(creditoData!.montoMasInteres ?? 0.0)}",
+                                        ),
+                                        _buildDetailRow(
+                                          'Estado',
+                                          creditoData!.estado != null
+                                              ? creditoData!.estado.toString()
+                                              : 'No disponible',
+                                        ),
+                                        _buildDetailRow(
+                                          'Fecha de Creación',
+                                          formatearFecha(
+                                              creditoData?.fCreacion ??
+                                                  DateTime.now()),
+                                        ),
+                                        SizedBox(height: 30),
                                       ],
                                     ),
-                                    Expanded(
-                                      child: TabBarView(
-                                        children: [
-                                          SingleChildScrollView(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                _buildSectionTitle(
-                                                    'Control de Pagos'),
-                                                PaginaControl(
-                                                  key: paginaControlKey,
-                                                  idCredito: idCredito,
-                                                  montoGarantia: creditoData!
-                                                          .montoGarantia ??
-                                                      0.0,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          SingleChildScrollView(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                _buildSectionTitle(
-                                                    'Integrantes'),
-                                                SizedBox(height: 12),
-                                                PaginaIntegrantes(
-                                                  clientesMontosInd:
-                                                      creditoData!
-                                                          .clientesMontosInd,
-                                                  tipoPlazo:
-                                                      creditoData!.tipoPlazo,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          SingleChildScrollView(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                _buildSectionTitle(
-                                                    'Descargables'),
-                                                PaginaDescargables(
-                                                  tipo: creditoData!.tipo,
-                                                  folio: creditoData!.folio,
-                                                )
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        )
-                      : Center(child: Text('No se ha cargado la información')),
-            ),
-            // Botones de acción
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(); // Cerrar el diálogo
-                    },
-                    child: Text(
-                      'Cancelar',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      // Reinicia los datos del Provider
-                      Provider.of<PagosProvider>(context, listen: false)
-                          .limpiarPagos();
-
-                      // Opcional: muestra un mensaje para confirmar el reinicio
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Los datos se han reiniciado correctamente.')),
-                      );
-                    },
-                    child: Text('Reiniciar Datos'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final pagosSeleccionados =
-                          Provider.of<PagosProvider>(context, listen: false)
-                              .pagosSeleccionados;
-                      final pagosOriginales =
-                          Provider.of<PagosProvider>(context, listen: false)
-                              .pagosOriginales;
-
-                      // Generar JSON solo con los datos modificados
-                      List<Map<String, dynamic>> pagosJson =
-                          generarPagoJson(pagosSeleccionados, pagosOriginales);
-
-                      // Verificar si hay datos modificados para enviar
-                      if (pagosJson.isNotEmpty) {
-                        print('Datos a enviar: $pagosJson');
-                        // Llamar a la función para enviar los datos al servidor
-                        await enviarDatosAlServidor(
-                            context, pagosSeleccionados);
-                      } else {
-                        print("No hay cambios para guardar.");
-                      }
-                    },
-                    child: Text('Guardar'),
-                  )
-                ],
+                              SizedBox(width: 16),
+                              // Columna derecha con pestañas
+                              Expanded(
+                                flex: 75,
+                                child: DefaultTabController(
+                                  length: 3,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      TabBar(
+                                        labelColor: Color(0xFFFB2056),
+                                        unselectedLabelColor: Colors.grey,
+                                        indicatorColor: Color(0xFFFB2056),
+                                        tabs: [
+                                          Tab(text: 'Control'),
+                                          Tab(text: 'Integrantes'),
+                                          Tab(text: 'Descargables'),
+                                        ],
+                                      ),
+                                      Expanded(
+                                        child: TabBarView(
+                                          children: [
+                                            SingleChildScrollView(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  _buildSectionTitle(
+                                                      'Control de Pagos'),
+                                                  PaginaControl(
+                                                    key: paginaControlKey,
+                                                    idCredito: idCredito,
+                                                    montoGarantia: creditoData!
+                                                            .montoGarantia ??
+                                                        0.0,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            SingleChildScrollView(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  _buildSectionTitle(
+                                                      'Integrantes'),
+                                                  SizedBox(height: 12),
+                                                  PaginaIntegrantes(
+                                                    clientesMontosInd:
+                                                        creditoData!
+                                                            .clientesMontosInd,
+                                                    tipoPlazo:
+                                                        creditoData!.tipoPlazo,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            SingleChildScrollView(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  _buildSectionTitle(
+                                                      'Descargables'),
+                                                  PaginaDescargables(
+                                                    tipo: creditoData!.tipo,
+                                                    folio: creditoData!.folio,
+                                                  )
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Center(
+                            child: Text('No se ha cargado la información')),
               ),
-            ),
-          ],
+              // Botones de acción
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Cerrar el diálogo
+                      },
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Reinicia los datos del Provider
+                        Provider.of<PagosProvider>(context, listen: false)
+                            .limpiarPagos();
+
+                        // Opcional: muestra un mensaje para confirmar el reinicio
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Los datos se han reiniciado correctamente.')),
+                        );
+                      },
+                      child: Text('Reiniciar Datos'),
+                    ),
+                    ElevatedButton(
+                      onPressed: isSending
+                          ? null // Deshabilita el botón si está enviando
+                          : () async {
+                              setState(() {
+                                isSending =
+                                    true; // Activar el indicador de carga
+                              });
+
+                              // Delay of 1 second
+                              await Future.delayed(Duration(milliseconds: 500));
+
+                              final pagosSeleccionados =
+                                  Provider.of<PagosProvider>(context,
+                                          listen: false)
+                                      .pagosSeleccionados;
+                              final pagosOriginales =
+                                  Provider.of<PagosProvider>(context,
+                                          listen: false)
+                                      .pagosOriginales;
+
+                              // Generar JSON solo con los datos modificados
+                              List<Map<String, dynamic>> pagosJson =
+                                  generarPagoJson(
+                                      pagosSeleccionados, pagosOriginales);
+
+                              // Verificar si hay datos modificados para enviar
+                              if (pagosJson.isNotEmpty) {
+                                print('Datos a enviar: $pagosJson');
+                                // Llamar a la función para enviar los datos al servidor
+                                await enviarDatosAlServidor(
+                                    context, pagosSeleccionados);
+                              } else {
+                                print("No hay cambios para guardar.");
+                              }
+
+                              setState(() {
+                                isSending =
+                                    false; // Desactivar el indicador de carga
+                              });
+                            },
+                      child: isSending
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text('Guardar'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+   if (isSending)
+  Positioned.fill(
+    child: Container(
+      color: Colors.black.withOpacity(0.3), // Semi-transparent background
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Color(0xFFFB2056),),
+              SizedBox(height: 12),
+              Text(
+                'Guardando...',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
         ),
       ),
+    ),
+  ),
+
+  ],
+)
     );
   }
 
@@ -3395,77 +3479,90 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
   bool dialogShown = false; // Controlar diálogos mostrados
 
   Future<void> _descargarDocumento(String documento) async {
-    setState(() => _documentoDescargando = documento);
+  setState(() => _documentoDescargando = documento);
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
+  bool dialogShown = false;
 
-      final response = await http.get(
-        Uri.parse(
-          'http://$baseUrl/api/v1/formato/'
-          '${documento.toLowerCase()}/'
-          '${widget.tipo.toLowerCase()}/'
-          '${widget.folio.toUpperCase()}',
-        ),
-        headers: {
-          'tokenauth': token,
-          'Content-Type': 'application/json',
-        },
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    final response = await http.get(
+      Uri.parse(
+        'http://$baseUrl/api/v1/formato/'
+        '${documento.toLowerCase()}/'
+        '${widget.tipo.toLowerCase()}/'
+        '${widget.folio.toUpperCase()}',
+      ),
+      headers: {
+        'tokenauth': token,
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (!mounted) return;
+
+    if (response.statusCode == 200) {
+      final String? savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar documento',
+        fileName: '${documento}_${widget.folio}.docx',
+        allowedExtensions: ['docx'],
+        type: FileType.custom,
       );
 
-      if (!mounted) return; // Verificar si el widget está montado
+      if (!mounted) return;
 
-      if (response.statusCode == 200) {
-        final String? savePath = await FilePicker.platform.saveFile(
-          dialogTitle: 'Guardar documento',
-          fileName: '${documento}_${widget.folio}.docx',
-          allowedExtensions: ['docx'],
-          type: FileType.custom,
-        );
+      if (savePath != null) {
+        final file = File(savePath);
+        await file.writeAsBytes(response.bodyBytes);
+        if (!mounted) return;
+        await _abrirArchivoGuardado(savePath);
+      }
+    } else if (response.statusCode == 404) {
+      final errorData = json.decode(response.body);
+      if (errorData["Error"]["Message"] == "jwt expired") {
+        await prefs.remove('tokenauth');
 
-        if (!mounted) return; // Verificar si el widget está montado
-
-        if (savePath != null) {
-          final file = File(savePath);
-          await file.writeAsBytes(response.bodyBytes);
-          if (!mounted) return; // Verificar si el widget está montado
-          await _abrirArchivoGuardado(savePath);
-        }
-      } else if (response.statusCode == 401) {
-        // Manejar token expirado
-        final errorData = json.decode(response.body);
-        if (errorData["Error"]["Message"] == "jwt expired") {
-          if (mounted) {
-            setState(() => _documentoDescargando = null);
-            await prefs.remove('tokenauth'); // Limpiar token
-            _mostrarDialogoError(
-              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-              onClose: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                );
-              },
-            );
-          }
-          return; // Salir de la función
-        } else {
-          _mostrarError('Error de servidor: ${response.statusCode}');
+        if (!dialogShown) {
+          dialogShown = true;
+          _handleError(
+            dialogShown,
+            'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+            redirectToLogin: true,
+          );
         }
       } else {
-        _mostrarError('Error de servidor: ${response.statusCode}');
+        _handleError(dialogShown, 'Error 404: Documento no encontrado.');
       }
-    } catch (e) {
-      if (mounted) {
-        _mostrarError('Error: ${e.toString().split(':').first}');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _documentoDescargando = null);
-      }
+    } else {
+      _handleError(dialogShown, 'Error de servidor: ${response.statusCode}');
+    }
+  } catch (e) {
+    _handleError(dialogShown, 'Error: ${e.toString()}');
+  } finally {
+    if (mounted) {
+      setState(() => _documentoDescargando = null);
     }
   }
+}
+
+
+void _handleError(bool dialogShown, String message, {bool redirectToLogin = false}) {
+  if (!dialogShown) {
+    dialogShown = true;
+    _mostrarDialogoError(
+      message,
+      onClose: redirectToLogin
+          ? () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            }
+          : null,
+    );
+  }
+}
 
   void _mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     if (!mounted || dialogShown) return; // Evitar múltiples diálogos
