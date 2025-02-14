@@ -143,6 +143,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     if (mounted) {
       showDialog(
+        barrierDismissible: false,
         context: context,
         builder: (context) {
           return AlertDialog(
@@ -233,7 +234,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
                   children: [
                     _buildInfoItem('Usuario', userData!['usuario']),
                     _buildInfoItem('Nombre', userData!['nombreCompleto']),
-                    //_buildInfoItem('Email', userData!['email']),
+                    _buildInfoItem('Email', userData!['email']),
                   ],
                 ),
                 const SizedBox(height: 25),

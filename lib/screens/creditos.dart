@@ -170,6 +170,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -422,6 +423,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 if (isSelected == true) {
                   selectedRows.add(listaCreditos.indexOf(credito));
                   showDialog(
+                    barrierDismissible: false,
                     context: context,
                     builder: (context) => InfoCredito(folio: credito.folio),
                   );

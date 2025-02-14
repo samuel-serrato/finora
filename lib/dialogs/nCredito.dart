@@ -50,6 +50,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
   double? tasaInteresMensualSeleccionada;
 
+  bool _isSaving = false;
+
   List<double> tasas = [
     6.00,
     8.00,
@@ -123,6 +125,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
   Future<void> _mostrarDialogoAdvertencia(BuildContext context) async {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         title: Text('¡Advertencia!'),
@@ -186,13 +189,25 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   }
 
   void _guardarCredito() async {
-    print("Generando datos del crédito...");
+    if (_isSaving) return;
 
-    // Generar los datos a enviar
-    final datosParaServidor = generarDatosParaServidor();
+    setState(() => _isSaving = true); // Activar overlay
 
-    // Llamar a la función para enviar los datos
-    await enviarCredito(datosParaServidor);
+    try {
+      final datosParaServidor = generarDatosParaServidor();
+      await enviarCredito(datosParaServidor);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false); // Desactivar overlay
+      }
+    }
   }
 
   // Actualiza el método enviarCredito
@@ -258,6 +273,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
   void _mostrarError(String mensaje) {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -392,6 +408,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     if (mounted) {
       showDialog(
+        barrierDismissible: false,
         context: context,
         builder: (context) {
           return AlertDialog(
@@ -421,93 +438,118 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        width: width,
-        height: height,
-        padding: EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              'Agregar/Asignar Crédito',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 10),
-            TabBar(
-              controller: _tabController,
-              labelColor: Color(0xFFFB2056),
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Color(0xFFFB2056),
-              tabs: [
-                Tab(text: 'Datos Generales'),
-                Tab(text: 'Integrantes'),
-                Tab(text: 'Resumen'),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
+      child: Stack(
+        children: [
+        Container(
+          width: width,
+          height: height,
+          padding: EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Text(
+                'Agregar/Asignar Crédito',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 10),
+              TabBar(
                 controller: _tabController,
+                labelColor: Color(0xFFFB2056),
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Color(0xFFFB2056),
+                tabs: [
+                  Tab(text: 'Datos Generales'),
+                  Tab(text: 'Integrantes'),
+                  Tab(text: 'Resumen'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(
+                          right: 30, top: 10, bottom: 10, left: 0),
+                      child: _paginaDatosGenerales(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(
+                          right: 30, top: 10, bottom: 10, left: 0),
+                      child: _paginaIntegrantes(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(
+                          right: 30, top: 10, bottom: 10, left: 0),
+                      child: _paginaResumen(),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        right: 30, top: 10, bottom: 10, left: 0),
-                    child: _paginaDatosGenerales(),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey,
+                    ),
+                    child: Text('Cancelar'),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        right: 30, top: 10, bottom: 10, left: 0),
-                    child: _paginaIntegrantes(),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(
-                        right: 30, top: 10, bottom: 10, left: 0),
-                    child: _paginaResumen(),
+                  Row(
+                    children: [
+                      if (_currentIndex > 0)
+                        TextButton(
+                          onPressed: () {
+                            _tabController.animateTo(_currentIndex - 1);
+                          },
+                          child: Text('Atrás'),
+                        ),
+                      if (_currentIndex < 2)
+                        ElevatedButton(
+                          onPressed: () async {
+                            bool esValido = await _validarFormularioActual(
+                                context); // Esperamos la validación
+                            if (esValido) {
+                              _tabController.animateTo(_currentIndex +
+                                  1); // Solo si es válido, avanzamos
+                            }
+                          },
+                          child: Text('Siguiente'),
+                        ),
+                      // En la sección del botón:
+                      if (_currentIndex == 2)
+                        ElevatedButton(
+                          onPressed: _isSaving
+                              ? null
+                              : _guardarCredito, // Deshabilitar durante el guardado
+                          child: Text('Guardar'),
+                        ),
+                    ],
                   ),
                 ],
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey,
-                  ),
-                  child: Text('Cancelar'),
-                ),
-                Row(
-                  children: [
-                    if (_currentIndex > 0)
-                      TextButton(
-                        onPressed: () {
-                          _tabController.animateTo(_currentIndex - 1);
-                        },
-                        child: Text('Atrás'),
-                      ),
-                    if (_currentIndex < 2)
-                      ElevatedButton(
-                        onPressed: () async {
-                          bool esValido = await _validarFormularioActual(
-                              context); // Esperamos la validación
-                          if (esValido) {
-                            _tabController.animateTo(_currentIndex +
-                                1); // Solo si es válido, avanzamos
-                          }
-                        },
-                        child: Text('Siguiente'),
-                      ),
-                    if (_currentIndex == 2)
-                      ElevatedButton(
-                        onPressed: _guardarCredito,
-                        child: Text('Guardar'),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        // Overlay de carga
+         // Overlay de carga con fondo blanco
+        if (_isSaving)
+          IgnorePointer(  // Bloquea las interacciones
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFFFB2056),
+                  strokeWidth: 4,
+                ),
+              ),
+            ),
+          ),
+      ]),
     );
   }
 

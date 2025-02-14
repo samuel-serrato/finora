@@ -206,6 +206,7 @@ void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
   
   _dialogShown = true;
   showDialog(
+    barrierDismissible: false,
     context: context,
     builder: (context) {
       return AlertDialog(

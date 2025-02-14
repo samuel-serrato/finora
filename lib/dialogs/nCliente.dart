@@ -1136,6 +1136,7 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Error'),
@@ -1311,6 +1312,7 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   void _showErrorDialog(String title, String message) {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -1345,6 +1347,7 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   void _mostrarDialogoErrorFecha() {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -3165,6 +3168,7 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   void _mostrarAlerta(String mensaje) {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(

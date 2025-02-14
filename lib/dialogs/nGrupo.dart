@@ -30,8 +30,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   final TextEditingController _controller = TextEditingController();
   List<Usuario> _usuarios = [];
   Usuario? _selectedUsuario;
-    bool _isLoadingUsuarios = true; // Nueva variable de estado
-
+  bool _isLoadingUsuarios = true; // Nueva variable de estado
 
   String? selectedTipo;
 
@@ -82,31 +81,31 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   Future<void> obtenerUsuarios() async {
-  setState(() => _isLoadingUsuarios = true);
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
+    setState(() => _isLoadingUsuarios = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
 
-    final response = await http.get(
-      Uri.parse('http://$baseUrl/api/v1/usuarios/tipo/campo'),
-      headers: {
-        'tokenauth': token,
-        'Content-Type': 'application/json',
-      },
-    );
+      final response = await http.get(
+        Uri.parse('http://$baseUrl/api/v1/usuarios/tipo/campo'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      List<dynamic> data = json.decode(response.body);
-      setState(() {
-        _usuarios = data.map((item) => Usuario.fromJson(item)).toList();
-      });
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _usuarios = data.map((item) => Usuario.fromJson(item)).toList();
+        });
+      }
+    } catch (e) {
+      print('Error obteniendo usuarios: $e');
+    } finally {
+      setState(() => _isLoadingUsuarios = false);
     }
-  } catch (e) {
-    print('Error obteniendo usuarios: $e');
-  } finally {
-    setState(() => _isLoadingUsuarios = false);
   }
-}
 
   Future<List<Map<String, dynamic>>> findPersons(String query) async {
     if (query.isEmpty) return [];
@@ -198,6 +197,9 @@ class _nGrupoDialogState extends State<nGrupoDialog>
 
           if (miembrosAgregados) {
             widget.onGrupoAgregado();
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                backgroundColor: Colors.green,
+                content: Text('Grupo agregado correctamente')));
             Navigator.of(context).pop();
           }
         }
@@ -319,6 +321,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
 
     _dialogShown = true;
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title,
@@ -338,124 +341,125 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   @override
-Widget build(BuildContext context) {
-  final width = MediaQuery.of(context).size.width * 0.8;
-  final height = MediaQuery.of(context).size.height * 0.8;
+  Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width * 0.8;
+    final height = MediaQuery.of(context).size.height * 0.8;
 
-  return Dialog(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    child: Container(
-      width: width,
-      height: height,
-      padding: EdgeInsets.all(20),
-      child: _isLoadingUsuarios // Verificación principal aquí
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    color: Color(0xFFFB2056),
-                  ),
-                  SizedBox(height: 20),
-                  Text(
-                    'Cargando usuarios...',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : _isLoading
-              ? Center(
-                  child: CircularProgressIndicator(),
-                )
-              : Column(
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: width,
+        height: height,
+        padding: EdgeInsets.all(20),
+        child: _isLoadingUsuarios // Verificación principal aquí
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    CircularProgressIndicator(
+                      color: Color(0xFFFB2056),
+                    ),
+                    SizedBox(height: 20),
                     Text(
-                      'Agregar Grupo',
+                      'Cargando usuarios...',
                       style: TextStyle(
-                          fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 10),
-                    TabBar(
-                      controller: _tabController,
-                      labelColor: Color(0xFFFB2056),
-                      unselectedLabelColor: Colors.grey,
-                      indicatorColor: Color(0xFFFB2056),
-                      tabs: [
-                        Tab(text: 'Información del Grupo'),
-                        Tab(text: 'Miembros del Grupo'),
-                      ],
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(
-                                right: 30, top: 10, bottom: 10, left: 0),
-                            child: _paginaInfoGrupo(),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(
-                                right: 30, top: 10, bottom: 10, left: 0),
-                            child: _paginaMiembros(),
-                          ),
-                        ],
+                        color: Colors.black54,
+                        fontSize: 16,
                       ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.grey,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: Text('Cancelar'),
-                        ),
-                        Row(
-                          children: [
-                            if (_currentIndex > 0)
-                              TextButton(
-                                onPressed: () {
-                                  _tabController.animateTo(_currentIndex - 1);
-                                },
-                                child: Text('Atrás'),
-                              ),
-                            if (_currentIndex < 1)
-                              ElevatedButton(
-                                onPressed: () {
-                                  if (_validarFormularioActual()) {
-                                    _tabController.animateTo(_currentIndex + 1);
-                                  } else {
-                                    print(
-                                        "Validación fallida en la pestaña $_currentIndex");
-                                  }
-                                },
-                                child: Text('Siguiente'),
-                              ),
-                            if (_currentIndex == 1)
-                              ElevatedButton(
-                                onPressed: _agregarGrupo,
-                                child: Text('Agregar'),
-                              ),
-                          ],
-                        ),
-                      ],
                     ),
                   ],
                 ),
-    ),
-  );
-}
+              )
+            : _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : Column(
+                    children: [
+                      Text(
+                        'Agregar Grupo',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 10),
+                      TabBar(
+                        controller: _tabController,
+                        labelColor: Color(0xFFFB2056),
+                        unselectedLabelColor: Colors.grey,
+                        indicatorColor: Color(0xFFFB2056),
+                        tabs: [
+                          Tab(text: 'Información del Grupo'),
+                          Tab(text: 'Miembros del Grupo'),
+                        ],
+                      ),
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  right: 30, top: 10, bottom: 10, left: 0),
+                              child: _paginaInfoGrupo(),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                  right: 30, top: 10, bottom: 10, left: 0),
+                              child: _paginaMiembros(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.grey,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text('Cancelar'),
+                          ),
+                          Row(
+                            children: [
+                              if (_currentIndex > 0)
+                                TextButton(
+                                  onPressed: () {
+                                    _tabController.animateTo(_currentIndex - 1);
+                                  },
+                                  child: Text('Atrás'),
+                                ),
+                              if (_currentIndex < 1)
+                                ElevatedButton(
+                                  onPressed: () {
+                                    if (_validarFormularioActual()) {
+                                      _tabController
+                                          .animateTo(_currentIndex + 1);
+                                    } else {
+                                      print(
+                                          "Validación fallida en la pestaña $_currentIndex");
+                                    }
+                                  },
+                                  child: Text('Siguiente'),
+                                ),
+                              if (_currentIndex == 1)
+                                ElevatedButton(
+                                  onPressed: _agregarGrupo,
+                                  child: Text('Agregar'),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+      ),
+    );
+  }
 
   // Función que crea cada paso con el círculo y el texto
   Widget _buildPasoItem(int numeroPaso, String titulo, bool isActive) {

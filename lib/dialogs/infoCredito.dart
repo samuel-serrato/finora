@@ -140,6 +140,7 @@ class _InfoCreditoState extends State<InfoCredito> {
 
   void _showErrorDialog(String mensaje, {VoidCallback? onClose}) {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -266,44 +267,58 @@ class _InfoCreditoState extends State<InfoCredito> {
       }
 
       // ===== Lógica para "En Abonos" =====
-      List<Map<String, dynamic>> nuevosAbonos = pagoActual.abonos
-          .where((abono) => !abono.containsKey('idpagosdetalles'))
-          .toList();
+      // ===== Lógica para "En Abonos" =====
+      // ===== Lógica para "En Abonos" =====
+List<Map<String, dynamic>> nuevosAbonos = pagoActual.abonos
+    .where((abono) => !abono.containsKey('idpagosdetalles'))
+    .toList();
 
-      for (var abono in nuevosAbonos) {
-        double montoAbono = (abono['deposito'] as num).toDouble();
-        double remainingDeuda = totalDeuda - (paidCapital + paidMoratorio);
+for (var abono in nuevosAbonos) {
+  double montoAbono = (abono['deposito'] as num).toDouble();
+  double remainingDeuda = totalDeuda - (paidCapital + paidMoratorio);
 
-        double aplicadoCapital = 0.0;
-        double aplicadoMoratorio = 0.0;
-        double saldofavor = 0.0;
+  double aplicadoCapital = 0.0;
+  double aplicadoMoratorio = 0.0;
+  double saldofavor = 0.0;
 
-        if (remainingDeuda > 0) {
-          aplicadoCapital = montoAbono.clamp(
-              0.0, pagoActual.capitalMasInteres! - paidCapital);
-          double remanente = montoAbono - aplicadoCapital;
-          aplicadoMoratorio =
-              remanente.clamp(0.0, pagoActual.moratorio! - paidMoratorio);
-          saldofavor = (montoAbono - (aplicadoCapital + aplicadoMoratorio))
-              .clamp(0.0, double.infinity);
-        } else {
-          saldofavor = montoAbono;
-        }
+  // Calcular saldos pendientes, asegurando que no sean negativos
+  double remainingCapital = (pagoActual.capitalMasInteres! - paidCapital).clamp(0.0, double.infinity);
+  double remainingMoratorio = (pagoActual.moratorio! - paidMoratorio).clamp(0.0, double.infinity);
 
-        // Actualizar acumulados para próximos abonos
-        paidCapital += aplicadoCapital;
-        paidMoratorio += aplicadoMoratorio;
+  if (remainingDeuda > 0) {
+    aplicadoCapital = montoAbono.clamp(0.0, remainingCapital); // Usar remainingCapital ajustado
+    double remanente = montoAbono - aplicadoCapital;
+    aplicadoMoratorio = remanente.clamp(0.0, remainingMoratorio); // Usar remainingMoratorio ajustado
+    saldofavor = (montoAbono - (aplicadoCapital + aplicadoMoratorio)).clamp(0.0, double.infinity);
+  } else {
+    saldofavor = montoAbono;
+  }
 
-        pagosJson.add({
-          "idfechaspagos": pagoActual.idfechaspagos,
-          "fechaPago": pagoActual.fechaPago,
-          "tipoPago": "En Abonos",
-          "montoaPagar": _redondear(totalDeuda),
-          "deposito": _redondear(aplicadoCapital),
-          "moratorio": _redondear(aplicadoMoratorio),
-          "saldofavor": _redondear(saldofavor),
-        });
-      }
+  print('montoaPagar: ${pagoActual.capitalMasInteres}');
+
+  // Solo agregar entrada si hay aplicación a deuda o saldo a favor
+  if (aplicadoCapital > 0 || aplicadoMoratorio > 0 || saldofavor > 0) {
+    pagosJson.add({
+      "idfechaspagos": pagoActual.idfechaspagos,
+      "fechaPago": pagoActual.fechaPago,
+      "tipoPago": "En Abonos",
+      "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0), // Monto REAL aplicado
+      "deposito": _redondear(aplicadoCapital),
+      "moratorio": _redondear(aplicadoMoratorio),
+      "saldofavor": _redondear(saldofavor),
+    });
+  }
+
+  // Actualizar acumulados
+  paidCapital += aplicadoCapital;
+  paidMoratorio += aplicadoMoratorio;
+}
+       print('\n==== Procesando pago: ${pagoActual.idfechaspagos} ====');
+      print('Tipo de pago: ${pagoActual.tipoPago}');
+      print('Capital + Interés: ${pagoActual.capitalMasInteres}');
+      print('Moratorios: ${pagoActual.moratorio}');
+      print('Abonos previos (capital): $paidCapital');
+      print('Abonos previos (moratorios): $paidMoratorio');
     }
 
     return pagosJson;
@@ -421,6 +436,7 @@ class _InfoCreditoState extends State<InfoCredito> {
   void mostrarDialogo(BuildContext context, String titulo, String mensaje,
       {bool esError = false}) {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -1102,6 +1118,7 @@ class _PaginaControlState extends State<PaginaControl> {
     if (!dialogShown && mounted) {
       dialogShown = true;
       showDialog(
+        barrierDismissible: false,
         context: context,
         builder: (context) {
           return AlertDialog(
@@ -1451,23 +1468,35 @@ class _PaginaControlState extends State<PaginaControl> {
                                                           DateTime.now()
                                                               .toString();
                                                     }
-                                                  } else if (newValue == 'Garantia') {
-  // Asignar valor de garantía desde el widget
-  pago.deposito = widget.montoGarantia;
-  
-  // Calcular totalDeuda incluyendo moratorios
-  double totalDeuda = (pago.capitalMasInteres ?? 0.0) + 
-                      (pago.moratorios?.moratorios ?? 0.0);
-  
-  // Calcular saldos basados en el monto de garantía
-  if (widget.montoGarantia >= totalDeuda) {
-    pago.saldoFavor = widget.montoGarantia - totalDeuda;
-    pago.saldoEnContra = 0.0;
-  } else {
-    pago.saldoEnContra = totalDeuda - widget.montoGarantia;
-    pago.saldoFavor = 0.0;
-  }
-}
+                                                  } else if (newValue ==
+                                                      'Garantia') {
+                                                    // Asignar valor de garantía desde el widget
+                                                    pago.deposito =
+                                                        widget.montoGarantia;
+
+                                                    // Calcular totalDeuda incluyendo moratorios
+                                                    double totalDeuda =
+                                                        (pago.capitalMasInteres ??
+                                                                0.0) +
+                                                            (pago.moratorios
+                                                                    ?.moratorios ??
+                                                                0.0);
+
+                                                    // Calcular saldos basados en el monto de garantía
+                                                    if (widget.montoGarantia >=
+                                                        totalDeuda) {
+                                                      pago.saldoFavor =
+                                                          widget.montoGarantia -
+                                                              totalDeuda;
+                                                      pago.saldoEnContra = 0.0;
+                                                    } else {
+                                                      pago.saldoEnContra =
+                                                          totalDeuda -
+                                                              widget
+                                                                  .montoGarantia;
+                                                      pago.saldoFavor = 0.0;
+                                                    }
+                                                  }
 
                                                   // Crear objeto PagoSeleccionado
                                                   PagoSeleccionado
@@ -1570,6 +1599,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                     dynamic>>
                                                             nuevosAbonos =
                                                             (await showDialog(
+                                                                  barrierDismissible:
+                                                                      false,
                                                                   context:
                                                                       context,
                                                                   builder:
@@ -1972,16 +2003,16 @@ class _PaginaControlState extends State<PaginaControl> {
                                                   // Calcular el total de abonos, sumando depósitos y los moratorios (sumaMoratorios)
                                                   double totalAbonos =
                                                       pago.abonos.fold(
-                                                            0.0,
-                                                            (sum, abono) =>
-                                                                sum +
-                                                                ((abono['deposito']
-                                                                        is num)
-                                                                    ? (abono['deposito']
-                                                                            as num)
-                                                                        .toDouble()
-                                                                    : 0.0),
-                                                          );/* +
+                                                    0.0,
+                                                    (sum, abono) =>
+                                                        sum +
+                                                        ((abono['deposito']
+                                                                is num)
+                                                            ? (abono['deposito']
+                                                                    as num)
+                                                                .toDouble()
+                                                            : 0.0),
+                                                  ); /* +
                                                           pago.pagosMoratorios
                                                               .fold(
                                                             0.0,
@@ -2072,7 +2103,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                           ),
                                                                           if (estaLiquidado) // Solo muestra el badge si está liquidado
                                                                             Container(
-                                                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                                                                               decoration: BoxDecoration(
                                                                                 color: Colors.blue[100],
                                                                                 borderRadius: BorderRadius.circular(8),
@@ -2082,7 +2113,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                                 ),
                                                                               ),
                                                                               child: Text(
-                                                                                'LIQUIDADO',
+                                                                                'Liquidado',
                                                                                 style: TextStyle(
                                                                                   fontSize: 10,
                                                                                   fontWeight: FontWeight.bold,
@@ -3106,6 +3137,24 @@ class _AbonosDialogState extends State<AbonosDialog> {
                 children: [
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFFFB2056),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
+                    child: Text(
+                      "Cancelar",
+                      style: TextStyle(fontSize: 14, color: Colors.white),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  SizedBox(width: 10),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -3423,6 +3472,7 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
 
     dialogShown = true;
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Error', style: TextStyle(color: Colors.red)),
@@ -3445,6 +3495,7 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
 
     dialogShown = true;
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Error', style: TextStyle(color: Colors.red)),

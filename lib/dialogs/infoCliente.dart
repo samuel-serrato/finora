@@ -140,6 +140,7 @@ class _InfoClienteState extends State<InfoCliente> {
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     if (mounted) {
       showDialog(
+        barrierDismissible: false,
         context: context,
         builder: (context) {
           return AlertDialog(

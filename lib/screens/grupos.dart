@@ -46,7 +46,7 @@ class _GruposScreenState extends State<GruposScreen> {
   final double textHeaderTableSize = 12.0;
   final double textTableSize = 12.0;
 
-   Future<void> obtenerGrupos() async {
+  Future<void> obtenerGrupos() async {
     setState(() {
       isLoading = true;
       errorDeConexion = false;
@@ -63,7 +63,7 @@ class _GruposScreenState extends State<GruposScreen> {
         final response = await http.get(
           Uri.parse('http://$baseUrl/api/v1/grupodetalles'),
           headers: {
-            'tokenauth': token, 
+            'tokenauth': token,
             'Content-Type': 'application/json',
           },
         );
@@ -86,14 +86,13 @@ class _GruposScreenState extends State<GruposScreen> {
                 await prefs.remove('tokenauth');
                 _timer?.cancel();
                 mostrarDialogoError(
-                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                  onClose: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
-                    );
-                  }
-                );
+                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                    onClose: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                });
               }
               return;
             } else {
@@ -151,12 +150,13 @@ class _GruposScreenState extends State<GruposScreen> {
       } else {
         mostrarDialogoError('Ocurrió un error inesperado.');
       }
-      _timer?.cancel(); 
+      _timer?.cancel();
     }
   }
 
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     showDialog(
+      barrierDismissible: false, // Impide cerrar tocando fuera
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -175,8 +175,6 @@ class _GruposScreenState extends State<GruposScreen> {
       },
     );
   }
-
-
 
   String formatDate(String dateString) {
     DateTime date = DateTime.parse(dateString);
@@ -430,8 +428,7 @@ class _GruposScreenState extends State<GruposScreen> {
                                       icon: Icon(Icons.delete_outline,
                                           color: Colors.grey),
                                       onPressed: () {
-                                        // Lógica para eliminar el cliente
-                                        null;
+                                        _eliminarGrupo(grupo.idgrupos);
                                       },
                                     ),
                                   ],
@@ -473,6 +470,61 @@ class _GruposScreenState extends State<GruposScreen> {
     );
   }
 
+  Future<void> _eliminarGrupo(String idGrupo) async {
+  bool confirmado = await showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Eliminar Grupo'),
+      content: const Text('¿Estás seguro de eliminar este grupo?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmado != true) return;
+
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('tokenauth') ?? '';
+  
+  try {
+    final response = await http.delete(
+      Uri.parse('http://$baseUrl/api/v1/grupos/$idGrupo'),
+      headers: {'tokenauth': token},
+    );
+
+    if (response.statusCode == 200) {
+      obtenerGrupos(); // Actualizar lista
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Grupo eliminado exitosamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (response.statusCode == 401 || response.statusCode == 403) {
+      mostrarDialogoError('Sesión expirada. Inicia sesión nuevamente.', onClose: () {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false,
+        );
+      });
+    } else {
+      final errorData = json.decode(response.body);
+      mostrarDialogoError(errorData['Error']['Message'] ?? 'Error al eliminar');
+    }
+  } catch (e) {
+    mostrarDialogoError('Error de conexión: $e');
+  }
+}
+
   void mostrarDialogAgregarGrupo() {
     showDialog(
       barrierDismissible: false, // Evita que se cierre al tocar fuera
@@ -486,8 +538,6 @@ class _GruposScreenState extends State<GruposScreen> {
       },
     );
   }
-
-
 
   void mostrarDialogoEditarCliente(String idGrupo) {
     showDialog(

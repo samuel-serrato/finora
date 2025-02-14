@@ -155,6 +155,7 @@ Future<void> fetchGrupoData() async {
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     if (mounted) {
       showDialog(
+        barrierDismissible: false,
         context: context,
         builder: (context) {
           return AlertDialog(

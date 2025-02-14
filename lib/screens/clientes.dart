@@ -157,6 +157,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) {
         return AlertDialog(
