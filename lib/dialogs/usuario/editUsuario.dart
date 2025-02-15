@@ -49,7 +49,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
 
   Future<void> _obtenerUsuario() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
@@ -61,10 +61,19 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        usuarioController.text = data['usuario'];
-        nombreCompletoController.text = data['nombreCompleto'];
-        emailController.text = data['email'];
-        selectedTipoUsuario = data['tipoUsuario'];
+
+        // Verifica que el arreglo no esté vacío
+        if (data is List && data.isNotEmpty) {
+          final usuarioData =
+              data[0]; // <- Accede al primer elemento del arreglo
+
+          usuarioController.text = usuarioData['usuario'];
+          nombreCompletoController.text = usuarioData['nombreCompleto'];
+          emailController.text = usuarioData['email'];
+          selectedTipoUsuario = usuarioData['tipoUsuario'];
+        } else {
+          print('El arreglo de usuarios está vacío');
+        }
       }
     } finally {
       setState(() => _isLoading = false);
@@ -72,7 +81,12 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
   }
 
   Future<void> _editarUsuario() async {
-    if (!_formKey.currentState!.validate()) return;
+    print('flutter: [_editarUsuario] Iniciando edición de usuario...');
+    
+    if (!_formKey.currentState!.validate()) {
+      print('flutter: [_editarUsuario] Validación de formulario fallida');
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -80,8 +94,11 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
       _dialogShown = false;
     });
 
+    print('flutter: [_editarUsuario] Configurando timeout de 10 segundos');
     _timer = Timer(Duration(seconds: 10), () {
+      print('flutter: [_editarUsuario] Timeout alcanzado');
       if (!_dialogShown) {
+        print('flutter: [_editarUsuario] Mostrando error de conexión');
         setState(() {
           _isLoading = false;
           _errorDeConexion = true;
@@ -97,41 +114,62 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
+      print('flutter: [_editarUsuario] Token obtenido: ${token.isNotEmpty ? "****" : "VACÍO"}');
 
-      final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/usuarios'),
+      // URL CORREGIDA CON IDUSUARIO
+      final url = 'http://$baseUrl/api/v1/usuarios/${widget.idUsuario}';
+      print('flutter: [_editarUsuario] URL: $url');
+      
+      // BODY ACTUALIZADO (sin password)
+      final requestBody = {
+        'usuario': usuarioController.text,
+        'tipoUsuario': selectedTipoUsuario,
+        'nombreCompleto': nombreCompletoController.text,
+        'email': emailController.text,
+        //'roles': ['user']
+      };
+      
+      print('flutter: [_editarUsuario] Cuerpo de la petición:');
+      print('• Usuario: ${requestBody['usuario']}');
+      print('• Tipo: ${requestBody['tipoUsuario']}');
+      print('• Nombre: ${requestBody['nombreCompleto']}');
+      print('• Email: ${requestBody['email']}');
+
+      final response = await http.put(
+        Uri.parse(url),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
         },
-        body: json.encode({
-          'usuario': usuarioController.text,
-          'tipoUsuario': selectedTipoUsuario,
-          'nombreCompleto': nombreCompletoController.text,
-          'email': emailController.text,
-          'password': passwordController.text,
-        }),
+        body: json.encode(requestBody),
       );
 
-      if (response.statusCode == 201) {
+      print('flutter: [_editarUsuario] Respuesta recibida - Código: ${response.statusCode}');
+      print('flutter: [_editarUsuario] Body de respuesta: ${response.body}');
+
+      if (response.statusCode == 200) { // Debería ser 200 en lugar de 201 para actualización
+        print('flutter: [_editarUsuario] Edición exitosa');
         widget.onUsuarioEditado();
         Navigator.of(context).pop();
         _mostrarDialogo(
           title: 'Éxito',
-          message: 'Usuario creado correctamente',
+          message: 'Usuario actualizado correctamente',
           isSuccess: true,
         );
       } else {
+        print('flutter: [_editarUsuario] Error en la respuesta');
         _handleResponseError(response);
       }
     } catch (e) {
+      print('flutter: [_editarUsuario] Excepción capturada: $e');
+      print('flutter: [_editarUsuario] Stack trace: ${e is Error ? (e as Error).stackTrace : ""}');
       _mostrarDialogo(
         title: 'Error',
-        message:
-            'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+        message: 'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
         isSuccess: false,
       );
     } finally {
+      print('flutter: [_editarUsuario] Limpiando recursos');
       _timer?.cancel();
       setState(() => _isLoading = false);
     }
@@ -323,22 +361,25 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                         ),
                                         SizedBox(height: 20),
 
-                                        _buildTextField(
-                                          controller: passwordController,
-                                          label: 'Contraseña',
-                                          icon: Icons.lock_outline,
-                                          obscureText: true,
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.isEmpty) {
-                                              return 'Campo obligatorio';
-                                            }
-                                            if (value.length < 4) {
-                                              return 'Mínimo 4 caracteres';
-                                            }
-                                            return null;
-                                          },
+                                        // Dentro de tu formulario principal, reemplaza el campo de contraseña por:
+                                        SizedBox(height: 20),
+                                        ElevatedButton.icon(
+                                          onPressed: () => showDialog(
+                                            context: context,
+                                            builder: (context) =>
+                                                _CambiarPasswordDialog(
+                                                    idUsuario:
+                                                        widget.idUsuario),
+                                          ),
+                                          icon:
+                                              Icon(Icons.lock_reset, size: 18),
+                                          label: Text('CAMBIAR CONTRASEÑA'),
+                                          style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  Color(0xFF5162F6),
+                                              foregroundColor: Colors.white),
                                         ),
+                                        SizedBox(height: 20),
                                         SizedBox(height: 20),
 
                                         _buildDropdown(
@@ -403,7 +444,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                               borderRadius:
                                                   BorderRadius.circular(8)),
                                         ),
-                                        child: Text('CREAR USUARIO',
+                                        child: Text('EDITAR USUARIO',
                                             style:
                                                 TextStyle(color: Colors.white)),
                                       ),
@@ -497,4 +538,229 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
       autovalidateMode: AutovalidateMode.onUserInteraction,
     );
   }
+}
+
+class _CambiarPasswordDialog extends StatefulWidget {
+  final String idUsuario;
+
+  const _CambiarPasswordDialog({required this.idUsuario});
+
+  @override
+  __CambiarPasswordDialogState createState() => __CambiarPasswordDialogState();
+}
+
+class __CambiarPasswordDialogState extends State<_CambiarPasswordDialog> {
+  final TextEditingController _nuevaPasswordController =
+      TextEditingController();
+  final TextEditingController _confirmarPasswordController =
+      TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+
+  Future<void> _cambiarPassword() async {
+    print('flutter: Iniciando cambio de contraseña...');
+
+    if (!_formKey.currentState!.validate()) {
+      print('flutter: Validación de formulario fallida');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      print('flutter: Token obtenido: ${token.isNotEmpty ? "****" : "VACÍO"}');
+
+      final url =
+          'http://$baseUrl/api/v1/usuarios/recuperar/password/${widget.idUsuario}';
+      print('flutter: URL de petición: $url');
+
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'password': _nuevaPasswordController.text,
+        }),
+      );
+
+      print('flutter: Respuesta del servidor - Código: ${response.statusCode}');
+      print('flutter: Body de respuesta: ${response.body}');
+
+      if (response.statusCode == 200) {
+        print('flutter: Contraseña cambiada exitosamente');
+        Navigator.of(context).pop();
+        _mostrarMensajeExito();
+      } else {
+        final errorData = json.decode(response.body);
+        final errorMessage =
+            errorData['Error']['Message'] ?? 'Error al cambiar contraseña';
+        print('flutter: Error del servidor: $errorMessage');
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      print('flutter: Excepción capturada: $e');
+      print(
+          'flutter: Stack trace: ${e is Error ? (e as Error).stackTrace : ""}');
+      _mostrarError(e.toString());
+    } finally {
+      print('flutter: Finalizando proceso de cambio de contraseña');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _mostrarMensajeExito() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Contraseña actualizada correctamente'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+  return AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20.0),
+      side: BorderSide(color: Colors.blue.shade100, width: 2),
+    ),
+    title: Column(
+      children: [
+        Icon(Icons.lock_reset, size: 40, color: Colors.blue.shade800),
+        SizedBox(height: 10),
+        Text('Cambiar Contraseña', 
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue.shade900
+          ),
+        ),
+        Divider(color: Colors.grey.shade300, height: 20),
+      ],
+    ),
+    content: Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextFormField(
+            controller: _nuevaPasswordController,
+            obscureText: true,
+            style: TextStyle(fontSize: 14),
+            decoration: InputDecoration(
+              labelText: 'Nueva contraseña',
+              labelStyle: TextStyle(color: Colors.grey.shade600),
+              prefixIcon: Icon(Icons.lock_outline, color: Colors.blue.shade600),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.blue.shade200),
+              ),
+              contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) return '⚠️ Campo obligatorio';
+              if (value.length < 4) return '⚠️ Mínimo 4 caracteres';
+              return null;
+            },
+          ),
+          SizedBox(height: 20),
+          TextFormField(
+            controller: _confirmarPasswordController,
+            obscureText: true,
+            style: TextStyle(fontSize: 14),
+            decoration: InputDecoration(
+              labelText: 'Confirmar contraseña',
+              labelStyle: TextStyle(color: Colors.grey.shade600),
+              prefixIcon: Icon(Icons.lock_reset, color: Colors.blue.shade600),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.blue.shade200),
+              ),
+              contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            ),
+            validator: (value) {
+              if (value != _nuevaPasswordController.text) {
+                return '⚠️ Las contraseñas no coinciden';
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      Container(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.grey.shade100,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: Colors.grey.shade400),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Text('Cancelar', 
+                style: TextStyle(
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w500
+                ),
+              ),
+            ),
+            SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _cambiarPassword,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade800,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+                padding: EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+                elevation: 2,
+              ),
+              child: _isLoading 
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.save_rounded, size: 18, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('Guardar', 
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
 }

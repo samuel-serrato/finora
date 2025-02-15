@@ -69,14 +69,23 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.grey[900],
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+              // Row for the image and title
+              Row(
+                children: [
+                  // Image on the left
+
+                  // Title text
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Colors.grey[900],
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
+              // The rest of your row remains unchanged
               Row(
                 children: [
                   Padding(
@@ -134,7 +143,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
                   ),
-                  SizedBox(width: 10),
+                    
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Container(
@@ -167,10 +176,35 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
                   ),
-                  SizedBox(width: 20),
+                  SizedBox(width: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(50),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 4,
+                          spreadRadius: 2,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Image.asset(
+                          'assets/mf_logo_hzt.png', // Replace with your image path
+                          width: 120, // Adjust size as needed
+                          height: 40,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 10),
                   Row(
                     children: [
-                      // Avatar con borde blanco
                       PopupMenuButton<String>(
                         constraints: BoxConstraints(minWidth: 220),
                         tooltip: '',
@@ -241,30 +275,24 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color.fromARGB(255, 247, 247, 247),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(50),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black
-                                    .withOpacity(0.15), // Color de la sombra
-                                blurRadius: 4, // Difuminado
-                                spreadRadius: 2, // Expansión
-                                offset: Offset(0, 4), // Desplazamiento en X y Y
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 4,
+                                spreadRadius: 2,
+                                offset: Offset(0, 4),
                               ),
                             ],
                           ),
                           child: Row(
                             children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                ),
-                                child: CircleAvatar(
-                                  backgroundColor: Color(0xFF5162F6),
-                                  radius: 18,
-                                  child: Icon(Icons.person,
-                                      color: Colors.white, size: 22),
-                                ),
+                              CircleAvatar(
+                                backgroundColor: Color(0xFF5162F6),
+                                radius: 18,
+                                child: Icon(Icons.person,
+                                    color: Colors.white, size: 22),
                               ),
                               SizedBox(width: 14),
                               Column(

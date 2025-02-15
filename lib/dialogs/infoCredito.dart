@@ -2109,114 +2109,95 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                         .toDouble()
                                                                     : 0.0),
                                                           ); */
-                                                  final estaLiquidado = pago
-                                                          .estado ==
-                                                      "Pagado"; // Asumiendo que `pago.estado` es accesible
+                                                  // Reemplaza la variable booleana por un texto condicional
+final String? textoEstado = pago.estado == "Pagado" 
+    ? "Liquidado" 
+    : pago.estado == "Retraso"
+        ? "Pagado con Retraso"
+        : null;
 
-                                                  // Agregar un item que muestre el total de abonos
-                                                  items.add(
-                                                    PopupMenuItem(
-                                                      enabled: false,
-                                                      child: Column(
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          const Divider(
-                                                            color: Colors.grey,
-                                                            thickness: 0.8,
-                                                            height: 10,
-                                                          ),
-                                                          Container(
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                                    vertical:
-                                                                        8.0,
-                                                                    horizontal:
-                                                                        12.0),
-                                                            child: Row(
-                                                              crossAxisAlignment:
-                                                                  CrossAxisAlignment
-                                                                      .center,
-                                                              children: [
-                                                                Icon(
-                                                                  Icons
-                                                                      .calculate_rounded,
-                                                                  color: Colors
-                                                                          .blue[
-                                                                      700],
-                                                                  size: 20,
-                                                                ),
-                                                                const SizedBox(
-                                                                    width: 12),
-                                                                Expanded(
-                                                                  child: Column(
-                                                                    crossAxisAlignment:
-                                                                        CrossAxisAlignment
-                                                                            .start,
-                                                                    children: [
-                                                                      Text(
-                                                                        'TOTAL ABONOS',
-                                                                        style:
-                                                                            TextStyle(
-                                                                          fontSize:
-                                                                              10,
-                                                                          fontWeight:
-                                                                              FontWeight.w600,
-                                                                          color:
-                                                                              Colors.grey[600],
-                                                                          letterSpacing:
-                                                                              0.5,
-                                                                        ),
-                                                                      ),
-                                                                      const SizedBox(
-                                                                          height:
-                                                                              4),
-                                                                      Row(
-                                                                        mainAxisAlignment:
-                                                                            MainAxisAlignment.spaceBetween,
-                                                                        children: [
-                                                                          Text(
-                                                                            '\$${totalAbonos.toStringAsFixed(2)}',
-                                                                            style:
-                                                                                TextStyle(
-                                                                              fontSize: 16,
-                                                                              fontWeight: FontWeight.bold,
-                                                                              color: Colors.blue[800],
-                                                                            ),
-                                                                          ),
-                                                                          if (estaLiquidado) // Solo muestra el badge si está liquidado
-                                                                            Container(
-                                                                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                                                                              decoration: BoxDecoration(
-                                                                                color: Colors.blue[100],
-                                                                                borderRadius: BorderRadius.circular(8),
-                                                                                border: Border.all(
-                                                                                  color: Colors.blue[300]!,
-                                                                                  width: 0.5,
-                                                                                ),
-                                                                              ),
-                                                                              child: Text(
-                                                                                'Liquidado',
-                                                                                style: TextStyle(
-                                                                                  fontSize: 10,
-                                                                                  fontWeight: FontWeight.bold,
-                                                                                  color: Colors.blue[800],
-                                                                                ),
-                                                                              ),
-                                                                            ),
-                                                                        ],
-                                                                      ),
-                                                                    ],
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  );
+// Agregar un item que muestre el total de abonos
+items.add(
+  PopupMenuItem(
+    enabled: false,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Divider(
+          color: Colors.grey,
+          thickness: 0.8,
+          height: 10,
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+              vertical: 8.0, horizontal: 12.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.calculate_rounded,
+                color: Colors.blue[700],
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TOTAL ABONOS',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '\$${totalAbonos.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[800],
+                          ),
+                        ),
+                        if (textoEstado != null) // Muestra badge si hay texto
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.blue[300]!,
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Text(
+                              textoEstado!, // Texto dinámico según estado
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue[800],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+);
 
                                                   return items;
                                                 },
