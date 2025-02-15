@@ -183,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ElevatedButton(
             style: ButtonStyle(
               backgroundColor: MaterialStatePropertyAll(
-                Color(0xFFFB2056),
+                Color(0xFF5162F6),
               ),
               overlayColor: MaterialStateProperty.all(
                 Color.fromARGB(255, 190, 15, 59),
@@ -319,7 +319,7 @@ Widget _buildCard(double cardWidth, double cardHeight, bool isMobileSize, IconDa
                   Icon(
                     icon,
                     size: cardHeight * 0.4,
-                    color: Color(0xFFFB2056),
+                    color: Color(0xFF5162F6),
                   ),
                   SizedBox(height: 8),
                   Text(
@@ -348,7 +348,7 @@ Widget _buildCard(double cardWidth, double cardHeight, bool isMobileSize, IconDa
                     child: Icon(
                       icon,
                       size: cardHeight * 0.4,
-                      color: Color(0xFFFB2056),
+                      color: Color(0xFF5162F6),
                     ),
                   ),
                   Expanded(

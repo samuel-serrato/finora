@@ -1177,9 +1177,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                   SizedBox(height: 10),
                   TabBar(
                     controller: _tabController,
-                    labelColor: Color(0xFFFB2056),
+                    labelColor: Color(0xFF5162F6),
                     unselectedLabelColor: Colors.grey,
-                    indicatorColor: Color(0xFFFB2056),
+                    indicatorColor: Color(0xFF5162F6),
                     tabs: [
                       Tab(text: 'Información Personal'),
                       Tab(text: 'Cuenta Bancaria'),
@@ -1388,7 +1388,7 @@ class _nClienteDialogState extends State<nClienteDialog>
             numeroPaso.toString(),
             style: TextStyle(
               color: isActive
-                  ? Color(0xFFFB2056)
+                  ? Color(0xFF5162F6)
                   : Colors.white, // Texto rojo si está activo, blanco si no
               fontWeight: FontWeight.bold,
               fontSize: 14,
@@ -1434,7 +1434,7 @@ class _nClienteDialogState extends State<nClienteDialog>
           // Columna a la izquierda con el círculo y el ícono
           Container(
             decoration: BoxDecoration(
-                color: Color(0xFFFB2056),
+                color: Color(0xFF5162F6),
                 borderRadius: BorderRadius.all(Radius.circular(20))),
             width: 250,
             height: 500,
@@ -2070,7 +2070,7 @@ class _nClienteDialogState extends State<nClienteDialog>
         // Contenedor azul a la izquierda para los pasos
         Container(
           decoration: BoxDecoration(
-            color: Color(0xFFFB2056),
+            color: Color(0xFF5162F6),
             borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
           width: 250,
@@ -2222,7 +2222,7 @@ class _nClienteDialogState extends State<nClienteDialog>
         // Contenedor azul a la izquierda para los pasos
         Container(
           decoration: BoxDecoration(
-              color: Color(0xFFFB2056),
+              color: Color(0xFF5162F6),
               borderRadius: BorderRadius.all(Radius.circular(20))),
           width: 250,
           height: 500,
@@ -2346,7 +2346,7 @@ class _nClienteDialogState extends State<nClienteDialog>
       children: [
         Container(
           decoration: BoxDecoration(
-            color: Color(0xFFFB2056),
+            color: Color(0xFF5162F6),
             borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
           width: 250,
@@ -3280,7 +3280,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                       .white, // Cambia el color de los elementos destacados
 
                   colorScheme: ColorScheme.fromSwatch().copyWith(
-                    primary: Color(0xFFFB2056),
+                    primary: Color(0xFF5162F6),
                   ),
                 ),
                 child: child!,

@@ -183,7 +183,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
         height: height,
         padding: EdgeInsets.all(20),
         child: _isLoading
-            ? Center(child: CircularProgressIndicator(color: Color(0xFFFB2056)))
+            ? Center(child: CircularProgressIndicator(color: Color(0xFF5162F6)))
             : Form(
                 key: _formKey,
                 child: Column(
@@ -211,7 +211,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                           // Panel lateral izquierdo (rojo)
                           Container(
                             decoration: BoxDecoration(
-                                color: Color(0xFFFB2056),
+                                color: Color(0xFF5162F6),
                                 borderRadius: BorderRadius.all(Radius.circular(20))),
                             width: 250,
                             padding:
@@ -362,7 +362,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                                       ElevatedButton(
                                         onPressed: _agregarUsuario,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Color(0xFFFB2056),
+                                          backgroundColor: Color(0xFF5162F6),
                                           padding: EdgeInsets.symmetric(
                                               horizontal: 30, vertical: 12),
                                           shape: RoundedRectangleBorder(
@@ -412,7 +412,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Color(0xFFFB2056), width: 1.5),
+          borderSide: BorderSide(color: Color(0xFF5162F6), width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -453,7 +453,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Color(0xFFFB2056), width: 1.5),
+          borderSide: BorderSide(color: Color(0xFF5162F6), width: 1.5),
         ),
         contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       ),

@@ -110,7 +110,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
       body: Row(
         children: [
           Container(
-            width: isMenuOpen ? 180 : 110,
+            width: isMenuOpen ? 180 : 90,
             child: SideMenu(
               controller: sideMenu,
               showToggle: false,
@@ -119,8 +119,8 @@ class _NavigationScreenState extends State<NavigationScreen> {
                     ? SideMenuDisplayMode.open
                     : SideMenuDisplayMode.compact,
                 hoverColor: Colors.blue[100],
-                selectedHoverColor: Color.fromARGB(255, 172, 17, 56),
-                selectedColor: Color(0xFFFB2056),
+                selectedHoverColor: Color(0xFF2D336B),
+                selectedColor: Color(0xFF5162F6),
                 selectedTitleTextStyle: const TextStyle(color: Colors.white),
                 selectedIconColor: Colors.white,
                 unselectedTitleTextStyle: TextStyle(color: Colors.black),
@@ -128,38 +128,55 @@ class _NavigationScreenState extends State<NavigationScreen> {
                 backgroundColor: Colors.white,
               ),
               title: Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: 8.0,
-                    horizontal: 10),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: isMenuOpen ? 140 : 70,
-                      height: isMenuOpen ? 100 : 70,
-                      child: Image.asset('assets/mf_logo.png',
-                          fit: BoxFit.contain),
-                    ),
-                    if (isMenuOpen) Spacer(),
-                    Center(
-                      child: IconButton(
-                        icon: Icon(
-                          isMenuOpen
-                              ? Icons.arrow_back_ios
-                              : Icons.arrow_forward_ios,
-                          size: 14,
-                          color: Colors.grey[700],
-                        ),
-                        onPressed: toggleMenu,
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(
-                          minHeight: 20,
-                          minWidth: 20,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
+  child: Row(
+    children: [
+      // Ícono con padding condicional
+      GestureDetector(
+        onTap: isMenuOpen ? toggleMenu : null,
+        child: Padding(
+          // Padding solo aplicado cuando el menú está cerrado
+          padding: isMenuOpen 
+              ? EdgeInsets.zero // Sin padding cuando está abierto
+              : const EdgeInsets.all(10), // Ajusta el valor según necesites
+          child: SizedBox(
+            width: isMenuOpen ? 140 : 30,
+            height: isMenuOpen ? 80 : 30,
+            child: Image.asset(
+              isMenuOpen 
+                  ? 'assets/finora_hzt.png' 
+                  : 'assets/finora_icon.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
+
+      // Espacio solo cuando el menú está abierto
+      if (isMenuOpen) Spacer(),
+
+      // Botón de flecha (siempre visible)
+      Center(
+        child: IconButton(
+          icon: Icon(
+            isMenuOpen 
+                ? Icons.arrow_back_ios 
+                : Icons.arrow_forward_ios,
+            size: 14,
+            color: Colors.grey[700],
+          ),
+          onPressed: toggleMenu,
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints(
+            minHeight: 20,
+            minWidth: 20,
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+
               items: menuItems,
               footer: Container(
                 alignment: Alignment.bottomCenter,

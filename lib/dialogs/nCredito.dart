@@ -453,9 +453,9 @@ class _nCreditoDialogState extends State<nCreditoDialog>
               SizedBox(height: 10),
               TabBar(
                 controller: _tabController,
-                labelColor: Color(0xFFFB2056),
+                labelColor: Color(0xFF5162F6),
                 unselectedLabelColor: Colors.grey,
-                indicatorColor: Color(0xFFFB2056),
+                indicatorColor: Color(0xFF5162F6),
                 tabs: [
                   Tab(text: 'Datos Generales'),
                   Tab(text: 'Integrantes'),
@@ -544,7 +544,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
               ),
               child: Center(
                 child: CircularProgressIndicator(
-                  color: Color(0xFFFB2056),
+                  color: Color(0xFF5162F6),
                   strokeWidth: 4,
                 ),
               ),
@@ -684,7 +684,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                 },
                               ).toList(),
                               icon: Icon(Icons.arrow_drop_down,
-                                  color: Color(0xFFFB2056)),
+                                  color: Color(0xFF5162F6)),
                               dropdownColor: Colors.white,
                             ),
                           ),
@@ -713,7 +713,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15.0),
                                   borderSide: BorderSide(
-                                      color: Color(0xFFFB2056), width: 1.5),
+                                      color: Color(0xFF5162F6), width: 1.5),
                                 ),
                                 contentPadding: EdgeInsets.symmetric(
                                     vertical: 10, horizontal: 10),
@@ -829,7 +829,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
                                   colorScheme:
                                       ColorScheme.fromSwatch().copyWith(
-                                    primary: Color(0xFFFB2056),
+                                    primary: Color(0xFF5162F6),
                                   ),
                                 ),
                                 child: child!,
@@ -1901,7 +1901,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   Widget _recuadroPasos(int pasoActual) {
     return Container(
       decoration: BoxDecoration(
-        color: Color(0xFFFB2056),
+        color: Color(0xFF5162F6),
         borderRadius: BorderRadius.all(Radius.circular(20)),
       ),
       width: 250,
@@ -1947,7 +1947,7 @@ Widget _buildPasoItem(int numeroPaso, String titulo, bool isActive) {
           numeroPaso.toString(),
           style: TextStyle(
             color: isActive
-                ? Color(0xFFFB2056)
+                ? Color(0xFF5162F6)
                 : Colors.white, // Texto rojo si está activo, blanco si no
             fontWeight: FontWeight.bold,
             fontSize: 14,
@@ -1988,7 +1988,7 @@ Widget _buildTextField({
     decoration: InputDecoration(
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15.0),
-        borderSide: BorderSide(color: Color(0xFFFB2056), width: 1.5),
+        borderSide: BorderSide(color: Color(0xFF5162F6), width: 1.5),
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
@@ -2039,7 +2039,7 @@ Widget _buildDropdown({
         ),
       );
     }).toList(),
-    icon: Icon(Icons.arrow_drop_down, color: Color(0xFFFB2056)),
+    icon: Icon(Icons.arrow_drop_down, color: Color(0xFF5162F6)),
     dropdownColor: Colors.white,
     onChanged: onChanged,
     validator: validator,

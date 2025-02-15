@@ -309,7 +309,7 @@ void setErrorState(bool dialogShown, [dynamic error]) {
                         flex: 25,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Color(0xFFFB2056),
+                            color: Color(0xFF5162F6),
                             borderRadius: BorderRadius.all(Radius.circular(20)),
                           ),
                           child: Column(
@@ -322,7 +322,7 @@ void setErrorState(bool dialogShown, [dynamic error]) {
                                   Icons.groups,
                                   size: 100,
                                   color: Color(
-                                      0xFFFB2056), // Color que combine con el fondo
+                                      0xFF5162F6), // Color que combine con el fondo
                                 ),
                               ),
                               SizedBox(height: 16),
@@ -359,7 +359,7 @@ void setErrorState(bool dialogShown, [dynamic error]) {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
-                                  foregroundColor: Color(0xFFFB2056),
+                                  foregroundColor: Color(0xFF5162F6),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                   ),
@@ -417,7 +417,7 @@ void setErrorState(bool dialogShown, [dynamic error]) {
                                                   Icon(
                                                     Icons.account_circle,
                                                     size: 40,
-                                                    color: Color(0xFFFB2056),
+                                                    color: Color(0xFF5162F6),
                                                   ),
                                                   SizedBox(width: 16),
                                                   Expanded(
@@ -628,7 +628,7 @@ void setErrorState(bool dialogShown, [dynamic error]) {
                           child: Text('Recargar'),
                           style: ButtonStyle(
                             backgroundColor:
-                                MaterialStateProperty.all(Color(0xFFFB2056)),
+                                MaterialStateProperty.all(Color(0xFF5162F6)),
                             foregroundColor:
                                 MaterialStateProperty.all(Colors.white),
                             shape: MaterialStateProperty.all<
@@ -690,7 +690,7 @@ void setErrorState(bool dialogShown, [dynamic error]) {
                 leading: Icon(
                   Icons.account_circle,
                   size: 30,
-                  color: Color(0xFFFB2056),
+                  color: Color(0xFF5162F6),
                 ),
                 title: Text(
                   cliente['nombres'],

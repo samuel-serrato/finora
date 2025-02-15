@@ -120,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
     {
       'title': 'Control Financiero\nen un Solo Lugar',
       'image': 'assets/finance.png',
-      'color': const Color(0xFFFB2056),
+      'color': const Color(0xFF5162F6),
     },
     {
       'title': 'Gestión Inteligente\nde tus Recursos',
@@ -146,10 +146,10 @@ class _LoginScreenState extends State<LoginScreen> {
         Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
               colors: [
-                Color(0xFFFFF0F3),
+                Color(0xFFF0EFFF),
                 Colors.white,
               ],
             ),
@@ -179,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
             color: Colors.black.withOpacity(0.5),
             child: const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFB2056)),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5162F6)),
                 strokeWidth: 6,
               ),
             ),
@@ -364,21 +364,16 @@ class _LoginFormState extends State<LoginForm> {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.account_balance_wallet,
-                    color: Color(0xFFFB2056), size: 40),
-                SizedBox(width: 10),
-                Text(
-                  'Money Fácil',
-                  style: TextStyle(
-                    fontSize: 34.0,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFFB2056),
-                  ),
-                ),
+              children: [
+                SizedBox(
+                    width: 500,
+                    height: 100,
+                      child: Image.asset('assets/finora_hzt.png',
+                          fit: BoxFit.contain),
+                    ),
               ],
             ),
-            const SizedBox(height: 20),
+           /*  const SizedBox(height: 20),
             Text(
               'Iniciar Sesión',
               style: TextStyle(
@@ -386,7 +381,7 @@ class _LoginFormState extends State<LoginForm> {
                 color: Colors.grey[700],
                 fontWeight: FontWeight.w600,
               ),
-            ),
+            ), */
           ],
         ),
         const SizedBox(height: 50.0),
@@ -409,20 +404,20 @@ class _LoginFormState extends State<LoginForm> {
             onPressed: () {},
             child: const Text(
               '¿Olvidaste tu contraseña?',
-              style: TextStyle(color: Color(0xFFFB2056)),
+              style: TextStyle(color: Color(0xFF5162F6)),
             ),
           ),
         ),
         const SizedBox(height: 40.0),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFB2056),
+            backgroundColor: const Color(0xFF5162F6),
             padding: const EdgeInsets.symmetric(vertical: 18),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
             ),
             elevation: 5,
-            shadowColor: const Color(0xFFFB2056).withOpacity(0.3),
+            shadowColor: const Color(0xFF5162F6).withOpacity(0.3),
           ),
           onPressed: widget.onLogin,
           child: const Text(
@@ -445,7 +440,7 @@ class _LoginFormState extends State<LoginForm> {
               child: const Text(
                 'Regístrate',
                 style: TextStyle(
-                  color: Color(0xFFFB2056),
+                  color: Color(0xFF5162F6),
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -508,7 +503,7 @@ class _LoginFormState extends State<LoginForm> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: const BorderSide(color: Color(0xFFFB2056), width: 2),
+              borderSide: const BorderSide(color: Color(0xFF5162F6), width: 2),
             ),
             hintText: 'Ingrese su ${label.toLowerCase()}',
             hintStyle: TextStyle(color: Colors.grey[400]),
@@ -518,3 +513,4 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 }
+

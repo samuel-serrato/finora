@@ -527,8 +527,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: [
-                                        Color(0xFFFB2056),
-                                        Color.fromARGB(255, 197, 35, 78)
+                                        Color(0xFF5162F6),
+                                        Color(0xFF2D336B),
                                       ],
                                       begin: Alignment.centerRight,
                                       end: Alignment.centerLeft,
@@ -559,7 +559,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                             Icons
                                                 .account_balance_wallet_rounded,
                                             size: 50,
-                                            color: Color(0xFFFB2056),
+                                            color: Color(0xFF5162F6),
                                           ),
                                         ),
                                         SizedBox(height: 16),
@@ -669,9 +669,9 @@ class _InfoCreditoState extends State<InfoCredito> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       TabBar(
-                                        labelColor: Color(0xFFFB2056),
+                                        labelColor: Color(0xFF5162F6),
                                         unselectedLabelColor: Colors.grey,
-                                        indicatorColor: Color(0xFFFB2056),
+                                        indicatorColor: Color(0xFF5162F6),
                                         tabs: [
                                           Tab(text: 'Control'),
                                           Tab(text: 'Integrantes'),
@@ -852,7 +852,7 @@ class _InfoCreditoState extends State<InfoCredito> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: Color(0xFFFB2056),),
+              CircularProgressIndicator(color: Color(0xFF5162F6),),
               SizedBox(height: 12),
               Text(
                 'Guardando...',
@@ -1262,7 +1262,7 @@ class _PaginaControlState extends State<PaginaControl> {
             child: Center(
                 child: CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(
-                  Colors.red), // Cambiar a cualquier color que desees
+                  Color(0xFF5162F6)), // Cambiar a cualquier color que desees
             )),
           );
         } else if (snapshot.hasError) {
@@ -1391,7 +1391,7 @@ class _PaginaControlState extends State<PaginaControl> {
               Container(
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Color(0xFFFB2056),
+                  color: Color(0xFF5162F6),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -1631,7 +1631,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                         icon: Icon(
                                           Icons.arrow_drop_down,
                                           color: _puedeEditarPago(pago)
-                                              ? Color(0xFFFB2056)
+                                              ? Color(0xFF5162F6)
                                               : Colors.grey[400],
                                         ),
                                       ),
@@ -1652,7 +1652,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                             Container(
                                               decoration: BoxDecoration(
                                                 color: _puedeEditarPago(pago)
-                                                    ? const Color(0xFFFB2056)
+                                                    ? const Color(0xFF5162F6)
                                                     : Colors.grey,
                                                 borderRadius:
                                                     BorderRadius.circular(8),
@@ -2480,7 +2480,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                             15.0),
                                                                 borderSide: BorderSide(
                                                                     color: Color(
-                                                                        0xFFFB2056),
+                                                                        0xFF5162F6),
                                                                     width: 1.5),
                                                               ),
                                                               contentPadding:
@@ -2727,7 +2727,7 @@ class _PaginaControlState extends State<PaginaControl> {
               Container(
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Color(0xFFFB2056),
+                  color: Color(0xFF5162F6),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -2982,7 +2982,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                 style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFFB2056)),
+                    color: Color(0xFF5162F6)),
               ),
               SizedBox(height: 20),
 
@@ -3024,10 +3024,10 @@ class _AbonosDialogState extends State<AbonosDialog> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                  color: Color(0xFFFB2056), width: 2),
+                                  color: Color(0xFF5162F6), width: 2),
                             ),
                             prefixIcon: Icon(Icons.attach_money,
-                                color: Color(0xFFFB2056)),
+                                color: Color(0xFF5162F6)),
                             contentPadding: EdgeInsets.symmetric(
                                 vertical: 15, horizontal: 20),
                           ),
@@ -3100,7 +3100,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                                         ),
                                       ),
                                       Icon(Icons.calendar_today,
-                                          color: Color(0xFFFB2056)),
+                                          color: Color(0xFF5162F6)),
                                     ],
                                   ),
                                 ),
@@ -3109,7 +3109,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                             SizedBox(width: 30),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Color(0xFFFB2056),
+                                backgroundColor: Color(0xFF5162F6),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -3221,7 +3221,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                 children: [
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFFFB2056),
+                      backgroundColor: Color(0xFF5162F6),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -3338,7 +3338,7 @@ class PaginaIntegrantes extends StatelessWidget {
       );
     }
 
-    const totalRowColor = Color(0xFFFB2056); // Rojo para la fila de totales
+    const totalRowColor = Color(0xFF5162F6); // Rojo para la fila de totales
 
     // Verifica el tipo de plazo y ajusta el texto de los encabezados
     final pagoColumnText = tipoPlazo == 'Semanal' ? 'Pago Sem.' : 'Pago Qna.';
@@ -3383,7 +3383,7 @@ class PaginaIntegrantes extends StatelessWidget {
                     height: 40,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      color: Color(0xFFFB2056), // Fondo del encabezado
+                      color: Color(0xFF5162F6), // Fondo del encabezado
                     ),
                     child: Row(
                       children: [

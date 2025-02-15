@@ -151,7 +151,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
               borderRadius: BorderRadius.circular(15),
             ),
             title: const Text('Error', 
-                style: TextStyle(color: Color(0xFFFB2056))),
+                style: TextStyle(color: Color(0xFF5162F6))),
             content: Text(mensaje),
             actions: [
               TextButton(
@@ -160,7 +160,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
                   if (onClose != null) onClose();
                 },
                 child: const Text('OK',
-                    style: TextStyle(color: Color(0xFFFB2056))),
+                    style: TextStyle(color: Color(0xFF5162F6))),
               ),
             ],
           );
@@ -208,7 +208,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFB2056)),
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5162F6)),
           ),
           SizedBox(height: 20),
           Text('Cargando información...',
@@ -260,13 +260,13 @@ class _InfoUsuarioState extends State<InfoUsuario> {
   return Container(
     padding: const EdgeInsets.symmetric(vertical: 25, horizontal: 20),
     decoration: BoxDecoration(
-      color: const Color(0xFFFB2056).withOpacity(0.95),
+      color: const Color(0xFF5162F6).withOpacity(0.95),
       borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
      /*  gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          const Color(0xFFFB2056).withOpacity(0.9),
+          const Color(0xFF5162F6).withOpacity(0.9),
           const Color(0xFFC2185B),
         ],
       ), */
@@ -356,7 +356,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: const Color(0xFFFB2056).withOpacity(0.95),
+              color: const Color(0xFF5162F6).withOpacity(0.95),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
             ),
             child: Row(
@@ -429,7 +429,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
             label: const Text('Intentar nuevamente'),
             onPressed: fetchUserData,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFB2056),
+              backgroundColor: const Color(0xFF5162F6),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
               shape: RoundedRectangleBorder(

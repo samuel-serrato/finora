@@ -358,9 +358,9 @@ void _handleTokenExpiration() async {
                   SizedBox(height: 10),
                   TabBar(
                     controller: _tabController,
-                    labelColor: Color(0xFFFB2056),
+                    labelColor: Color(0xFF5162F6),
                     unselectedLabelColor: Colors.grey,
-                    indicatorColor: Color(0xFFFB2056),
+                    indicatorColor: Color(0xFF5162F6),
                     tabs: [
                       Tab(text: 'Información del Grupo'),
                       Tab(text: 'Miembros del Grupo'),
@@ -481,7 +481,7 @@ void _handleTokenExpiration() async {
             numeroPaso.toString(),
             style: TextStyle(
               color: isActive
-                  ? Color(0xFFFB2056)
+                  ? Color(0xFF5162F6)
                   : Colors.white, // Texto rojo si está activo, blanco si no
               fontWeight: FontWeight.bold,
               fontSize: 14,
@@ -514,7 +514,7 @@ void _handleTokenExpiration() async {
         children: [
           Container(
             decoration: BoxDecoration(
-                color: Color(0xFFFB2056),
+                color: Color(0xFF5162F6),
                 borderRadius: BorderRadius.all(Radius.circular(20))),
             width: 250,
             height: 500,
@@ -544,7 +544,7 @@ void _handleTokenExpiration() async {
                     width: 120, // Ajustar tamaño del contenedor
                     height: 120,
                     decoration: BoxDecoration(
-                      color: Color(0xFFFB2056), // Color de fondo rojo
+                      color: Color(0xFF5162F6), // Color de fondo rojo
                       shape: BoxShape.circle, // Forma circular
                     ),
                     child: Center(
@@ -615,7 +615,7 @@ void _handleTokenExpiration() async {
         children: [
           Container(
             decoration: BoxDecoration(
-                color: Color(0xFFFB2056),
+                color: Color(0xFF5162F6),
                 borderRadius: BorderRadius.all(Radius.circular(20))),
             width: 250,
             height: 500,

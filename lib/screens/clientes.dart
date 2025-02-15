@@ -297,7 +297,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
       body: isLoading
           ? Center(
               child: CircularProgressIndicator(
-                color: Color(0xFFFB2056),
+                color: Color(0xFF5162F6),
               ),
             )
           : (errorDeConexion
@@ -318,7 +318,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                         child: Text('Recargar'),
                         style: ButtonStyle(
                           backgroundColor:
-                              MaterialStateProperty.all(Color(0xFFFB2056)),
+                              MaterialStateProperty.all(Color(0xFF5162F6)),
                           foregroundColor:
                               MaterialStateProperty.all(Colors.white),
                           shape:
@@ -403,7 +403,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
           // Botón de "Agregar Clientes"
           ElevatedButton(
             style: ButtonStyle(
-              backgroundColor: MaterialStateProperty.all(Color(0xFFFB2056)),
+              backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
               foregroundColor: MaterialStateProperty.all(Colors.white),
               shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                 RoundedRectangleBorder(

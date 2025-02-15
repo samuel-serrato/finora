@@ -127,7 +127,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                           borderRadius:
                                               BorderRadius.circular(15.0),
                                           borderSide: BorderSide(
-                                              color: Color(0xFFFB2056),
+                                              color: Color(0xFF5162F6),
                                               width: 2.0),
                                         ),
                                         contentPadding: EdgeInsets.symmetric(
@@ -194,7 +194,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                           );
                                         }).toList(),
                                         icon: Icon(Icons.arrow_drop_down,
-                                            color: Color(0xFFFB2056)),
+                                            color: Color(0xFF5162F6)),
                                         dropdownColor: Colors.white,
                                       ),
                                     ),
@@ -254,7 +254,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                                 );
                                               }).toList(),
                                               icon: Icon(Icons.arrow_drop_down,
-                                                  color: Color(0xFFFB2056)),
+                                                  color: Color(0xFF5162F6)),
                                               dropdownColor: Colors.white,
                                             ),
                                           ),
@@ -303,7 +303,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                         }).toList(),
                                         icon: Icon(
                                           Icons.arrow_drop_down,
-                                          color: Color(0xFFFB2056),
+                                          color: Color(0xFF5162F6),
                                         ),
                                         dropdownColor: Colors.white,
                                       ),
@@ -400,7 +400,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                                       BorderRadius.circular(
                                                           15.0),
                                                   borderSide: BorderSide(
-                                                      color: Color(0xFFFB2056),
+                                                      color: Color(0xFF5162F6),
                                                       width: 2.0),
                                                 ),
                                                 contentPadding:
@@ -432,7 +432,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                               onPressed: () => selectDate(context),
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                backgroundColor: Color(0xFFFB2056),
+                                backgroundColor: Color(0xFF5162F6),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15.0),
                                 ),
@@ -692,7 +692,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                             },
                             style: ElevatedButton.styleFrom(
                               foregroundColor: Colors.white,
-                              backgroundColor: Color(0xFFFB2056),
+                              backgroundColor: Color(0xFF5162F6),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15.0),
                               ),
@@ -751,7 +751,7 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                 Colors.white, // Cambia el color de los elementos destacados
 
             colorScheme: ColorScheme.fromSwatch().copyWith(
-              primary: Color(0xFFFB2056),
+              primary: Color(0xFF5162F6),
             ),
           ),
           child: child!,
@@ -993,7 +993,7 @@ class CustomTable extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFFFB2056),
+                  color: Color(0xFF5162F6),
                 ),
               ),
               SizedBox(height: 10),

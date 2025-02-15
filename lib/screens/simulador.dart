@@ -108,7 +108,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                   color: isGeneralSelected
                       ? Colors.white
                       : Color(
-                          0xFFFB2056), // Cambia el color del texto según la selección
+                          0xFF5162F6), // Cambia el color del texto según la selección
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 ),
@@ -122,11 +122,11 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                 });
               },
               backgroundColor: Colors.white,
-              selectedColor: Color(0xFFFB2056),
+              selectedColor: Color(0xFF5162F6),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15.0),
                 side: BorderSide(
-                  color: Color(0xFFFB2056),
+                  color: Color(0xFF5162F6),
                   width: 2.0,
                 ),
               ),
@@ -142,7 +142,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                 'Grupal',
                 style: TextStyle(
                   color:
-                      isIndividualSelected ? Colors.white : Color(0xFFFB2056),
+                      isIndividualSelected ? Colors.white : Color(0xFF5162F6),
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 ),
@@ -156,11 +156,11 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                 });
               },
               backgroundColor: Colors.white,
-              selectedColor: Color(0xFFFB2056),
+              selectedColor: Color(0xFF5162F6),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15.0),
                 side: BorderSide(
-                  color: Color(0xFFFB2056),
+                  color: Color(0xFF5162F6),
                   width: 2.0,
                 ),
               ),
@@ -243,7 +243,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                   Colors.white, // Cambia el color de los elementos destacados
 
               colorScheme: ColorScheme.fromSwatch().copyWith(
-                primary: Color(0xFFFB2056),
+                primary: Color(0xFF5162F6),
               ),
             ),
             child: child!,
@@ -295,7 +295,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       borderRadius: BorderRadius.circular(15.0),
                                       borderSide: BorderSide(
                                         color: Color(
-                                            0xFFFB2056), // Color al enfocar
+                                            0xFF5162F6), // Color al enfocar
                                         width: 2.0,
                                       ),
                                     ),
@@ -377,7 +377,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       },
                                     ).toList(),
                                     icon: Icon(Icons.arrow_drop_down,
-                                        color: Color(0xFFFB2056)),
+                                        color: Color(0xFF5162F6)),
                                     dropdownColor: Colors.white,
                                   ),
                                 ),
@@ -435,7 +435,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       );
                                     }).toList(),
                                     icon: Icon(Icons.arrow_drop_down,
-                                        color: Color(0xFFFB2056)),
+                                        color: Color(0xFF5162F6)),
                                     dropdownColor: Colors.white,
                                   ),
                                 ),
@@ -469,7 +469,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                         borderRadius:
                                             BorderRadius.circular(15.0),
                                         borderSide: BorderSide(
-                                            color: Color(0xFFFB2056),
+                                            color: Color(0xFF5162F6),
                                             width: 1.5),
                                       ),
                                       contentPadding: EdgeInsets.symmetric(
@@ -532,7 +532,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       );
                                     }).toList(),
                                     icon: Icon(Icons.arrow_drop_down,
-                                        color: Color(0xFFFB2056)),
+                                        color: Color(0xFF5162F6)),
                                     dropdownColor: Colors.white,
                                   ),
                                 ),
@@ -547,7 +547,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                               onPressed: () => selectDate(context),
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                backgroundColor: Color(0xFFFB2056),
+                                backgroundColor: Color(0xFF5162F6),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15.0),
                                 ),
@@ -686,7 +686,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
                                   foregroundColor: Colors.white,
-                                  backgroundColor: Color(0xFFFB2056),
+                                  backgroundColor: Color(0xFF5162F6),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(15.0),
                                   ),

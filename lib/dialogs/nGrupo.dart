@@ -357,7 +357,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircularProgressIndicator(
-                      color: Color(0xFFFB2056),
+                      color: Color(0xFF5162F6),
                     ),
                     SizedBox(height: 20),
                     Text(
@@ -384,9 +384,9 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                       SizedBox(height: 10),
                       TabBar(
                         controller: _tabController,
-                        labelColor: Color(0xFFFB2056),
+                        labelColor: Color(0xFF5162F6),
                         unselectedLabelColor: Colors.grey,
-                        indicatorColor: Color(0xFFFB2056),
+                        indicatorColor: Color(0xFF5162F6),
                         tabs: [
                           Tab(text: 'Información del Grupo'),
                           Tab(text: 'Miembros del Grupo'),
@@ -483,7 +483,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
             numeroPaso.toString(),
             style: TextStyle(
               color: isActive
-                  ? Color(0xFFFB2056)
+                  ? Color(0xFF5162F6)
                   : Colors.white, // Texto rojo si está activo, blanco si no
               fontWeight: FontWeight.bold,
               fontSize: 14,
@@ -516,7 +516,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         children: [
           Container(
             decoration: BoxDecoration(
-                color: Color(0xFFFB2056),
+                color: Color(0xFF5162F6),
                 borderRadius: BorderRadius.all(Radius.circular(20))),
             width: 250,
             height: 500,
@@ -547,7 +547,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                       width: 120, // Ajustar tamaño del contenedor
                       height: 100,
                       decoration: BoxDecoration(
-                        color: Color(0xFFFB2056), // Color de fondo rojo
+                        color: Color(0xFF5162F6), // Color de fondo rojo
                         shape: BoxShape.circle, // Forma circular
                       ),
                       child: Center(
@@ -650,7 +650,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         children: [
           Container(
             decoration: BoxDecoration(
-                color: Color(0xFFFB2056),
+                color: Color(0xFF5162F6),
                 borderRadius: BorderRadius.all(Radius.circular(20))),
             width: 250,
             height: 500,

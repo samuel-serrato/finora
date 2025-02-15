@@ -260,7 +260,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   shape: BoxShape.circle,
                                 ),
                                 child: CircleAvatar(
-                                  backgroundColor: Color(0xFFFB2056),
+                                  backgroundColor: Color(0xFF5162F6),
                                   radius: 18,
                                   child: Icon(Icons.person,
                                       color: Colors.white, size: 22),

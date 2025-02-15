@@ -186,7 +186,7 @@ class _InfoClienteState extends State<InfoCliente> {
                         flex: 25,
                         child: Container(
                           decoration: BoxDecoration(
-                              color: Color(0xFFFB2056),
+                              color: Color(0xFF5162F6),
                               borderRadius:
                                   BorderRadius.all(Radius.circular(20))),
                           child: Column(
@@ -514,7 +514,7 @@ class _InfoClienteState extends State<InfoCliente> {
                           child: Text('Recargar'),
                           style: ButtonStyle(
                             backgroundColor:
-                                MaterialStateProperty.all(Color(0xFFFB2056)),
+                                MaterialStateProperty.all(Color(0xFF5162F6)),
                             foregroundColor:
                                 MaterialStateProperty.all(Colors.white),
                             shape: MaterialStateProperty.all<
@@ -621,7 +621,7 @@ class _InfoClienteState extends State<InfoCliente> {
           top: 50,
           child: IconButton(
             icon:
-                Icon(Icons.arrow_back_ios, color: Color(0xFFFB2056), size: 20),
+                Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
             onPressed: () {
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
@@ -636,7 +636,7 @@ class _InfoClienteState extends State<InfoCliente> {
           top: 50,
           child: IconButton(
             icon: Icon(Icons.arrow_forward_ios,
-                color: Color(0xFFFB2056), size: 20),
+                color: Color(0xFF5162F6), size: 20),
             onPressed: () {
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
@@ -775,7 +775,7 @@ class _InfoClienteState extends State<InfoCliente> {
         left: 0,
         top: 80,
         child: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Color(0xFFFB2056), size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
           onPressed: () {
             if (_scrollController.hasClients) {
               _scrollController.jumpTo(
@@ -789,7 +789,7 @@ class _InfoClienteState extends State<InfoCliente> {
         right: 0,
         top: 80,
         child: IconButton(
-          icon: Icon(Icons.arrow_forward_ios, color: Color(0xFFFB2056), size: 20),
+          icon: Icon(Icons.arrow_forward_ios, color: Color(0xFF5162F6), size: 20),
           onPressed: () {
             if (_scrollController.hasClients) {
               _scrollController.jumpTo(
