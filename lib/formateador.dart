@@ -1,13 +1,22 @@
 import 'package:intl/intl.dart';
 
 String formatMonto(String value) {
-  // Eliminamos todo lo que no sea número
-  String sanitized = value.replaceAll(RegExp(r'[^\d]'), '');
+  // Permitir solo números y un punto decimal
+  String sanitized = value.replaceAll(RegExp(r'[^\d.]'), '');
+  
+  // Separar parte entera y decimal
+  List<String> parts = sanitized.split('.');
+  String integerPart = parts[0].replaceAll(RegExp(r'\D'), '');
+  String decimalPart = parts.length > 1 ? parts[1] : '';
 
-  // Convertimos el texto a un número y lo formateamos
-  if (sanitized.isNotEmpty) {
-    final number = int.parse(sanitized);
-    return NumberFormat('#,###').format(number);
+  // Formatear parte entera
+  String formatted = NumberFormat('#,###').format(int.tryParse(integerPart) ?? 0);
+  
+  // Agregar parte decimal si existe
+  if (decimalPart.isNotEmpty) {
+    decimalPart = decimalPart.length > 2 ? decimalPart.substring(0, 2) : decimalPart;
+    formatted += '.$decimalPart';
   }
-  return '';
+  
+  return formatted;
 }

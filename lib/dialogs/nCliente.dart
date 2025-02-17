@@ -39,7 +39,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   final TextEditingController estadoController = TextEditingController();
   final TextEditingController municipioController = TextEditingController();
   final TextEditingController curpController = TextEditingController();
-    final TextEditingController claveElectorController = TextEditingController();
+  final TextEditingController claveElectorController = TextEditingController();
   final TextEditingController rfcController = TextEditingController();
   final TextEditingController tiempoViviendoController =
       TextEditingController();
@@ -634,34 +634,36 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _handleErrorResponse(http.Response response) {
-  try {
-    final errorData = json.decode(response.body);
-    final statusCode = response.statusCode;
-    
-    // Extraer mensaje de error con diferentes posibles estructuras
-    final errorMessage = (errorData['Error']?['Message'] ?? 
-                        errorData['error']?['message'] ?? 
-                        errorData['message'] ?? '')
-                        .toString().toLowerCase();
+    try {
+      final errorData = json.decode(response.body);
+      final statusCode = response.statusCode;
 
-    // Manejar casos de token expirado
-    if ((statusCode == 401 || 
-        statusCode == 403 || 
-        statusCode == 404) && 
-        (errorMessage.contains('jwt expired') || 
-         errorMessage.contains('token expired'))) {
-      _handleTokenExpiration();
+      // Extraer mensaje de error con diferentes posibles estructuras
+      final errorMessage = (errorData['Error']?['Message'] ??
+              errorData['error']?['message'] ??
+              errorData['message'] ??
+              '')
+          .toString()
+          .toLowerCase();
+
+      // Manejar casos de token expirado
+      if ((statusCode == 401 || statusCode == 403 || statusCode == 404) &&
+          (errorMessage.contains('jwt expired') ||
+              errorMessage.contains('token expired'))) {
+        _handleTokenExpiration();
+      }
+      // Manejar otros errores
+      else if (statusCode == 404) {
+        mostrarDialogoError('Recurso no encontrado (404)');
+      } else {
+        mostrarDialogoError(
+            'Error $statusCode: ${errorMessage.isNotEmpty ? errorMessage : 'Error desconocido'}');
+      }
+    } catch (e) {
+      mostrarDialogoError(
+          'Error ${response.statusCode}: No se pudo procesar la respuesta');
     }
-    // Manejar otros errores
-    else if (statusCode == 404) {
-      mostrarDialogoError('Recurso no encontrado (404)');
-    } else {
-      mostrarDialogoError('Error $statusCode: ${errorMessage.isNotEmpty ? errorMessage : 'Error desconocido'}');
-    }
-  } catch (e) {
-    mostrarDialogoError('Error ${response.statusCode}: No se pudo procesar la respuesta');
   }
-}
 
   void _handleNetworkError(dynamic error) {
     if (error is SocketException) {
@@ -1175,17 +1177,23 @@ class _nClienteDialogState extends State<nClienteDialog>
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: Color(0xFF5162F6),
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: Color(0xFF5162F6),
-                    tabs: [
-                      Tab(text: 'Información Personal'),
-                      Tab(text: 'Cuenta Bancaria'),
-                      Tab(text: 'Ingresos y Egresos'),
-                      Tab(text: 'Referencias'),
-                    ],
+                  Focus(
+                    canRequestFocus: false,
+                    descendantsAreFocusable: false,
+                    child: IgnorePointer(
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: Color(0xFF5162F6),
+                        unselectedLabelColor: Colors.grey,
+                        indicatorColor: Color(0xFF5162F6),
+                        tabs: [
+                          Tab(text: 'Información Personal'),
+                          Tab(text: 'Cuenta Bancaria'),
+                          Tab(text: 'Ingresos y Egresos'),
+                          Tab(text: 'Referencias'),
+                        ],
+                      ),
+                    ),
                   ),
                   Expanded(
                     child: TabBarView(
@@ -1486,6 +1494,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: nombresController,
                           label: 'Nombres',
                           icon: Icons.person,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(
+                                r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                          ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese nombres';
@@ -1500,6 +1512,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: apellidoPController,
                           label: 'Apellido Paterno',
                           icon: Icons.person_outline,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(
+                                r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                          ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese Apellido Paterno';
@@ -1514,6 +1530,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: apellidoMController,
                           label: 'Apellido Materno',
                           icon: Icons.person_outline,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(
+                                r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                          ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese Apellido Materno';
@@ -1576,6 +1596,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: ocupacionController,
                           label: 'Ocupación',
                           icon: Icons.work,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(
+                                r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                          ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese la ocupación';
@@ -1608,6 +1632,12 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: telefonoClienteController,
                           label: 'Teléfono',
                           icon: Icons.phone,
+                          keyboardType:
+                              TextInputType.phone, // <- Aquí se especifica
+                          inputFormatters: [
+                            FilteringTextInputFormatter
+                                .digitsOnly // Solo permite números
+                          ],
                           maxLength: 10, // Especificar la longitud máxima aquí
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -1625,6 +1655,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: emailClientecontroller,
                           label: 'Correo electróncio',
                           icon: Icons.email,
+                          keyboardType: TextInputType
+                              .emailAddress, // <- Aquí se especifica
+
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese el correo electrónico';
@@ -1680,6 +1713,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                                 controller: nombreConyugeController,
                                 label: 'Nombre del Conyuge',
                                 icon: Icons.person,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(
+                                      r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                                ],
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
                                     return 'Por favor, ingrese nombres';
@@ -1694,11 +1731,20 @@ class _nClienteDialogState extends State<nClienteDialog>
                                 controller: telefonoConyugeController,
                                 label: 'Número celular del Conyuge',
                                 icon: Icons.person_outline,
+                                keyboardType: TextInputType.phone,
+                                maxLength:
+                                    10, // Especificar la longitud máxima aquí
+                                inputFormatters: [
+                                  FilteringTextInputFormatter
+                                      .digitsOnly // Solo permite números
+                                ],
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
-                                    return 'Por favor, ingrese el dato';
+                                    return 'Por favor ingrese el Teléfono';
+                                  } else if (value.length != 10) {
+                                    return 'Debe tener 10 dígitos';
                                   }
-                                  return null;
+                                  return null; // Si es válido
                                 },
                               ),
                             ),
@@ -1708,6 +1754,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                                 controller: ocupacionConyugeController,
                                 label: 'Ocupación',
                                 icon: Icons.person_outline,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(RegExp(
+                                      r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                                ],
                                 validator: (value) {
                                   if (value == null || value.isEmpty) {
                                     return 'Por favor, ingrese el dato';
@@ -1761,6 +1811,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: calleController,
                           label: 'Calle',
                           icon: Icons.location_on,
+                          keyboardType: TextInputType.streetAddress,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese Calle';
@@ -1777,6 +1828,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                           label: 'No. Ext',
                           icon: Icons.house,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter
+                                .digitsOnly // Solo permite números
+                          ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese No. Ext';
@@ -1792,6 +1847,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: nIntController,
                           label: 'No. Int',
                           icon: Icons.house,
+                          inputFormatters: [
+                            FilteringTextInputFormatter
+                                .digitsOnly // Solo permite números
+                          ],
                           keyboardType: TextInputType.number,
                         ),
                       ),
@@ -1811,6 +1870,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                             controller: nombrePropietarioController,
                             label: 'Nombre del Propietario',
                             icon: Icons.person,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(
+                                  r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                            ],
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor, ingrese el nombre del propietario';
@@ -1826,6 +1889,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                             controller: parentescoPropietarioController,
                             label: 'Parentesco',
                             icon: Icons.family_restroom,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(
+                                  r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                            ],
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor, ingrese el parentesco';
@@ -1848,6 +1915,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: entreCalleController,
                           label: 'Entre Calle',
                           icon: Icons.location_on,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(
+                                r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                          ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese Entre Calle';
@@ -1864,6 +1935,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                           label: 'Código Postal',
                           icon: Icons.mail,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                           maxLength: 5, // Especificar la longitud máxima aquí
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -1883,6 +1957,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           label: 'Tiempo Viviendo',
                           icon: Icons.timelapse,
                           keyboardType: TextInputType.number,
+                          
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese Tiempo Viviendo';
@@ -1903,6 +1978,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: coloniaController,
                           label: 'Colonia',
                           icon: Icons.location_city,
+                         
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese Colonia';
@@ -1939,6 +2015,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: municipioController,
                           label: 'Municipio',
                           icon: Icons.map,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(
+                                r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                          ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese Municipio';
@@ -1975,7 +2055,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                             } else if (value.length != 18) {
                               return 'El dato tener exactamente 18 dígitos';
                             }
-                              curpController.text = value.toUpperCase();
+                            curpController.text = value.toUpperCase();
 
                             return null; // Si es válido
                           },
@@ -2000,12 +2080,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                                 return 'El RFC debe tener 12 o 13 caracteres';
                               }
 
-                                rfcController.text = value.toUpperCase();
+                              rfcController.text = value.toUpperCase();
 
                               return null;
                             }),
                       ),
-
                       SizedBox(width: 10),
                       Expanded(
                         flex: 2,
@@ -2021,7 +2100,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                             } else if (value.length != 18) {
                               return 'El dato tener exactamente 18 dígitos';
                             }
-                              claveElectorController.text = value.toUpperCase();
+                            claveElectorController.text = value.toUpperCase();
 
                             return null; // Si es válido
                           },
@@ -2038,7 +2117,6 @@ class _nClienteDialogState extends State<nClienteDialog>
       ),
     );
   }
-  
 
   Widget _paginaCuentaBancaria() {
     @override
@@ -2151,6 +2229,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                     controller: _numCuentaController,
                     label: 'Número de Cuenta',
                     icon: Icons.account_balance,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     keyboardType: TextInputType.number,
                     maxLength: 11, // Especificar la longitud máxima aquí
                     validator: (value) {
@@ -2168,6 +2247,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                     label: 'Número de Tarjeta',
                     icon: Icons.credit_card,
                     keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     maxLength: 16, // Especificar la longitud máxima aquí
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -2636,6 +2716,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                               controller: nombresRefController,
                               label: 'Nombres',
                               icon: Icons.person,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(
+                                    r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                              ],
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Por favor, ingrese el nombre';
@@ -2648,6 +2732,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                               controller: apellidoPRefController,
                               label: 'Apellido Paterno',
                               icon: Icons.person_outline,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(
+                                    r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                              ],
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Por favor, ingrese el apellido paterno';
@@ -2660,6 +2748,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                               controller: apellidoMRefController,
                               label: 'Apellido Materno',
                               icon: Icons.person_outline,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(
+                                    r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                              ],
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Por favor, ingrese el apellido materno';
@@ -2674,6 +2766,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                               items: [
                                 'Padre',
                                 'Madre',
+                                'Esposo/a',
                                 'Hermano/a',
                                 'Amigo/a',
                                 'Vecino',
@@ -2697,6 +2790,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                               label: 'Teléfono',
                               icon: Icons.phone,
                               keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
                               maxLength:
                                   10, // Especificar la longitud máxima aquí
                               validator: (value) {
@@ -2773,6 +2869,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                                     controller: calleRefController,
                                     label: 'Calle',
                                     icon: Icons.location_on,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(RegExp(
+                                          r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                                    ],
                                     /*   validator: (value) => value?.isEmpty == true
                                         ? 'Por favor, ingrese Calle'
                                         : null, */
@@ -2794,6 +2894,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                                           nombrePropietarioRefController,
                                       label: 'Nombre del Propietario',
                                       icon: Icons.person,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(RegExp(
+                                            r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                                      ],
                                     ),
                                   ),
                                   SizedBox(width: 10),
@@ -2803,6 +2907,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                                       controller: parentescoRefPropController,
                                       label: 'Parentesco con propietario',
                                       icon: Icons.family_restroom,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.allow(RegExp(
+                                            r'[a-zA-ZÀ-ÿ ]')), // Permite letras y espacios
+                                      ],
                                     ),
                                   ),
                                 ],
@@ -2819,6 +2927,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                                     label: 'No. Ext',
                                     icon: Icons.house,
                                     keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly
+                                    ],
                                     /*  validator: (value) => value?.isEmpty == true
                                         ? 'Por favor, ingrese No. Ext'
                                         : null, */
@@ -2832,6 +2943,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                                     label: 'No. Int',
                                     icon: Icons.house,
                                     keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly
+                                    ],
                                   ),
                                 ),
                               ],
@@ -2859,6 +2973,9 @@ class _nClienteDialogState extends State<nClienteDialog>
                                     label: 'Código Postal',
                                     icon: Icons.mail,
                                     keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly
+                                    ],
                                     maxLength:
                                         5, // Especificar la longitud máxima aquí
                                     validator: (value) {
@@ -3103,6 +3220,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                       label: 'Monto',
                       icon: Icons.attach_money,
                       keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       fontSize: 14.0,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -3120,6 +3238,8 @@ class _nClienteDialogState extends State<nClienteDialog>
                       controller: anosenActividadController,
                       label: 'Años en Actividad',
                       icon: Icons.timelapse,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       fontSize: 14.0,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -3188,31 +3308,33 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Widget _buildTextField({
-  required TextEditingController controller,
-  required String label,
-  required IconData icon,
-  TextInputType keyboardType = TextInputType.text,
-  String? Function(String?)? validator,
-  double fontSize = 12.0,
-  int? maxLength,
-}) {
-  return TextFormField(
-    controller: controller,
-    keyboardType: keyboardType,
-    style: TextStyle(fontSize: fontSize),
-    decoration: InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-      labelStyle: TextStyle(fontSize: fontSize),
-    ),
-    textCapitalization: TextCapitalization.characters, // Convierte a mayúsculas
-    validator: validator,
-    inputFormatters: maxLength != null
-        ? [LengthLimitingTextInputFormatter(maxLength)]
-        : [],
-  );
-}
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+    double fontSize = 12.0,
+    int? maxLength,
+    List<TextInputFormatter>? inputFormatters, // Nuevo parámetro
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: TextStyle(fontSize: fontSize),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        labelStyle: TextStyle(fontSize: fontSize),
+      ),
+      textCapitalization: TextCapitalization.characters,
+      validator: validator,
+      inputFormatters: [
+        if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
+        ...(inputFormatters ?? []), // Agrega los formateadores personalizados
+      ],
+    );
+  }
 
   Widget _buildDropdown({
     required String? value,
@@ -3626,20 +3748,20 @@ class _nClienteDialogState extends State<nClienteDialog>
       final response = await http.post(
         url,
         headers: {
-        "Content-Type": "application/json",
-        "tokenauth": token, // Agregar token
-      },
+          "Content-Type": "application/json",
+          "tokenauth": token, // Agregar token
+        },
         body: jsonEncode(referenciasData),
       );
       if (response.statusCode == 201) {
         print("Referencias agregadas correctamente");
       } else {
-      _handleApiError(response, 'Error en crear referencias');
+        _handleApiError(response, 'Error en crear referencias');
+      }
+    } catch (e) {
+      _handleNetworkError(e);
     }
-  } catch (e) {
-    _handleNetworkError(e);
   }
-}
 
   void imprimirDatosCliente() {
     final datosCliente = {

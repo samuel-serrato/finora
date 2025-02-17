@@ -382,15 +382,21 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                             fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 10),
-                      TabBar(
-                        controller: _tabController,
-                        labelColor: Color(0xFF5162F6),
-                        unselectedLabelColor: Colors.grey,
-                        indicatorColor: Color(0xFF5162F6),
-                        tabs: [
-                          Tab(text: 'Información del Grupo'),
-                          Tab(text: 'Miembros del Grupo'),
-                        ],
+                      Focus(
+                        canRequestFocus: false,
+                        descendantsAreFocusable: false,
+                        child: IgnorePointer(
+                          child: TabBar(
+                            controller: _tabController,
+                            labelColor: Color(0xFF5162F6),
+                            unselectedLabelColor: Colors.grey,
+                            indicatorColor: Color(0xFF5162F6),
+                            tabs: [
+                              Tab(text: 'Información del Grupo'),
+                              Tab(text: 'Miembros del Grupo'),
+                            ],
+                          ),
+                        ),
                       ),
                       Expanded(
                         child: TabBarView(
@@ -604,7 +610,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                     SizedBox(height: verticalSpacing),
                     _buildUsuarioDropdown(
                       value: _selectedUsuario,
-                      hint: 'Seleccionar Usuario',
+                      hint: 'Seleccionar Asesor',
                       usuarios: _usuarios,
                       onChanged: (Usuario? newValue) {
                         setState(() {
@@ -613,7 +619,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                       },
                       validator: (value) {
                         if (value == null) {
-                          return 'Seleccione un usuario';
+                          return 'Seleccione un asesor';
                         }
                         return null;
                       },

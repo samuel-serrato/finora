@@ -132,22 +132,19 @@ class _NavigationScreenState extends State<NavigationScreen> {
   child: Row(
     children: [
       // Ícono con padding condicional
-      GestureDetector(
-        onTap: isMenuOpen ? toggleMenu : null,
-        child: Padding(
-          // Padding solo aplicado cuando el menú está cerrado
-          padding: isMenuOpen 
-              ? EdgeInsets.zero // Sin padding cuando está abierto
-              : const EdgeInsets.all(10), // Ajusta el valor según necesites
-          child: SizedBox(
-            width: isMenuOpen ? 140 : 30,
-            height: isMenuOpen ? 80 : 30,
-            child: Image.asset(
-              isMenuOpen 
-                  ? 'assets/finora_hzt.png' 
-                  : 'assets/finora_icon.png',
-              fit: BoxFit.contain,
-            ),
+      Padding(
+        // Padding solo aplicado cuando el menú está cerrado
+        padding: isMenuOpen 
+            ? EdgeInsets.zero // Sin padding cuando está abierto
+            : const EdgeInsets.all(10), // Ajusta el valor según necesites
+        child: SizedBox(
+          width: isMenuOpen ? 140 : 30,
+          height: isMenuOpen ? 80 : 30,
+          child: Image.asset(
+            isMenuOpen 
+                ? 'assets/finora_hzt.png' 
+                : 'assets/finora_icon.png',
+            fit: BoxFit.contain,
           ),
         ),
       ),

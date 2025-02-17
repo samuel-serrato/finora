@@ -61,7 +61,6 @@ class _editGrupoDialogState extends State<editGrupoDialog>
   bool _dialogShown = false; // Evitar mostrar múltiples diálogos de error
   Set<String> originalMemberIds = {};
 
-
   @override
   void initState() {
     super.initState();
@@ -78,153 +77,154 @@ class _editGrupoDialogState extends State<editGrupoDialog>
 
   // Función para obtener los detalles del grupo
   // Función para obtener los detalles del grupo
-Future<void> fetchGrupoData() async {
-  if (!mounted) return;
-  
-  print('Ejecutando fetchGrupoData');
-  _timer?.cancel();
-
-  setState(() => _isLoading = true);
-
-  _timer = Timer(const Duration(seconds: 10), () {
-    if (mounted && _isLoading && !_dialogShown) {
-      setState(() => _isLoading = false);
-      mostrarDialogoError(
-        'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
-      );
-      _dialogShown = true;
-    }
-  });
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    
-    final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {'tokenauth': token},
-    );
-
+  Future<void> fetchGrupoData() async {
     if (!mounted) return;
+
+    print('Ejecutando fetchGrupoData');
     _timer?.cancel();
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body)[0];
-      List<Map<String, dynamic>> clientesActuales = [];
+    setState(() => _isLoading = true);
 
-      setState(() {
-        grupoData = data;
-        _isLoading = false;
-        nombreGrupoController.text = data['nombreGrupo'] ?? '';
-        descripcionController.text = data['detalles'] ?? '';
-        selectedTipo = data['tipoGrupo'];
-        
-        _selectedPersons.clear();
-        _cargosSeleccionados.clear();
-        originalMemberIds.clear();
+    _timer = Timer(const Duration(seconds: 10), () {
+      if (mounted && _isLoading && !_dialogShown) {
+        setState(() => _isLoading = false);
+        mostrarDialogoError(
+          'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
+        );
+        _dialogShown = true;
+      }
+    });
 
-        if (data['clientes'] != null) {
-          clientesActuales = List<Map<String, dynamic>>.from(data['clientes']);
-          _selectedPersons.addAll(clientesActuales);
-          originalMemberIds = Set.from(clientesActuales.map((c) => c['idclientes'].toString()));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
 
-          for (var cliente in clientesActuales) {
-            String? idCliente = cliente['idclientes'];
-            String? cargo = cliente['cargo'];
-            if (idCliente != null && cargo != null) {
-              _cargosSeleccionados[idCliente] = cargo;
-              _originalCargos[idCliente] = cargo;
+      final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'tokenauth': token},
+      );
+
+      if (!mounted) return;
+      _timer?.cancel();
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body)[0];
+        List<Map<String, dynamic>> clientesActuales = [];
+
+        setState(() {
+          grupoData = data;
+          _isLoading = false;
+          nombreGrupoController.text = data['nombreGrupo'] ?? '';
+          descripcionController.text = data['detalles'] ?? '';
+          selectedTipo = data['tipoGrupo'];
+
+          _selectedPersons.clear();
+          _cargosSeleccionados.clear();
+          originalMemberIds.clear();
+
+          if (data['clientes'] != null) {
+            clientesActuales =
+                List<Map<String, dynamic>>.from(data['clientes']);
+            _selectedPersons.addAll(clientesActuales);
+            originalMemberIds = Set.from(
+                clientesActuales.map((c) => c['idclientes'].toString()));
+
+            for (var cliente in clientesActuales) {
+              String? idCliente = cliente['idclientes'];
+              String? cargo = cliente['cargo'];
+              if (idCliente != null && cargo != null) {
+                _cargosSeleccionados[idCliente] = cargo;
+                _originalCargos[idCliente] = cargo;
+              }
             }
           }
+        });
+
+        print('Clientes actuales del grupo:');
+        for (var cliente in clientesActuales) {
+          print(
+              'id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}, Cargo: ${cliente['cargo']}');
         }
-      });
-
-      print('Clientes actuales del grupo:');
-      for (var cliente in clientesActuales) {
-        print('id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}, Cargo: ${cliente['cargo']}');
+      } else {
+        _handleResponseErrors(response);
       }
-    } else {
-      _handleResponseErrors(response);
-    }
-  } catch (e) {
-    _handleNetworkError(e);
-  } finally {
-    if (mounted && _isLoading) {
-      setState(() => _isLoading = false);
+    } catch (e) {
+      _handleNetworkError(e);
+    } finally {
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
 
-void _handleResponseErrors(http.Response response) {
-  print('Error response body: ${response.body}');
-  print('Status code: ${response.statusCode}');
+  void _handleResponseErrors(http.Response response) {
+    print('Error response body: ${response.body}');
+    print('Status code: ${response.statusCode}');
 
-  try {
-    final dynamic errorData = json.decode(response.body);
-    final String errorMessage = _extractErrorMessage(errorData);
-    final int statusCode = response.statusCode;
+    try {
+      final dynamic errorData = json.decode(response.body);
+      final String errorMessage = _extractErrorMessage(errorData);
+      final int statusCode = response.statusCode;
 
-    if (_isTokenExpiredError(statusCode, errorMessage)) {
-      _handleTokenExpiration();
-    } else if (statusCode == 404) {
-      mostrarDialogoError('Recurso no encontrado (404)');
-    } else {
-      mostrarDialogoError('Error $statusCode: $errorMessage');
+      if (_isTokenExpiredError(statusCode, errorMessage)) {
+        _handleTokenExpiration();
+      } else if (statusCode == 404) {
+        mostrarDialogoError('Recurso no encontrado (404)');
+      } else {
+        mostrarDialogoError('Error $statusCode: $errorMessage');
+      }
+    } catch (e) {
+      mostrarDialogoError('Error desconocido: ${response.body}');
     }
-  } catch (e) {
-    mostrarDialogoError('Error desconocido: ${response.body}');
   }
-}
 
-
-String _extractErrorMessage(dynamic errorData) {
-  try {
-    return errorData?['error']?['message']?.toString() ?? 
-           errorData?['Error']?['Message']?.toString() ?? 
-           errorData?['message']?.toString() ?? 
-           'Mensaje de error no disponible';
-  } catch (e) {
-    return 'Error al parsear mensaje';
+  String _extractErrorMessage(dynamic errorData) {
+    try {
+      return errorData?['error']?['message']?.toString() ??
+          errorData?['Error']?['Message']?.toString() ??
+          errorData?['message']?.toString() ??
+          'Mensaje de error no disponible';
+    } catch (e) {
+      return 'Error al parsear mensaje';
+    }
   }
-}
 
-bool _isTokenExpiredError(int statusCode, String errorMessage) {
-  final lowerMessage = errorMessage.toLowerCase();
-  return statusCode == 401 || 
-         statusCode == 403 || 
-         (statusCode == 404 && lowerMessage.contains('token')) ||
-         lowerMessage.contains('jwt') ||
-         lowerMessage.contains('expir');
-}
-
+  bool _isTokenExpiredError(int statusCode, String errorMessage) {
+    final lowerMessage = errorMessage.toLowerCase();
+    return statusCode == 401 ||
+        statusCode == 403 ||
+        (statusCode == 404 && lowerMessage.contains('token')) ||
+        lowerMessage.contains('jwt') ||
+        lowerMessage.contains('expir');
+  }
 
   // Función para mostrar el diálogo de error
- // Función para mostrar el diálogo de error
-void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
-  if (!mounted) return;
-  
-  _dialogShown = true;
-  showDialog(
-    barrierDismissible: false,
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('Error'),
-        content: Text(mensaje),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              if (onClose != null) onClose();
-            },
-            child: const Text('Aceptar'),
-          ),
-        ],
-      );
-    },
-  ).then((_) => _dialogShown = false);
-}
+  // Función para mostrar el diálogo de error
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    if (!mounted) return;
+
+    _dialogShown = true;
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (onClose != null) onClose();
+              },
+              child: const Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    ).then((_) => _dialogShown = false);
+  }
 
   bool _validarFormularioActual() {
     if (_currentIndex == 0) {
@@ -248,255 +248,247 @@ void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
   }
 
   Future<void> enviarGrupo() async {
-  if (!mounted) return;
-  
-  if (nombreGrupoController.text.isEmpty ||
-      descripcionController.text.isEmpty ||
-      selectedTipo == null) {
-    mostrarDialogoError("Por favor, completa todos los campos obligatorios.");
-    return;
-  }
-
-  setState(() => _isLoading = true);
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    
-    final response = await http.put(
-      Uri.parse('http://$baseUrl/api/v1/grupos/${widget.idGrupo}'),
-      headers: {
-        'Content-Type': 'application/json',
-        'tokenauth': token
-      },
-      body: json.encode({
-        "nombreGrupo": nombreGrupoController.text,
-        "detalles": descripcionController.text,
-        "tipoGrupo": selectedTipo
-      }),
-    );
-
     if (!mounted) return;
 
-    if (response.statusCode == 200) {
-      widget.onGrupoEditado();
+    if (nombreGrupoController.text.isEmpty ||
+        descripcionController.text.isEmpty ||
+        selectedTipo == null) {
+      mostrarDialogoError("Por favor, completa todos los campos obligatorios.");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.put(
+        Uri.parse('http://$baseUrl/api/v1/grupos/${widget.idGrupo}'),
+        headers: {'Content-Type': 'application/json', 'tokenauth': token},
+        body: json.encode({
+          "nombreGrupo": nombreGrupoController.text,
+          "detalles": descripcionController.text,
+          "tipoGrupo": selectedTipo
+        }),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        widget.onGrupoEditado();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Grupo actualizado correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        _handleTokenExpiration();
+      } else {
+        _handleApiError(response, 'Error al actualizar el grupo');
+      }
+    } catch (e) {
+      _handleNetworkError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _enviarMiembros(String idGrupo) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      for (var persona in _selectedPersons) {
+        if (originalMemberIds.contains(persona['idclientes'].toString()))
+          continue;
+
+        final miembroData = {
+          'idgrupos': idGrupo,
+          'idclientes': persona['idclientes'],
+          'idusuarios': '6KNV796U0O',
+          'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
+        };
+
+        final response = await http.post(
+          Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
+          headers: {'Content-Type': 'application/json', 'tokenauth': token},
+          body: json.encode(miembroData),
+        );
+
+        if (response.statusCode != 201) {
+          throw Exception('Error al agregar miembro: ${response.body}');
+        }
+      }
+    } catch (e) {
+      _handleNetworkError(e);
+      rethrow;
+    }
+  }
+
+  Future<void> editarGrupo() async {
+    if (!_validarFormularioActual()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      // Actualizar grupo
+      await enviarGrupo();
+
+      // Eliminar miembros removidos
+      await eliminarClienteGrupo(widget.idGrupo, token);
+
+      // Actualizar cargos
+      for (var cliente in _selectedPersons) {
+        String idCliente = cliente['idclientes'].toString();
+        String cargoEditado = _cargosSeleccionados[idCliente] ?? 'Miembro';
+
+        if (originalMemberIds.contains(idCliente)) {
+          await actualizarCargo(widget.idGrupo, idCliente, cargoEditado, token);
+        }
+      }
+
+      // Agregar nuevos miembros
+      await _enviarMiembros(widget.idGrupo);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Grupo actualizado correctamente'),
+            content: Text('Grupo y miembros actualizados correctamente'),
             backgroundColor: Colors.green,
           ),
         );
+        Navigator.of(context).pop();
       }
-    } else if (response.statusCode == 401 || response.statusCode == 403) {
-      _handleTokenExpiration();
-    } else {
-      _handleApiError(response, 'Error al actualizar el grupo');
+    } catch (e) {
+      _handleNetworkError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  } catch (e) {
-    _handleNetworkError(e);
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
-
-  Future<void> _enviarMiembros(String idGrupo) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    
-    for (var persona in _selectedPersons) {
-      if (originalMemberIds.contains(persona['idclientes'].toString())) continue;
-
-      final miembroData = {
-        'idgrupos': idGrupo,
-        'idclientes': persona['idclientes'],
-        'idusuarios': '6KNV796U0O',
-        'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
-      };
-
-      final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'tokenauth': token
-        },
-        body: json.encode(miembroData),
-      );
-
-      if (response.statusCode != 201) {
-        throw Exception('Error al agregar miembro: ${response.body}');
-      }
-    }
-  } catch (e) {
-    _handleNetworkError(e);
-    rethrow;
-  }
-}
-
-  Future<void> editarGrupo() async {
-  if (!_validarFormularioActual()) return;
-
-  setState(() => _isLoading = true);
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    
-    // Actualizar grupo
-    await enviarGrupo();
-
-    // Eliminar miembros removidos
-    await eliminarClienteGrupo(widget.idGrupo, token);
-
-    // Actualizar cargos
-    for (var cliente in _selectedPersons) {
-      String idCliente = cliente['idclientes'].toString();
-      String cargoEditado = _cargosSeleccionados[idCliente] ?? 'Miembro';
-      
-      if (originalMemberIds.contains(idCliente)) {
-        await actualizarCargo(widget.idGrupo, idCliente, cargoEditado, token);
-      }
-    }
-
-    // Agregar nuevos miembros
-    await _enviarMiembros(widget.idGrupo);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Grupo y miembros actualizados correctamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.of(context).pop();
-    }
-  } catch (e) {
-    _handleNetworkError(e);
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
-  }
-}
-
 
   Future<void> eliminarClienteGrupo(String idGrupo, String token) async {
-  if (_clientesEliminados.isEmpty) return;
+    if (_clientesEliminados.isEmpty) return;
 
-  try {
-    for (String idCliente in _clientesEliminados) {
-      final response = await http.delete(
-        Uri.parse('http://$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente'),
-        headers: {'tokenauth': token},
+    try {
+      for (String idCliente in _clientesEliminados) {
+        final response = await http.delete(
+          Uri.parse('http://$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente'),
+          headers: {'tokenauth': token},
+        );
+
+        if (response.statusCode != 200) {
+          throw Exception('Error al eliminar cliente: ${response.body}');
+        }
+      }
+    } finally {
+      _clientesEliminados.clear();
+    }
+  }
+
+  void verificarCambios() async {
+    if (!mounted) return;
+
+    List<Map<String, dynamic>> cambios = [];
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    _originalCargos.forEach((idCliente, cargoOriginal) {
+      final cargoEditado = _cargosSeleccionados[idCliente];
+      if (cargoOriginal != cargoEditado) {
+        cambios.add({
+          'idCliente': idCliente,
+          'cargoOriginal': cargoOriginal,
+          'cargoEditado': cargoEditado,
+        });
+      }
+    });
+
+    if (cambios.isNotEmpty) {
+      print('Cambios detectados:');
+      for (var cambio in cambios) {
+        print(
+            'Cliente: ${cambio['idCliente']}, Cargo Original: ${cambio['cargoOriginal']}, Cargo Editado: ${cambio['cargoEditado']}');
+
+        try {
+          await actualizarCargo(
+              widget.idGrupo,
+              cambio['idCliente'].toString(), // Asegurar conversión a String
+              cambio['cargoEditado'].toString(),
+              token // Enviamos el token aquí
+              );
+        } catch (e) {
+          if (mounted) {
+            mostrarDialogoError('Error actualizando cargo: ${e.toString()}');
+          }
+        }
+      }
+    } else {
+      print('No hay cambios detectados.');
+    }
+  }
+
+  Future<void> actualizarCargo(
+    String idGrupo,
+    String idCliente,
+    String nuevoCargo,
+    String token,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse(
+            'http://$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente'),
+        headers: {'Content-Type': 'application/json', 'tokenauth': token},
+        body: json.encode({'nomCargo': nuevoCargo}),
       );
 
       if (response.statusCode != 200) {
-        throw Exception('Error al eliminar cliente: ${response.body}');
+        throw Exception('Error actualizando cargo: ${response.body}');
       }
+    } catch (e) {
+      print('Error al actualizar cargo: $e');
+      rethrow;
     }
-  } finally {
-    _clientesEliminados.clear();
   }
-}
-
-
-  void verificarCambios() async {
-  if (!mounted) return;
-  
-  List<Map<String, dynamic>> cambios = [];
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('tokenauth') ?? '';
-
-  _originalCargos.forEach((idCliente, cargoOriginal) {
-    final cargoEditado = _cargosSeleccionados[idCliente];
-    if (cargoOriginal != cargoEditado) {
-      cambios.add({
-        'idCliente': idCliente,
-        'cargoOriginal': cargoOriginal,
-        'cargoEditado': cargoEditado,
-      });
-    }
-  });
-
-  if (cambios.isNotEmpty) {
-    print('Cambios detectados:');
-    for (var cambio in cambios) {
-      print('Cliente: ${cambio['idCliente']}, Cargo Original: ${cambio['cargoOriginal']}, Cargo Editado: ${cambio['cargoEditado']}');
-
-      try {
-        await actualizarCargo(
-          widget.idGrupo, 
-          cambio['idCliente'].toString(), // Asegurar conversión a String
-          cambio['cargoEditado'].toString(), 
-          token // Enviamos el token aquí
-        );
-      } catch (e) {
-        if (mounted) {
-          mostrarDialogoError('Error actualizando cargo: ${e.toString()}');
-        }
-      }
-    }
-  } else {
-    print('No hay cambios detectados.');
-  }
-}
-
-  Future<void> actualizarCargo(
-  String idGrupo, 
-  String idCliente,
-  String nuevoCargo,
-  String token,
-) async {
-  try {
-    final response = await http.put(
-      Uri.parse('http://$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente'),
-      headers: {
-        'Content-Type': 'application/json',
-        'tokenauth': token
-      },
-      body: json.encode({'nomCargo': nuevoCargo}),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Error actualizando cargo: ${response.body}');
-    }
-  } catch (e) {
-    print('Error al actualizar cargo: $e');
-    rethrow;
-  }
-}
 
 // Funciones de ayuda para manejo de errores
-void _handleTokenExpiration() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('tokenauth');
-  
-  if (mounted) {
+  void _handleTokenExpiration() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tokenauth');
+
+    if (mounted) {
+      mostrarDialogoError(
+        'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+        onClose: () => Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        ),
+      );
+    }
+  }
+
+  void _handleApiError(http.Response response, String mensajeBase) {
+    final errorData = json.decode(response.body);
+    final mensajeError = errorData['error']?['message'] ?? 'Error desconocido';
+
     mostrarDialogoError(
-      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-      onClose: () => Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-      ),
-    );
+        '$mensajeBase: $mensajeError (Código: ${response.statusCode})');
   }
-}
 
-void _handleApiError(http.Response response, String mensajeBase) {
-  final errorData = json.decode(response.body);
-  final mensajeError = errorData['error']?['message'] ?? 'Error desconocido';
-  
-  mostrarDialogoError(
-    '$mensajeBase: $mensajeError (Código: ${response.statusCode})'
-  );
-}
-
-void _handleNetworkError(dynamic e) {
-  if (e is SocketException) {
-    mostrarDialogoError('Error de conexión. Verifica tu conexión a internet.');
-  } else {
-    mostrarDialogoError('Error inesperado: ${e.toString()}');
+  void _handleNetworkError(dynamic e) {
+    if (e is SocketException) {
+      mostrarDialogoError(
+          'Error de conexión. Verifica tu conexión a internet.');
+    } else {
+      mostrarDialogoError('Error inesperado: ${e.toString()}');
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -520,15 +512,21 @@ void _handleNetworkError(dynamic e) {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: Color(0xFF5162F6),
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: Color(0xFF5162F6),
-                    tabs: [
-                      Tab(text: 'Información del Grupo'),
-                      Tab(text: 'Miembros del Grupo'),
-                    ],
+                  Focus(
+                    canRequestFocus: false,
+                    descendantsAreFocusable: false,
+                    child: IgnorePointer(
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: Color(0xFF5162F6),
+                        unselectedLabelColor: Colors.grey,
+                        indicatorColor: Color(0xFF5162F6),
+                        tabs: [
+                          Tab(text: 'Información del Grupo'),
+                          Tab(text: 'Miembros del Grupo'),
+                        ],
+                      ),
+                    ),
                   ),
                   Expanded(
                     child: TabBarView(
@@ -1077,4 +1075,3 @@ Widget _buildDropdown({
     style: TextStyle(fontSize: fontSize, color: Colors.black),
   );
 }
-

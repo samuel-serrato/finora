@@ -710,7 +710,7 @@ class __CambiarPasswordDialogState extends State<_CambiarPasswordDialog> {
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               style: TextButton.styleFrom(
-                backgroundColor: Colors.grey.shade100,
+                backgroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                   side: BorderSide(color: Colors.grey.shade400),

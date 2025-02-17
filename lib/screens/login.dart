@@ -123,19 +123,21 @@ class _LoginScreenState extends State<LoginScreen> {
       'color': const Color(0xFF5162F6),
     },
     {
-      'title': 'Gestión Inteligente\nde tus Recursos',
-      'image': 'assets/budget.png',
-      'color': Colors.blueAccent,
+      'title': 'Crea Grupos Personalizados\nde Créditos',
+      //'subtitle': 'Organiza por tasa de interés, garantías\no perfil de riesgo',
+      'image': 'assets/custom_groups.png', // Ej: Diagrama de nodos o tags
+      'color': const Color(0xFF009688), // Verde-azul profesional
     },
-    {
-      'title': 'Protección y\nSeguridad Garantizada',
-      'image': 'assets/securityy.png',
-      'color': Colors.green,
+      {
+      'title': 'Historial Completo\nde Transacciones',
+      //'subtitle': 'Accede al registro de pagos,\nabonos y ajustes',
+      'image': 'assets/transaction_history.png', // Ej: Tabla con fechas y montos
+      'color': const Color(0xFF9C27B0), // Morado para datos históricos
     },
     {
       'title': 'Reportes Detallados\ny en Tiempo Real',
       'image': 'assets/reports.png',
-      'color': const Color(0xFF6A1B9A),
+      'color': const Color(0xFF3F51B5), // Azul corporativo
     },
   ];
 

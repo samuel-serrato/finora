@@ -162,75 +162,94 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     return;
   }
 
+  if (!mounted) return;
+
   setState(() {
     isLoading = true;
     errorDeConexion = false;
     noCreditsFound = false;
   });
 
-  // Recuperar token
-  final prefs = await SharedPreferences.getInstance();
-  final token = prefs.getString('tokenauth') ?? '';
-
-  // Iniciar la petición HTTP y guardarla en un Future
-  final Future<http.Response> httpFuture = http.get(
-    Uri.parse('http://$baseUrl/api/v1/creditos/$query'),
-    headers: {
-      'tokenauth': token,
-      'Content-Type': 'application/json',
-    },
-  );
-
-  // Esperar 2 segundos para que el CircularProgressIndicator se muestre durante ese tiempo
-  await Future.delayed(Duration(milliseconds: 500));
-
   try {
-    // Espera la respuesta de la petición HTTP
-    final response = await httpFuture;
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    // Agregar timeout a la petición
+    final response = await http.get(
+      Uri.parse('http://$baseUrl/api/v1/creditos/$query'),
+      headers: {'tokenauth': token},
+    ).timeout(Duration(seconds: 10)); // Limitar tiempo de espera
+
+    // Delay para mostrar el loading (500ms)
+    await Future.delayed(Duration(milliseconds: 500));
+
+
+    if (!mounted) return;
 
     print('Status code (search): ${response.statusCode}');
-    print('Response body (search): ${response.body}');
-
+    
     if (response.statusCode == 200) {
       List<dynamic> data = json.decode(response.body);
       setState(() {
         listaCreditos = data.map((item) => Credito.fromJson(item)).toList();
         isLoading = false;
       });
-    } else if (response.statusCode == 404) {
-      final errorData = json.decode(response.body);
-      if (errorData["Error"]["Message"] == "jwt expired") {
-        setState(() => isLoading = false);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('tokenauth');
-        mostrarDialogoError(
-            'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-            onClose: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => LoginScreen()),
-          );
-        });
-        return;
-      } else {
-        setErrorState(false);
-      }
-    } else if (response.statusCode == 400) {
-      final errorData = json.decode(response.body);
-      if (errorData["Error"]["Message"] == "No hay ningun credito registrado") {
-        setState(() {
-          listaCreditos = [];
-          isLoading = false;
-          noCreditsFound = true;
-        });
-      } else {
-        setErrorState(false);
-      }
-    } else {
-      setErrorState(false);
+    } 
+    else if (response.statusCode == 401) {
+      // Manejar token expirado
+      _handleTokenExpiration();
+    } 
+    else {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true; // Activar estado de error
+      });
     }
-  } catch (e) {
-    setErrorState(false, e);
+  } 
+  on SocketException catch (e) { // Capturar error de conexión
+    print('SocketException: $e');
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true;
+      });
+    }
+  } 
+  on TimeoutException catch (_) { // Capturar timeout
+    print('Timeout');
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true;
+      });
+    }
+  } 
+  catch (e) {
+    print('Error general: $e');
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true;
+      });
+    }
+  }
+}
+
+void _handleTokenExpiration() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('tokenauth');
+  
+  if (mounted) {
+    mostrarDialogoError(
+      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+      onClose: () {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false,
+        );
+      }
+    );
   }
 }
 
@@ -284,24 +303,25 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(
-        isDarkMode: _isDarkMode,
-        toggleDarkMode: _toggleDarkMode,
-        title: 'Créditos Activos',
-        nombre: widget.username,
-        tipoUsuario: widget.tipoUsuario,
-      ),
-      backgroundColor: Color(0xFFF7F8FA),
-       body: Column(
-        children: [
-          filaBuscarYAgregar(context),
-          Expanded(child: _buildTableContainer()),
-        ],
-      ),
-    ); ;
-  }
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: CustomAppBar(
+      isDarkMode: _isDarkMode,
+      toggleDarkMode: _toggleDarkMode,
+      title: 'Créditos Activos',
+      nombre: widget.username,
+      tipoUsuario: widget.tipoUsuario,
+    ),
+    backgroundColor: Color(0xFFF7F8FA),
+    body: Column(
+      children: [
+        // Solo muestra la fila de búsqueda si NO hay error de conexión
+        if (!errorDeConexion) filaBuscarYAgregar(context),
+        Expanded(child: _buildTableContainer()),
+      ],
+    ),
+  );
+}
 
     // Se encapsula el contenedor de la tabla para que sea lo único que se actualice al buscar
   // Este widget se encarga de mostrar el contenedor de la tabla o, en su defecto,

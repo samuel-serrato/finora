@@ -499,8 +499,8 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width * 0.95;
-    final height = MediaQuery.of(context).size.height * 0.9;
+    final width = MediaQuery.of(context).size.width * 0.97;
+    final height = MediaQuery.of(context).size.height * 0.93;
 
     return Dialog(
       backgroundColor: Color(0xFFF7F8FA),
@@ -553,7 +553,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                           CrossAxisAlignment.center,
                                       children: [
                                         CircleAvatar(
-                                          radius: 40,
+                                          radius: 35,
                                           backgroundColor: Colors.white,
                                           child: Icon(
                                             Icons
@@ -562,11 +562,11 @@ class _InfoCreditoState extends State<InfoCredito> {
                                             color: Color(0xFF5162F6),
                                           ),
                                         ),
-                                        SizedBox(height: 16),
+                                        SizedBox(height: 8),
                                         Text(
                                           'Información del Crédito',
                                           style: TextStyle(
-                                            fontSize: 20,
+                                            fontSize: 18,
                                             fontWeight: FontWeight.w600,
                                             color: Colors.white,
                                           ),
@@ -590,6 +590,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                             "\$${formatearNumero(creditoData!.montoTotal ?? 0.0)}"),
                                         _buildDetailRow('Interés Mensual',
                                             "${creditoData!.ti_mensual ?? 0.0}%"),
+                                            _buildDetailRow('Interés M. Monto', "\$${formatearNumero((creditoData!.montoTotal ?? 0.0) * (creditoData!.ti_mensual ?? 0.0) / 100)}"),
+
                                         _buildDetailRow('Garantía',
                                             "\$${creditoData!.garantia ?? 0.0}"),
                                         _buildDetailRow('Garantía Monto',

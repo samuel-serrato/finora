@@ -30,6 +30,9 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   Timer? _timer;
   bool errorDeConexion = false;
   bool noUsersFound = false;
+  Timer? _debounceTimer; // Para el debounce de la búsqueda
+  final TextEditingController _searchController =
+      TextEditingController(); // Controlador para el SearchBar
 
   @override
   void initState() {
@@ -40,6 +43,8 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _debounceTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -140,6 +145,101 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
     }
   }
 
+  Future<void> searchUsuarios(String query) async {
+    if (query.trim().isEmpty) {
+      obtenerUsuarios();
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = true;
+      errorDeConexion = false;
+      noUsersFound = false;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.get(
+        Uri.parse('http://$baseUrl/api/v1/usuarios/$query'),
+        headers: {'tokenauth': token},
+      ).timeout(Duration(seconds: 10));
+
+      await Future.delayed(Duration(milliseconds: 500));
+
+      if (!mounted) return;
+
+      print('Status code (search): ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        setState(() {
+          listaUsuarios = data.map((item) => Usuario.fromJson(item)).toList();
+          isLoading = false;
+        });
+      } else if (response.statusCode == 401) {
+        _handleTokenExpiration();
+      } else if (response.statusCode == 404) {
+        // Aquí manejamos cuando no hay resultados en la búsqueda
+        setState(() {
+          listaUsuarios = [];
+          isLoading = false;
+          noUsersFound = true;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } on SocketException catch (e) {
+      print('SocketException: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } on TimeoutException catch (_) {
+      print('Timeout');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } catch (e) {
+      print('Error general: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    }
+  }
+
+  void _handleTokenExpiration() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tokenauth');
+
+    if (mounted) {
+      mostrarDialogoError(
+        'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+        onClose: () {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false,
+          );
+        },
+      );
+    }
+  }
+
   void setErrorState(bool dialogShown, [dynamic error]) {
     setState(() {
       isLoading = false;
@@ -191,6 +291,69 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
     });
   }
 
+  // Función para eliminar usuario
+  Future<void> eliminarUsuario(String idUsuario) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.delete(
+        Uri.parse('http://$baseUrl/api/v1/usuarios/$idUsuario'),
+        headers: {'tokenauth': token},
+      ).timeout(Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Usuario eliminado correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        obtenerUsuarios();
+      } else if (response.statusCode == 401) {
+        _handleTokenExpiration();
+      } else {
+        final errorData = json.decode(response.body);
+        mostrarDialogoError(
+            'Error al eliminar usuario: ${errorData["Error"]["Message"]}');
+      }
+    } on SocketException {
+      mostrarDialogoError('Error de conexión. Verifica tu red.');
+    } on TimeoutException {
+      mostrarDialogoError('Tiempo de espera agotado. Intenta nuevamente.');
+    } catch (e) {
+      mostrarDialogoError('Error al eliminar usuario: $e');
+    }
+  }
+
+// Diálogo de confirmación
+  Future<bool> mostrarDialogoConfirmacion(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Confirmar eliminación'),
+              content:
+                  Text('¿Estás seguro de que deseas eliminar este usuario?'),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('Cancelar'),
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
+                TextButton(
+                  child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+                  onPressed: () => Navigator.of(context).pop(true),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -202,62 +365,65 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
         nombre: widget.username,
         tipoUsuario: widget.tipoUsuario,
       ),
-      body: isLoading
+      body: Column(
+        children: [
+          if (!errorDeConexion) filaBuscarYAgregar(context),
+          Expanded(child: _buildTableContainer()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTableContainer() {
+    if (isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF5162F6),
+        ),
+      );
+    } else if (errorDeConexion) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                if (_searchController.text.trim().isEmpty) {
+                  obtenerUsuarios();
+                } else {
+                  searchUsuarios(_searchController.text);
+                }
+              },
+              child: Text('Recargar'),
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
+                foregroundColor: MaterialStateProperty.all(Colors.white),
+                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return noUsersFound || listaUsuarios.isEmpty
           ? Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF5162F6),
+              child: Text(
+                'No hay usuarios para mostrar.',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
             )
-          : (errorDeConexion
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () {
-                          obtenerUsuarios();
-                        },
-                        child: Text('Recargar'),
-                        style: ButtonStyle(
-                          backgroundColor:
-                              MaterialStateProperty.all(Color(0xFF5162F6)),
-                          foregroundColor:
-                              MaterialStateProperty.all(Colors.white),
-                          shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    filaBuscarYAgregar(context),
-                    listaUsuarios.isEmpty
-                        ? Expanded(
-                            child: Center(
-                              child: Text(
-                                'No hay usuarios para mostrar.',
-                                style:
-                                    TextStyle(fontSize: 16, color: Colors.grey),
-                              ),
-                            ),
-                          )
-                        : filaTabla(context),
-                  ],
-                )),
-    );
+          : filaTabla(context);
+    }
   }
 
   Widget filaBuscarYAgregar(BuildContext context) {
@@ -276,6 +442,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
               boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
             ),
             child: TextField(
+              controller: _searchController,
               decoration: InputDecoration(
                 contentPadding:
                     EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
@@ -285,6 +452,15 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                       BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
                 ),
                 prefixIcon: Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          obtenerUsuarios();
+                        },
+                      )
+                    : null,
                 filled: true,
                 fillColor: Colors.white,
                 hintText: 'Buscar...',
@@ -293,6 +469,14 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                   borderSide: BorderSide.none,
                 ),
               ),
+              onChanged: (value) {
+                if (_debounceTimer?.isActive ?? false) {
+                  _debounceTimer!.cancel();
+                }
+                _debounceTimer = Timer(Duration(milliseconds: 500), () {
+                  searchUsuarios(value);
+                });
+              },
             ),
           ),
           ElevatedButton(
@@ -322,9 +506,10 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
             borderRadius: BorderRadius.circular(15.0),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  spreadRadius: 0.5,
-                  blurRadius: 5)
+                color: Colors.black.withOpacity(0.1),
+                spreadRadius: 0.5,
+                blurRadius: 5,
+              ),
             ],
           ),
           child: listaUsuarios.isEmpty
@@ -334,115 +519,121 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 )
-              : LayoutBuilder(builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: constraints.maxWidth,
-                      ),
-                      child: DataTable(
-                        showCheckboxColumn: false,
-                        headingRowColor: MaterialStateProperty.resolveWith(
-                            (states) => Color(0xFFDFE7F5)),
-                        dataRowHeight: 50,
-                        columnSpacing: 30,
-                        headingTextStyle: TextStyle(
-                            fontWeight: FontWeight.bold, color: Colors.black),
-                        columns: [
-                          DataColumn(
-                              label: Text('Tipo',
-                                  style: TextStyle(
-                                      fontSize: textHeaderTableSize))),
-                          DataColumn(
-                              label: Text('Usuario',
-                                  style: TextStyle(
-                                      fontSize: textHeaderTableSize))),
-                          DataColumn(
-                              label: Text('Nombre Completo',
-                                  style: TextStyle(
-                                      fontSize: textHeaderTableSize))),
-                          DataColumn(
-                              label: Text('Email',
-                                  style: TextStyle(
-                                      fontSize: textHeaderTableSize))),
-                          
-                          DataColumn(
-                              label: Text('Fecha Creación',
-                                  style: TextStyle(
-                                      fontSize: textHeaderTableSize))),
-                          DataColumn(
-                            label: Text(
-                              'Acciones',
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            ),
-                          ),
-                        ],
-                        rows: listaUsuarios.map((usuario) {
-                          return DataRow(
-                            cells: [
-                              DataCell(Text(usuario.tipoUsuario,
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(Text(usuario.usuario,
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(Text(usuario.nombreCompleto,
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(Text(usuario.email,
-                                  style: TextStyle(fontSize: textTableSize))),
-                              
-                              DataCell(Text(formatDate(usuario.fCreacion),
-                                  style: TextStyle(fontSize: textTableSize))),
-                              DataCell(
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.edit_outlined,
-                                          color: Colors.grey),
-                                      onPressed: () {
-                                        mostrarDialogoEditarUsuario(
-                                            usuario.idusuarios);
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.delete_outline,
-                                          color: Colors.grey),
-                                      onPressed: () {
-                                        // Lógica para eliminar el usuario
-                                      },
-                                    ),
-                                  ],
-                                ),
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.vertical,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: constraints.maxWidth,
+                        ),
+                        child: DataTable(
+                          showCheckboxColumn: false,
+                          headingRowColor: MaterialStateProperty.resolveWith(
+                              (states) => Color(0xFFDFE7F5)),
+                          dataRowHeight: 50,
+                          columnSpacing: 30,
+                          headingTextStyle: TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.black),
+                          columns: [
+                            DataColumn(
+                                label: Text('Tipo',
+                                    style: TextStyle(
+                                        fontSize: textHeaderTableSize))),
+                            DataColumn(
+                                label: Text('Usuario',
+                                    style: TextStyle(
+                                        fontSize: textHeaderTableSize))),
+                            DataColumn(
+                                label: Text('Nombre Completo',
+                                    style: TextStyle(
+                                        fontSize: textHeaderTableSize))),
+                            DataColumn(
+                                label: Text('Email',
+                                    style: TextStyle(
+                                        fontSize: textHeaderTableSize))),
+                            DataColumn(
+                                label: Text('Fecha Creación',
+                                    style: TextStyle(
+                                        fontSize: textHeaderTableSize))),
+                            DataColumn(
+                              label: Text(
+                                'Acciones',
+                                style: TextStyle(fontSize: textHeaderTableSize),
                               ),
-                            ],
-                            onSelectChanged: (isSelected) async {
-                              if (isSelected!) {
-                                final resultado = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => InfoUsuario(
-                                    idUsuario: usuario.idusuarios,
+                            ),
+                          ],
+                          rows: listaUsuarios.map((usuario) {
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(usuario.tipoUsuario,
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(usuario.usuario,
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(usuario.nombreCompleto,
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(usuario.email,
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(formatDate(usuario.fCreacion),
+                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.edit_outlined,
+                                            color: Colors.grey),
+                                        onPressed: () {
+                                          mostrarDialogoEditarUsuario(
+                                              usuario.idusuarios);
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline,
+                                            color: Colors.grey),
+                                        onPressed: () async {
+                                          bool confirmado =
+                                              await mostrarDialogoConfirmacion(
+                                                  context);
+                                          if (confirmado) {
+                                            await eliminarUsuario(
+                                                usuario.idusuarios);
+                                          }
+                                        },
+                                      ),
+                                    ],
                                   ),
-                                );
+                                ),
+                              ],
+                              onSelectChanged: (isSelected) async {
+                                if (isSelected!) {
+                                  final resultado = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => InfoUsuario(
+                                      idUsuario: usuario.idusuarios,
+                                    ),
+                                  );
 
-                                if (resultado == true) {
-                                  obtenerUsuarios();
+                                  if (resultado == true) {
+                                    obtenerUsuarios();
+                                  }
                                 }
-                              }
-                            },
-                            color: MaterialStateColor.resolveWith((states) {
-                              if (states.contains(MaterialState.selected)) {
-                                return Colors.blue.withOpacity(0.1);
-                              } else if (states
-                                  .contains(MaterialState.hovered)) {
-                                return Colors.blue.withOpacity(0.2);
-                              }
-                              return Colors.transparent;
-                            }),
-                          );
-                        }).toList(),
+                              },
+                              color: MaterialStateColor.resolveWith((states) {
+                                if (states.contains(MaterialState.selected)) {
+                                  return Colors.blue.withOpacity(0.1);
+                                } else if (states
+                                    .contains(MaterialState.hovered)) {
+                                  return Colors.blue.withOpacity(0.2);
+                                }
+                                return Colors.transparent;
+                              }),
+                            );
+                          }).toList(),
+                        ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  },
+                ),
         ),
       ),
     );

@@ -61,7 +61,6 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
   bool dialogShown = false; // Evitar mostrar múltiples diálogos de error
   bool _dialogShown = false;
 
-
   @override
   void initState() {
     super.initState();
@@ -78,78 +77,80 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
 
   // Función para obtener los detalles del grupo
   // Función para obtener los detalles del grupo con manejo de token y errores
-Future<void> fetchGrupoData() async {
-  if (!mounted) return;
-  
-  print('Ejecutando fetchGrupoData');
-  _timer?.cancel();
-
-  setState(() => _isLoading = true);
-
-  _timer = Timer(const Duration(seconds: 10), () {
-    if (mounted && _isLoading && !_dialogShown) {
-      setState(() => _isLoading = false);
-      mostrarDialogoError('Error de conexión. Revise su red.');
-      _dialogShown = true;
-    }
-  });
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    
-    final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {'tokenauth': token},
-    );
-
+  Future<void> fetchGrupoData() async {
     if (!mounted) return;
+
+    print('Ejecutando fetchGrupoData');
     _timer?.cancel();
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body)[0];
-      List<Map<String, dynamic>> clientesActuales = [];
+    setState(() => _isLoading = true);
 
-      if (mounted) {
-        setState(() {
-          grupoData = data;
-          _isLoading = false;
-          nombreGrupoController.text = data['nombreGrupo'] ?? '';
-          descripcionController.text = data['detalles'] ?? '';
-          selectedTipo = data['tipoGrupo'];
-          _selectedPersons.clear();
-          _cargosSeleccionados.clear();
+    _timer = Timer(const Duration(seconds: 10), () {
+      if (mounted && _isLoading && !_dialogShown) {
+        setState(() => _isLoading = false);
+        mostrarDialogoError('Error de conexión. Revise su red.');
+        _dialogShown = true;
+      }
+    });
 
-          if (data['clientes'] != null) {
-            clientesActuales = List<Map<String, dynamic>>.from(data['clientes']);
-            _selectedPersons.addAll(clientesActuales);
-            
-            for (var cliente in clientesActuales) {
-              String? idCliente = cliente['idclientes'];
-              String? cargo = cliente['cargo'];
-              if (idCliente != null && cargo != null) {
-                _cargosSeleccionados[idCliente] = cargo;
-                _originalCargos[idCliente] = cargo;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'tokenauth': token},
+      );
+
+      if (!mounted) return;
+      _timer?.cancel();
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body)[0];
+        List<Map<String, dynamic>> clientesActuales = [];
+
+        if (mounted) {
+          setState(() {
+            grupoData = data;
+            _isLoading = false;
+            nombreGrupoController.text = data['nombreGrupo'] ?? '';
+            descripcionController.text = data['detalles'] ?? '';
+            selectedTipo = data['tipoGrupo'];
+            _selectedPersons.clear();
+            _cargosSeleccionados.clear();
+
+            if (data['clientes'] != null) {
+              clientesActuales =
+                  List<Map<String, dynamic>>.from(data['clientes']);
+              _selectedPersons.addAll(clientesActuales);
+
+              for (var cliente in clientesActuales) {
+                String? idCliente = cliente['idclientes'];
+                String? cargo = cliente['cargo'];
+                if (idCliente != null && cargo != null) {
+                  _cargosSeleccionados[idCliente] = cargo;
+                  _originalCargos[idCliente] = cargo;
+                }
               }
             }
-          }
-        });
+          });
+        }
+
+        print('Clientes actuales del grupo:');
+        clientesActuales.forEach((cliente) => print(
+            'id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}'));
+      } else {
+        _handleApiError(response, 'Error cargando grupo');
       }
-      
-      print('Clientes actuales del grupo:');
-      clientesActuales.forEach((cliente) => print('id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}'));
-    } else {
-      _handleApiError(response, 'Error cargando grupo');
-    }
-  } catch (e) {
-    _handleNetworkError(e);
-  } finally {
-    if (mounted && _isLoading) {
-      setState(() => _isLoading = false);
+    } catch (e) {
+      _handleNetworkError(e);
+    } finally {
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
 
   // Función para mostrar el diálogo de error
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
@@ -186,153 +187,155 @@ Future<void> fetchGrupoData() async {
   }
 
   Future<List<Map<String, dynamic>>> findPersons(String query) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    
-    final response = await http.get(
-      Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
-      headers: {'tokenauth': token},
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
 
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(json.decode(response.body));
-    } else {
-      _handleApiError(response, 'Error buscando personas');
+      final response = await http.get(
+        Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
+        headers: {'tokenauth': token},
+      );
+
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(json.decode(response.body));
+      } else {
+        _handleApiError(response, 'Error buscando personas');
+        return [];
+      }
+    } catch (e) {
+      _handleNetworkError(e);
       return [];
     }
-  } catch (e) {
-    _handleNetworkError(e);
-    return [];
   }
-}
-
 
   void _renovarGrupo() async {
-  if (!mounted) return;
-  
-  setState(() => _isLoading = true);
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    
-    final Map<String, dynamic> data = {
-      'idgrupos': widget.idGrupo,
-      'nombreGrupo': nombreGrupoController.text,
-      'detalles': descripcionController.text,
-      'tipoGrupo': selectedTipo,
-    };
-
-    final response = await http.post(
-      Uri.parse('http://$baseUrl/api/v1/grupos/renovacion'),
-      headers: {
-        'Content-Type': 'application/json',
-        'tokenauth': token,
-      },
-      body: json.encode(data),
-    );
-
     if (!mounted) return;
 
-    if (response.statusCode == 201) {
-      final responseBody = jsonDecode(response.body);
-      final idNuevoGrupo = responseBody['idgrupos'];
-      
-      if (_selectedPersons.isNotEmpty) {
-        await _enviarMiembros(idNuevoGrupo, token);
-      }
+    setState(() => _isLoading = true);
 
-      if (mounted) {
-        widget.onGrupoRenovado?.call();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Grupo renovado correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final Map<String, dynamic> data = {
+        'idgrupos': widget.idGrupo,
+        'nombreGrupo': nombreGrupoController.text,
+        'detalles': descripcionController.text,
+        'tipoGrupo': selectedTipo,
+      };
+
+      final response = await http.post(
+        Uri.parse('http://$baseUrl/api/v1/grupos/renovacion'),
+        headers: {
+          'Content-Type': 'application/json',
+          'tokenauth': token,
+        },
+        body: json.encode(data),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 201) {
+        final responseBody = jsonDecode(response.body);
+        final idNuevoGrupo = responseBody['idgrupos'];
+
+        if (_selectedPersons.isNotEmpty) {
+          await _enviarMiembros(idNuevoGrupo, token);
+        }
+
+        if (mounted) {
+          widget.onGrupoRenovado?.call();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Grupo renovado correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        _handleApiError(response, 'Error renovando grupo');
       }
-    } else {
-      _handleApiError(response, 'Error renovando grupo');
+    } catch (e) {
+      _handleNetworkError(e);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  } catch (e) {
-    _handleNetworkError(e);
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
 
   Future<void> _enviarMiembros(String idGrupo, String token) async {
-  try {
-    final miembros = _selectedPersons.map((persona) => {
-      'idclientes': persona['idclientes'],
-      'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
-    }).toList();
+    try {
+      final miembros = _selectedPersons
+          .map((persona) => {
+                'idclientes': persona['idclientes'],
+                'nomCargo':
+                    _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
+              })
+          .toList();
 
-    final response = await http.post(
-      Uri.parse('http://$baseUrl/api/v1/grupodetalles/renovacion'),
-      headers: {
-        'Content-Type': 'application/json',
-        'tokenauth': token,
-      },
-      body: json.encode({
-        'idgrupos': idGrupo,
-        'clientes': miembros,
-        'idusuarios': 'WVI8HMQAG5',
-      }),
-    );
+      final response = await http.post(
+        Uri.parse('http://$baseUrl/api/v1/grupodetalles/renovacion'),
+        headers: {
+          'Content-Type': 'application/json',
+          'tokenauth': token,
+        },
+        body: json.encode({
+          'idgrupos': idGrupo,
+          'clientes': miembros,
+          'idusuarios': 'WVI8HMQAG5',
+        }),
+      );
 
-    if (response.statusCode != 201) {
-      _handleApiError(response, 'Error agregando miembros');
+      if (response.statusCode != 201) {
+        _handleApiError(response, 'Error agregando miembros');
+      }
+    } catch (e) {
+      _handleNetworkError(e);
     }
-  } catch (e) {
-    _handleNetworkError(e);
   }
-}
 
-void _handleApiError(http.Response response, String mensajeBase) {
-  try {
-    final errorData = json.decode(response.body);
-    final errorMessage = (errorData['Error']?['Message'] ?? 
-                        errorData['error']?['message'] ?? 
-                        'Error desconocido').toString();
+  void _handleApiError(http.Response response, String mensajeBase) {
+    try {
+      final errorData = json.decode(response.body);
+      final errorMessage = (errorData['Error']?['Message'] ??
+              errorData['error']?['message'] ??
+              'Error desconocido')
+          .toString();
 
-    if ([401, 403, 404].contains(response.statusCode) && 
-       (errorMessage.toLowerCase().contains('jwt') || 
-        errorMessage.toLowerCase().contains('token'))) {
-      _handleTokenExpiration();
+      if ([401, 403, 404].contains(response.statusCode) &&
+          (errorMessage.toLowerCase().contains('jwt') ||
+              errorMessage.toLowerCase().contains('token'))) {
+        _handleTokenExpiration();
+      } else {
+        mostrarDialogoError('$mensajeBase: $errorMessage');
+      }
+    } catch (e) {
+      mostrarDialogoError('$mensajeBase: Error desconocido');
+    }
+  }
+
+  void _handleNetworkError(dynamic error) {
+    if (error is SocketException) {
+      mostrarDialogoError('Error de conexión. Verifique su internet');
     } else {
-      mostrarDialogoError('$mensajeBase: $errorMessage');
+      mostrarDialogoError('Error inesperado: ${error.toString()}');
     }
-  } catch (e) {
-    mostrarDialogoError('$mensajeBase: Error desconocido');
   }
-}
 
-void _handleNetworkError(dynamic error) {
-  if (error is SocketException) {
-    mostrarDialogoError('Error de conexión. Verifique su internet');
-  } else {
-    mostrarDialogoError('Error inesperado: ${error.toString()}');
+  void _handleTokenExpiration() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tokenauth');
+
+    if (mounted) {
+      mostrarDialogoError(
+        'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+        onClose: () => Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false,
+        ),
+      );
+    }
   }
-}
-
-void _handleTokenExpiration() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('tokenauth');
-  
-  if (mounted) {
-    mostrarDialogoError(
-      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-      onClose: () => Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-        (route) => false,
-      ),
-    );
-  }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -356,15 +359,21 @@ void _handleTokenExpiration() async {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: Color(0xFF5162F6),
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: Color(0xFF5162F6),
-                    tabs: [
-                      Tab(text: 'Información del Grupo'),
-                      Tab(text: 'Miembros del Grupo'),
-                    ],
+                  Focus(
+                    canRequestFocus: false,
+                    descendantsAreFocusable: false,
+                    child: IgnorePointer(
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: Color(0xFF5162F6),
+                        unselectedLabelColor: Colors.grey,
+                        indicatorColor: Color(0xFF5162F6),
+                        tabs: [
+                          Tab(text: 'Información del Grupo'),
+                          Tab(text: 'Miembros del Grupo'),
+                        ],
+                      ),
+                    ),
                   ),
                   Expanded(
                     child: TabBarView(

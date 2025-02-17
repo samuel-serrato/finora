@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:money_facil/formateador.dart';
 import 'package:money_facil/ip.dart';
 import 'package:money_facil/screens/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -142,16 +143,18 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   }
 
   Future<bool> _validarSumaMontos(BuildContext context) async {
-    // Sumar los montos individuales desde el mapa
+    // Obtener monto total convertido a double
+    double montoTotal = obtenerMontoReal(montoController.text);
+
+    // Sumar montos individuales ya convertidos
     double sumaMontosIndividuales = montosIndividuales.values
         .fold(0.0, (previousValue, element) => previousValue + element);
-    double montoTotal = double.tryParse(montoController.text) ?? 0.0;
 
-    print('Suma montos individuales:${sumaMontosIndividuales}');
-    print('Monto Total:${montoTotal}');
+    print('Suma individual: $sumaMontosIndividuales');
+    print('Monto total: $montoTotal');
 
-    if (sumaMontosIndividuales != montoTotal) {
-      // Mostrar un diálogo de advertencia si los montos no coinciden
+    // Comparar con margen de error para decimales
+    if ((sumaMontosIndividuales - montoTotal).abs() > 0.001) {
       await _mostrarDialogoAdvertencia(context);
       return false;
     }
@@ -212,64 +215,90 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
   // Actualiza el método enviarCredito
   Future<void> enviarCredito(Map<String, dynamic> datos) async {
-    final String url = 'http://$baseUrl/api/v1/creditos';
+  final String url = 'http://$baseUrl/api/v1/creditos';
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
 
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'tokenauth': token,
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(datos),
-      );
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'tokenauth': token,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(datos),
+    );
 
-      if (mounted) {
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Crédito guardado exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          widget.onCreditoAgregado();
-          Navigator.of(context).pop();
-        } else if (response.statusCode == 404) {
-          print('Respuesta ${response.body}');
-          final errorData = json.decode(response.body);
-          if (errorData["Error"]["Message"] == "jwt expired") {
-            await prefs.remove('tokenauth');
-            mostrarDialogoError(
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                onClose: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
-            });
-          } else {
-            _mostrarError(
-                'Error al guardar el crédito: ${response.statusCode}');
-          }
-        } else {
-          _mostrarError('Error al guardar el crédito: ${response.statusCode}');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
+    if (mounted) {
+      // Respuesta exitosa
+      if (response.statusCode == 200 || response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error de conexión. Verifica tu red.'),
-            backgroundColor: Colors.red,
+            content: Text('Crédito guardado exitosamente'),
+            backgroundColor: Colors.green,
           ),
         );
-        print('Error al guardar el crédito: $e');
+        widget.onCreditoAgregado();
+        Navigator.of(context).pop();
+      
+      // Manejo de errores
+      } else {
+        // Imprimir detalles del error en consola
+        print('══════════════ ERROR ══════════════');
+        print('Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        print('═══════════════════════════════════');
+
+        // Caso específico para JWT expirado
+        if (response.statusCode == 404) {
+          try {
+            final errorData = json.decode(response.body);
+            if (errorData["Error"]["Message"] == "jwt expired") {
+              await prefs.remove('tokenauth');
+              mostrarDialogoError(
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                },
+              );
+            } else {
+              _mostrarError('Error del servidor: ${errorData["Error"]["Message"] ?? "Error desconocido"}');
+            }
+          } catch (e) {
+            print('Error al decodificar respuesta: $e');
+            _mostrarError('Error inesperado: ${response.body}');
+          }
+        } else {
+          // Otros códigos de error
+          _mostrarError('Error al guardar (Código ${response.statusCode})');
+        }
       }
     }
+  } catch (e) {
+    if (mounted) {
+      print('══════════════ EXCEPCIÓN ══════════════');
+      print('Error completo: $e');
+      if (e is http.ClientException) {
+        print('Error de conexión: ${e.message}');
+        print('URI: ${e.uri}');
+      }
+      print('══════════════════════════════════════');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión. Verifica tu red.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
+}
+
+
 
   void _mostrarError(String mensaje) {
     showDialog(
@@ -438,8 +467,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Stack(
-        children: [
+      child: Stack(children: [
         Container(
           width: width,
           height: height,
@@ -451,16 +479,22 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 10),
-              TabBar(
-                controller: _tabController,
-                labelColor: Color(0xFF5162F6),
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: Color(0xFF5162F6),
-                tabs: [
-                  Tab(text: 'Datos Generales'),
-                  Tab(text: 'Integrantes'),
-                  Tab(text: 'Resumen'),
-                ],
+              Focus(
+                canRequestFocus: false,
+                descendantsAreFocusable: false,
+                child: IgnorePointer(
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: const Color(0xFF5162F6),
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: const Color(0xFF5162F6),
+                    tabs: const [
+                      Tab(text: 'Datos Generales'),
+                      Tab(text: 'Integrantes'),
+                      Tab(text: 'Resumen'),
+                    ],
+                  ),
+                ),
               ),
               Expanded(
                 child: TabBarView(
@@ -625,10 +659,25 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                           controller: montoController,
                           label: 'Monto Autorizado',
                           icon: Icons.attach_money,
-                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[\d\.]')),
+                          ],
+                          keyboardType:
+                              TextInputType.numberWithOptions(decimal: true),
                           validator: (value) => value?.isEmpty ?? true
-                              ? 'Ingrese el monto autorizado'
+                              ? 'Ingrese el monto'
                               : null,
+                          onChanged: (value) {
+                            String formatted = formatMonto(value);
+                            if (montoController.text != formatted) {
+                              montoController.value = TextEditingValue(
+                                text: formatted,
+                                selection: TextSelection.collapsed(
+                                    offset: formatted.length),
+                              );
+                            }
+                          },
                         ),
                       ),
                     ],
@@ -771,37 +820,43 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                       ),
                       SizedBox(width: 10),
                       Expanded(
-                        child: frecuenciaPago == "Semanal"
-                            ? _buildDropdown(
-                                value: plazoController.text.isEmpty
-                                    ? null
-                                    : plazoController.text,
-                                hint: 'Elige plazo',
-                                items: ["12", "14", "16"],
-                                onChanged: (value) {
-                                  setState(() {
-                                    plazoController.text = value ?? "";
-                                  });
-                                },
-                                validator: (value) => value?.isEmpty ?? true
-                                    ? 'Seleccione un plazo'
-                                    : null,
-                              )
-                            : _buildDropdown(
-                                value: plazoController.text.isEmpty
-                                    ? null
-                                    : plazoController.text,
-                                hint: 'Elige plazo',
-                                items: ["4"],
-                                onChanged: (value) {
-                                  setState(() {
-                                    plazoController.text = value ?? "";
-                                  });
-                                },
-                                validator: (value) => value?.isEmpty ?? true
-                                    ? 'Seleccione un plazo'
-                                    : null,
-                              ),
+                        child: AbsorbPointer(
+                          absorbing: selectedGrupo ==
+                              null, // Bloquea la interacción si no hay grupo
+                          child: frecuenciaPago == "Semanal"
+                              ? _buildDropdown(
+                                  value: plazoController.text.isEmpty
+                                      ? null
+                                      : plazoController.text,
+                                  hint: 'Elige plazo',
+                                  items: ["12", "14", "16"],
+                                  onChanged: (value) {
+                                    // Función siempre presente
+                                    setState(() {
+                                      plazoController.text = value ?? "";
+                                    });
+                                  },
+                                  validator: (value) => value?.isEmpty ?? true
+                                      ? 'Seleccione un plazo'
+                                      : null,
+                                )
+                              : _buildDropdown(
+                                  value: plazoController.text.isEmpty
+                                      ? null
+                                      : plazoController.text,
+                                  hint: 'Elige plazo',
+                                  items: ["4"],
+                                  onChanged: (value) {
+                                    // Función siempre presente
+                                    setState(() {
+                                      plazoController.text = value ?? "";
+                                    });
+                                  },
+                                  validator: (value) => value?.isEmpty ?? true
+                                      ? 'Seleccione un plazo'
+                                      : null,
+                                ),
+                        ),
                       ),
                     ],
                   ),
@@ -932,27 +987,34 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                 controller: _controladoresIntegrantes[index],
                                 label: 'Monto',
                                 icon: Icons.attach_money,
-                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                      RegExp(r'[\d\.]')),
+                                ],
+                                keyboardType: TextInputType.numberWithOptions(
+                                    decimal: true),
                                 validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Por favor ingresa un monto';
-                                  }
-
-                                  // Actualizamos el monto en el mapa usando el id del cliente
-                                  try {
-                                    double nuevoMonto = double.parse(value);
-                                    montosIndividuales[cliente.idclientes] =
-                                        nuevoMonto;
-                                  } catch (e) {
-                                    return 'Monto inválido';
-                                  }
-
+                                  if (value == null || value.isEmpty)
+                                    return 'Ingrese monto';
                                   return null;
                                 },
                                 onChanged: (value) {
-                                  // Actualizamos el monto en tiempo real usando el id del cliente
+                                  String formatted = formatMonto(value);
+                                  if (_controladoresIntegrantes[index].text !=
+                                      formatted) {
+                                    _controladoresIntegrantes[index].value =
+                                        TextEditingValue(
+                                      text: formatted,
+                                      selection: TextSelection.collapsed(
+                                          offset: formatted.length),
+                                    );
+                                  }
+                                  // Actualizar mapa de montos
+                                  double parsedValue = double.tryParse(
+                                          formatted.replaceAll(',', '')) ??
+                                      0.0;
                                   montosIndividuales[cliente.idclientes] =
-                                      double.tryParse(value) ?? 0.0;
+                                      parsedValue;
                                 },
                               ),
                             ),
@@ -971,6 +1033,21 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       ],
     );
   }
+
+ double obtenerMontoReal(String formattedValue) {
+  if (formattedValue.isEmpty) return 0.0;
+  
+  // 1. Quitar todas las comas
+  String sanitized = formattedValue.replaceAll(',', '');
+  
+  // 2. Convertir a double
+  try {
+    return double.parse(sanitized);
+  } catch (e) {
+    print('Error al convertir: "$formattedValue"');
+    return 0.0;
+  }
+}
 
   DateTime calcularFechaTermino(
       DateTime fechaInicio, String frecuenciaPago, int plazo) {
@@ -1009,7 +1086,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     }
 
     // Cálculos de resumen
-    double monto = double.tryParse(montoController.text) ?? 0.0;
+    double monto = obtenerMontoReal(montoController.text); // ✅ Correcto
+
     plazoNumerico = int.tryParse(plazoController.text) ?? 0;
 
     // Variables comunes
@@ -1024,8 +1102,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     print('interesGlobal print: $interesGlobal');
 
     // Formatear los datos para mostrarlos
-    montoAutorizado =
-        formatearNumero(double.tryParse(montoController.text) ?? 0.0);
+   montoAutorizado = formatearNumero(monto); // Usar la variable monto que ya está convertida
 
     garantiaTexto = garantia ?? "No especificada";
     frecuenciaPagoTexto = frecuenciaPago ?? "No especificada";
@@ -1695,7 +1772,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       "frecuenciaPago": frecuenciaPagoTexto,
       "garantia": garantiaTexto,
       "interesGlobal": interesGlobal,
-      "montoTotal": montoController.text,
+      "montoTotal": obtenerMontoReal(montoController.text), // Convertir a double
       "interesTotal": interesTotal,
       "montoMasInteres": totalARecuperar,
       "diaPago": diaPago,
@@ -1976,40 +2053,28 @@ Widget _buildTextField({
   required IconData icon,
   TextInputType keyboardType = TextInputType.text,
   String? Function(String?)? validator,
-  double fontSize = 12.0, // Tamaño de fuente por defecto
-  int? maxLength, // Longitud máxima opcional
+  double fontSize = 12.0,
+  int? maxLength,
+  List<TextInputFormatter>? inputFormatters, // Nuevo parámetro
   void Function(String)? onChanged, // Callback para cambios
-  double borderThickness = 1.5, // Nuevo parámetro para el grosor del borde
 }) {
   return TextFormField(
     controller: controller,
     keyboardType: keyboardType,
     style: TextStyle(fontSize: fontSize),
     decoration: InputDecoration(
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15.0),
-        borderSide: BorderSide(color: Color(0xFF5162F6), width: 1.5),
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide(color: Colors.black, width: borderThickness),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide:
-            BorderSide(color: Colors.grey.shade400, width: borderThickness),
-      ),
       labelText: label,
       prefixIcon: Icon(icon),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       labelStyle: TextStyle(fontSize: fontSize),
     ),
+    textCapitalization: TextCapitalization.characters,
     validator: validator,
-    onChanged: onChanged, // Agregar soporte para onChanged
-    inputFormatters: maxLength != null
-        ? [
-            LengthLimitingTextInputFormatter(maxLength),
-          ]
-        : [],
+    onChanged: onChanged,
+    inputFormatters: [
+      if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
+      ...(inputFormatters ?? []), // Agrega los formateadores personalizados
+    ],
   );
 }
 

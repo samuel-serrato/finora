@@ -29,7 +29,8 @@ class _GruposScreenState extends State<GruposScreen> {
   bool showErrorDialog = false;
   Timer? _timer;
   bool errorDeConexion = false;
-  bool noGroupsFound = false;
+  bool noGroupsFound = false; Timer? _debounceTimer; // Para el debounce de la búsqueda
+  final TextEditingController _searchController = TextEditingController(); // Controlador para el SearchBar
 
   @override
   void initState() {
@@ -40,6 +41,8 @@ class _GruposScreenState extends State<GruposScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+     _debounceTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -138,6 +141,104 @@ class _GruposScreenState extends State<GruposScreen> {
     }
   }
 
+  Future<void> searchGrupos(String query) async {
+  if (query.trim().isEmpty) {
+    obtenerGrupos();
+    return;
+  }
+
+  if (!mounted) return;
+
+  setState(() {
+    isLoading = true;
+    errorDeConexion = false;
+    noGroupsFound = false;
+  });
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    final response = await http.get(
+      Uri.parse('http://$baseUrl/api/v1/grupodetalles/$query'),
+      headers: {'tokenauth': token},
+    ).timeout(Duration(seconds: 10));
+
+    await Future.delayed(Duration(milliseconds: 500));
+
+    if (!mounted) return;
+
+    print('Status code (search): ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+
+      setState(() {
+        listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
+        isLoading = false;
+        noGroupsFound = listaGrupos.isEmpty; // Se actualiza correctamente
+      });
+    } else if (response.statusCode == 401) {
+      _handleTokenExpiration();
+    } else if (response.statusCode == 400) { 
+      // Aquí manejamos cuando no hay resultados en la búsqueda
+      setState(() {
+        listaGrupos = [];
+        isLoading = false;
+        noGroupsFound = true;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true;
+      });
+    }
+  } on SocketException catch (e) {
+    print('SocketException: $e');
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true;
+      });
+    }
+  } on TimeoutException catch (_) {
+    print('Timeout');
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true;
+      });
+    }
+  } catch (e) {
+    print('Error general: $e');
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        errorDeConexion = true;
+      });
+    }
+  }
+}
+
+
+void _handleTokenExpiration() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.remove('tokenauth');
+
+  if (mounted) {
+    mostrarDialogoError(
+      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+      onClose: () {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false,
+        );
+      },
+    );
+  }
+}
+
   void setErrorState(bool dialogShown, [dynamic error]) {
     setState(() {
       isLoading = false;
@@ -190,157 +291,173 @@ class _GruposScreenState extends State<GruposScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xFFF7F8FA),
-      appBar: CustomAppBar(
-        isDarkMode: _isDarkMode,
-        toggleDarkMode: _toggleDarkMode,
-        title: 'Grupos', // Título específico para esta pantalla
-        nombre: widget.username,
-        tipoUsuario: widget.tipoUsuario,
-      ),
-      body: isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF5162F6),
-              ),
-            )
-          : (errorDeConexion
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () {
-                          obtenerGrupos();
-                        },
-                        child: Text('Recargar'),
-                        style: ButtonStyle(
-                          backgroundColor:
-                              MaterialStateProperty.all(Color(0xFF5162F6)),
-                          foregroundColor:
-                              MaterialStateProperty.all(Colors.white),
-                          shape:
-                              MaterialStateProperty.all<RoundedRectangleBorder>(
-                            RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-/*                     Padding(
-                      padding:
-                          const EdgeInsets.only(top: 10, left: 20, right: 20),
-                      child: Text('Aquí podrás ver los clientes'),
-                    ), */
-                    filaBuscarYAgregar(context),
-                    listaGrupos.isEmpty
-                        ? Expanded(
-                            child: Center(
-                              child: Text(
-                                'No hay grupos para mostrar.',
-                                style:
-                                    TextStyle(fontSize: 16, color: Colors.grey),
-                              ),
-                            ),
-                          )
-                        : filaTabla(
-                            context), // Muestra la tabla solo si hay clientes
-                  ],
-                )),
-    );
-  }
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Color(0xFFF7F8FA),
+    appBar: CustomAppBar(
+      isDarkMode: _isDarkMode,
+      toggleDarkMode: _toggleDarkMode,
+      title: 'Grupos',
+      nombre: widget.username,
+      tipoUsuario: widget.tipoUsuario,
+    ),
+    body: Column(
+      children: [
+        if (!errorDeConexion) filaBuscarYAgregar(context),
+        Expanded(child: _buildTableContainer()),
+      ],
+    ),
+  );
+}
 
-  Widget filaBuscarYAgregar(BuildContext context) {
-    double maxWidth = MediaQuery.of(context).size.width * 0.35;
-    return Padding(
-      padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+Widget _buildTableContainer() {
+  if (isLoading) {
+    return Center(
+      child: CircularProgressIndicator(
+        color: Color(0xFF5162F6),
+      ),
+    );
+  } else if (errorDeConexion) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            height: 40,
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20.0),
-              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
-            ),
-            child: TextField(
-              decoration: InputDecoration(
-                contentPadding:
-                    EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20.0),
-                  borderSide:
-                      BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
-                ),
-                prefixIcon: Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                hintText: 'Buscar...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20.0),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
+          Text(
+            'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+            textAlign: TextAlign.center,
           ),
+          SizedBox(height: 20),
           ElevatedButton(
+            onPressed: () {
+              if (_searchController.text.trim().isEmpty) {
+                obtenerGrupos();
+              } else {
+                searchGrupos(_searchController.text);
+              }
+            },
+            child: Text('Recargar'),
             style: ButtonStyle(
               backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
               foregroundColor: MaterialStateProperty.all(Colors.white),
               shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
               ),
             ),
-            onPressed: mostrarDialogAgregarGrupo,
-            child: Text('Agregar Grupo'),
           ),
         ],
       ),
     );
+  } else {
+    return noGroupsFound || listaGrupos.isEmpty
+        ? Center(
+            child: Text(
+              'No hay grupos para mostrar.',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          )
+        : filaTabla(context);
   }
+}
 
-  Widget filaTabla(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.all(20),
-        child: Container(
-          padding: EdgeInsets.all(16.0),
+  Widget filaBuscarYAgregar(BuildContext context) {
+  double maxWidth = MediaQuery.of(context).size.width * 0.35;
+  return Padding(
+    padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Container(
+          height: 40,
+          constraints: BoxConstraints(maxWidth: maxWidth),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(15.0),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  spreadRadius: 0.5,
-                  blurRadius: 5)
-            ],
+            borderRadius: BorderRadius.circular(20.0),
+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
           ),
-          child: listaGrupos.isEmpty
-              ? Center(
-                  child: Text(
-                    'No hay grupos para mostrar.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                )
-              : LayoutBuilder(builder: (context, constraints) {
-                  // Filtrar los grupos con estado 'Activo'
-                  var gruposActivos = listaGrupos
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              contentPadding:
+                  EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20.0),
+                borderSide:
+                    BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
+              ),
+              prefixIcon: Icon(Icons.search),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        obtenerGrupos();
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.white,
+              hintText: 'Buscar...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(20.0),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            onChanged: (value) {
+              if (_debounceTimer?.isActive ?? false) {
+                _debounceTimer!.cancel();
+              }
+              _debounceTimer = Timer(Duration(milliseconds: 500), () {
+                searchGrupos(value);
+              });
+            },
+          ),
+        ),
+        ElevatedButton(
+          style: ButtonStyle(
+            backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
+            foregroundColor: MaterialStateProperty.all(Colors.white),
+            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          onPressed: mostrarDialogAgregarGrupo,
+          child: Text('Agregar Grupo'),
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget filaTabla(BuildContext context) {
+  return Expanded(
+    child: Container(
+      padding: EdgeInsets.all(20),
+      child: Container(
+        padding: EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              spreadRadius: 0.5,
+              blurRadius: 5,
+            ),
+          ],
+        ),
+        child: listaGrupos.isEmpty
+            ? Center(
+                child: Text(
+                  'No hay grupos para mostrar.',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              )
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  var gruposFiltrados = listaGrupos
                       .where((grupo) =>
                           grupo.estado == 'Disponible' ||
                           grupo.estado == 'Liquidado' ||
@@ -350,7 +467,7 @@ class _GruposScreenState extends State<GruposScreen> {
                     scrollDirection: Axis.vertical,
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
-                        minWidth: constraints.maxWidth, // Ocupa todo el ancho
+                        minWidth: constraints.maxWidth,
                       ),
                       child: DataTable(
                         showCheckboxColumn: false,
@@ -396,7 +513,7 @@ class _GruposScreenState extends State<GruposScreen> {
                             ),
                           ),
                         ],
-                        rows: gruposActivos.map((grupo) {
+                        rows: gruposFiltrados.map((grupo) {
                           return DataRow(
                             cells: [
                               DataCell(Text(grupo.idgrupos.toString(),
@@ -421,7 +538,7 @@ class _GruposScreenState extends State<GruposScreen> {
                                           color: Colors.grey),
                                       onPressed: () {
                                         mostrarDialogoEditarCliente(grupo
-                                            .idgrupos!); // Llama la función para editar el cliente
+                                            .idgrupos!);
                                       },
                                     ),
                                     IconButton(
@@ -446,7 +563,7 @@ class _GruposScreenState extends State<GruposScreen> {
                                 );
 
                                 if (resultado == true) {
-                                  obtenerGrupos(); // Refresca la lista solo si el resultado es true
+                                  obtenerGrupos();
                                 }
                               }
                             },
@@ -464,11 +581,12 @@ class _GruposScreenState extends State<GruposScreen> {
                       ),
                     ),
                   );
-                }),
-        ),
+                },
+              ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _eliminarGrupo(String idGrupo) async {
   print('[ELIMINAR GRUPO] Iniciando proceso...');

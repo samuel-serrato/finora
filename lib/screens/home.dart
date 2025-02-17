@@ -1,55 +1,52 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:money_facil/custom_app_bar.dart';
-import '../widgets/CardUserWidget.dart';
-//import 'nusuario.dart';
-import 'dart:async';
+import 'package:http/http.dart' as http;
+import 'package:money_facil/ip.dart';
+
 
 class HomeScreen extends StatefulWidget {
-    final String username;
-    final String tipoUsuario;
+  final String username;
+  final String tipoUsuario;
 
-  const HomeScreen({Key? key, required this.username, required this.tipoUsuario}) : super(key: key);
+  const HomeScreen({
+    Key? key,
+    required this.username,
+    required this.tipoUsuario,
+  }) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  TextEditingController _notaController = TextEditingController();
-  Set<int> selectedItems = Set<int>();
-  int hoveredItemIndex = -1;
-
   late Timer timer;
-  List<Usuario> listausuarios = []; // Lista vacía de usuarios
-  List<Nota> listaNotas = []; // Lista vacía de notas
-  bool isLoading = false; // Establecer como falso ya que no se carga nada
-  //bool showErrorDialog = false;
-  String nombre = '';
   String formattedDate = DateFormat('EEEE, d MMMM yyyy').format(DateTime.now());
   String formattedDateTime = DateFormat('h:mm:ss a').format(DateTime.now());
+  bool _isDarkMode = false;
+    HomeData? homeData;
+  bool isLoading = true;
+  String errorMessage = '';
 
   @override
   void initState() {
     super.initState();
-
-    // Actualizar la fecha y la hora cada segundo
-    timer = Timer.periodic(Duration(seconds: 1), (Timer timer) {
+    timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       setState(() {
         formattedDate = DateFormat('EEEE, d MMMM yyyy').format(DateTime.now());
         formattedDateTime = DateFormat('h:mm:ss a').format(DateTime.now());
       });
     });
+      _fetchHomeData();
   }
 
   @override
   void dispose() {
-    // Cancelar el temporizador en el método dispose()
     timer.cancel();
     super.dispose();
   }
-
-  bool _isDarkMode = false;
 
   void _toggleDarkMode(bool value) {
     setState(() {
@@ -57,13 +54,80 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _fetchHomeData() async {
+  final Uri url = Uri.parse('http://$baseUrl/api/v1/home');
+  
+  print('🔄 Iniciando solicitud a: ${url.toString()}');
+  
+  try {
+    final response = await http.get(url)
+      .timeout(const Duration(seconds: 10));
+    
+    print('✅ Respuesta recibida - Código: ${response.statusCode}');
+    print('📄 Cuerpo de la respuesta: ${response.body}');
+
+    if (response.statusCode == 200) {
+      try {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        final HomeData parsedData = HomeData.fromJson(responseData);
+        
+        print('📦 Datos parseados correctamente:');
+        print(' - Créditos activos: ${parsedData.creditosActFin.first.creditos_activos}');
+        print(' - Grupos activos: ${parsedData.gruposIndGrupos.first.grupos_activos}');
+        print(' - Total depósitos: ${parsedData.sumaPagos.first.sumaDepositos}');
+
+        setState(() {
+          homeData = parsedData;
+          isLoading = false;
+          errorMessage = '';
+        });
+        
+      } catch (e) {
+        print('❌ Error parseando respuesta: $e');
+        setState(() {
+          errorMessage = 'Error en formato de datos';
+          isLoading = false;
+        });
+      }
+    } else {
+      print('⚠️ Respuesta no exitosa - Código: ${response.statusCode}');
+      setState(() {
+        errorMessage = 'Error del servidor: ${response.statusCode}';
+        isLoading = false;
+      });
+    }
+  } on http.ClientException catch (e) {
+    print('❌ Error de conexión: $e');
+    setState(() {
+      errorMessage = 'Error de conexión: ${e.message}';
+      isLoading = false;
+    });
+  } on TimeoutException {
+    print('⌛ Tiempo de espera agotado');
+    setState(() {
+      errorMessage = 'Tiempo de espera agotado';
+      isLoading = false;
+    });
+  } catch (e) {
+    print('❌ Error inesperado: $e');
+    setState(() {
+      errorMessage = 'Error inesperado: ${e.toString()}';
+      isLoading = false;
+    });
+  }
+  
+  if (errorMessage.isNotEmpty) {
+    print('❗ Estado final - Error: $errorMessage');
+  } else {
+    print('🎉 Datos cargados exitosamente!');
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width <= 600;
-
     return Scaffold(
-      backgroundColor: Color(0xFFF7F8FA),
+      backgroundColor: /* _isDarkMode ? Colors.grey[900] : */ const Color(0xFFF7F8FA),
       body: content(),
       appBar: CustomAppBar(
         isDarkMode: _isDarkMode,
@@ -76,411 +140,348 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget content() {
-      bool isMobile = MediaQuery.of(context).size.width < 600;
-
-      return Padding(
-        padding: const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
-        child: Column(
-          children: [
-            
-            Expanded(
-              flex: 25,
-              child: Container(
-                child: cards(),
-              ),
-            ),
-            Expanded(
-              flex: 10,
-              child: Container(
-                child: textoyBoton(),
-              ),
-            ),
-            if (!isMobile)
-              Expanded(
-                flex: 40,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  margin: const EdgeInsets.only(bottom: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(right: 16, left: 16, top: 20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Descripción',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.only(right: 80),
-                              child: Text(
-                                'Fecha de Creación',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: listaTareas(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (isMobile)
-              Expanded(
-                flex: 40,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: listaTareas(),
-                ),
-              ),
-            Expanded(
-              flex: 10,
-              child: Container(
-                child: campoAgregarNota(),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-  
-
-  Widget campoAgregarNota() {
-    return Container(
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _notaController,
-              decoration: InputDecoration(
-                fillColor: Colors.white,
-                filled: true,
-                hintText: 'Ingrese una nota',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 16.0),
-          ElevatedButton(
-            style: ButtonStyle(
-              backgroundColor: MaterialStatePropertyAll(
-                Color(0xFF5162F6),
-              ),
-              overlayColor: MaterialStateProperty.all(
-                Color.fromARGB(255, 190, 15, 59),
-              ), // Color al pasar el mouse
-            ),
-            onPressed: () {
-              if (_notaController.text.isNotEmpty) {
-                // Lógica para agregar la nota (simulada)
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('El campo está vacío'),
-                    backgroundColor: Colors.red,
-                    duration: Duration(milliseconds: 700), // Duración
-                  ),
-                );
-              }
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Text(
-                'Agregar nota',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-
-  Widget fechayHora() {
-    return FittedBox(
-      fit: BoxFit.contain,
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            formattedDate,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.start,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            formattedDateTime,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.start,
-          ),
+          //headerSection(),
+          const SizedBox(height: 20),
+          welcomeCard(),
+          const SizedBox(height: 50),
+          Expanded(child: cardsList()),
+          const SizedBox(height: 20), 
         ],
       ),
     );
   }
 
-  Widget cards() {
-  return Padding(
-    padding: EdgeInsets.symmetric(horizontal: 0, vertical: 10),
-    child: Row(
-      children: [
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final double cardWidth = constraints.maxWidth;
-              final double cardHeight = constraints.maxHeight;
-
-              bool isMobileSize = MediaQuery.of(context).size.width < 600;
-
-              return _buildCard(
-                cardWidth,
-                cardHeight,
-                isMobileSize,
-                Icons.hourglass_empty,
-                'Grupos Activos',
-                '15',
-              );
-            },
-          ),
-        ),
-        SizedBox(width: 20),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final double cardWidth = constraints.maxWidth;
-              final double cardHeight = constraints.maxHeight;
-
-              bool isMobileSize = MediaQuery.of(context).size.width < 600;
-
-              return _buildCard(
-                cardWidth,
-                cardHeight,
-                isMobileSize,
-                Icons.hourglass_empty,
-                'Grupos Atrasados',
-                '3',
-              );
-            },
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildCard(double cardWidth, double cardHeight, bool isMobileSize, IconData icon, String title, String value) {
+  // Nuevo método para la tarjeta de bienvenida
+  Widget welcomeCard() {
   return Card(
-    color: Colors.white,
-    surfaceTintColor: Colors.white,
     elevation: 5,
     shape: RoundedRectangleBorder(
-      /* side: const BorderSide(
-        color: Color.fromARGB(255, 245, 144, 169),
-        width: 2.0,
-      ), */
-      borderRadius: BorderRadius.circular(8.0),
+      borderRadius: BorderRadius.circular(20),
     ),
-    child: SizedBox(
-      width: cardWidth,
-      height: cardHeight,
-      child: Center(
-        child: isMobileSize
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+        /*     _isDarkMode ? Colors.blueGrey[800]! : */ Color(0xFF6A88F7),
+          /*   _isDarkMode ? Colors.blueGrey[900]! : */ Color(0xFF5162F6),
+          ],
+        ),
+      ),
+      padding: EdgeInsets.all(25),
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Icon(
-                    icon,
-                    size: cardHeight * 0.4,
-                    color: Color(0xFF5162F6),
-                  ),
-                  SizedBox(height: 8),
+                  Icon(Icons.waving_hand_rounded, 
+                      color: Colors.white.withOpacity(0.9), 
+                      size: 28),
+                  SizedBox(width: 10),
                   Text(
-                    title,
-                    textAlign: TextAlign.center,
+                    "Hola, ${widget.username}!",
                     style: TextStyle(
-                      fontSize: cardWidth * 0.08,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    value,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: cardWidth * 0.1,
-                    ),
-                  ),
-                ],
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.only(left: 16),
-                    child: Icon(
-                      icon,
-                      size: cardHeight * 0.4,
-                      color: Color(0xFF5162F6),
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: 30),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              title,
-                              textAlign: TextAlign.end,
-                              style: TextStyle(
-                                fontSize: cardWidth * 0.05,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              value,
-                              textAlign: TextAlign.end,
-                              style: TextStyle(
-                                fontSize: cardWidth * 0.07,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ],
               ),
+              SizedBox(height: 20),
+              _buildWelcomeInfoRow(
+                icon: Icons.calendar_today_rounded,
+                title: "Hoy es",
+                value: DateFormat('EEEE, d MMM').format(DateTime.now()),
+              ),
+              SizedBox(height: 12),
+              _buildWelcomeInfoRow(
+                icon: Icons.access_time_rounded,
+                title: "Hora actual",
+                value: DateFormat('hh:mm a').format(DateTime.now()),
+              ),
+              SizedBox(height: 12),
+             /*  _buildWelcomeInfoRow(
+                icon: Icons.thermostat_rounded,
+                title: "Temperatura",
+                value: "25°C",
+                valueColor: Colors.amber[200],
+              ), */
+            ],
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Opacity(
+              opacity: 0.1,
+              child: Icon(Icons.account_balance_wallet_rounded, 
+                          size: 120, 
+                          color: Colors.white),
+            ),
+          )
+        ],
       ),
     ),
   );
 }
 
-
-
-  Widget listaTareas() {
-    return ListView.builder(
-      itemCount: listaNotas.length,
-      itemBuilder: (context, index) {
-        final nota = listaNotas[index];
-        final isSelected = selectedItems.contains(index);
-
-        return InkWell(
-          onTap: () {
-            // Lógica de selección de elemento
-          },
-          onLongPress: () {
-            // Lógica de largo clic (selección de múltiples elementos)
-          },
-          onTapCancel: () {
-            // Lógica de cancelación de clic
-          },
-          child: Column(
-            children: <Widget>[
-              SizedBox(height: 15),
-              new ListTile(
-                title: new Text(
-                  '${nota.nota}',
-                  style: new TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
-                ),
-                subtitle: new Text('${nota.descripcion}'),
-              ),
-            ],
+Widget _buildWelcomeInfoRow({
+  required IconData icon,
+  required String title,
+  required String value,
+  Color? valueColor,
+}) {
+  return Row(
+    children: [
+      Icon(icon, color: Colors.white.withOpacity(0.8), size: 22),
+      SizedBox(width: 12),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 14,
+            ),
           ),
-        );
-      },
-    );
-  }
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
 
-  Widget textoyBoton() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget headerSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Notas',
+          formattedDate,
           style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: /* _isDarkMode ? Colors.white70 : */ Colors.grey[600],
           ),
         ),
-        /* TextButton(
-          onPressed: () {},
-          child: Row(
-            children: [
-              Icon(
-                Icons.add,
-                color: Color.fromARGB(255, 0, 104, 190),
-              ),
-              Text(
-                'Agregar nota',
-                style: TextStyle(
-                  color: Color.fromARGB(255, 0, 104, 190),
-                ),
-              ),
-            ],
+        Text(
+          formattedDateTime,
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: /* _isDarkMode ? Colors.white : */ Colors.black,
           ),
-        ), */
+        ),
       ],
     );
   }
+
+ Widget cardsList() {
+  if (isLoading) {
+    return const Center(child: CircularProgressIndicator());
+  }
+
+  if (errorMessage.isNotEmpty) {
+    return Center(child: Text(errorMessage));
+  }
+
+  return GridView.count(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    crossAxisCount: 5, // Cantidad de columnas
+    childAspectRatio: 1.3, // Relación ancho/alto (aumenta para más ancho)
+    crossAxisSpacing: 15,
+    mainAxisSpacing: 15,
+    children: [
+      _buildStatCard(
+        title: 'Créditos Activos',
+        value: homeData!.creditosActFin.first.creditos_activos,
+        icon: Icons.group_work_rounded,
+        color: const Color(0xFF5162F6),
+      ),
+      _buildStatCard(
+        title: 'Créditos Finalizados',
+        value: homeData!.creditosActFin.first.creditos_finalizados,
+        icon: Icons.check_circle_rounded,
+        color: const Color(0xFF6BC950),
+      ),
+      _buildStatCard(
+        title: 'Grupos Individuales',
+        value: homeData!.gruposIndGrupos.first.grupos_individuales,
+        icon: Icons.person,
+        color: const Color(0xFF4ECDC4),
+      ),
+      _buildStatCard(
+        title: 'Grupos Grupales',
+        value: homeData!.gruposIndGrupos.first.grupos_grupales,
+        icon: Icons.group,
+        color: const Color(0xFF4ECDC4),
+      ),
+      _buildStatCard(
+        title: 'Acumulado Semanal',
+        value: NumberFormat.currency(symbol: '\$', decimalDigits: 2)
+            .format(double.parse(homeData!.sumaPagos.first.sumaDepositos)),
+        icon: Icons.payments,
+        color: const Color(0xFFFF6B6B),
+      ),
+    ],
+  );
+}Widget _buildStatCard({
+  required String title,
+  required String value,
+  required IconData icon,
+  required Color color,
+}) {
+  return Card(
+    elevation: 3,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),
+    ),
+    child: Container(
+      width: double.infinity, // Ocupa todo el ancho disponible
+      height: double.infinity, // Ocupa todo el alto disponible
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withOpacity(0.2),
+            color.withOpacity(0.05),
+          ],
+        ),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 30),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: /* _isDarkMode ? Colors.white70 : */ Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 5), // Espacio adicional
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: /* _isDarkMode ? Colors.white : */ Colors.black,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
-// Clase Usuario
-class Usuario {
-  final String id;
-  final String nombre;
-  final String email;
-
-  Usuario({
-    required this.id,
-    required this.nombre,
-    required this.email,
-  });
 }
 
-// Clase Nota
-class Nota {
-  final String id;
-  final String nota;
-  final String descripcion;
 
-  Nota({
-    required this.id,
-    required this.nota,
-    required this.descripcion,
+// Añade estos modelos al final de tu archivo o en uno separado
+class HomeData {
+  final List<CreditosActFin> creditosActFin;
+  final List<GruposIndGrupos> gruposIndGrupos;
+  final List<SumaPagos> sumaPagos;
+
+  HomeData({
+    required this.creditosActFin,
+    required this.gruposIndGrupos,
+    required this.sumaPagos,
   });
+
+  factory HomeData.fromJson(Map<String, dynamic> json) {
+    return HomeData(
+      creditosActFin: (json['creditosActFin'] as List)
+          .map((e) => CreditosActFin.fromJson(e))
+          .toList(),
+      gruposIndGrupos: (json['gruposIndGrupos'] as List)
+          .map((e) => GruposIndGrupos.fromJson(e))
+          .toList(),
+      sumaPagos: (json['sumaPagos'] as List)
+          .map((e) => SumaPagos.fromJson(e))
+          .toList(),
+    );
+  }
+}
+
+class CreditosActFin {
+  final String creditos_activos;
+  final String creditos_finalizados;
+
+  CreditosActFin({
+    required this.creditos_activos,
+    required this.creditos_finalizados,
+  });
+
+  factory CreditosActFin.fromJson(Map<String, dynamic> json) {
+    return CreditosActFin(
+      creditos_activos: json['creditos_activos'],
+      creditos_finalizados: json['creditos_finalizados'],
+    );
+  }
+}
+
+class GruposIndGrupos {
+  final int total_grupos;
+  final String grupos_individuales;
+  final String grupos_grupales;
+  final String grupos_activos;
+  final String grupos_finalizados;
+
+  GruposIndGrupos({
+    required this.total_grupos,
+    required this.grupos_individuales,
+    required this.grupos_grupales,
+    required this.grupos_activos,
+    required this.grupos_finalizados,
+  });
+
+  factory GruposIndGrupos.fromJson(Map<String, dynamic> json) {
+    return GruposIndGrupos(
+      total_grupos: json['total_grupos'],
+      grupos_individuales: json['grupos_individuales'],
+      grupos_grupales: json['grupos_grupales'],
+      grupos_activos: json['grupos_activos'],
+      grupos_finalizados: json['grupos_finalizados'],
+    );
+  }
+}
+
+class SumaPagos {
+  final String sumaDepositos;
+
+  SumaPagos({
+    required this.sumaDepositos,
+  });
+
+  factory SumaPagos.fromJson(Map<String, dynamic> json) {
+    return SumaPagos(
+      sumaDepositos: json['sumaDepositos'],
+    );
+  }
 }
