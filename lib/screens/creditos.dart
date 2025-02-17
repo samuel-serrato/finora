@@ -30,6 +30,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   bool noCreditsFound = false; // Para indicar si no se encontraron créditos.
   Timer?
       _timer; // Para manejar el temporizador que muestra el mensaje de error después de cierto tiempo.
+  Timer? _debounceTimer; // Para el debounce de la búsqueda
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -40,6 +42,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   @override
   void dispose() {
     _timer?.cancel(); // Cancela el temporizador al destruir el widget
+    _debounceTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -151,6 +155,87 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     }
   }
 
+    // Función para buscar créditos según el texto ingresado
+  Future<void> searchCreditos(String query) async {
+  if (query.trim().isEmpty) {
+    obtenerCreditos();
+    return;
+  }
+
+  setState(() {
+    isLoading = true;
+    errorDeConexion = false;
+    noCreditsFound = false;
+  });
+
+  // Recuperar token
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('tokenauth') ?? '';
+
+  // Iniciar la petición HTTP y guardarla en un Future
+  final Future<http.Response> httpFuture = http.get(
+    Uri.parse('http://$baseUrl/api/v1/creditos/$query'),
+    headers: {
+      'tokenauth': token,
+      'Content-Type': 'application/json',
+    },
+  );
+
+  // Esperar 2 segundos para que el CircularProgressIndicator se muestre durante ese tiempo
+  await Future.delayed(Duration(milliseconds: 500));
+
+  try {
+    // Espera la respuesta de la petición HTTP
+    final response = await httpFuture;
+
+    print('Status code (search): ${response.statusCode}');
+    print('Response body (search): ${response.body}');
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      setState(() {
+        listaCreditos = data.map((item) => Credito.fromJson(item)).toList();
+        isLoading = false;
+      });
+    } else if (response.statusCode == 404) {
+      final errorData = json.decode(response.body);
+      if (errorData["Error"]["Message"] == "jwt expired") {
+        setState(() => isLoading = false);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('tokenauth');
+        mostrarDialogoError(
+            'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+            onClose: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+          );
+        });
+        return;
+      } else {
+        setErrorState(false);
+      }
+    } else if (response.statusCode == 400) {
+      final errorData = json.decode(response.body);
+      if (errorData["Error"]["Message"] == "No hay ningun credito registrado") {
+        setState(() {
+          listaCreditos = [];
+          isLoading = false;
+          noCreditsFound = true;
+        });
+      } else {
+        setErrorState(false);
+      }
+    } else {
+      setErrorState(false);
+    }
+  } catch (e) {
+    setErrorState(false, e);
+  }
+}
+
+
+
   void setErrorState(bool dialogShown, [dynamic error]) {
     _timer?.cancel(); // Cancela el temporizador antes de navegar
     setState(() {
@@ -209,69 +294,72 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         tipoUsuario: widget.tipoUsuario,
       ),
       backgroundColor: Color(0xFFF7F8FA),
-      body: content(context),
-    );
+       body: Column(
+        children: [
+          filaBuscarYAgregar(context),
+          Expanded(child: _buildTableContainer()),
+        ],
+      ),
+    ); ;
   }
 
-  Widget content(BuildContext context) {
-    if (isLoading) {
-      return Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFF5162F6),
-        ),
-      );
-    } else if (errorDeConexion) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
+    // Se encapsula el contenedor de la tabla para que sea lo único que se actualice al buscar
+  // Este widget se encarga de mostrar el contenedor de la tabla o, en su defecto,
+// un CircularProgressIndicator mientras se realiza la petición.
+Widget _buildTableContainer() {
+  if (isLoading) {
+    return Center(
+      child: CircularProgressIndicator(
+        color: Color(0xFF5162F6),
+      ),
+    );
+  } else if (errorDeConexion) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              if (_searchController.text.trim().isEmpty) {
                 obtenerCreditos();
-              },
-              child: Text('Recargar'),
-              style: ButtonStyle(
-                backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
-                foregroundColor: MaterialStateProperty.all(Colors.white),
-                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+              } else {
+                searchCreditos(_searchController.text);
+              }
+            },
+            child: Text('Recargar'),
+            style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
+              foregroundColor: MaterialStateProperty.all(Colors.white),
+              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
             ),
-          ],
-        ),
-      );
-    } else {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          filaBuscarYAgregar(context), // Mostrar siempre este widget
-          noCreditsFound || listaCreditos.isEmpty
-              ? Expanded(
-                  child: Center(
-                    child: Text(
-                      'No hay créditos para mostrar.',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ),
-                )
-              : Expanded(
-                  child: filaTabla(context),
-                ),
+          ),
         ],
-      );
-    }
+      ),
+    );
+  } else {
+    return noCreditsFound || listaCreditos.isEmpty
+        ? Center(
+            child: Text(
+              'No hay créditos para mostrar.',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          )
+        : filaTabla(context);
   }
+}
 
-  Widget filaBuscarYAgregar(BuildContext context) {
+
+   Widget filaBuscarYAgregar(BuildContext context) {
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
     return Padding(
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
@@ -287,6 +375,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
             ),
             child: TextField(
+              controller: _searchController,
               decoration: InputDecoration(
                 contentPadding:
                     EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
@@ -296,6 +385,16 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                       BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
                 ),
                 prefixIcon: Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          // Si se borra el texto, se vuelve a cargar la lista completa
+                          obtenerCreditos();
+                        },
+                      )
+                    : null,
                 filled: true,
                 fillColor: Colors.white,
                 hintText: 'Buscar...',
@@ -304,6 +403,16 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   borderSide: BorderSide.none,
                 ),
               ),
+              onChanged: (value) {
+                // Debounce: esperar 500ms después de dejar de escribir
+                if (_debounceTimer?.isActive ?? false) {
+                  _debounceTimer!.cancel();
+                }
+                _debounceTimer =
+                    Timer(Duration(milliseconds: 500), () {
+                  searchCreditos(value);
+                });
+              },
             ),
           ),
           ElevatedButton(
@@ -337,38 +446,36 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   Widget filaTabla(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.all(20),
-        child: Center(
-          child: Container(
-            padding: EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  spreadRadius: 0.5,
-                  blurRadius: 5,
-                  offset: Offset(2, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(child: tabla()),
-                ),
-              ],
-            ),
+    return Container(
+      padding: EdgeInsets.all(20),
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                spreadRadius: 0.5,
+                blurRadius: 5,
+                offset: Offset(2, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(child: tabla()),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget tabla() {
+    Widget tabla() {
     const double fontSize = 11;
 
     // Lista para almacenar los índices de las filas seleccionadas
@@ -382,7 +489,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             MaterialStateProperty.resolveWith((states) => Color(0xFFE8EFF9)),
         columnSpacing: 10,
         headingRowHeight: 50,
-        dataRowHeight: 60, // Ajusta la altura de las filas según lo necesites
+        dataRowHeight: 60,
         columns: const [
           DataColumn(label: Text('Tipo', style: TextStyle(fontSize: fontSize))),
           DataColumn(
@@ -390,30 +497,35 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           DataColumn(
               label: Text('Nombre', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label: Text('Autorizado', style: TextStyle(fontSize: fontSize))),
+              label:
+                  Text('Autorizado', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Desembolsado',
+                  style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label:
-                  Text('Desembolsado', style: TextStyle(fontSize: fontSize))),
+                  Text('Interés %', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label: Text('Interés %', style: TextStyle(fontSize: fontSize))),
+              label: Text('Interés Total',
+                  style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('M. a Recuperar',
+                  style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label:
-                  Text('Interés Total', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label:
-                  Text('M. a Recuperar', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label: Text('Día Pago', style: TextStyle(fontSize: fontSize))),
+                  Text('Día Pago', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label:
                   Text('Pago Semanal', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label: Text('Núm de Pago', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label: Text('Duración', style: TextStyle(fontSize: fontSize))),
+              label:
+                  Text('Núm de Pago', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label:
-                  Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
+                  Text('Duración', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Estado de Pago',
+                  style: TextStyle(fontSize: fontSize))),
         ],
         rows: listaCreditos.map((credito) {
           return DataRow(
@@ -425,14 +537,14 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   showDialog(
                     barrierDismissible: false,
                     context: context,
-                    builder: (context) => InfoCredito(folio: credito.folio),
+                    builder: (context) =>
+                        InfoCredito(folio: credito.folio),
                   );
                 }
               });
             },
             cells: [
-              DataCell(
-                  Text(credito.tipo, style: TextStyle(fontSize: fontSize))),
+              DataCell(Text(credito.tipo, style: TextStyle(fontSize: fontSize))),
               DataCell(Text(credito.tipoPlazo,
                   style: TextStyle(fontSize: fontSize))),
               DataCell(
@@ -448,7 +560,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 ),
               ),
               DataCell(Center(
-                  child: Text('\$${credito.montoTotal.toStringAsFixed(2)}',
+                  child: Text(
+                      '\$${credito.montoTotal.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
                   child: Text(
@@ -458,10 +571,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   child: Text('${credito.interesGlobal}%',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
-                  child: Text('\$${credito.interesTotal.toStringAsFixed(2)}',
+                  child: Text(
+                      '\$${credito.interesTotal.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
-                  child: Text('\$${credito.montoMasInteres.toStringAsFixed(2)}',
+                  child: Text(
+                      '\$${credito.montoMasInteres.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
                   child: Text('${credito.diaPago}',
@@ -487,7 +602,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               DataCell(
                 Center(
                   child: Text(
-                    credito.estadoCredito.estado, // Mostrar el estado
+                    credito.estadoCredito.estado,
                     style: TextStyle(fontSize: fontSize),
                   ),
                 ),

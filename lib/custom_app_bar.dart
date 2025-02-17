@@ -39,8 +39,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       );
 
       if (response.statusCode == 200) {
-        // Eliminar el token y navegar a login
+        // Eliminar el token
         await prefs.remove('tokenauth');
+
+        // Mostrar SnackBar indicando que la sesión se ha cerrado correctamente
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sesión cerrada correctamente')),
+        );
+
+        // Navegar a la pantalla de login
         Navigator.pushNamedAndRemoveUntil(
           context,
           AppRoutes.login,
@@ -291,7 +298,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               CircleAvatar(
                                 backgroundColor: Color(0xFF5162F6),
                                 radius: 18,
-                                child: Icon(Icons.person,
+                                child: Icon(_getIconForUserType(tipoUsuario),
                                     color: Colors.white, size: 22),
                               ),
                               SizedBox(width: 14),
@@ -336,4 +343,20 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ],
     );
   }
+  IconData _getIconForUserType(String userType) {
+  switch (userType) {
+    case 'Admin':
+      return Icons.admin_panel_settings;
+    case 'Contador':
+      return Icons.calculate;
+    case 'Asistente':
+      return Icons.assignment_ind;
+    case 'Campo':
+      return Icons.directions_walk;
+    case 'Invitado':
+      return Icons.person_outline;
+    default:
+      return Icons.person;
+  }
+}
 }
