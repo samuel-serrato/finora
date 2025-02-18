@@ -411,9 +411,20 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                                               keyboardType:
                                                   TextInputType.number,
                                               style: TextStyle(fontSize: 12.0),
-                                              inputFormatters: [
-                                                NumberFormatter(), // Aplica el formateo de comas
-                                              ],
+                                              onChanged: (value) {
+                                                // Aplica el formateo directamente aquí
+                                                String formatted =
+                                                    formatMonto(value);
+                                                montoPorUsuarioControllers[
+                                                        index]
+                                                    .value = TextEditingValue(
+                                                  text: formatted,
+                                                  selection:
+                                                      TextSelection.collapsed(
+                                                          offset:
+                                                              formatted.length),
+                                                );
+                                              },
                                             ),
                                           );
                                         }),

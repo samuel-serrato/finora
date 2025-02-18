@@ -8,14 +8,15 @@ import 'package:finora/widgets/CardUserWidget.dart';
 import 'package:finora/formateador.dart';
 
 class SimuladorScreen extends StatefulWidget {
-    final String username;
-    final String tipoUsuario;
-
+  final String username;
+  final String tipoUsuario;
 
   @override
   State<SimuladorScreen> createState() => _SimuladorScreenState();
 
-  const SimuladorScreen({Key? key, required this.username, required this.tipoUsuario}) : super(key: key);
+  const SimuladorScreen(
+      {Key? key, required this.username, required this.tipoUsuario})
+      : super(key: key);
 }
 
 class _SimuladorScreenState extends State<SimuladorScreen> {

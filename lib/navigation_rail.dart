@@ -46,14 +46,16 @@ class _NavigationScreenState extends State<NavigationScreen> {
   List<Widget> _buildPages() {
     List<Widget> pages = [
       HomeScreen(username: widget.username, tipoUsuario: widget.userType),
-      SeguimientoScreen(username: widget.username, tipoUsuario: widget.userType),
+      SeguimientoScreen(
+          username: widget.username, tipoUsuario: widget.userType),
       GruposScreen(username: widget.username, tipoUsuario: widget.userType),
       ClientesScreen(username: widget.username, tipoUsuario: widget.userType),
       SimuladorScreen(username: widget.username, tipoUsuario: widget.userType),
     ];
 
     if (widget.userType == 'Admin') {
-      pages.add(GestionUsuariosScreen(username: widget.username, tipoUsuario: widget.userType));
+      pages.add(GestionUsuariosScreen(
+          username: widget.username, tipoUsuario: widget.userType));
     }
 
     return pages;
@@ -128,52 +130,53 @@ class _NavigationScreenState extends State<NavigationScreen> {
                 backgroundColor: Colors.white,
               ),
               title: Padding(
-  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
-  child: Row(
-    children: [
-      // Ícono con padding condicional
-      Padding(
-        // Padding solo aplicado cuando el menú está cerrado
-        padding: isMenuOpen 
-            ? EdgeInsets.zero // Sin padding cuando está abierto
-            : const EdgeInsets.all(10), // Ajusta el valor según necesites
-        child: SizedBox(
-          width: isMenuOpen ? 140 : 30,
-          height: isMenuOpen ? 80 : 30,
-          child: Image.asset(
-            isMenuOpen 
-                ? 'assets/finora_hzt.png' 
-                : 'assets/finora_icon.png',
-            fit: BoxFit.contain,
-          ),
-        ),
-      ),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
+                child: Row(
+                  children: [
+                    // Ícono con padding condicional
+                    Padding(
+                      // Padding solo aplicado cuando el menú está cerrado
+                      padding: isMenuOpen
+                          ? EdgeInsets.zero // Sin padding cuando está abierto
+                          : const EdgeInsets.all(
+                              10), // Ajusta el valor según necesites
+                      child: SizedBox(
+                        width: isMenuOpen ? 140 : 30,
+                        height: isMenuOpen ? 80 : 30,
+                        child: Image.asset(
+                          isMenuOpen
+                              ? 'assets/finora_hzt.png'
+                              : 'assets/finora_icon.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
 
-      // Espacio solo cuando el menú está abierto
-      if (isMenuOpen) Spacer(),
+                    // Espacio solo cuando el menú está abierto
+                    if (isMenuOpen) Spacer(),
 
-      // Botón de flecha (siempre visible)
-      Center(
-        child: IconButton(
-          icon: Icon(
-            isMenuOpen 
-                ? Icons.arrow_back_ios 
-                : Icons.arrow_forward_ios,
-            size: 14,
-            color: Colors.grey[700],
-          ),
-          onPressed: toggleMenu,
-          padding: EdgeInsets.zero,
-          constraints: BoxConstraints(
-            minHeight: 20,
-            minWidth: 20,
-          ),
-        ),
-      ),
-    ],
-  ),
-),
-
+                    // Botón de flecha (siempre visible)
+                    Center(
+                      child: IconButton(
+                        icon: Icon(
+                          isMenuOpen
+                              ? Icons.arrow_back_ios
+                              : Icons.arrow_forward_ios,
+                          size: 14,
+                          color: Colors.grey[700],
+                        ),
+                        onPressed: toggleMenu,
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(
+                          minHeight: 20,
+                          minWidth: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               items: menuItems,
               footer: Container(
                 alignment: Alignment.bottomCenter,
@@ -186,7 +189,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                     if (isMenuOpen) ...[
                       SizedBox(height: 4),
                       Text(
-                        'Developed by',
+                        'Desarrollado por',
                         style: TextStyle(
                           color: Colors.black87,
                           fontSize: 10,
@@ -207,6 +210,16 @@ class _NavigationScreenState extends State<NavigationScreen> {
                           ),
                         ),
                       ),
+                      /* Text(
+                        '1.0.0',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 10,
+                          fontFamily: 'Verdana',
+                          fontWeight: FontWeight.w100,
+                        ),
+                        textAlign: TextAlign.center,
+                      ), */
                     ],
                   ],
                 ),

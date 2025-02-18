@@ -215,90 +215,89 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
   // Actualiza el método enviarCredito
   Future<void> enviarCredito(Map<String, dynamic> datos) async {
-  final String url = 'http://$baseUrl/api/v1/creditos';
+    final String url = 'http://$baseUrl/api/v1/creditos';
 
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'tokenauth': token,
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(datos),
-    );
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(datos),
+      );
 
-    if (mounted) {
-      // Respuesta exitosa
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Crédito guardado exitosamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        widget.onCreditoAgregado();
-        Navigator.of(context).pop();
-      
-      // Manejo de errores
-      } else {
-        // Imprimir detalles del error en consola
-        print('══════════════ ERROR ══════════════');
-        print('Status Code: ${response.statusCode}');
-        print('Response Body: ${response.body}');
-        print('═══════════════════════════════════');
+      if (mounted) {
+        // Respuesta exitosa
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Crédito guardado exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          widget.onCreditoAgregado();
+          Navigator.of(context).pop();
 
-        // Caso específico para JWT expirado
-        if (response.statusCode == 404) {
-          try {
-            final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] == "jwt expired") {
-              await prefs.remove('tokenauth');
-              mostrarDialogoError(
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                onClose: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginScreen()),
-                  );
-                },
-              );
-            } else {
-              _mostrarError('Error del servidor: ${errorData["Error"]["Message"] ?? "Error desconocido"}');
-            }
-          } catch (e) {
-            print('Error al decodificar respuesta: $e');
-            _mostrarError('Error inesperado: ${response.body}');
-          }
+          // Manejo de errores
         } else {
-          // Otros códigos de error
-          _mostrarError('Error al guardar (Código ${response.statusCode})');
+          // Imprimir detalles del error en consola
+          print('══════════════ ERROR ══════════════');
+          print('Status Code: ${response.statusCode}');
+          print('Response Body: ${response.body}');
+          print('═══════════════════════════════════');
+
+          // Caso específico para JWT expirado
+          if (response.statusCode == 404) {
+            try {
+              final errorData = json.decode(response.body);
+              if (errorData["Error"]["Message"] == "jwt expired") {
+                await prefs.remove('tokenauth');
+                mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  },
+                );
+              } else {
+                _mostrarError(
+                    'Error del servidor: ${errorData["Error"]["Message"] ?? "Error desconocido"}');
+              }
+            } catch (e) {
+              print('Error al decodificar respuesta: $e');
+              _mostrarError('Error inesperado: ${response.body}');
+            }
+          } else {
+            // Otros códigos de error
+            _mostrarError('Error al guardar (Código ${response.statusCode})');
+          }
         }
       }
-    }
-  } catch (e) {
-    if (mounted) {
-      print('══════════════ EXCEPCIÓN ══════════════');
-      print('Error completo: $e');
-      if (e is http.ClientException) {
-        print('Error de conexión: ${e.message}');
-        print('URI: ${e.uri}');
-      }
-      print('══════════════════════════════════════');
+    } catch (e) {
+      if (mounted) {
+        print('══════════════ EXCEPCIÓN ══════════════');
+        print('Error completo: $e');
+        if (e is http.ClientException) {
+          print('Error de conexión: ${e.message}');
+          print('URI: ${e.uri}');
+        }
+        print('══════════════════════════════════════');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error de conexión. Verifica tu red.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de conexión. Verifica tu red.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
-}
-
-
 
   void _mostrarError(String mensaje) {
     showDialog(
@@ -482,18 +481,16 @@ class _nCreditoDialogState extends State<nCreditoDialog>
               Focus(
                 canRequestFocus: false,
                 descendantsAreFocusable: false,
-                child: IgnorePointer(
-                  child: TabBar(
-                    controller: _tabController,
-                    labelColor: const Color(0xFF5162F6),
-                    unselectedLabelColor: Colors.grey,
-                    indicatorColor: const Color(0xFF5162F6),
-                    tabs: const [
-                      Tab(text: 'Datos Generales'),
-                      Tab(text: 'Integrantes'),
-                      Tab(text: 'Resumen'),
-                    ],
-                  ),
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: const Color(0xFF5162F6),
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: const Color(0xFF5162F6),
+                  tabs: const [
+                    Tab(text: 'Datos Generales'),
+                    Tab(text: 'Integrantes'),
+                    Tab(text: 'Resumen'),
+                  ],
                 ),
               ),
               Expanded(
@@ -1034,20 +1031,20 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     );
   }
 
- double obtenerMontoReal(String formattedValue) {
-  if (formattedValue.isEmpty) return 0.0;
-  
-  // 1. Quitar todas las comas
-  String sanitized = formattedValue.replaceAll(',', '');
-  
-  // 2. Convertir a double
-  try {
-    return double.parse(sanitized);
-  } catch (e) {
-    print('Error al convertir: "$formattedValue"');
-    return 0.0;
+  double obtenerMontoReal(String formattedValue) {
+    if (formattedValue.isEmpty) return 0.0;
+
+    // 1. Quitar todas las comas
+    String sanitized = formattedValue.replaceAll(',', '');
+
+    // 2. Convertir a double
+    try {
+      return double.parse(sanitized);
+    } catch (e) {
+      print('Error al convertir: "$formattedValue"');
+      return 0.0;
+    }
   }
-}
 
   DateTime calcularFechaTermino(
       DateTime fechaInicio, String frecuenciaPago, int plazo) {
@@ -1102,7 +1099,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     print('interesGlobal print: $interesGlobal');
 
     // Formatear los datos para mostrarlos
-   montoAutorizado = formatearNumero(monto); // Usar la variable monto que ya está convertida
+    montoAutorizado =
+        formatearNumero(monto); // Usar la variable monto que ya está convertida
 
     garantiaTexto = garantia ?? "No especificada";
     frecuenciaPagoTexto = frecuenciaPago ?? "No especificada";
@@ -1772,7 +1770,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       "frecuenciaPago": frecuenciaPagoTexto,
       "garantia": garantiaTexto,
       "interesGlobal": interesGlobal,
-      "montoTotal": obtenerMontoReal(montoController.text), // Convertir a double
+      "montoTotal":
+          obtenerMontoReal(montoController.text), // Convertir a double
       "interesTotal": interesTotal,
       "montoMasInteres": totalARecuperar,
       "diaPago": diaPago,
@@ -2063,24 +2062,26 @@ Widget _buildTextField({
     controller: controller,
     keyboardType: keyboardType,
     style: TextStyle(fontSize: fontSize),
-  /*   decoration: InputDecoration(
+    /*   decoration: InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       labelStyle: TextStyle(fontSize: fontSize),
     ), */
     decoration: InputDecoration(
-       enabledBorder: OutlineInputBorder(
+      enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
         borderSide:
             BorderSide(color: Colors.grey.shade400, width: borderThickness),
       ),
       labelText: label,
-      prefixIcon: Icon(icon, color: Colors.grey.shade700,),
+      prefixIcon: Icon(
+        icon,
+        color: Colors.grey.shade700,
+      ),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
       labelStyle: TextStyle(fontSize: fontSize),
     ),
-    
     textCapitalization: TextCapitalization.characters,
     validator: validator,
     onChanged: onChanged,
