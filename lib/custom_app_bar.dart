@@ -408,7 +408,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                     SizedBox(height: 12),
                     Text(
-                      'Versión 1.0', // Texto combinado
+                      'Versión 1.0.0', // Texto combinado
                       style: TextStyle(
                           fontSize: 16, // Tamaño reducido
                           fontWeight: FontWeight.w600,
