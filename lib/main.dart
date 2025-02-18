@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:finora/navigation_rail.dart';
 import 'package:finora/providers/pagos_provider.dart';
 import 'package:finora/screens/login.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'constants/routes.dart'; // Añade esta importación
+import 'package:intl/date_symbol_data_local.dart';
+
 
 void main() async {
-  await initializeDateFormatting('es');
+   // Inicializa la configuración de fechas en español.
+  await initializeDateFormatting('es_ES', null);
+  // Opcional: establece el locale por defecto
+  Intl.defaultLocale = 'es_ES';
   
   runApp(
     MultiProvider(

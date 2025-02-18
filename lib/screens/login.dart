@@ -400,7 +400,7 @@ class _LoginFormState extends State<LoginForm> {
           controller: widget.passwordController,
         ),
         const SizedBox(height: 20),
-        Align(
+       /*  Align(
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: () {},
@@ -409,7 +409,7 @@ class _LoginFormState extends State<LoginForm> {
               style: TextStyle(color: Color(0xFF5162F6)),
             ),
           ),
-        ),
+        ), */
         const SizedBox(height: 40.0),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -432,7 +432,7 @@ class _LoginFormState extends State<LoginForm> {
           ),
         ),
         const SizedBox(height: 30),
-        Row(
+       /*  Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text('¿No tienes cuenta? ',
@@ -448,7 +448,7 @@ class _LoginFormState extends State<LoginForm> {
               ),
             ),
           ],
-        ),
+        ), */
       ],
     );
   }

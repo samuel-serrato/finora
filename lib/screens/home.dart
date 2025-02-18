@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 
 
+
 class HomeScreen extends StatefulWidget {
   final String username;
   final String tipoUsuario;
@@ -23,8 +24,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Timer timer;
-  String formattedDate = DateFormat('EEEE, d MMMM yyyy').format(DateTime.now());
-  String formattedDateTime = DateFormat('h:mm:ss a').format(DateTime.now());
+ String formattedDate = DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(DateTime.now());
+String formattedDateTime = DateFormat('h:mm:ss a', 'es_ES').format(DateTime.now());
+
   bool _isDarkMode = false;
     HomeData? homeData;
   bool isLoading = true;
