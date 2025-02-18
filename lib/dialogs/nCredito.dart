@@ -5,9 +5,9 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:money_facil/formateador.dart';
-import 'package:money_facil/ip.dart';
-import 'package:money_facil/screens/login.dart';
+import 'package:finora/formateador.dart';
+import 'package:finora/ip.dart';
+import 'package:finora/screens/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class nCreditoDialog extends StatefulWidget {
@@ -2057,17 +2057,30 @@ Widget _buildTextField({
   int? maxLength,
   List<TextInputFormatter>? inputFormatters, // Nuevo parámetro
   void Function(String)? onChanged, // Callback para cambios
+  double borderThickness = 1.5, // Nuevo parámetro para el grosor del borde
 }) {
   return TextFormField(
     controller: controller,
     keyboardType: keyboardType,
     style: TextStyle(fontSize: fontSize),
-    decoration: InputDecoration(
+  /*   decoration: InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       labelStyle: TextStyle(fontSize: fontSize),
+    ), */
+    decoration: InputDecoration(
+       enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide:
+            BorderSide(color: Colors.grey.shade400, width: borderThickness),
+      ),
+      labelText: label,
+      prefixIcon: Icon(icon, color: Colors.grey.shade700,),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+      labelStyle: TextStyle(fontSize: fontSize),
     ),
+    
     textCapitalization: TextCapitalization.characters,
     validator: validator,
     onChanged: onChanged,

@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
-import 'package:money_facil/ip.dart';
-import 'package:money_facil/screens/login.dart';
+import 'package:finora/ip.dart';
+import 'package:finora/screens/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class editGrupoDialog extends StatefulWidget {

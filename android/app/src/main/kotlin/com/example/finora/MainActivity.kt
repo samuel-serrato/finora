@@ -1,4 +1,4 @@
-package com.example.money_facil
+package com.example.finora
 
 import io.flutter.embedding.android.FlutterActivity
 

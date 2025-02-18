@@ -4,12 +4,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:money_facil/custom_app_bar.dart';
-import 'package:money_facil/dialogs/usuario/editUsuario.dart';
-import 'package:money_facil/dialogs/usuario/infoUsuario.dart';
-import 'package:money_facil/dialogs/usuario/nUsuario.dart';
-import 'package:money_facil/ip.dart';
-import 'package:money_facil/screens/login.dart';
+import 'package:finora/custom_app_bar.dart';
+import 'package:finora/dialogs/usuario/editUsuario.dart';
+import 'package:finora/dialogs/usuario/infoUsuario.dart';
+import 'package:finora/dialogs/usuario/nUsuario.dart';
+import 'package:finora/ip.dart';
+import 'package:finora/screens/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GestionUsuariosScreen extends StatefulWidget {

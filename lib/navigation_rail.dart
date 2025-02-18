@@ -1,11 +1,11 @@
 import 'package:easy_sidemenu/easy_sidemenu.dart';
 import 'package:flutter/material.dart';
-import 'package:money_facil/screens/clientes.dart';
-import 'package:money_facil/screens/grupos.dart';
-import 'package:money_facil/screens/home.dart';
-import 'package:money_facil/screens/creditos.dart';
-import 'package:money_facil/screens/simulador.dart';
-import 'package:money_facil/screens/usuarios.dart';
+import 'package:finora/screens/clientes.dart';
+import 'package:finora/screens/grupos.dart';
+import 'package:finora/screens/home.dart';
+import 'package:finora/screens/creditos.dart';
+import 'package:finora/screens/simulador.dart';
+import 'package:finora/screens/usuarios.dart';
 
 class NavigationScreen extends StatefulWidget {
   final String username;

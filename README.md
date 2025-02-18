@@ -1,4 +1,4 @@
-# money_facil
+# finora
 
 A new Flutter project.
 

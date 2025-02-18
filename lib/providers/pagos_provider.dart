@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:money_facil/models/pago_seleccionado.dart';
+import 'package:finora/models/pago_seleccionado.dart';
 import 'package:uuid/uuid.dart'; // Asegúrate de añadir esta dependencia si usas UUID
 import 'package:collection/collection.dart'; // Importa para usar DeepCollectionEquality
 

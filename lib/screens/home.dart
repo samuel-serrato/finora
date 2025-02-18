@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:money_facil/custom_app_bar.dart';
+import 'package:finora/custom_app_bar.dart';
 import 'package:http/http.dart' as http;
-import 'package:money_facil/ip.dart';
+import 'package:finora/ip.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -335,7 +335,7 @@ Widget _buildWelcomeInfoRow({
       _buildStatCard(
         title: 'Acumulado Semanal',
         value: NumberFormat.currency(symbol: '\$', decimalDigits: 2)
-            .format(double.parse(homeData!.sumaPagos.first.sumaDepositos)),
+    .format(double.tryParse(homeData!.sumaPagos.first.sumaDepositos ?? '0') ?? 0),
         icon: Icons.payments,
         color: const Color(0xFFFF6B6B),
       ),
@@ -473,7 +473,7 @@ class GruposIndGrupos {
 }
 
 class SumaPagos {
-  final String sumaDepositos;
+  final String? sumaDepositos; // Allow null values by making it nullable
 
   SumaPagos({
     required this.sumaDepositos,
@@ -481,7 +481,7 @@ class SumaPagos {
 
   factory SumaPagos.fromJson(Map<String, dynamic> json) {
     return SumaPagos(
-      sumaDepositos: json['sumaDepositos'],
+      sumaDepositos: json['sumaDepositos']?.toString(), // Convert null to string if necessary
     );
   }
 }

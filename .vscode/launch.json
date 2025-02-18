@@ -5,18 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "money_facil",
+            "name": "finora",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "money_facil (profile mode)",
+            "name": "finora (profile mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "money_facil (release mode)",
+            "name": "finora (release mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"

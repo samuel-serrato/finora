@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:money_facil/custom_app_bar.dart';
+import 'package:finora/custom_app_bar.dart';
 import 'package:intl/intl.dart';
-import 'package:money_facil/dialogs/infoCredito.dart';
-import 'package:money_facil/dialogs/nCredito.dart';
-import 'package:money_facil/ip.dart';
-import 'package:money_facil/screens/login.dart';
+import 'package:finora/dialogs/infoCredito.dart';
+import 'package:finora/dialogs/nCredito.dart';
+import 'package:finora/ip.dart';
+import 'package:finora/screens/login.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Para manejar fechas
 
 class SeguimientoScreen extends StatefulWidget {

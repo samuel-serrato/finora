@@ -4,11 +4,11 @@ import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:money_facil/dialogs/renovarGrupo.dart';
+import 'package:finora/dialogs/renovarGrupo.dart';
 import 'dart:convert';
 
-import 'package:money_facil/ip.dart';
-import 'package:money_facil/screens/login.dart';
+import 'package:finora/ip.dart';
+import 'package:finora/screens/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class InfoGrupo extends StatefulWidget {

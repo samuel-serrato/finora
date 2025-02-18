@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:money_facil/formateador.dart';
+import 'package:finora/formateador.dart';
 
 class simuladorGrupal extends StatefulWidget {
   @override

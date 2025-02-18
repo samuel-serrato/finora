@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:money_facil/navigation_rail.dart';
-import 'package:money_facil/providers/pagos_provider.dart';
-import 'package:money_facil/screens/login.dart';
+import 'package:finora/navigation_rail.dart';
+import 'package:finora/providers/pagos_provider.dart';
+import 'package:finora/screens/login.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';

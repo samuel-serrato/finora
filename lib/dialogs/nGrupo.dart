@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
-import 'package:money_facil/ip.dart';
-import 'package:money_facil/screens/login.dart';
+import 'package:finora/ip.dart';
+import 'package:finora/screens/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class nGrupoDialog extends StatefulWidget {
@@ -346,6 +346,8 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: width,
@@ -568,7 +570,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                         height: verticalSpacing), // Espacio debajo del ícono
                     _buildTextField(
                       controller: nombreGrupoController,
-                      label: 'Nombres del grupo',
+                      label: 'Nombre del grupo',
                       icon: Icons.person,
                       validator: (value) {
                         if (value == null || value.isEmpty) {

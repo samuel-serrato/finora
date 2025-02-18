@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:money_facil/custom_app_bar.dart';
-import 'package:money_facil/screens/simGrupal.dart';
-import 'package:money_facil/widgets/CardUserWidget.dart';
-import 'package:money_facil/formateador.dart';
+import 'package:finora/custom_app_bar.dart';
+import 'package:finora/screens/simGrupal.dart';
+import 'package:finora/widgets/CardUserWidget.dart';
+import 'package:finora/formateador.dart';
 
 class SimuladorScreen extends StatefulWidget {
     final String username;
