@@ -503,373 +503,385 @@ class _InfoCreditoState extends State<InfoCredito> {
     final height = MediaQuery.of(context).size.height * 0.93;
 
     return Dialog(
-      backgroundColor: Color(0xFFF7F8FA),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: EdgeInsets.all(16),
-      child: Stack(children: [
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 30),
-          width: width,
-          height: height,
-          child: Column(
-            children: [
-              Expanded(
-                child: isLoading
-                    ? Center(child: CircularProgressIndicator())
-                    : creditoData != null
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Columna izquierda con la información del crédito
-                              Expanded(
-                                flex: 25,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Color(0xFF5162F6),
-                                        Color(0xFF2D336B),
-                                      ],
-                                      begin: Alignment.centerRight,
-                                      end: Alignment.centerLeft,
-                                    ),
-                                    borderRadius:
-                                        BorderRadius.all(Radius.circular(20)),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black26,
-                                        blurRadius: 8,
-                                        offset: Offset(0, 4),
-                                      )
-                                    ],
-                                  ),
-                                  padding: EdgeInsets.symmetric(
-                                      vertical: 20, horizontal: 16),
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 35,
-                                          backgroundColor: Colors.white,
-                                          child: Icon(
-                                            Icons
-                                                .account_balance_wallet_rounded,
-                                            size: 50,
-                                            color: Color(0xFF5162F6),
-                                          ),
+        backgroundColor: Color(0xFFF7F8FA),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 30),
+              width: width,
+              height: height,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : creditoData != null
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Columna izquierda con la información del crédito
+                                  Expanded(
+                                    flex: 25,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Color(0xFF5162F6),
+                                            Color(0xFF2D336B),
+                                          ],
+                                          begin: Alignment.centerRight,
+                                          end: Alignment.centerLeft,
                                         ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          'Información del Crédito',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        SizedBox(height: 2),
-                                        Divider(
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                            thickness: 1),
-                                        _buildDetailRow('Folio',
-                                            creditoData!.folio.toString()),
-                                        _buildDetailRow(
-                                            'Grupo',
-                                            creditoData!.nombreGrupo ??
-                                                'No disponible'),
-                                        _buildDetailRow(
-                                            'Tipo',
-                                            creditoData!.tipoPlazo ??
-                                                'No disponible'),
-                                        _buildDetailRow('Monto Total',
-                                            "\$${formatearNumero(creditoData!.montoTotal ?? 0.0)}"),
-                                        _buildDetailRow('Interés Mensual',
-                                            "${creditoData!.ti_mensual ?? 0.0}%"),
-                                            _buildDetailRow('Interés M. Monto', "\$${formatearNumero((creditoData!.montoTotal ?? 0.0) * (creditoData!.ti_mensual ?? 0.0) / 100)}"),
-
-                                        _buildDetailRow('Garantía',
-                                            "\$${creditoData!.garantia ?? 0.0}"),
-                                        _buildDetailRow('Garantía Monto',
-                                            "\$${creditoData!.montoGarantia ?? 0.0}"),
-                                        _buildDetailRow(
-                                          'Monto Desembolsado',
-                                          "\$${formatearNumero(creditoData!.montoDesembolsado ?? 0.0)}",
-                                        ),
-                                        _buildDetailRow('Interés Global',
-                                            "${creditoData!.interesGlobal ?? 0.0}%"),
-                                        _buildDetailRow(
-                                          'Día de Pago',
-                                          creditoData!.diaPago ?? 'Desconocido',
-                                        ),
-                                        SizedBox(height: 3),
-                                        Divider(
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                            thickness: 1),
-                                        SizedBox(height: 3),
-                                        _buildDetailRow(
-                                            creditoData!.tipoPlazo == 'Semanal'
-                                                ? 'Capital Semanal'
-                                                : 'Capital Quincenal',
-                                            "\$${formatearNumero(creditoData!.semanalCapital ?? 0.0)}"),
-                                        _buildDetailRow('Capital Total',
-                                            "\$${formatearNumero((creditoData!.semanalCapital * creditoData!.plazo) ?? 0.0)}"),
-                                        _buildDetailRow(
-                                            creditoData!.tipoPlazo == 'Semanal'
-                                                ? 'Interés Semanal'
-                                                : 'Interés Quincenal',
-                                            "\$${formatearNumero(creditoData!.semanalInteres ?? 0.0)}"),
-                                        _buildDetailRow('Interés Total',
-                                            "\$${formatearNumero(creditoData!.interesTotal ?? 0.0)}"),
-                                        SizedBox(height: 3),
-                                        Divider(
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                            thickness: 1),
-                                        SizedBox(height: 3),
-                                        _buildDetailRow(
-                                          creditoData!.tipoPlazo == 'Semanal'
-                                              ? 'Pago Semanal'
-                                              : 'Pago Quincenal',
-                                          "\$${formatearNumero(creditoData!.pagoCuota ?? 0.0)}",
-                                        ),
-                                        _buildDetailRow(
-                                          'Monto a Recuperar',
-                                          "\$${formatearNumero(creditoData!.montoMasInteres ?? 0.0)}",
-                                        ),
-                                        _buildDetailRow(
-                                          'Estado',
-                                          creditoData!.estado != null
-                                              ? creditoData!.estado.toString()
-                                              : 'No disponible',
-                                        ),
-                                        _buildDetailRow(
-                                          'Fecha de Creación',
-                                          formatearFecha(
-                                              creditoData?.fCreacion ??
-                                                  DateTime.now()),
-                                        ),
-                                        SizedBox(height: 30),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 16),
-                              // Columna derecha con pestañas
-                              Expanded(
-                                flex: 75,
-                                child: DefaultTabController(
-                                  length: 3,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      TabBar(
-                                        labelColor: Color(0xFF5162F6),
-                                        unselectedLabelColor: Colors.grey,
-                                        indicatorColor: Color(0xFF5162F6),
-                                        tabs: [
-                                          Tab(text: 'Control'),
-                                          Tab(text: 'Integrantes'),
-                                          Tab(text: 'Descargables'),
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(20)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black26,
+                                            blurRadius: 8,
+                                            offset: Offset(0, 4),
+                                          )
                                         ],
                                       ),
-                                      Expanded(
-                                        child: TabBarView(
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: 20, horizontal: 16),
+                                      child: SingleChildScrollView(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
                                           children: [
-                                            SingleChildScrollView(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  _buildSectionTitle(
-                                                      'Control de Pagos'),
-                                                  PaginaControl(
-                                                    key: paginaControlKey,
-                                                    idCredito: idCredito,
-                                                    montoGarantia: creditoData!
-                                                            .montoGarantia ??
-                                                        0.0,
-                                                  ),
-                                                ],
+                                            CircleAvatar(
+                                              radius: 35,
+                                              backgroundColor: Colors.white,
+                                              child: Icon(
+                                                Icons
+                                                    .account_balance_wallet_rounded,
+                                                size: 50,
+                                                color: Color(0xFF5162F6),
                                               ),
                                             ),
-                                            SingleChildScrollView(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  _buildSectionTitle(
-                                                      'Integrantes'),
-                                                  SizedBox(height: 12),
-                                                  PaginaIntegrantes(
-                                                    clientesMontosInd:
-                                                        creditoData!
-                                                            .clientesMontosInd,
-                                                    tipoPlazo:
-                                                        creditoData!.tipoPlazo,
-                                                  ),
-                                                ],
+                                            SizedBox(height: 8),
+                                            Text(
+                                              'Información del Crédito',
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
                                               ),
                                             ),
-                                            SingleChildScrollView(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  _buildSectionTitle(
-                                                      'Descargables'),
-                                                  PaginaDescargables(
-                                                    tipo: creditoData!.tipo,
-                                                    folio: creditoData!.folio,
-                                                  )
-                                                ],
-                                              ),
+                                            SizedBox(height: 2),
+                                            Divider(
+                                                color: Colors.white
+                                                    .withOpacity(0.5),
+                                                thickness: 1),
+                                            _buildDetailRow('Folio',
+                                                creditoData!.folio.toString()),
+                                            _buildDetailRow(
+                                                'Grupo',
+                                                creditoData!.nombreGrupo ??
+                                                    'No disponible'),
+                                            _buildDetailRow(
+                                                'Tipo',
+                                                creditoData!.tipoPlazo ??
+                                                    'No disponible'),
+                                            _buildDetailRow('Monto Total',
+                                                "\$${formatearNumero(creditoData!.montoTotal ?? 0.0)}"),
+                                            _buildDetailRow('Interés Mensual',
+                                                "${creditoData!.ti_mensual ?? 0.0}%"),
+                                            _buildDetailRow('Interés M. Monto',
+                                                "\$${formatearNumero((creditoData!.montoTotal ?? 0.0) * (creditoData!.ti_mensual ?? 0.0) / 100)}"),
+                                            _buildDetailRow('Garantía',
+                                                "\$${creditoData!.garantia ?? 0.0}"),
+                                            _buildDetailRow('Garantía Monto',
+                                                "\$${creditoData!.montoGarantia ?? 0.0}"),
+                                            _buildDetailRow(
+                                              'Monto Desembolsado',
+                                              "\$${formatearNumero(creditoData!.montoDesembolsado ?? 0.0)}",
                                             ),
+                                            _buildDetailRow('Interés Global',
+                                                "${creditoData!.interesGlobal ?? 0.0}%"),
+                                            _buildDetailRow(
+                                              'Día de Pago',
+                                              creditoData!.diaPago ??
+                                                  'Desconocido',
+                                            ),
+                                            SizedBox(height: 3),
+                                            Divider(
+                                                color: Colors.white
+                                                    .withOpacity(0.5),
+                                                thickness: 1),
+                                            SizedBox(height: 3),
+                                            _buildDetailRow(
+                                                creditoData!.tipoPlazo ==
+                                                        'Semanal'
+                                                    ? 'Capital Semanal'
+                                                    : 'Capital Quincenal',
+                                                "\$${formatearNumero(creditoData!.semanalCapital ?? 0.0)}"),
+                                            _buildDetailRow('Capital Total',
+                                                "\$${formatearNumero((creditoData!.semanalCapital * creditoData!.plazo) ?? 0.0)}"),
+                                            _buildDetailRow(
+                                                creditoData!.tipoPlazo ==
+                                                        'Semanal'
+                                                    ? 'Interés Semanal'
+                                                    : 'Interés Quincenal',
+                                                "\$${formatearNumero(creditoData!.semanalInteres ?? 0.0)}"),
+                                            _buildDetailRow('Interés Total',
+                                                "\$${formatearNumero(creditoData!.interesTotal ?? 0.0)}"),
+                                            SizedBox(height: 3),
+                                            Divider(
+                                                color: Colors.white
+                                                    .withOpacity(0.5),
+                                                thickness: 1),
+                                            SizedBox(height: 3),
+                                            _buildDetailRow(
+                                              creditoData!.tipoPlazo ==
+                                                      'Semanal'
+                                                  ? 'Pago Semanal'
+                                                  : 'Pago Quincenal',
+                                              "\$${formatearNumero(creditoData!.pagoCuota ?? 0.0)}",
+                                            ),
+                                            _buildDetailRow(
+                                              'Monto a Recuperar',
+                                              "\$${formatearNumero(creditoData!.montoMasInteres ?? 0.0)}",
+                                            ),
+                                            _buildDetailRow(
+                                              'Estado',
+                                              creditoData!.estado != null
+                                                  ? creditoData!.estado
+                                                      .toString()
+                                                  : 'No disponible',
+                                            ),
+                                            _buildDetailRow(
+                                              'Fecha de Creación',
+                                              formatearFecha(
+                                                  creditoData?.fCreacion ??
+                                                      DateTime.now()),
+                                            ),
+                                            SizedBox(height: 30),
                                           ],
                                         ),
                                       ),
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ],
-                          )
-                        : Center(
-                            child: Text('No se ha cargado la información')),
+                                  SizedBox(width: 16),
+                                  // Columna derecha con pestañas
+                                  Expanded(
+                                    flex: 75,
+                                    child: DefaultTabController(
+                                      length: 3,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          TabBar(
+                                            labelColor: Color(0xFF5162F6),
+                                            unselectedLabelColor: Colors.grey,
+                                            indicatorColor: Color(0xFF5162F6),
+                                            tabs: [
+                                              Tab(text: 'Control'),
+                                              Tab(text: 'Integrantes'),
+                                              Tab(text: 'Descargables'),
+                                            ],
+                                          ),
+                                          Expanded(
+                                            child: TabBarView(
+                                              children: [
+                                                SingleChildScrollView(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      _buildSectionTitle(
+                                                          'Control de Pagos'),
+                                                      PaginaControl(
+                                                        key: paginaControlKey,
+                                                        idCredito: idCredito,
+                                                        montoGarantia: creditoData!
+                                                                .montoGarantia ??
+                                                            0.0,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                SingleChildScrollView(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      _buildSectionTitle(
+                                                          'Integrantes'),
+                                                      SizedBox(height: 12),
+                                                      PaginaIntegrantes(
+                                                        clientesMontosInd:
+                                                            creditoData!
+                                                                .clientesMontosInd,
+                                                        tipoPlazo: creditoData!
+                                                            .tipoPlazo,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                SingleChildScrollView(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      _buildSectionTitle(
+                                                          'Descargables'),
+                                                      PaginaDescargables(
+                                                        tipo: creditoData!.tipo,
+                                                        folio:
+                                                            creditoData!.folio,
+                                                      )
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Center(
+                                child: Text('No se ha cargado la información')),
+                  ),
+                  // Botones de acción
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop(); // Cerrar el diálogo
+                          },
+                          child: Text(
+                            'Cancelar',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            // Reinicia los datos del Provider
+                            Provider.of<PagosProvider>(context, listen: false)
+                                .limpiarPagos();
+
+                            // Opcional: muestra un mensaje para confirmar el reinicio
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      'Los datos se han reiniciado correctamente.')),
+                            );
+                          },
+                          child: Text('Reiniciar Datos'),
+                        ),
+                        ElevatedButton(
+                          onPressed: isSending
+                              ? null // Deshabilita el botón si está enviando
+                              : () async {
+                                  setState(() {
+                                    isSending =
+                                        true; // Activar el indicador de carga
+                                  });
+
+                                  // Delay of 1 second
+                                  await Future.delayed(
+                                      Duration(milliseconds: 500));
+
+                                  final pagosSeleccionados =
+                                      Provider.of<PagosProvider>(context,
+                                              listen: false)
+                                          .pagosSeleccionados;
+                                  final pagosOriginales =
+                                      Provider.of<PagosProvider>(context,
+                                              listen: false)
+                                          .pagosOriginales;
+
+                                  // Generar JSON solo con los datos modificados
+                                  List<Map<String, dynamic>> pagosJson =
+                                      generarPagoJson(
+                                          pagosSeleccionados, pagosOriginales);
+
+                                  // Verificar si hay datos modificados para enviar
+                                  if (pagosJson.isNotEmpty) {
+                                    print('Datos a enviar: $pagosJson');
+                                    // Llamar a la función para enviar los datos al servidor
+                                    await enviarDatosAlServidor(
+                                        context, pagosSeleccionados);
+                                  } else {
+                                    print("No hay cambios para guardar.");
+                                  }
+
+                                  setState(() {
+                                    isSending =
+                                        false; // Desactivar el indicador de carga
+                                  });
+                                },
+                          child: isSending
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text('Guardar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              // Botones de acción
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(); // Cerrar el diálogo
-                      },
-                      child: Text(
-                        'Cancelar',
-                        style: TextStyle(color: Colors.grey),
+            ),
+            if (isSending)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black
+                      .withOpacity(0.3), // Semi-transparent background
+                  child: Center(
+                    child: Container(
+                      padding: EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 8,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(
+                            color: Color(0xFF5162F6),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Guardando...',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
+                        ],
                       ),
                     ),
-                    ElevatedButton(
-                      onPressed: () {
-                        // Reinicia los datos del Provider
-                        Provider.of<PagosProvider>(context, listen: false)
-                            .limpiarPagos();
-
-                        // Opcional: muestra un mensaje para confirmar el reinicio
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Los datos se han reiniciado correctamente.')),
-                        );
-                      },
-                      child: Text('Reiniciar Datos'),
-                    ),
-                    ElevatedButton(
-                      onPressed: isSending
-                          ? null // Deshabilita el botón si está enviando
-                          : () async {
-                              setState(() {
-                                isSending =
-                                    true; // Activar el indicador de carga
-                              });
-
-                              // Delay of 1 second
-                              await Future.delayed(Duration(milliseconds: 500));
-
-                              final pagosSeleccionados =
-                                  Provider.of<PagosProvider>(context,
-                                          listen: false)
-                                      .pagosSeleccionados;
-                              final pagosOriginales =
-                                  Provider.of<PagosProvider>(context,
-                                          listen: false)
-                                      .pagosOriginales;
-
-                              // Generar JSON solo con los datos modificados
-                              List<Map<String, dynamic>> pagosJson =
-                                  generarPagoJson(
-                                      pagosSeleccionados, pagosOriginales);
-
-                              // Verificar si hay datos modificados para enviar
-                              if (pagosJson.isNotEmpty) {
-                                print('Datos a enviar: $pagosJson');
-                                // Llamar a la función para enviar los datos al servidor
-                                await enviarDatosAlServidor(
-                                    context, pagosSeleccionados);
-                              } else {
-                                print("No hay cambios para guardar.");
-                              }
-
-                              setState(() {
-                                isSending =
-                                    false; // Desactivar el indicador de carga
-                              });
-                            },
-                      child: isSending
-                          ? SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text('Guardar'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
-        
-   if (isSending)
-  Positioned.fill(
-    child: Container(
-      color: Colors.black.withOpacity(0.3), // Semi-transparent background
-      child: Center(
-        child: Container(
-          padding: EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 8,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: Color(0xFF5162F6),),
-              SizedBox(height: 12),
-              Text(
-                'Guardando...',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  ),
-
-  ],
-)
-    );
+          ],
+        ));
   }
 
   // Función para formatear números
@@ -2112,94 +2124,119 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                     : 0.0),
                                                           ); */
                                                   // Reemplaza la variable booleana por un texto condicional
-final String? textoEstado = pago.estado == "Pagado" 
-    ? "Liquidado" 
-    : pago.estado == "Retraso"
-        ? "Pagado con Retraso"
-        : null;
+                                                  final String? textoEstado = pago
+                                                              .estado ==
+                                                          "Pagado"
+                                                      ? "Liquidado"
+                                                      : pago.estado == "Retraso"
+                                                          ? "Pagado con Retraso"
+                                                          : null;
 
 // Agregar un item que muestre el total de abonos
-items.add(
-  PopupMenuItem(
-    enabled: false,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Divider(
-          color: Colors.grey,
-          thickness: 0.8,
-          height: 10,
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(
-              vertical: 8.0, horizontal: 12.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.calculate_rounded,
-                color: Colors.blue[700],
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TOTAL ABONOS',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '\$${totalAbonos.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue[800],
-                          ),
-                        ),
-                        if (textoEstado != null) // Muestra badge si hay texto
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[100],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.blue[300]!,
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Text(
-                              textoEstado!, // Texto dinámico según estado
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue[800],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ),
-);
+                                                  items.add(
+                                                    PopupMenuItem(
+                                                      enabled: false,
+                                                      child: Column(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          const Divider(
+                                                            color: Colors.grey,
+                                                            thickness: 0.8,
+                                                            height: 10,
+                                                          ),
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                    vertical:
+                                                                        8.0,
+                                                                    horizontal:
+                                                                        12.0),
+                                                            child: Row(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .center,
+                                                              children: [
+                                                                Icon(
+                                                                  Icons
+                                                                      .calculate_rounded,
+                                                                  color: Colors
+                                                                          .blue[
+                                                                      700],
+                                                                  size: 20,
+                                                                ),
+                                                                const SizedBox(
+                                                                    width: 12),
+                                                                Expanded(
+                                                                  child: Column(
+                                                                    crossAxisAlignment:
+                                                                        CrossAxisAlignment
+                                                                            .start,
+                                                                    children: [
+                                                                      Text(
+                                                                        'TOTAL ABONOS',
+                                                                        style:
+                                                                            TextStyle(
+                                                                          fontSize:
+                                                                              10,
+                                                                          fontWeight:
+                                                                              FontWeight.w600,
+                                                                          color:
+                                                                              Colors.grey[600],
+                                                                          letterSpacing:
+                                                                              0.5,
+                                                                        ),
+                                                                      ),
+                                                                      const SizedBox(
+                                                                          height:
+                                                                              4),
+                                                                      Row(
+                                                                        mainAxisAlignment:
+                                                                            MainAxisAlignment.spaceBetween,
+                                                                        children: [
+                                                                          Text(
+                                                                            '\$${totalAbonos.toStringAsFixed(2)}',
+                                                                            style:
+                                                                                TextStyle(
+                                                                              fontSize: 16,
+                                                                              fontWeight: FontWeight.bold,
+                                                                              color: Colors.blue[800],
+                                                                            ),
+                                                                          ),
+                                                                          if (textoEstado !=
+                                                                              null) // Muestra badge si hay texto
+                                                                            Container(
+                                                                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                                                              decoration: BoxDecoration(
+                                                                                color: Colors.blue[100],
+                                                                                borderRadius: BorderRadius.circular(8),
+                                                                                border: Border.all(
+                                                                                  color: Colors.blue[300]!,
+                                                                                  width: 0.5,
+                                                                                ),
+                                                                              ),
+                                                                              child: Text(
+                                                                                textoEstado!, // Texto dinámico según estado
+                                                                                style: TextStyle(
+                                                                                  fontSize: 10,
+                                                                                  fontWeight: FontWeight.bold,
+                                                                                  color: Colors.blue[800],
+                                                                                ),
+                                                                              ),
+                                                                            ),
+                                                                        ],
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  );
 
                                                   return items;
                                                 },
@@ -3462,90 +3499,90 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
   bool dialogShown = false; // Controlar diálogos mostrados
 
   Future<void> _descargarDocumento(String documento) async {
-  setState(() => _documentoDescargando = documento);
+    setState(() => _documentoDescargando = documento);
 
-  bool dialogShown = false;
+    bool dialogShown = false;
 
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
 
-    final response = await http.get(
-      Uri.parse(
-        'http://$baseUrl/api/v1/formato/'
-        '${documento.toLowerCase()}/'
-        '${widget.tipo.toLowerCase()}/'
-        '${widget.folio.toUpperCase()}',
-      ),
-      headers: {
-        'tokenauth': token,
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (!mounted) return;
-
-    if (response.statusCode == 200) {
-      final String? savePath = await FilePicker.platform.saveFile(
-        dialogTitle: 'Guardar documento',
-        fileName: '${documento}_${widget.folio}.docx',
-        allowedExtensions: ['docx'],
-        type: FileType.custom,
+      final response = await http.get(
+        Uri.parse(
+          'http://$baseUrl/api/v1/formato/'
+          '${documento.toLowerCase()}/'
+          '${widget.tipo.toLowerCase()}/'
+          '${widget.folio.toUpperCase()}',
+        ),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
       );
 
       if (!mounted) return;
 
-      if (savePath != null) {
-        final file = File(savePath);
-        await file.writeAsBytes(response.bodyBytes);
-        if (!mounted) return;
-        await _abrirArchivoGuardado(savePath);
-      }
-    } else if (response.statusCode == 404) {
-      final errorData = json.decode(response.body);
-      if (errorData["Error"]["Message"] == "jwt expired") {
-        await prefs.remove('tokenauth');
+      if (response.statusCode == 200) {
+        final String? savePath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Guardar documento',
+          fileName: '${documento}_${widget.folio}.docx',
+          allowedExtensions: ['docx'],
+          type: FileType.custom,
+        );
 
-        if (!dialogShown) {
-          dialogShown = true;
-          _handleError(
-            dialogShown,
-            'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-            redirectToLogin: true,
-          );
+        if (!mounted) return;
+
+        if (savePath != null) {
+          final file = File(savePath);
+          await file.writeAsBytes(response.bodyBytes);
+          if (!mounted) return;
+          await _abrirArchivoGuardado(savePath);
+        }
+      } else if (response.statusCode == 404) {
+        final errorData = json.decode(response.body);
+        if (errorData["Error"]["Message"] == "jwt expired") {
+          await prefs.remove('tokenauth');
+
+          if (!dialogShown) {
+            dialogShown = true;
+            _handleError(
+              dialogShown,
+              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+              redirectToLogin: true,
+            );
+          }
+        } else {
+          _handleError(dialogShown, 'Error 404: Documento no encontrado.');
         }
       } else {
-        _handleError(dialogShown, 'Error 404: Documento no encontrado.');
+        _handleError(dialogShown, 'Error de servidor: ${response.statusCode}');
       }
-    } else {
-      _handleError(dialogShown, 'Error de servidor: ${response.statusCode}');
-    }
-  } catch (e) {
-    _handleError(dialogShown, 'Error: ${e.toString()}');
-  } finally {
-    if (mounted) {
-      setState(() => _documentoDescargando = null);
+    } catch (e) {
+      _handleError(dialogShown, 'Error: ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() => _documentoDescargando = null);
+      }
     }
   }
-}
 
-
-void _handleError(bool dialogShown, String message, {bool redirectToLogin = false}) {
-  if (!dialogShown) {
-    dialogShown = true;
-    _mostrarDialogoError(
-      message,
-      onClose: redirectToLogin
-          ? () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
-            }
-          : null,
-    );
+  void _handleError(bool dialogShown, String message,
+      {bool redirectToLogin = false}) {
+    if (!dialogShown) {
+      dialogShown = true;
+      _mostrarDialogoError(
+        message,
+        onClose: redirectToLogin
+            ? () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              }
+            : null,
+      );
+    }
   }
-}
 
   void _mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     if (!mounted || dialogShown) return; // Evitar múltiples diálogos

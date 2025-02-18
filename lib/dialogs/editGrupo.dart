@@ -226,14 +226,15 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     ).then((_) => _dialogShown = false);
   }
 
-  bool _validarFormularioActual() {
-    if (_currentIndex == 0) {
-      return _infoGrupoFormKey.currentState?.validate() ?? false;
-    } else if (_currentIndex == 1) {
-      return _miembrosGrupoFormKey.currentState?.validate() ?? false;
-    }
-    return false;
+ bool _validarFormularioActual() {
+  if (_currentIndex == 0) {
+    return _infoGrupoFormKey.currentState?.validate() ?? false;
+  } else if (_currentIndex == 1) {
+    // Si no hay campos obligatorios en miembros, retorna true directamente
+    return true;
   }
+  return false;
+}
 
   Future<List<Map<String, dynamic>>> findPersons(String query) async {
     final url = Uri.parse('http://$baseUrl/api/v1/clientes/$query');
@@ -435,27 +436,28 @@ class _editGrupoDialogState extends State<editGrupoDialog>
   }
 
   Future<void> actualizarCargo(
-    String idGrupo,
-    String idCliente,
-    String nuevoCargo,
-    String token,
-  ) async {
-    try {
-      final response = await http.put(
-        Uri.parse(
-            'http://$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente'),
-        headers: {'Content-Type': 'application/json', 'tokenauth': token},
-        body: json.encode({'nomCargo': nuevoCargo}),
-      );
+  String idGrupo,
+  String idCliente,
+  String nuevoCargo,
+  String token,
+) async {
+  print('Actualizando cargo: $idGrupo, $idCliente, $nuevoCargo'); // Log
+  try {
+    final response = await http.put(
+      Uri.parse('http://$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente'),
+      headers: {'Content-Type': 'application/json', 'tokenauth': token},
+      body: json.encode({'nomCargo': nuevoCargo}),
+    );
 
-      if (response.statusCode != 200) {
-        throw Exception('Error actualizando cargo: ${response.body}');
-      }
-    } catch (e) {
-      print('Error al actualizar cargo: $e');
-      rethrow;
+    print('Respuesta actualizar cargo: ${response.statusCode}'); // Log
+    if (response.statusCode != 200) {
+      throw Exception('Error actualizando cargo: ${response.body}');
     }
+  } catch (e) {
+    print('Error al actualizar cargo: $e');
+    rethrow;
   }
+}
 
 // Funciones de ayuda para manejo de errores
   void _handleTokenExpiration() async {
@@ -771,6 +773,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     int pasoActual = 2; // Paso actual que queremos marcar como activo
 
     return Form(
+      key: _miembrosGrupoFormKey, // ¡Agrega esta línea!
       child: Row(
         children: [
           Container(
