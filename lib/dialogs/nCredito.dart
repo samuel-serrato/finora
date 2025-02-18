@@ -481,16 +481,18 @@ class _nCreditoDialogState extends State<nCreditoDialog>
               Focus(
                 canRequestFocus: false,
                 descendantsAreFocusable: false,
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: const Color(0xFF5162F6),
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: const Color(0xFF5162F6),
-                  tabs: const [
-                    Tab(text: 'Datos Generales'),
-                    Tab(text: 'Integrantes'),
-                    Tab(text: 'Resumen'),
-                  ],
+                child: IgnorePointer(
+                  child: TabBar(
+                    controller: _tabController,
+                    labelColor: const Color(0xFF5162F6),
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: const Color(0xFF5162F6),
+                    tabs: const [
+                      Tab(text: 'Datos Generales'),
+                      Tab(text: 'Integrantes'),
+                      Tab(text: 'Resumen'),
+                    ],
+                  ),
                 ),
               ),
               Expanded(
