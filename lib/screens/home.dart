@@ -6,8 +6,6 @@ import 'package:finora/custom_app_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 
-
-
 class HomeScreen extends StatefulWidget {
   final String username;
   final String tipoUsuario;
@@ -24,11 +22,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Timer timer;
- String formattedDate = DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(DateTime.now());
-String formattedDateTime = DateFormat('h:mm:ss a', 'es_ES').format(DateTime.now());
+  String formattedDate =
+      DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(DateTime.now());
+  String formattedDateTime =
+      DateFormat('h:mm:ss a', 'es_ES').format(DateTime.now());
 
   bool _isDarkMode = false;
-    HomeData? homeData;
+  HomeData? homeData;
   bool isLoading = true;
   String errorMessage = '';
 
@@ -41,7 +41,7 @@ String formattedDateTime = DateFormat('h:mm:ss a', 'es_ES').format(DateTime.now(
         formattedDateTime = DateFormat('h:mm:ss a').format(DateTime.now());
       });
     });
-      _fetchHomeData();
+    _fetchHomeData();
   }
 
   @override
@@ -57,79 +57,80 @@ String formattedDateTime = DateFormat('h:mm:ss a', 'es_ES').format(DateTime.now(
   }
 
   Future<void> _fetchHomeData() async {
-  final Uri url = Uri.parse('http://$baseUrl/api/v1/home');
-  
-  print('🔄 Iniciando solicitud a: ${url.toString()}');
-  
-  try {
-    final response = await http.get(url)
-      .timeout(const Duration(seconds: 10));
-    
-    print('✅ Respuesta recibida - Código: ${response.statusCode}');
-    print('📄 Cuerpo de la respuesta: ${response.body}');
+    final Uri url = Uri.parse('http://$baseUrl/api/v1/home');
 
-    if (response.statusCode == 200) {
-      try {
-        final Map<String, dynamic> responseData = json.decode(response.body);
-        final HomeData parsedData = HomeData.fromJson(responseData);
-        
-        print('📦 Datos parseados correctamente:');
-        print(' - Créditos activos: ${parsedData.creditosActFin.first.creditos_activos}');
-        print(' - Grupos activos: ${parsedData.gruposIndGrupos.first.grupos_activos}');
-        print(' - Total depósitos: ${parsedData.sumaPagos.first.sumaDepositos}');
+    print('🔄 Iniciando solicitud a: ${url.toString()}');
 
+    try {
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+
+      print('✅ Respuesta recibida - Código: ${response.statusCode}');
+      print('📄 Cuerpo de la respuesta: ${response.body}');
+
+      if (response.statusCode == 200) {
+        try {
+          final Map<String, dynamic> responseData = json.decode(response.body);
+          final HomeData parsedData = HomeData.fromJson(responseData);
+
+          print('📦 Datos parseados correctamente:');
+          print(
+              ' - Créditos activos: ${parsedData.creditosActFin.first.creditos_activos}');
+          print(
+              ' - Grupos activos: ${parsedData.gruposIndGrupos.first.grupos_activos}');
+          print(
+              ' - Total depósitos: ${parsedData.sumaPagos.first.sumaDepositos}');
+
+          setState(() {
+            homeData = parsedData;
+            isLoading = false;
+            errorMessage = '';
+          });
+        } catch (e) {
+          print('❌ Error parseando respuesta: $e');
+          setState(() {
+            errorMessage = 'Error en formato de datos';
+            isLoading = false;
+          });
+        }
+      } else {
+        print('⚠️ Respuesta no exitosa - Código: ${response.statusCode}');
         setState(() {
-          homeData = parsedData;
-          isLoading = false;
-          errorMessage = '';
-        });
-        
-      } catch (e) {
-        print('❌ Error parseando respuesta: $e');
-        setState(() {
-          errorMessage = 'Error en formato de datos';
+          errorMessage = 'Error del servidor: ${response.statusCode}';
           isLoading = false;
         });
       }
-    } else {
-      print('⚠️ Respuesta no exitosa - Código: ${response.statusCode}');
+    } on http.ClientException catch (e) {
+      print('❌ Error de conexión: $e');
       setState(() {
-        errorMessage = 'Error del servidor: ${response.statusCode}';
+        errorMessage = 'Error de conexión: ${e.message}';
+        isLoading = false;
+      });
+    } on TimeoutException {
+      print('⌛ Tiempo de espera agotado');
+      setState(() {
+        errorMessage = 'Tiempo de espera agotado';
+        isLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error inesperado: $e');
+      setState(() {
+        errorMessage = 'Error inesperado: ${e.toString()}';
         isLoading = false;
       });
     }
-  } on http.ClientException catch (e) {
-    print('❌ Error de conexión: $e');
-    setState(() {
-      errorMessage = 'Error de conexión: ${e.message}';
-      isLoading = false;
-    });
-  } on TimeoutException {
-    print('⌛ Tiempo de espera agotado');
-    setState(() {
-      errorMessage = 'Tiempo de espera agotado';
-      isLoading = false;
-    });
-  } catch (e) {
-    print('❌ Error inesperado: $e');
-    setState(() {
-      errorMessage = 'Error inesperado: ${e.toString()}';
-      isLoading = false;
-    });
-  }
-  
-  if (errorMessage.isNotEmpty) {
-    print('❗ Estado final - Error: $errorMessage');
-  } else {
-    print('🎉 Datos cargados exitosamente!');
-  }
-}
 
+    if (errorMessage.isNotEmpty) {
+      print('❗ Estado final - Error: $errorMessage');
+    } else {
+      print('🎉 Datos cargados exitosamente!');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: /* _isDarkMode ? Colors.grey[900] : */ const Color(0xFFF7F8FA),
+      backgroundColor: /* _isDarkMode ? Colors.grey[900] : */
+          const Color(0xFFF7F8FA),
       body: content(),
       appBar: CustomAppBar(
         isDarkMode: _isDarkMode,
@@ -152,7 +153,7 @@ String formattedDateTime = DateFormat('h:mm:ss a', 'es_ES').format(DateTime.now(
           welcomeCard(),
           const SizedBox(height: 50),
           Expanded(child: cardsList()),
-          const SizedBox(height: 20), 
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -160,116 +161,114 @@ String formattedDateTime = DateFormat('h:mm:ss a', 'es_ES').format(DateTime.now(
 
   // Nuevo método para la tarjeta de bienvenida
   Widget welcomeCard() {
-  return Card(
-    elevation: 5,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Container(
-      decoration: BoxDecoration(
+    return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-        /*     _isDarkMode ? Colors.blueGrey[800]! : */ Color(0xFF6A88F7),
-          /*   _isDarkMode ? Colors.blueGrey[900]! : */ Color(0xFF5162F6),
-          ],
-        ),
       ),
-      padding: EdgeInsets.all(25),
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.waving_hand_rounded, 
-                      color: Colors.white.withOpacity(0.9), 
-                      size: 28),
-                  SizedBox(width: 10),
-                  Text(
-                    "Hola, ${widget.username}!",
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              /*     _isDarkMode ? Colors.blueGrey[800]! : */ Color(0xFF6A88F7),
+              /*   _isDarkMode ? Colors.blueGrey[900]! : */ Color(0xFF5162F6),
+            ],
+          ),
+        ),
+        padding: EdgeInsets.all(25),
+        child: Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.waving_hand_rounded,
+                        color: Colors.white.withOpacity(0.9), size: 28),
+                    SizedBox(width: 10),
+                    Text(
+                      "Hola, ${widget.username}!",
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 20),
-              _buildWelcomeInfoRow(
-                icon: Icons.calendar_today_rounded,
-                title: "Hoy es",
-                value: DateFormat('EEEE, d MMM').format(DateTime.now()),
-              ),
-              SizedBox(height: 12),
-              _buildWelcomeInfoRow(
-                icon: Icons.access_time_rounded,
-                title: "Hora actual",
-                value: DateFormat('hh:mm a').format(DateTime.now()),
-              ),
-              SizedBox(height: 12),
-             /*  _buildWelcomeInfoRow(
+                  ],
+                ),
+                SizedBox(height: 20),
+                _buildWelcomeInfoRow(
+                  icon: Icons.calendar_today_rounded,
+                  title: "Hoy es",
+                  value: DateFormat('EEEE, d MMM').format(DateTime.now()),
+                ),
+                SizedBox(height: 12),
+                _buildWelcomeInfoRow(
+                  icon: Icons.access_time_rounded,
+                  title: "Hora actual",
+                  value: DateFormat('hh:mm a').format(DateTime.now()),
+                ),
+                SizedBox(height: 12),
+                /*  _buildWelcomeInfoRow(
                 icon: Icons.thermostat_rounded,
                 title: "Temperatura",
                 value: "25°C",
                 valueColor: Colors.amber[200],
               ), */
-            ],
-          ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Opacity(
-              opacity: 0.1,
-              child: Icon(Icons.account_balance_wallet_rounded, 
-                          size: 120, 
-                          color: Colors.white),
+              ],
             ),
-          )
-        ],
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Opacity(
+                opacity: 0.1,
+                child: Icon(Icons.account_balance_wallet_rounded,
+                    size: 120, color: Colors.white),
+              ),
+            )
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-Widget _buildWelcomeInfoRow({
-  required IconData icon,
-  required String title,
-  required String value,
-  Color? valueColor,
-}) {
-  return Row(
-    children: [
-      Icon(icon, color: Colors.white.withOpacity(0.8), size: 22),
-      SizedBox(width: 12),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
+  Widget _buildWelcomeInfoRow({
+    required IconData icon,
+    required String title,
+    required String value,
+    Color? valueColor,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white.withOpacity(0.8), size: 22),
+        SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 14,
+              ),
             ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: valueColor ?? Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+            Text(
+              value,
+              style: TextStyle(
+                color: valueColor ?? Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
-      ),
-    ],
-  );
-}
+          ],
+        ),
+      ],
+    );
+  }
 
   Widget headerSection() {
     return Column(
@@ -294,115 +293,123 @@ Widget _buildWelcomeInfoRow({
     );
   }
 
- Widget cardsList() {
-  if (isLoading) {
-    return const Center(child: CircularProgressIndicator());
+  Widget cardsList() {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (errorMessage.isNotEmpty) {
+      return Center(child: Text(errorMessage));
+    }
+
+    return GridView.count(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      crossAxisCount: 5, // Cantidad de columnas
+      childAspectRatio: 1.3, // Relación ancho/alto (aumenta para más ancho)
+      crossAxisSpacing: 15,
+      mainAxisSpacing: 15,
+      children: [
+        _buildStatCard(
+          title: 'Créditos Activos',
+          value: homeData!.creditosActFin.first.creditos_activos ?? '0',
+          icon: Icons.group_work_rounded,
+          color: const Color(0xFF5162F6),
+        ),
+        _buildStatCard(
+          title: 'Créditos Finalizados',
+          value: homeData!.creditosActFin.first.creditos_finalizados ?? '0',
+          icon: Icons.check_circle_rounded,
+          color: const Color(0xFF6BC950),
+        ),
+        _buildStatCard(
+          title: 'Grupos Individuales',
+          value: homeData!.gruposIndGrupos.first.grupos_individuales ?? '0',
+          icon: Icons.person,
+          color: const Color(0xFF4ECDC4),
+        ),
+        _buildStatCard(
+          title: 'Grupos Grupales',
+          value: homeData!.gruposIndGrupos.first.grupos_grupales ?? '0',
+          icon: Icons.group,
+          color: const Color(0xFF4ECDC4),
+        ),
+        _buildStatCard(
+          title: 'Acumulado Semanal',
+          value: NumberFormat.currency(
+            symbol: '\$',
+            decimalDigits: 2,
+            locale: 'en_US', // Fuerza formato americano
+          ).format(double.tryParse(
+                  (homeData!.sumaPagos.first.sumaDepositos ?? '0')
+                      .replaceAll(',', '.') // Asegura formato decimal correcto
+                  ) ??
+              0),
+          icon: Icons.payments,
+          color: const Color(0xFFFF6B6B),
+        ),
+      ],
+    );
   }
 
-  if (errorMessage.isNotEmpty) {
-    return Center(child: Text(errorMessage));
-  }
-
-  return GridView.count(
-    padding: const EdgeInsets.symmetric(vertical: 10),
-    crossAxisCount: 5, // Cantidad de columnas
-    childAspectRatio: 1.3, // Relación ancho/alto (aumenta para más ancho)
-    crossAxisSpacing: 15,
-    mainAxisSpacing: 15,
-    children: [
-      _buildStatCard(
-        title: 'Créditos Activos',
-        value: homeData!.creditosActFin.first.creditos_activos,
-        icon: Icons.group_work_rounded,
-        color: const Color(0xFF5162F6),
-      ),
-      _buildStatCard(
-        title: 'Créditos Finalizados',
-        value: homeData!.creditosActFin.first.creditos_finalizados,
-        icon: Icons.check_circle_rounded,
-        color: const Color(0xFF6BC950),
-      ),
-      _buildStatCard(
-        title: 'Grupos Individuales',
-        value: homeData!.gruposIndGrupos.first.grupos_individuales,
-        icon: Icons.person,
-        color: const Color(0xFF4ECDC4),
-      ),
-      _buildStatCard(
-        title: 'Grupos Grupales',
-        value: homeData!.gruposIndGrupos.first.grupos_grupales,
-        icon: Icons.group,
-        color: const Color(0xFF4ECDC4),
-      ),
-      _buildStatCard(
-        title: 'Acumulado Semanal',
-        value: NumberFormat.currency(symbol: '\$', decimalDigits: 2)
-    .format(double.tryParse(homeData!.sumaPagos.first.sumaDepositos ?? '0') ?? 0),
-        icon: Icons.payments,
-        color: const Color(0xFFFF6B6B),
-      ),
-    ],
-  );
-}Widget _buildStatCard({
-  required String title,
-  required String value,
-  required IconData icon,
-  required Color color,
-}) {
-  return Card(
-    elevation: 3,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(15),
-    ),
-    child: Container(
-      width: double.infinity, // Ocupa todo el ancho disponible
-      height: double.infinity, // Ocupa todo el alto disponible
-      decoration: BoxDecoration(
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withOpacity(0.2),
-            color.withOpacity(0.05),
+      ),
+      child: Container(
+        width: double.infinity, // Ocupa todo el ancho disponible
+        height: double.infinity, // Ocupa todo el alto disponible
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withOpacity(0.2),
+              color.withOpacity(0.05),
+            ],
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 30),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: /* _isDarkMode ? Colors.white70 : */
+                        Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 5), // Espacio adicional
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: /* _isDarkMode ? Colors.white : */ Colors.black,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 30),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: /* _isDarkMode ? Colors.white70 : */ Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 5), // Espacio adicional
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: /* _isDarkMode ? Colors.white : */ Colors.black,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
+    );
+  }
 }
-
-}
-
 
 // Añade estos modelos al final de tu archivo o en uno separado
 class HomeData {
@@ -432,8 +439,8 @@ class HomeData {
 }
 
 class CreditosActFin {
-  final String creditos_activos;
-  final String creditos_finalizados;
+  final String? creditos_activos; // Cambiado a nullable
+  final String? creditos_finalizados; // Cambiado a nullable
 
   CreditosActFin({
     required this.creditos_activos,
@@ -442,18 +449,19 @@ class CreditosActFin {
 
   factory CreditosActFin.fromJson(Map<String, dynamic> json) {
     return CreditosActFin(
-      creditos_activos: json['creditos_activos'],
-      creditos_finalizados: json['creditos_finalizados'],
+      creditos_activos:
+          json['creditos_activos']?.toString() ?? '0', // Convierte null a '0'
+      creditos_finalizados: json['creditos_finalizados']?.toString() ?? '0',
     );
   }
 }
 
 class GruposIndGrupos {
   final int total_grupos;
-  final String grupos_individuales;
-  final String grupos_grupales;
-  final String grupos_activos;
-  final String grupos_finalizados;
+  final String? grupos_individuales; // Cambiado a nullable
+  final String? grupos_grupales; // Cambiado a nullable
+  final String? grupos_activos; // Cambiado a nullable
+  final String? grupos_finalizados; // Cambiado a nullable
 
   GruposIndGrupos({
     required this.total_grupos,
@@ -465,17 +473,17 @@ class GruposIndGrupos {
 
   factory GruposIndGrupos.fromJson(Map<String, dynamic> json) {
     return GruposIndGrupos(
-      total_grupos: json['total_grupos'],
-      grupos_individuales: json['grupos_individuales'],
-      grupos_grupales: json['grupos_grupales'],
-      grupos_activos: json['grupos_activos'],
-      grupos_finalizados: json['grupos_finalizados'],
+      total_grupos: json['total_grupos'] ?? 0,
+      grupos_individuales: json['grupos_individuales']?.toString() ?? '0',
+      grupos_grupales: json['grupos_grupales']?.toString() ?? '0',
+      grupos_activos: json['grupos_activos']?.toString() ?? '0',
+      grupos_finalizados: json['grupos_finalizados']?.toString() ?? '0',
     );
   }
 }
 
 class SumaPagos {
-  final String? sumaDepositos; // Allow null values by making it nullable
+  final String? sumaDepositos; // Ya era nullable
 
   SumaPagos({
     required this.sumaDepositos,
@@ -483,7 +491,7 @@ class SumaPagos {
 
   factory SumaPagos.fromJson(Map<String, dynamic> json) {
     return SumaPagos(
-      sumaDepositos: json['sumaDepositos']?.toString(), // Convert null to string if necessary
+      sumaDepositos: json['sumaDepositos']?.toString() ?? '0', // Maneja null
     );
   }
 }

@@ -353,7 +353,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   void _showAboutDialog(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.30;
-    final height = MediaQuery.of(context).size.height * 0.30;
+    final height = MediaQuery.of(context).size.height * 0.25;
 
     showDialog(
       context: context,
@@ -370,8 +370,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
           ),
+          alignment: Alignment.center,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max, // Ocupa todo el espacio vertical
+            mainAxisAlignment:
+                MainAxisAlignment.center, // Centra verticalmente los
             children: [
               // Logo del software
               Image.asset(
