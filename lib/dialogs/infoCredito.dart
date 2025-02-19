@@ -2515,20 +2515,63 @@ class _PaginaControlState extends State<PaginaControl> {
                                                               .isNotEmpty)
                                                             ...pago.abonos
                                                                 .map((abono) {
+                                                              final esGarantia =
+                                                                  abono['garantia'] ==
+                                                                      "Si";
                                                               return Padding(
                                                                 padding:
                                                                     const EdgeInsets
                                                                         .only(
                                                                         top:
                                                                             4.0),
-                                                                child: Text(
-                                                                  'Pagado: ${abono["fechaDeposito"]}',
-                                                                  style: TextStyle(
-                                                                      fontSize:
-                                                                          10,
-                                                                      color: Colors
-                                                                              .grey[
-                                                                          600]),
+                                                                child: Column(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .center, // Alineación a la izquierda
+                                                                  children: [
+                                                                    Text(
+                                                                      'Pagado: ${abono["fechaDeposito"]}',
+                                                                      style:
+                                                                          TextStyle(
+                                                                        fontSize:
+                                                                            10,
+                                                                        color: Colors
+                                                                            .grey[600],
+                                                                      ),
+                                                                    ),
+                                                                    if (esGarantia)
+                                                                    SizedBox(height: 6),
+                                                                      Container(
+                                                                        padding:
+                                                                            const EdgeInsets.symmetric(
+                                                                          horizontal:
+                                                                              6,
+                                                                          vertical:
+                                                                              2,
+                                                                        ),
+                                                                        decoration:
+                                                                            BoxDecoration(
+                                                                          color: Colors
+                                                                              .orange
+                                                                              .withOpacity(0.2),
+                                                                          borderRadius:
+                                                                              BorderRadius.circular(6),
+                                                                        ),
+                                                                        child:
+                                                                            const Text(
+                                                                          "Garantía",
+                                                                          style:
+                                                                              TextStyle(
+                                                                            fontSize:
+                                                                                10,
+                                                                            fontWeight:
+                                                                                FontWeight.bold,
+                                                                            color:
+                                                                                Colors.orange,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                  ],
                                                                 ),
                                                               );
                                                             }).toList(),

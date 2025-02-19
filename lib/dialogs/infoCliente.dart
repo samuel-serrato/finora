@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class InfoCliente extends StatefulWidget {
@@ -587,6 +588,17 @@ class _InfoClienteState extends State<InfoCliente> {
           physics: ClampingScrollPhysics(),
           child: Row(
             children: ingresosValidos.map<Widget>((ingreso) {
+              // Convertir el monto semanal a double si es una cadena
+              double montoSemanal;
+              if (ingreso['monto_semanal'] is String) {
+                montoSemanal = double.tryParse(ingreso['monto_semanal']) ?? 0.0;
+              } else {
+                montoSemanal = ingreso['monto_semanal'] ?? 0.0;
+              }
+
+              // Formatear el monto semanal para eliminar ceros innecesarios
+              String montoFormateado = montoSemanal.toString().replaceAll(RegExp(r'\.0*$'), '');
+
               return Container(
                 margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
                 decoration: BoxDecoration(
@@ -605,10 +617,9 @@ class _InfoClienteState extends State<InfoCliente> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildDetailRow('Tipo de Info:', ingreso['tipo_info']),
-                    _buildDetailRow(
-                        'Años de Actividad:', ingreso['años_actividad']),
+                    _buildDetailRow('Años de Actividad:', ingreso['años_actividad']),
                     _buildDetailRow('Descripción:', ingreso['descripcion']),
-                    _buildDetailRow('Monto Semanal:', ingreso['monto_semanal']),
+                    _buildDetailRow('Monto Semanal:', montoFormateado),
                     _buildDetailRow('Fecha Creación:', ingreso['fCreacion']),
                   ],
                 ),
@@ -620,8 +631,7 @@ class _InfoClienteState extends State<InfoCliente> {
           left: 0,
           top: 50,
           child: IconButton(
-            icon:
-                Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
+            icon: Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
             onPressed: () {
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
@@ -635,8 +645,7 @@ class _InfoClienteState extends State<InfoCliente> {
           right: 0,
           top: 50,
           child: IconButton(
-            icon: Icon(Icons.arrow_forward_ios,
-                color: Color(0xFF5162F6), size: 20),
+            icon: Icon(Icons.arrow_forward_ios, color: Color(0xFF5162F6), size: 20),
             onPressed: () {
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
