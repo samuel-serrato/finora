@@ -1265,6 +1265,17 @@ class _PaginaControlState extends State<PaginaControl> {
     }
   }
 
+  String _formatFecha(String fecha) {
+    if (fecha.isEmpty) return 'Sin fecha registrada';
+
+    try {
+      final DateTime parsedDate = DateTime.parse(fecha);
+      return DateFormat('dd/MM/yyyy').format(parsedDate);
+    } catch (e) {
+      return 'Fecha inválida';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Pago>>(
@@ -1518,139 +1529,255 @@ class _PaginaControlState extends State<PaginaControl> {
                               _buildTableCell(
                                 esPago1
                                     ? "-"
-                                    : DropdownButton<String?>(
-                                        value: pago.tipoPago.isEmpty
-                                            ? null
-                                            : pago.tipoPago,
-                                        hint: Text(
-                                          pago.tipoPago.isEmpty
-                                              ? "Seleccionar Pago"
-                                              : "",
-                                          style: TextStyle(fontSize: 12),
-                                        ),
-                                        items: <String>[
-                                          'Completo',
-                                          'Monto Parcial',
-                                          'En Abonos',
-                                          if (pago.semana >=
-                                              totalPagosDelCredito - 1)
-                                            'Garantia',
-                                        ].map((String value) {
-                                          return DropdownMenuItem<String?>(
-                                            value: value,
-                                            child: Text(
-                                              value,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: _puedeEditarPago(pago)
-                                                    ? Colors.black
-                                                    : Colors.grey[700],
+                                    : Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          DropdownButton<String?>(
+                                            value: pago.tipoPago.isEmpty
+                                                ? null
+                                                : pago.tipoPago,
+                                            hint: Text(
+                                              pago.tipoPago.isEmpty
+                                                  ? "Seleccionar Pago"
+                                                  : "",
+                                              style: TextStyle(fontSize: 12),
+                                            ),
+                                            items: <String>[
+                                              'Completo',
+                                              'Monto Parcial',
+                                              'En Abonos',
+                                              if (pago.semana >=
+                                                  totalPagosDelCredito - 1)
+                                                'Garantia',
+                                            ].map((String value) {
+                                              return DropdownMenuItem<String?>(
+                                                value: value,
+                                                child: Text(
+                                                  value,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color:
+                                                        _puedeEditarPago(pago)
+                                                            ? Colors.black
+                                                            : Colors.grey[700],
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                            onChanged: _puedeEditarPago(pago)
+                                                ? (String? newValue) {
+                                                    setState(() {
+                                                      pago.tipoPago = newValue!;
+                                                      print(
+                                                          "Pago seleccionado: Semana ${pago.semana}, Tipo de pago: $newValue, Fecha de pago: ${pago.fechaPago}, ID Fechas Pagos: ${pago.idfechaspagos}, Monto a Pagar: ${pago.capitalMasInteres}");
+
+                                                      // Manejar diferentes tipos de pago
+                                                      if (newValue ==
+                                                          'Completo') {
+                                                        double montoAPagar =
+                                                            pago.capitalMasInteres ??
+                                                                0.0;
+                                                        pago.deposito =
+                                                            montoAPagar;
+
+                                                        // Usar la nueva propiedad en lugar de fechaPago
+                                                        pago.fechaPagoCompleto =
+                                                            DateTime.now()
+                                                                .toString();
+
+                                                        // Mantener la fecha original intacta
+                                                        if (pago.fechaPago
+                                                            .isEmpty) {
+                                                          pago.fechaPago =
+                                                              DateTime.now()
+                                                                  .toString();
+                                                        }
+                                                      } else if (newValue ==
+                                                          'Garantia') {
+                                                        // Asignar valor de garantía desde el widget
+                                                        pago.deposito = widget
+                                                            .montoGarantia;
+
+                                                        // Calcular totalDeuda incluyendo moratorios
+                                                        double totalDeuda =
+                                                            (pago.capitalMasInteres ??
+                                                                    0.0) +
+                                                                (pago.moratorios
+                                                                        ?.moratorios ??
+                                                                    0.0);
+
+                                                        // Calcular saldos basados en el monto de garantía
+                                                        if (widget
+                                                                .montoGarantia >=
+                                                            totalDeuda) {
+                                                          pago.saldoFavor =
+                                                              widget.montoGarantia -
+                                                                  totalDeuda;
+                                                          pago.saldoEnContra =
+                                                              0.0;
+                                                        } else {
+                                                          pago.saldoEnContra =
+                                                              totalDeuda -
+                                                                  widget
+                                                                      .montoGarantia;
+                                                          pago.saldoFavor = 0.0;
+                                                        }
+                                                      }
+
+                                                      // Crear objeto PagoSeleccionado
+                                                      PagoSeleccionado
+                                                          pagoSeleccionado =
+                                                          PagoSeleccionado(
+                                                        semana: pago.semana,
+                                                        tipoPago: pago.tipoPago,
+                                                        deposito:
+                                                            pago.deposito ??
+                                                                0.00,
+                                                        fechaPago:
+                                                            pago.fechaPagoCompleto ??
+                                                                '',
+                                                        idfechaspagos:
+                                                            pago.idfechaspagos ??
+                                                                '',
+                                                        capitalMasInteres: pago
+                                                            .capitalMasInteres,
+                                                        moratorio: pago
+                                                            .moratorios
+                                                            ?.moratorios,
+                                                        saldoFavor:
+                                                            pago.saldoFavor,
+                                                        saldoEnContra:
+                                                            pago.saldoEnContra,
+                                                        abonos: pago.abonos,
+                                                      );
+
+                                                      // Actualizar provider
+                                                      Provider.of<PagosProvider>(
+                                                              context,
+                                                              listen: false)
+                                                          .actualizarPago(
+                                                              pagoSeleccionado
+                                                                  .semana,
+                                                              pagoSeleccionado);
+
+                                                      // Debug: Imprimir estado actualizado
+                                                      print(
+                                                          "Estado del Provider después de actualización:");
+                                                      Provider.of<PagosProvider>(
+                                                              context,
+                                                              listen: false)
+                                                          .pagosSeleccionados
+                                                          .forEach((pago) {
+                                                        print(
+                                                            "Pago en Provider: Semana ${pago.semana}, Tipo de pago: ${pago.tipoPago}, Monto a Pagar: ${pago.capitalMasInteres}, Deposito: ${pago.deposito}");
+                                                      });
+                                                    });
+                                                  }
+                                                : null,
+                                            icon: Icon(
+                                              Icons.arrow_drop_down,
+                                              color: _puedeEditarPago(pago)
+                                                  ? Color(0xFF5162F6)
+                                                  : Colors.grey[400],
+                                            ),
+                                          ),
+                                          if (pago.tipoPago ==
+                                              'Completo') // CONDICIONAL PRINCIPAL
+                                            Padding(
+                                              padding:
+                                                  EdgeInsets.only(top: 4.0),
+                                              child: Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.center,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  // Botón de editar
+                                                  ElevatedButton(
+                                                    onPressed: _puedeEditarPago(
+                                                            pago)
+                                                        ? () =>
+                                                            _editarFechaPago(
+                                                                context, pago)
+                                                        : null,
+                                                    style: ButtonStyle(
+                                                      backgroundColor:
+                                                          MaterialStateProperty
+                                                              .resolveWith<
+                                                                  Color>(
+                                                        (states) =>
+                                                            _puedeEditarPago(
+                                                                    pago)
+                                                                ? Color(
+                                                                    0xFF5162F6)
+                                                                : Colors
+                                                                    .transparent,
+                                                      ),
+                                                      padding:
+                                                          MaterialStateProperty
+                                                              .all<EdgeInsets>(
+                                                        EdgeInsets.all(
+                                                            8), // Padding más ajustado
+                                                      ),
+                                                      minimumSize:
+                                                          MaterialStateProperty
+                                                              .all(Size
+                                                                  .zero), // Elimina tamaño mínimo
+                                                      shape: MaterialStateProperty
+                                                          .all<
+                                                              RoundedRectangleBorder>(
+                                                        RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(
+                                                                      6.0),
+                                                          side: BorderSide(
+                                                            color: _puedeEditarPago(
+                                                                    pago)
+                                                                ? Color(0xFF5162F6)
+                                                                    .withOpacity(
+                                                                        0.3)
+                                                                : Colors.grey
+                                                                    .withOpacity(
+                                                                        0.3),
+                                                            width: 0.8,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    child: Icon(
+                                                      Icons
+                                                          .calendar_month_outlined,
+                                                      size: 18,
+                                                      color:
+                                                          _puedeEditarPago(pago)
+                                                              ? Colors.white
+                                                              : Colors
+                                                                  .grey[400],
+                                                    ),
+                                                  ),
+                                                  SizedBox(width: 8),
+                                                  // Fecha formateada
+                                                  Text(
+                                                    _formatFecha(pago
+                                                            .fechaPagoCompleto
+                                                            .isEmpty
+                                                        ? pago.fechaPago
+                                                        : pago
+                                                            .fechaPagoCompleto),
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey[600],
+                                                      fontStyle: pago
+                                                              .fechaPago.isEmpty
+                                                          ? FontStyle.italic
+                                                          : FontStyle.normal,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                          );
-                                        }).toList(),
-                                        onChanged: _puedeEditarPago(pago)
-                                            ? (String? newValue) {
-                                                setState(() {
-                                                  pago.tipoPago = newValue!;
-                                                  print(
-                                                      "Pago seleccionado: Semana ${pago.semana}, Tipo de pago: $newValue, Fecha de pago: ${pago.fechaPago}, ID Fechas Pagos: ${pago.idfechaspagos}, Monto a Pagar: ${pago.capitalMasInteres}");
-
-                                                  // Manejar diferentes tipos de pago
-                                                  if (newValue == 'Completo') {
-                                                    double montoAPagar =
-                                                        pago.capitalMasInteres ??
-                                                            0.0;
-                                                    pago.deposito = montoAPagar;
-
-                                                    if (pago.fechaPago ==
-                                                        null) {
-                                                      pago.fechaPago =
-                                                          DateTime.now()
-                                                              .toString();
-                                                    }
-                                                  } else if (newValue ==
-                                                      'Garantia') {
-                                                    // Asignar valor de garantía desde el widget
-                                                    pago.deposito =
-                                                        widget.montoGarantia;
-
-                                                    // Calcular totalDeuda incluyendo moratorios
-                                                    double totalDeuda =
-                                                        (pago.capitalMasInteres ??
-                                                                0.0) +
-                                                            (pago.moratorios
-                                                                    ?.moratorios ??
-                                                                0.0);
-
-                                                    // Calcular saldos basados en el monto de garantía
-                                                    if (widget.montoGarantia >=
-                                                        totalDeuda) {
-                                                      pago.saldoFavor =
-                                                          widget.montoGarantia -
-                                                              totalDeuda;
-                                                      pago.saldoEnContra = 0.0;
-                                                    } else {
-                                                      pago.saldoEnContra =
-                                                          totalDeuda -
-                                                              widget
-                                                                  .montoGarantia;
-                                                      pago.saldoFavor = 0.0;
-                                                    }
-                                                  }
-
-                                                  // Crear objeto PagoSeleccionado
-                                                  PagoSeleccionado
-                                                      pagoSeleccionado =
-                                                      PagoSeleccionado(
-                                                    semana: pago.semana,
-                                                    tipoPago: pago.tipoPago,
-                                                    deposito:
-                                                        pago.deposito ?? 0.00,
-                                                    fechaPago:
-                                                        pago.fechaPago ?? '',
-                                                    idfechaspagos:
-                                                        pago.idfechaspagos ??
-                                                            '',
-                                                    capitalMasInteres:
-                                                        pago.capitalMasInteres,
-                                                    moratorio: pago
-                                                        .moratorios?.moratorios,
-                                                    saldoFavor: pago.saldoFavor,
-                                                    saldoEnContra:
-                                                        pago.saldoEnContra,
-                                                    abonos: pago.abonos,
-                                                  );
-
-                                                  // Actualizar provider
-                                                  Provider.of<PagosProvider>(
-                                                          context,
-                                                          listen: false)
-                                                      .actualizarPago(
-                                                          pagoSeleccionado
-                                                              .semana,
-                                                          pagoSeleccionado);
-
-                                                  // Debug: Imprimir estado actualizado
-                                                  print(
-                                                      "Estado del Provider después de actualización:");
-                                                  Provider.of<PagosProvider>(
-                                                          context,
-                                                          listen: false)
-                                                      .pagosSeleccionados
-                                                      .forEach((pago) {
-                                                    print(
-                                                        "Pago en Provider: Semana ${pago.semana}, Tipo de pago: ${pago.tipoPago}, Monto a Pagar: ${pago.capitalMasInteres}, Deposito: ${pago.deposito}");
-                                                  });
-                                                });
-                                              }
-                                            : null,
-                                        icon: Icon(
-                                          Icons.arrow_drop_down,
-                                          color: _puedeEditarPago(pago)
-                                              ? Color(0xFF5162F6)
-                                              : Colors.grey[400],
-                                        ),
+                                        ],
                                       ),
                                 flex: 22,
                               ),
@@ -2542,6 +2669,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                             .grey[600],
                                                                       ),
                                                                     ),
+                                                                    SizedBox(
+                                                                        height:
+                                                                            6),
                                                                     if (esGarantia)
                                                                       SizedBox(
                                                                           height:
@@ -2824,6 +2954,60 @@ class _PaginaControlState extends State<PaginaControl> {
     );
   }
 
+  // 1. Este es el método para editar la fecha
+  void _editarFechaPago(BuildContext context, Pago pago) async {
+    DateTime initialDate = DateTime.now();
+    DateTime lastDate = DateTime.now();
+
+    // Priorizar fechaPagoCompleto si existe
+    String? fechaAUsar = pago.fechaPagoCompleto.isNotEmpty
+        ? pago.fechaPagoCompleto
+        : pago.fechaPago;
+
+    if (fechaAUsar.isNotEmpty) {
+      try {
+        final DateTime parsedDate = DateTime.parse(fechaAUsar);
+
+        if (!parsedDate.isAfter(DateTime.now())) {
+          initialDate = parsedDate;
+        }
+      } catch (e) {
+        print("Fecha inválida: $fechaAUsar");
+      }
+    }
+
+    final DateTime? fechaSeleccionada = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: lastDate,
+      builder: (context, child) {
+        return Theme(
+            child: child!,
+            data: Theme.of(context).copyWith(
+              colorScheme: ColorScheme.light(
+                primary: Color(0xFF5162F6),
+              ),
+            ));
+      },
+    );
+
+    if (fechaSeleccionada != null) {
+      setState(() {
+        // Actualizar SOLO la fecha de pago completo
+        pago.fechaPagoCompleto = fechaSeleccionada.toIso8601String();
+
+        // Mantener fechaPago original intacta
+        if (pago.fechaPago.isEmpty) {
+          pago.fechaPago = DateTime.now().toString();
+        }
+
+        Provider.of<PagosProvider>(context, listen: false)
+            .actualizarPago(pago.semana, pago.toPagoSeleccionado());
+      });
+    }
+  }
+
   Widget _buildTableCell(dynamic content,
       {bool isHeader = false, Color textColor = Colors.black, int flex = 1}) {
     return Flexible(
@@ -2851,6 +3035,7 @@ class _PaginaControlState extends State<PaginaControl> {
 class Pago {
   int semana;
   String fechaPago;
+  String fechaPagoCompleto = '';
   double capital;
   double interes;
   double capitalMasInteres;
@@ -2956,6 +3141,21 @@ class Pago {
           ? Moratorios.fromJson(Map<String, dynamic>.from(json['moratorios']))
           : null,
       pagosMoratorios: pagosMoratorios, // Asigna los pagosMoratorios parseados
+    );
+  }
+
+  PagoSeleccionado toPagoSeleccionado() {
+    return PagoSeleccionado(
+      semana: semana,
+      tipoPago: tipoPago,
+      deposito: deposito ?? 0.00,
+      fechaPago: fechaPago ?? '',
+      idfechaspagos: idfechaspagos ?? '',
+      capitalMasInteres: capitalMasInteres,
+      moratorio: moratorios?.moratorios,
+      saldoFavor: saldoFavor,
+      saldoEnContra: saldoEnContra,
+      abonos: abonos,
     );
   }
 }

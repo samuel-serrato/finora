@@ -40,6 +40,9 @@ class _nClienteDialogState extends State<nClienteDialog>
   final TextEditingController municipioController = TextEditingController();
   final TextEditingController curpController = TextEditingController();
   final TextEditingController claveElectorController = TextEditingController();
+  final TextEditingController _claveInterbancariaController =
+      TextEditingController();
+
   final TextEditingController rfcController = TextEditingController();
   final TextEditingController tiempoViviendoController =
       TextEditingController();
@@ -121,7 +124,9 @@ class _nClienteDialogState extends State<nClienteDialog>
     "Banorte",
     "HSBC",
     "Citibanamex",
-    "Scotiabank"
+    "Scotiabank",
+    "Bancoppel",
+    "Banco Azteca"
   ];
 
   // Mapa para asociar tipos con sus respectivos IDs
@@ -306,6 +311,10 @@ class _nClienteDialogState extends State<nClienteDialog>
                 ? clienteData['adicionales'][0]['rfc']
                 : '',
 
+            'clvElector': clienteData['adicionales']?.isNotEmpty == true
+                ? clienteData['adicionales'][0]['clvElector']
+                : '',
+
             // Datos de la cuenta bancaria
             'numCuenta': clienteData['cuentabanco']?.isNotEmpty == true
                 ? clienteData['cuentabanco'][0]['numCuenta'] ?? 'No asignado'
@@ -314,6 +323,9 @@ class _nClienteDialogState extends State<nClienteDialog>
             // Agrega el idcuentabanco (si está disponible en clienteData['cuentabanco'])
             'idcuantabank': clienteData['cuentabanco']?.isNotEmpty == true
                 ? clienteData['cuentabanco'][0]['idcuantabank'] ?? 'No asignado'
+                : 'No asignado',
+            'clbIntBanc': clienteData['cuentabanco']?.isNotEmpty == true
+                ? clienteData['cuentabanco'][0]['clbIntBanc'] ?? 'No asignado'
                 : 'No asignado',
 
             'numTarjeta': clienteData['cuentabanco']?.isNotEmpty == true
@@ -478,6 +490,8 @@ class _nClienteDialogState extends State<nClienteDialog>
               clienteData['adicionales'].isNotEmpty) {
             curpController.text = clienteData['adicionales'][0]['curp'] ?? '';
             rfcController.text = clienteData['adicionales'][0]['rfc'] ?? '';
+            claveElectorController.text =
+                clienteData['adicionales'][0]['clvElector'] ?? '';
           }
 
           // Información de cuenta bancaria
@@ -490,6 +504,8 @@ class _nClienteDialogState extends State<nClienteDialog>
                   clienteData['cuentabanco'][0]['numTarjeta'] ?? 'No asignado';
               _nombreBanco =
                   clienteData['cuentabanco'][0]['nombreBanco'] ?? 'No asignado';
+              _claveInterbancariaController.text =
+                  clienteData['cuentabanco'][0]['clbIntBanc'] ?? 'No asignado';
             });
           }
 
@@ -752,6 +768,8 @@ class _nClienteDialogState extends State<nClienteDialog>
         _numTarjetaController.text ?? '', originalData['numTarjeta']);
     addFieldToEndpoint("Cuenta Banco", "nombreBanco", _nombreBanco ?? '',
         originalData['nombreBanco']);
+    addFieldToEndpoint("Cuenta Banco", "clbIntBanc",
+        _claveInterbancariaController.text ?? '', originalData['clbIntBanc']);
 
     addFieldToEndpoint("Domicilio", "calle", calleController.text ?? '',
         originalData['calle']);
@@ -785,6 +803,8 @@ class _nClienteDialogState extends State<nClienteDialog>
         originalData['curp']);
     addFieldToEndpoint("Datos Adicionales", "rfc", rfcController.text ?? '',
         originalData['rfc']);
+    addFieldToEndpoint("Datos Adicionales", "clvElector",
+        claveElectorController.text ?? '', originalData['clvElector']);
 
     // Ingresos y egresos
     for (int i = 0; i < ingresosEgresos.length; i++) {
@@ -1959,7 +1979,6 @@ class _nClienteDialogState extends State<nClienteDialog>
                           label: 'Tiempo Viviendo',
                           icon: Icons.timelapse,
                           keyboardType: TextInputType.number,
-                          
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese Tiempo Viviendo';
@@ -1980,7 +1999,6 @@ class _nClienteDialogState extends State<nClienteDialog>
                           controller: coloniaController,
                           label: 'Colonia',
                           icon: Icons.location_city,
-                         
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor, ingrese Colonia';
@@ -2140,6 +2158,13 @@ class _nClienteDialogState extends State<nClienteDialog>
               _numTarjetaController.text;
         }
       });
+
+      _claveInterbancariaController.addListener(() {
+        if (clienteData != null && clienteData.containsKey('cuentabanco')) {
+          clienteData['cuentabanco'][0]['clbIntBanc'] =
+              _claveInterbancariaController.text;
+        }
+      });
     }
 
     int pasoActual = 2; // Paso actual en la página de "Cuenta Bancaria"
@@ -2226,6 +2251,27 @@ class _nClienteDialogState extends State<nClienteDialog>
                       return null;
                     },
                   ),
+                  SizedBox(height: 10),
+                  if (_nombreBanco == "Santander")
+                    _buildTextField(
+                      controller: _claveInterbancariaController,
+                      label: 'Clave Interbancaria',
+                      icon: Icons.security,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      keyboardType: TextInputType.number,
+                      maxLength:
+                          18, // Longitud estándar para claves interbancarias
+                      validator: (value) {
+                        if (_nombreBanco == "Santander") {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor ingrese la clave interbancaria';
+                          } else if (value.length != 18) {
+                            return 'La clave interbancaria debe tener 18 dígitos';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
                   SizedBox(height: 10),
                   _buildTextField(
                     controller: _numCuentaController,
@@ -3555,7 +3601,8 @@ class _nClienteDialogState extends State<nClienteDialog>
       "iddetallegrupos": "",
       "nombreBanco": _nombreBanco ?? "",
       "numCuenta": _numCuentaController.text,
-      "numTarjeta": _numTarjetaController.text
+      "numTarjeta": _numTarjetaController.text,
+      "clbIntBanc": _claveInterbancariaController.text
     };
 
     print('IMPRESION domicilio en array!');

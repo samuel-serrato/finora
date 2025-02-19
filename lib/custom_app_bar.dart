@@ -321,7 +321,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   nombre,
                                   style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -329,7 +329,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   tipoUsuario,
                                   style: TextStyle(
                                     color: Colors.grey.shade900,
-                                    fontSize: 9,
+                                    fontSize: 10,
                                   ),
                                 ),
                               ],

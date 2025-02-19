@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              backgroundColor: Colors.green,
+                backgroundColor: Colors.green,
                 content: Text(
                     'Bienvenido ${responseBody['usuario'][0]['nombreCompleto']}')),
           );
@@ -128,10 +128,11 @@ class _LoginScreenState extends State<LoginScreen> {
       'image': 'assets/custom_groups.png', // Ej: Diagrama de nodos o tags
       'color': const Color(0xFF009688), // Verde-azul profesional
     },
-      {
+    {
       'title': 'Historial Completo\nde Transacciones',
       //'subtitle': 'Accede al registro de pagos,\nabonos y ajustes',
-      'image': 'assets/transaction_history.png', // Ej: Tabla con fechas y montos
+      'image':
+          'assets/transaction_history.png', // Ej: Tabla con fechas y montos
       'color': const Color(0xFF9C27B0), // Morado para datos históricos
     },
     {
@@ -368,14 +369,14 @@ class _LoginFormState extends State<LoginForm> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                    width: 500,
-                    height: 100,
-                      child: Image.asset('assets/finora_hzt.png',
-                          fit: BoxFit.contain),
-                    ),
+                  width: 500,
+                  height: 100,
+                  child:
+                      Image.asset('assets/finora_hzt.png', fit: BoxFit.contain),
+                ),
               ],
             ),
-           /*  const SizedBox(height: 20),
+            /*  const SizedBox(height: 20),
             Text(
               'Iniciar Sesión',
               style: TextStyle(
@@ -398,9 +399,11 @@ class _LoginFormState extends State<LoginForm> {
           icon: Icons.lock_outline,
           isPassword: true,
           controller: widget.passwordController,
+          onFieldSubmitted: widget.onLogin, // Disparar login
+          textInputAction: TextInputAction.go,
         ),
         const SizedBox(height: 20),
-       /*  Align(
+        /*  Align(
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: () {},
@@ -432,7 +435,7 @@ class _LoginFormState extends State<LoginForm> {
           ),
         ),
         const SizedBox(height: 30),
-       /*  Row(
+        /*  Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text('¿No tienes cuenta? ',
@@ -458,6 +461,8 @@ class _LoginFormState extends State<LoginForm> {
     required IconData icon,
     required TextEditingController controller,
     bool isPassword = false,
+    VoidCallback? onFieldSubmitted, // Nuevo parámetro
+    TextInputAction? textInputAction, // Nuevo parámetro
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,6 +480,9 @@ class _LoginFormState extends State<LoginForm> {
           controller: controller,
           obscureText: isPassword ? _obscurePassword : false,
           style: TextStyle(color: Colors.grey[800]),
+          onFieldSubmitted: (value) =>
+              onFieldSubmitted?.call(), // Manejar Enter
+          textInputAction: textInputAction,
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: Colors.grey[500]),
             suffixIcon: isPassword
@@ -515,4 +523,3 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 }
-
