@@ -29,8 +29,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
   Timer? _timer;
   bool errorDeConexion = false;
   bool noClientsFound = false;
-   Timer? _debounceTimer; // Para el debounce de la búsqueda
-  final TextEditingController _searchController = TextEditingController(); // Controlador para el SearchBar
+  Timer? _debounceTimer; // Para el debounce de la búsqueda
+  final TextEditingController _searchController =
+      TextEditingController(); // Controlador para el SearchBar
 
   @override
   void initState() {
@@ -41,7 +42,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-     _debounceTimer?.cancel();
+    _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -144,99 +145,99 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   Future<void> searchClientes(String query) async {
-  if (query.trim().isEmpty) {
-    obtenerClientes();
-    return;
-  }
-
-  if (!mounted) return;
-
-  setState(() {
-    isLoading = true;
-    errorDeConexion = false;
-    noClientsFound = false;
-  });
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-
-    final response = await http.get(
-      Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
-      headers: {'tokenauth': token},
-    ).timeout(Duration(seconds: 10));
-
-    await Future.delayed(Duration(milliseconds: 500));
+    if (query.trim().isEmpty) {
+      obtenerClientes();
+      return;
+    }
 
     if (!mounted) return;
 
-    print('Status code (search): ${response.statusCode}');
+    setState(() {
+      isLoading = true;
+      errorDeConexion = false;
+      noClientsFound = false;
+    });
 
-    if (response.statusCode == 200) {
-      List<dynamic> data = json.decode(response.body);
-      setState(() {
-        listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
-        isLoading = false;
-      });
-    } else if (response.statusCode == 401) {
-      _handleTokenExpiration();
-    } else if (response.statusCode == 400) { 
-      // Aquí manejamos cuando no hay resultados en la búsqueda
-      setState(() {
-        listaClientes = [];
-        isLoading = false;
-        noClientsFound = true;
-      });
-    } else {
-      setState(() {
-        isLoading = false;
-        errorDeConexion = true;
-      });
-    }
-  } on SocketException catch (e) {
-    print('SocketException: $e');
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-        errorDeConexion = true;
-      });
-    }
-  } on TimeoutException catch (_) {
-    print('Timeout');
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-        errorDeConexion = true;
-      });
-    }
-  } catch (e) {
-    print('Error general: $e');
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-        errorDeConexion = true;
-      });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.get(
+        Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
+        headers: {'tokenauth': token},
+      ).timeout(Duration(seconds: 10));
+
+      await Future.delayed(Duration(milliseconds: 500));
+
+      if (!mounted) return;
+
+      print('Status code (search): ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        setState(() {
+          listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
+          isLoading = false;
+        });
+      } else if (response.statusCode == 401) {
+        _handleTokenExpiration();
+      } else if (response.statusCode == 400) {
+        // Aquí manejamos cuando no hay resultados en la búsqueda
+        setState(() {
+          listaClientes = [];
+          isLoading = false;
+          noClientsFound = true;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } on SocketException catch (e) {
+      print('SocketException: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } on TimeoutException catch (_) {
+      print('Timeout');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } catch (e) {
+      print('Error general: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
     }
   }
-}
 
-void _handleTokenExpiration() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('tokenauth');
+  void _handleTokenExpiration() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tokenauth');
 
-  if (mounted) {
-    mostrarDialogoError(
-      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-      onClose: () {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-          (route) => false,
-        );
-      },
-    );
+    if (mounted) {
+      mostrarDialogoError(
+        'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+        onClose: () {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false,
+          );
+        },
+      );
+    }
   }
-}
 
   void setErrorState(bool dialogShown, [dynamic error]) {
     setState(() {
@@ -383,144 +384,147 @@ void _handleTokenExpiration() async {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: Color(0xFFF7F8FA),
-    appBar: CustomAppBar(
-      isDarkMode: _isDarkMode,
-      toggleDarkMode: _toggleDarkMode,
-      title: 'Clientes',
-      nombre: widget.username,
-      tipoUsuario: widget.tipoUsuario,
-    ),
-    body: Column(
-      children: [
-        if (!errorDeConexion) filaBuscarYAgregar(context),
-        Expanded(child: _buildTableContainer()),
-      ],
-    ),
-  );
-}
-Widget _buildTableContainer() {
-  if (isLoading) {
-    return Center(
-      child: CircularProgressIndicator(
-        color: Color(0xFF5162F6),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Color(0xFFF7F8FA),
+      appBar: CustomAppBar(
+        isDarkMode: _isDarkMode,
+        toggleDarkMode: _toggleDarkMode,
+        title: 'Clientes',
+        nombre: widget.username,
+        tipoUsuario: widget.tipoUsuario,
+      ),
+      body: Column(
+        children: [
+          if (!errorDeConexion) filaBuscarYAgregar(context),
+          Expanded(child: _buildTableContainer()),
+        ],
       ),
     );
-  } else if (errorDeConexion) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              if (_searchController.text.trim().isEmpty) {
-                obtenerClientes();
-              } else {
-                searchClientes(_searchController.text);
-              }
-            },
-            child: Text('Recargar'),
-            style: ButtonStyle(
-              backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
-              foregroundColor: MaterialStateProperty.all(Colors.white),
-              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+  }
+
+  Widget _buildTableContainer() {
+    if (isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF5162F6),
+        ),
+      );
+    } else if (errorDeConexion) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                if (_searchController.text.trim().isEmpty) {
+                  obtenerClientes();
+                } else {
+                  searchClientes(_searchController.text);
+                }
+              },
+              child: Text('Recargar'),
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
+                foregroundColor: MaterialStateProperty.all(Colors.white),
+                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
               ),
             ),
+          ],
+        ),
+      );
+    } else {
+      return noClientsFound || listaClientes.isEmpty
+          ? Center(
+              child: Text(
+                'No hay clientes para mostrar.',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            )
+          : tablaClientes(context);
+    }
+  }
+
+  Widget filaBuscarYAgregar(BuildContext context) {
+    double maxWidth = MediaQuery.of(context).size.width * 0.35;
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            height: 40,
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20.0),
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide:
+                      BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
+                ),
+                prefixIcon: Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          obtenerClientes();
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.white,
+                hintText: 'Buscar...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(20.0),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (value) {
+                if (_debounceTimer?.isActive ?? false) {
+                  _debounceTimer!.cancel();
+                }
+                _debounceTimer = Timer(Duration(milliseconds: 500), () {
+                  searchClientes(value);
+                });
+              },
+            ),
+          ),
+          ElevatedButton(
+            style: ButtonStyle(
+              padding: MaterialStateProperty.all(
+                  EdgeInsets.symmetric(vertical: 15, horizontal: 20)),
+              backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
+              foregroundColor: MaterialStateProperty.all(Colors.white),
+              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            onPressed: mostrarDialogoAgregarCliente,
+            child: Text('Agregar Clientes'),
           ),
         ],
       ),
     );
-  } else {
-    return noClientsFound || listaClientes.isEmpty
-        ? Center(
-            child: Text(
-              'No hay clientes para mostrar.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          )
-        : tablaClientes(context);
   }
-}
-
-  Widget filaBuscarYAgregar(BuildContext context) {
-  double maxWidth = MediaQuery.of(context).size.width * 0.35;
-  return Padding(
-    padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Container(
-          height: 40,
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20.0),
-            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
-          ),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              contentPadding:
-                  EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20.0),
-                borderSide:
-                    BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
-              ),
-              prefixIcon: Icon(Icons.search),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        obtenerClientes();
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.white,
-              hintText: 'Buscar...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(20.0),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            onChanged: (value) {
-              if (_debounceTimer?.isActive ?? false) {
-                _debounceTimer!.cancel();
-              }
-              _debounceTimer = Timer(Duration(milliseconds: 500), () {
-                searchClientes(value);
-              });
-            },
-          ),
-        ),
-        ElevatedButton(
-          style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
-            foregroundColor: MaterialStateProperty.all(Colors.white),
-            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          onPressed: mostrarDialogoAgregarCliente,
-          child: Text('Agregar Clientes'),
-        ),
-      ],
-    ),
-  );
-}
 
   Widget tablaClientes(BuildContext context) {
     return Expanded(

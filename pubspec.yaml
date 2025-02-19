@@ -51,6 +51,7 @@ dependencies:
   pdf: ^3.11.2
   file_saver: ^0.2.14
   process_run: ^1.2.2+1
+  window_manager: ^0.4.3
 
 dev_dependencies:
   flutter_test:

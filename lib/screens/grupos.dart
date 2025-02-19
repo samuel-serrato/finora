@@ -419,6 +419,8 @@ class _GruposScreenState extends State<GruposScreen> {
           ),
           ElevatedButton(
             style: ButtonStyle(
+              padding: MaterialStateProperty.all(
+                  EdgeInsets.symmetric(vertical: 15, horizontal: 20)),
               backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
               foregroundColor: MaterialStateProperty.all(Colors.white),
               shape: MaterialStateProperty.all<RoundedRectangleBorder>(

@@ -155,105 +155,98 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     }
   }
 
-    // Función para buscar créditos según el texto ingresado
+  // Función para buscar créditos según el texto ingresado
   Future<void> searchCreditos(String query) async {
-  if (query.trim().isEmpty) {
-    obtenerCreditos();
-    return;
-  }
-
-  if (!mounted) return;
-
-  setState(() {
-    isLoading = true;
-    errorDeConexion = false;
-    noCreditsFound = false;
-  });
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-
-    // Agregar timeout a la petición
-    final response = await http.get(
-      Uri.parse('http://$baseUrl/api/v1/creditos/$query'),
-      headers: {'tokenauth': token},
-    ).timeout(Duration(seconds: 10)); // Limitar tiempo de espera
-
-    // Delay para mostrar el loading (500ms)
-    await Future.delayed(Duration(milliseconds: 500));
-
+    if (query.trim().isEmpty) {
+      obtenerCreditos();
+      return;
+    }
 
     if (!mounted) return;
 
-    print('Status code (search): ${response.statusCode}');
-    
-    if (response.statusCode == 200) {
-      List<dynamic> data = json.decode(response.body);
-      setState(() {
-        listaCreditos = data.map((item) => Credito.fromJson(item)).toList();
-        isLoading = false;
-      });
-    } 
-    else if (response.statusCode == 401) {
-      // Manejar token expirado
-      _handleTokenExpiration();
-    } 
-    else {
-      setState(() {
-        isLoading = false;
-        errorDeConexion = true; // Activar estado de error
-      });
-    }
-  } 
-  on SocketException catch (e) { // Capturar error de conexión
-    print('SocketException: $e');
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-        errorDeConexion = true;
-      });
-    }
-  } 
-  on TimeoutException catch (_) { // Capturar timeout
-    print('Timeout');
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-        errorDeConexion = true;
-      });
-    }
-  } 
-  catch (e) {
-    print('Error general: $e');
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-        errorDeConexion = true;
-      });
+    setState(() {
+      isLoading = true;
+      errorDeConexion = false;
+      noCreditsFound = false;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      // Agregar timeout a la petición
+      final response = await http.get(
+        Uri.parse('http://$baseUrl/api/v1/creditos/$query'),
+        headers: {'tokenauth': token},
+      ).timeout(Duration(seconds: 10)); // Limitar tiempo de espera
+
+      // Delay para mostrar el loading (500ms)
+      await Future.delayed(Duration(milliseconds: 500));
+
+      if (!mounted) return;
+
+      print('Status code (search): ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        setState(() {
+          listaCreditos = data.map((item) => Credito.fromJson(item)).toList();
+          isLoading = false;
+        });
+      } else if (response.statusCode == 401) {
+        // Manejar token expirado
+        _handleTokenExpiration();
+      } else {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true; // Activar estado de error
+        });
+      }
+    } on SocketException catch (e) {
+      // Capturar error de conexión
+      print('SocketException: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } on TimeoutException catch (_) {
+      // Capturar timeout
+      print('Timeout');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } catch (e) {
+      print('Error general: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
     }
   }
-}
 
-void _handleTokenExpiration() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('tokenauth');
-  
-  if (mounted) {
-    mostrarDialogoError(
-      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-      onClose: () {
+  void _handleTokenExpiration() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('tokenauth');
+
+    if (mounted) {
+      mostrarDialogoError(
+          'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+          onClose: () {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => LoginScreen()),
           (route) => false,
         );
-      }
-    );
+      });
+    }
   }
-}
-
-
 
   void setErrorState(bool dialogShown, [dynamic error]) {
     _timer?.cancel(); // Cancela el temporizador antes de navegar
@@ -303,83 +296,82 @@ void _handleTokenExpiration() async {
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: CustomAppBar(
-      isDarkMode: _isDarkMode,
-      toggleDarkMode: _toggleDarkMode,
-      title: 'Créditos Activos',
-      nombre: widget.username,
-      tipoUsuario: widget.tipoUsuario,
-    ),
-    backgroundColor: Color(0xFFF7F8FA),
-    body: Column(
-      children: [
-        // Solo muestra la fila de búsqueda si NO hay error de conexión
-        if (!errorDeConexion) filaBuscarYAgregar(context),
-        Expanded(child: _buildTableContainer()),
-      ],
-    ),
-  );
-}
-
-    // Se encapsula el contenedor de la tabla para que sea lo único que se actualice al buscar
-  // Este widget se encarga de mostrar el contenedor de la tabla o, en su defecto,
-// un CircularProgressIndicator mientras se realiza la petición.
-Widget _buildTableContainer() {
-  if (isLoading) {
-    return Center(
-      child: CircularProgressIndicator(
-        color: Color(0xFF5162F6),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: CustomAppBar(
+        isDarkMode: _isDarkMode,
+        toggleDarkMode: _toggleDarkMode,
+        title: 'Créditos Activos',
+        nombre: widget.username,
+        tipoUsuario: widget.tipoUsuario,
       ),
-    );
-  } else if (errorDeConexion) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: Color(0xFFF7F8FA),
+      body: Column(
         children: [
-          Text(
-            'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              if (_searchController.text.trim().isEmpty) {
-                obtenerCreditos();
-              } else {
-                searchCreditos(_searchController.text);
-              }
-            },
-            child: Text('Recargar'),
-            style: ButtonStyle(
-              backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
-              foregroundColor: MaterialStateProperty.all(Colors.white),
-              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            ),
-          ),
+          // Solo muestra la fila de búsqueda si NO hay error de conexión
+          if (!errorDeConexion) filaBuscarYAgregar(context),
+          Expanded(child: _buildTableContainer()),
         ],
       ),
     );
-  } else {
-    return noCreditsFound || listaCreditos.isEmpty
-        ? Center(
-            child: Text(
-              'No hay créditos para mostrar.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-          )
-        : filaTabla(context);
   }
-}
 
+  // Se encapsula el contenedor de la tabla para que sea lo único que se actualice al buscar
+  // Este widget se encarga de mostrar el contenedor de la tabla o, en su defecto,
+// un CircularProgressIndicator mientras se realiza la petición.
+  Widget _buildTableContainer() {
+    if (isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFF5162F6),
+        ),
+      );
+    } else if (errorDeConexion) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                if (_searchController.text.trim().isEmpty) {
+                  obtenerCreditos();
+                } else {
+                  searchCreditos(_searchController.text);
+                }
+              },
+              child: Text('Recargar'),
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
+                foregroundColor: MaterialStateProperty.all(Colors.white),
+                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return noCreditsFound || listaCreditos.isEmpty
+          ? Center(
+              child: Text(
+                'No hay créditos para mostrar.',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            )
+          : filaTabla(context);
+    }
+  }
 
-   Widget filaBuscarYAgregar(BuildContext context) {
+  Widget filaBuscarYAgregar(BuildContext context) {
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
     return Padding(
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
@@ -428,8 +420,7 @@ Widget _buildTableContainer() {
                 if (_debounceTimer?.isActive ?? false) {
                   _debounceTimer!.cancel();
                 }
-                _debounceTimer =
-                    Timer(Duration(milliseconds: 500), () {
+                _debounceTimer = Timer(Duration(milliseconds: 500), () {
                   searchCreditos(value);
                 });
               },
@@ -437,6 +428,8 @@ Widget _buildTableContainer() {
           ),
           ElevatedButton(
             style: ButtonStyle(
+              padding: MaterialStateProperty.all(
+                  EdgeInsets.symmetric(vertical: 15, horizontal: 20)),
               backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
               foregroundColor: MaterialStateProperty.all(Colors.white),
               shape: MaterialStateProperty.all<RoundedRectangleBorder>(
@@ -495,7 +488,7 @@ Widget _buildTableContainer() {
     );
   }
 
-    Widget tabla() {
+  Widget tabla() {
     const double fontSize = 11;
 
     // Lista para almacenar los índices de las filas seleccionadas
@@ -517,35 +510,30 @@ Widget _buildTableContainer() {
           DataColumn(
               label: Text('Nombre', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label:
-                  Text('Autorizado', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label: Text('Desembolsado',
-                  style: TextStyle(fontSize: fontSize))),
+              label: Text('Autorizado', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label:
-                  Text('Interés %', style: TextStyle(fontSize: fontSize))),
+                  Text('Desembolsado', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label: Text('Interés Total',
-                  style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label: Text('M. a Recuperar',
-                  style: TextStyle(fontSize: fontSize))),
+              label: Text('Interés %', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label:
-                  Text('Día Pago', style: TextStyle(fontSize: fontSize))),
+                  Text('Interés Total', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label:
+                  Text('M. a Recuperar', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Día Pago', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label:
                   Text('Pago Semanal', style: TextStyle(fontSize: fontSize))),
           DataColumn(
-              label:
-                  Text('Núm de Pago', style: TextStyle(fontSize: fontSize))),
+              label: Text('Núm de Pago', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Duración', style: TextStyle(fontSize: fontSize))),
           DataColumn(
               label:
-                  Text('Duración', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label: Text('Estado de Pago',
-                  style: TextStyle(fontSize: fontSize))),
+                  Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
         ],
         rows: listaCreditos.map((credito) {
           return DataRow(
@@ -557,14 +545,14 @@ Widget _buildTableContainer() {
                   showDialog(
                     barrierDismissible: false,
                     context: context,
-                    builder: (context) =>
-                        InfoCredito(folio: credito.folio),
+                    builder: (context) => InfoCredito(folio: credito.folio),
                   );
                 }
               });
             },
             cells: [
-              DataCell(Text(credito.tipo, style: TextStyle(fontSize: fontSize))),
+              DataCell(
+                  Text(credito.tipo, style: TextStyle(fontSize: fontSize))),
               DataCell(Text(credito.tipoPlazo,
                   style: TextStyle(fontSize: fontSize))),
               DataCell(
@@ -580,8 +568,7 @@ Widget _buildTableContainer() {
                 ),
               ),
               DataCell(Center(
-                  child: Text(
-                      '\$${credito.montoTotal.toStringAsFixed(2)}',
+                  child: Text('\$${credito.montoTotal.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
                   child: Text(
@@ -591,12 +578,10 @@ Widget _buildTableContainer() {
                   child: Text('${credito.interesGlobal}%',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
-                  child: Text(
-                      '\$${credito.interesTotal.toStringAsFixed(2)}',
+                  child: Text('\$${credito.interesTotal.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
-                  child: Text(
-                      '\$${credito.montoMasInteres.toStringAsFixed(2)}',
+                  child: Text('\$${credito.montoMasInteres.toStringAsFixed(2)}',
                       style: TextStyle(fontSize: fontSize)))),
               DataCell(Center(
                   child: Text('${credito.diaPago}',

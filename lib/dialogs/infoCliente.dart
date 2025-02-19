@@ -82,14 +82,13 @@ class _InfoClienteState extends State<InfoCliente> {
               await prefs.remove('tokenauth');
               _timer?.cancel();
               mostrarDialogoError(
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                onClose: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginScreen()),
-                  );
-                }
-              );
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
             }
             return;
           } else {
@@ -161,7 +160,6 @@ class _InfoClienteState extends State<InfoCliente> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +260,7 @@ class _InfoClienteState extends State<InfoCliente> {
                                             margin: EdgeInsets.symmetric(
                                                 horizontal: 4.0, vertical: 4.0),
                                             height:
-                                                150, // Ajusta la altura al tamaño deseado
+                                                180, // Ajusta la altura al tamaño deseado
                                             width: double.infinity,
                                             padding: EdgeInsets.all(16),
                                             decoration: BoxDecoration(
@@ -322,7 +320,7 @@ class _InfoClienteState extends State<InfoCliente> {
                                             margin: EdgeInsets.symmetric(
                                                 horizontal: 4.0, vertical: 4.0),
                                             height:
-                                                150, // Ajusta la altura al tamaño deseado
+                                                180, // Ajusta la altura al tamaño deseado
                                             width: double.infinity,
                                             padding: EdgeInsets.all(16),
                                             decoration: BoxDecoration(
@@ -374,7 +372,7 @@ class _InfoClienteState extends State<InfoCliente> {
                                             margin: EdgeInsets.symmetric(
                                                 horizontal: 4.0, vertical: 4.0),
                                             height:
-                                                150, // Ajusta la altura al tamaño deseados
+                                                180, // Ajusta la altura al tamaño deseados
                                             width: double.infinity,
                                             padding: EdgeInsets.all(16),
                                             decoration: BoxDecoration(
@@ -597,7 +595,8 @@ class _InfoClienteState extends State<InfoCliente> {
               }
 
               // Formatear el monto semanal para eliminar ceros innecesarios
-              String montoFormateado = montoSemanal.toString().replaceAll(RegExp(r'\.0*$'), '');
+              String montoFormateado =
+                  montoSemanal.toString().replaceAll(RegExp(r'\.0*$'), '');
 
               return Container(
                 margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
@@ -617,7 +616,8 @@ class _InfoClienteState extends State<InfoCliente> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildDetailRow('Tipo de Info:', ingreso['tipo_info']),
-                    _buildDetailRow('Años de Actividad:', ingreso['años_actividad']),
+                    _buildDetailRow(
+                        'Años de Actividad:', ingreso['años_actividad']),
                     _buildDetailRow('Descripción:', ingreso['descripcion']),
                     _buildDetailRow('Monto Semanal:', montoFormateado),
                     _buildDetailRow('Fecha Creación:', ingreso['fCreacion']),
@@ -631,7 +631,8 @@ class _InfoClienteState extends State<InfoCliente> {
           left: 0,
           top: 50,
           child: IconButton(
-            icon: Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
+            icon:
+                Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
             onPressed: () {
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
@@ -645,7 +646,8 @@ class _InfoClienteState extends State<InfoCliente> {
           right: 0,
           top: 50,
           child: IconButton(
-            icon: Icon(Icons.arrow_forward_ios, color: Color(0xFF5162F6), size: 20),
+            icon: Icon(Icons.arrow_forward_ios,
+                color: Color(0xFF5162F6), size: 20),
             onPressed: () {
               if (_scrollController.hasClients) {
                 _scrollController.jumpTo(
@@ -660,158 +662,160 @@ class _InfoClienteState extends State<InfoCliente> {
   }
 
   Widget _buildReferences(List<dynamic> referencias) {
-  final ScrollController _scrollController = ScrollController();
+    final ScrollController _scrollController = ScrollController();
 
-  // Filtrar la lista para eliminar elementos nulos o vacíos
-  final List<dynamic> referenciasValidas = referencias.where((referencia) {
-    return referencia != null &&
-        (referencia['nombres'] != null ||
-            referencia['apellidoP'] != null ||
-            referencia['apellidoM'] != null ||
-            referencia['parentescoRefProp'] != null ||
-            referencia['telefono'] != null ||
-            referencia['timepoCo'] != null ||
-            (referencia['domicilio_ref'] is List &&
-                referencia['domicilio_ref'].isNotEmpty));
-  }).toList();
+    // Filtrar la lista para eliminar elementos nulos o vacíos
+    final List<dynamic> referenciasValidas = referencias.where((referencia) {
+      return referencia != null &&
+          (referencia['nombres'] != null ||
+              referencia['apellidoP'] != null ||
+              referencia['apellidoM'] != null ||
+              referencia['parentescoRefProp'] != null ||
+              referencia['telefono'] != null ||
+              referencia['timepoCo'] != null ||
+              (referencia['domicilio_ref'] is List &&
+                  referencia['domicilio_ref'].isNotEmpty));
+    }).toList();
 
-  // Mostrar un mensaje si no hay referencias válidas
-  if (referenciasValidas.isEmpty) {
-    return Center(
-      child: Text(
-        'No hay referencias disponibles',
-        style: TextStyle(fontSize: 16, color: Colors.grey),
-      ),
+    // Mostrar un mensaje si no hay referencias válidas
+    if (referenciasValidas.isEmpty) {
+      return Center(
+        child: Text(
+          'No hay referencias disponibles',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          physics: NeverScrollableScrollPhysics(),
+          child: Row(
+            children: referenciasValidas.map<Widget>((referencia) {
+              return Container(
+                width: 650,
+                margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 3,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDetailRow(
+                            'Parentesco:',
+                            referencia['parentescoRefProp'],
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildDetailRow(
+                            'Teléfono:',
+                            referencia['telefono'],
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildDetailRow(
+                            'Tiempo de Conocer:',
+                            referencia['tiempoCo'],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'Domicilio',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (referencia['domicilio_ref'] is List &&
+                        referencia['domicilio_ref'].isNotEmpty)
+                      for (var domicilio in referencia['domicilio_ref']) ...[
+                        _buildAddresses(domicilio),
+                        SizedBox(height: 16),
+                      ]
+                    else
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'No hay domicilio para esta referencia',
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        Positioned(
+          left: 0,
+          top: 80,
+          child: IconButton(
+            icon:
+                Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
+            onPressed: () {
+              if (_scrollController.hasClients) {
+                _scrollController.jumpTo(
+                  _scrollController.position.pixels - 600,
+                );
+              }
+            },
+          ),
+        ),
+        Positioned(
+          right: 0,
+          top: 80,
+          child: IconButton(
+            icon: Icon(Icons.arrow_forward_ios,
+                color: Color(0xFF5162F6), size: 20),
+            onPressed: () {
+              if (_scrollController.hasClients) {
+                _scrollController.jumpTo(
+                  _scrollController.position.pixels + 600,
+                );
+              }
+            },
+          ),
+        ),
+      ],
     );
   }
-
-  return Stack(
-    children: [
-      SingleChildScrollView(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        physics: NeverScrollableScrollPhysics(),
-        child: Row(
-          children: referenciasValidas.map<Widget>((referencia) {
-            return Container(
-              width: 650,
-              margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 3,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildDetailRow(
-                          'Parentesco:',
-                          referencia['parentescoRefProp'],
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildDetailRow(
-                          'Teléfono:',
-                          referencia['telefono'],
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildDetailRow(
-                          'Tiempo de Conocer:',
-                          referencia['tiempoCo'],
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text(
-                          'Domicilio',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (referencia['domicilio_ref'] is List &&
-                      referencia['domicilio_ref'].isNotEmpty)
-                    for (var domicilio in referencia['domicilio_ref']) ...[
-                      _buildAddresses(domicilio),
-                      SizedBox(height: 16),
-                    ]
-                  else
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        'No hay domicilio para esta referencia',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-      Positioned(
-        left: 0,
-        top: 80,
-        child: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
-          onPressed: () {
-            if (_scrollController.hasClients) {
-              _scrollController.jumpTo(
-                _scrollController.position.pixels - 600,
-              );
-            }
-          },
-        ),
-      ),
-      Positioned(
-        right: 0,
-        top: 80,
-        child: IconButton(
-          icon: Icon(Icons.arrow_forward_ios, color: Color(0xFF5162F6), size: 20),
-          onPressed: () {
-            if (_scrollController.hasClients) {
-              _scrollController.jumpTo(
-                _scrollController.position.pixels + 600,
-              );
-            }
-          },
-        ),
-      ),
-    ],
-  );
-}
-
 
   Widget _buildAddresses(Map<String, dynamic> domicilio) {
     return Column(

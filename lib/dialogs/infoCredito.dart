@@ -1402,40 +1402,43 @@ class _PaginaControlState extends State<PaginaControl> {
 
           return Column(
             children: [
-              Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Color(0xFF5162F6),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    _buildTableCell("No. Pago",
-                        isHeader: true, textColor: Colors.white, flex: 12),
-                    _buildTableCell("Fecha Pago",
-                        isHeader: true, textColor: Colors.white, flex: 15),
-                    _buildTableCell("Monto a Pagar",
-                        isHeader: true,
-                        textColor: Colors.white,
-                        flex: 20), // Nueva columna
-                    _buildTableCell("Pago",
-                        isHeader: true, textColor: Colors.white, flex: 22),
-                    _buildTableCell("Monto",
-                        isHeader: true, textColor: Colors.white, flex: 20),
-                    _buildTableCell("Saldo a Favor",
-                        isHeader: true, textColor: Colors.white, flex: 18),
-                    _buildTableCell("Saldo en Contra",
-                        isHeader: true, textColor: Colors.white, flex: 18),
-                    _buildTableCell("Moratorios",
-                        isHeader: true,
-                        textColor: Colors.white,
-                        flex: 18), // Nueva columna
-                  ],
+              Padding(
+                padding: const EdgeInsets.only(top: 20),
+                child: Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Color(0xFF5162F6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildTableCell("No. Pago",
+                          isHeader: true, textColor: Colors.white, flex: 12),
+                      _buildTableCell("Fecha Pago",
+                          isHeader: true, textColor: Colors.white, flex: 15),
+                      _buildTableCell("Monto a Pagar",
+                          isHeader: true,
+                          textColor: Colors.white,
+                          flex: 20), // Nueva columna
+                      _buildTableCell("Pago",
+                          isHeader: true, textColor: Colors.white, flex: 22),
+                      _buildTableCell("Monto",
+                          isHeader: true, textColor: Colors.white, flex: 20),
+                      _buildTableCell("Saldo a Favor",
+                          isHeader: true, textColor: Colors.white, flex: 18),
+                      _buildTableCell("Saldo en Contra",
+                          isHeader: true, textColor: Colors.white, flex: 18),
+                      _buildTableCell("Moratorios",
+                          isHeader: true,
+                          textColor: Colors.white,
+                          flex: 18), // Nueva columna
+                    ],
+                  ),
                 ),
               ),
               Container(
                 height: MediaQuery.of(context).size.height *
-                    0.52, // ← Ajusta el porcentaje
+                    0.55, // ← Ajusta el porcentaje
                 child: SingleChildScrollView(
                   child: Column(
                     children: pagos.map((pago) {
@@ -2540,37 +2543,40 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                       ),
                                                                     ),
                                                                     if (esGarantia)
-                                                                    SizedBox(height: 6),
-                                                                      Container(
-                                                                        padding:
-                                                                            const EdgeInsets.symmetric(
-                                                                          horizontal:
-                                                                              6,
-                                                                          vertical:
-                                                                              2,
-                                                                        ),
-                                                                        decoration:
-                                                                            BoxDecoration(
-                                                                          color: Colors
-                                                                              .orange
-                                                                              .withOpacity(0.2),
-                                                                          borderRadius:
-                                                                              BorderRadius.circular(6),
-                                                                        ),
-                                                                        child:
-                                                                            const Text(
-                                                                          "Garantía",
-                                                                          style:
-                                                                              TextStyle(
-                                                                            fontSize:
-                                                                                10,
-                                                                            fontWeight:
-                                                                                FontWeight.bold,
-                                                                            color:
-                                                                                Colors.orange,
-                                                                          ),
+                                                                      SizedBox(
+                                                                          height:
+                                                                              6),
+                                                                    Container(
+                                                                      padding:
+                                                                          const EdgeInsets
+                                                                              .symmetric(
+                                                                        horizontal:
+                                                                            6,
+                                                                        vertical:
+                                                                            2,
+                                                                      ),
+                                                                      decoration:
+                                                                          BoxDecoration(
+                                                                        color: Colors
+                                                                            .orange
+                                                                            .withOpacity(0.2),
+                                                                        borderRadius:
+                                                                            BorderRadius.circular(6),
+                                                                      ),
+                                                                      child:
+                                                                          const Text(
+                                                                        "Garantía",
+                                                                        style:
+                                                                            TextStyle(
+                                                                          fontSize:
+                                                                              10,
+                                                                          fontWeight:
+                                                                              FontWeight.bold,
+                                                                          color:
+                                                                              Colors.orange,
                                                                         ),
                                                                       ),
+                                                                    ),
                                                                   ],
                                                                 ),
                                                               );

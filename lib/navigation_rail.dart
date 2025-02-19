@@ -12,13 +12,14 @@ class NavigationScreen extends StatefulWidget {
   final String rol;
   final String userId;
   final String userType;
+  final double scaleFactor; // Pasa el scaleFactor calculado
 
-  const NavigationScreen({
-    required this.username,
-    required this.rol,
-    required this.userId,
-    required this.userType,
-  });
+  const NavigationScreen(
+      {required this.username,
+      required this.rol,
+      required this.userId,
+      required this.userType,
+      required this.scaleFactor});
 
   @override
   _NavigationScreenState createState() => _NavigationScreenState();
@@ -108,15 +109,23 @@ class _NavigationScreenState extends State<NavigationScreen> {
     final List<Widget> pages = _buildPages();
     final List<SideMenuItem> menuItems = _buildMenuItems();
 
+    // Ajusta el ancho del menú según el factor de escala
+    double menuWidth = 180 *
+        widget.scaleFactor; // Aplica el factor de escala aquí (180px a 125%)
+    double collapsedMenuWidth = 90 *
+        widget.scaleFactor; // Aplica el factor de escala aquí (90px a 125%)
+
     return Scaffold(
       body: Row(
         children: [
           Container(
-            width: isMenuOpen ? 180 : 90,
+            width: isMenuOpen ? menuWidth : collapsedMenuWidth,
             child: SideMenu(
               controller: sideMenu,
               showToggle: false,
               style: SideMenuStyle(
+                itemOuterPadding:
+                    EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                 displayMode: isMenuOpen
                     ? SideMenuDisplayMode.open
                     : SideMenuDisplayMode.compact,

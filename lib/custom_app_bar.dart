@@ -70,7 +70,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     return Column(children: [
       Container(
           padding: const EdgeInsets.only(
-              left: 16.0, right: 16.0, top: 20, bottom: 20),
+              left: 16.0, right: 16.0, top: 10, bottom: 15),
           decoration: BoxDecoration(color: Colors.white),
           child:
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -84,7 +84,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   title,
                   style: TextStyle(
                     color: Colors.grey[900],
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -178,6 +178,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
                 SizedBox(width: 10),
                 Container(
+                  height: 50,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -254,7 +255,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               Text(
                                 'Configuración',
                                 style: TextStyle(
-                                    fontSize: 16, color: Colors.grey[800]),
+                                    fontSize: 12, color: Colors.grey[800]),
                               ),
                             ],
                           ),
@@ -268,7 +269,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               Text(
                                 'Acerca de',
                                 style: TextStyle(
-                                    fontSize: 16, color: Colors.grey[800]),
+                                    fontSize: 12, color: Colors.grey[800]),
                               ),
                             ],
                           ),
@@ -282,13 +283,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                               Text(
                                 'Cerrar sesión',
                                 style: TextStyle(
-                                    fontSize: 16, color: Colors.grey[800]),
+                                    fontSize: 12, color: Colors.grey[800]),
                               ),
                             ],
                           ),
                         ),
                       ],
                       child: Container(
+                        height: 50,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -319,7 +321,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   nombre,
                                   style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: 16,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -327,7 +329,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   tipoUsuario,
                                   style: TextStyle(
                                     color: Colors.grey.shade900,
-                                    fontSize: 12,
+                                    fontSize: 9,
                                   ),
                                 ),
                               ],
