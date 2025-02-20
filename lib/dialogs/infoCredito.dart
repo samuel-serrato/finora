@@ -815,8 +815,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                   if (pagosJson.isNotEmpty) {
                                     print('Datos a enviar: $pagosJson');
                                     // Llamar a la función para enviar los datos al servidor
-                                    //  await enviarDatosAlServidor(
-                                    //    context, pagosSeleccionados);
+                                    await enviarDatosAlServidor(
+                                        context, pagosSeleccionados);
                                   } else {
                                     print("No hay cambios para guardar.");
                                   }
@@ -1619,11 +1619,15 @@ class _PaginaControlState extends State<PaginaControl> {
                                                       else if (newValue ==
                                                           'Monto Parcial') {
                                                         // Establecer fecha actual y limpiar fechaPagoCompleto
-                                                        pago.fechaPago =
+                                                        pago.fechaPagoCompleto =
                                                             DateTime.now()
                                                                 .toString();
-                                                        pago.fechaPagoCompleto =
-                                                            ''; // Asegurar que no use la fecha de completo
+                                                        if (pago.fechaPago
+                                                            .isEmpty) {
+                                                          pago.fechaPago =
+                                                              DateTime.now()
+                                                                  .toString();
+                                                        }
                                                       } else if (newValue ==
                                                           'Garantia') {
                                                         // Asignar valor de garantía desde el widget
@@ -2151,122 +2155,6 @@ class _PaginaControlState extends State<PaginaControl> {
                                                     );
                                                   }
 
-                                                  // Agregar los moratorios como "abonos" adicionales
-                                                  // Agregar los pagos moratorios con el mismo estilo
-                                                  /* for (var moratorio
-                                                      in pago.pagosMoratorios) {
-                                                    final fecha =
-                                                        formatearFecha(
-                                                            moratorio[
-                                                                'fCreacion']);
-                                                    final sumaMoratorios = (moratorio[
-                                                                'sumaMoratorios']
-                                                            is num)
-                                                        ? (moratorio[
-                                                                    'sumaMoratorios']
-                                                                as num)
-                                                            .toDouble()
-                                                        : 0.0;
-
-                                                    items.add(
-                                                      PopupMenuItem(
-                                                        value: moratorio,
-                                                        child: Container(
-                                                          width:
-                                                              double.infinity,
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                                  vertical: 6.0,
-                                                                  horizontal:
-                                                                      10.0),
-                                                          child: Row(
-                                                            crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .center,
-                                                            children: [
-                                                              const Icon(
-                                                                Icons
-                                                                    .warning_amber_rounded,
-                                                                color: Colors
-                                                                    .redAccent,
-                                                                size: 18,
-                                                              ),
-                                                              const SizedBox(
-                                                                  width: 10),
-                                                              Expanded(
-                                                                child: Column(
-                                                                  crossAxisAlignment:
-                                                                      CrossAxisAlignment
-                                                                          .start,
-                                                                  children: [
-                                                                    Text(
-                                                                      fecha,
-                                                                      style:
-                                                                          const TextStyle(
-                                                                        fontSize:
-                                                                            12,
-                                                                        fontWeight:
-                                                                            FontWeight.w500,
-                                                                        color: Colors
-                                                                            .black54,
-                                                                      ),
-                                                                    ),
-                                                                    const SizedBox(
-                                                                        height:
-                                                                            2),
-                                                                    Row(
-                                                                      mainAxisAlignment:
-                                                                          MainAxisAlignment
-                                                                              .spaceBetween,
-                                                                      children: [
-                                                                        Text(
-                                                                          "\$${sumaMoratorios.toStringAsFixed(2)}",
-                                                                          style:
-                                                                              const TextStyle(
-                                                                            fontSize:
-                                                                                14,
-                                                                            fontWeight:
-                                                                                FontWeight.bold,
-                                                                            color:
-                                                                                Colors.black87,
-                                                                          ),
-                                                                        ),
-                                                                        Container(
-                                                                          padding: const EdgeInsets
-                                                                              .symmetric(
-                                                                              horizontal: 6,
-                                                                              vertical: 2),
-                                                                          decoration:
-                                                                              BoxDecoration(
-                                                                            color:
-                                                                                Colors.redAccent.withOpacity(0.2),
-                                                                            borderRadius:
-                                                                                BorderRadius.circular(6),
-                                                                          ),
-                                                                          child:
-                                                                              const Text(
-                                                                            "Moratorio",
-                                                                            style:
-                                                                                TextStyle(
-                                                                              fontSize: 10,
-                                                                              fontWeight: FontWeight.bold,
-                                                                              color: Colors.redAccent,
-                                                                            ),
-                                                                          ),
-                                                                        ),
-                                                                      ],
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  } */
-
                                                   // Calcular el total de abonos, sumando depósitos y los moratorios (sumaMoratorios)
                                                   double totalAbonos =
                                                       pago.abonos.fold(
@@ -2686,8 +2574,11 @@ class _PaginaControlState extends State<PaginaControl> {
                                                             ...pago.abonos
                                                                 .map((abono) {
                                                               final esGarantia =
-                                                                  abono['garantia'] ==
-                                                                      "Si";
+                                                                  (abono['garantia']
+                                                                              as String)
+                                                                          .toLowerCase() ==
+                                                                      'si'; // Solo verifica el campo
+
                                                               return Padding(
                                                                 padding:
                                                                     const EdgeInsets
@@ -2697,10 +2588,10 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 child: Column(
                                                                   crossAxisAlignment:
                                                                       CrossAxisAlignment
-                                                                          .center, // Alineación a la izquierda
+                                                                          .center,
                                                                   children: [
                                                                     Text(
-                                                                      'Pagado: ${abono["fechaDeposito"]}',
+                                                                      'Pagado: ${formatearFecha(abono["fechaDeposito"])}',
                                                                       style:
                                                                           TextStyle(
                                                                         fontSize:
@@ -2712,41 +2603,36 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                     SizedBox(
                                                                         height:
                                                                             6),
-                                                                    if (esGarantia)
-                                                                      SizedBox(
-                                                                          height:
-                                                                              6),
-                                                                    Container(
-                                                                      padding:
-                                                                          const EdgeInsets
-                                                                              .symmetric(
-                                                                        horizontal:
-                                                                            6,
-                                                                        vertical:
-                                                                            2,
-                                                                      ),
-                                                                      decoration:
-                                                                          BoxDecoration(
-                                                                        color: Colors
-                                                                            .orange
-                                                                            .withOpacity(0.2),
-                                                                        borderRadius:
-                                                                            BorderRadius.circular(6),
-                                                                      ),
-                                                                      child:
-                                                                          const Text(
-                                                                        "Garantía",
-                                                                        style:
-                                                                            TextStyle(
-                                                                          fontSize:
-                                                                              10,
-                                                                          fontWeight:
-                                                                              FontWeight.bold,
-                                                                          color:
-                                                                              Colors.orange,
+                                                                    if (esGarantia) // ← Condición simplificada
+                                                                      Container(
+                                                                        padding: const EdgeInsets
+                                                                            .symmetric(
+                                                                            horizontal:
+                                                                                6,
+                                                                            vertical:
+                                                                                2),
+                                                                        decoration:
+                                                                            BoxDecoration(
+                                                                          color: Colors
+                                                                              .orange
+                                                                              .withOpacity(0.2),
+                                                                          borderRadius:
+                                                                              BorderRadius.circular(6),
+                                                                        ),
+                                                                        child:
+                                                                            const Text(
+                                                                          "Garantía",
+                                                                          style:
+                                                                              TextStyle(
+                                                                            fontSize:
+                                                                                10,
+                                                                            fontWeight:
+                                                                                FontWeight.bold,
+                                                                            color:
+                                                                                Colors.orange,
+                                                                          ),
                                                                         ),
                                                                       ),
-                                                                    ),
                                                                   ],
                                                                 ),
                                                               );
@@ -2790,7 +2676,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   .only(
                                                                   top: 4.0),
                                                           child: Text(
-                                                            'Pagado: ${abono["fechaDeposito"]}', // Mostrar la fecha de depósito
+                                                            'Pagado: ${formatearFecha(abono["fechaDeposito"])}',
+                                                            // Mostrar la fecha de depósito
                                                             style: TextStyle(
                                                                 fontSize: 10,
                                                                 color: Colors

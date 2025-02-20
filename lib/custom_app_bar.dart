@@ -218,26 +218,92 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       onSelected: (value) async {
                         if (value == 'logout') {
                           bool confirm = await showDialog(
-                                barrierDismissible: false,
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: Text('Cerrar sesión'),
-                                  content: Text(
-                                      '¿Estás seguro de que quieres salir?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(
-                                          context, false), // Devuelve false
-                                      child: Text('Cancelar'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(
-                                          context, true), // Devuelve true
-                                      child: Text('Aceptar'),
-                                    ),
-                                  ],
-                                ),
-                              ) ??
+  context: context,
+  builder: (context) => Theme(
+    data: Theme.of(context).copyWith(
+      dialogBackgroundColor: Colors.white,
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: Color(0xFF5162F6),
+        ),
+      ),
+    ),
+    child: AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20.0),
+      ),
+      contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+      title: Column(
+        children: [
+          Icon(
+            Icons.exit_to_app_rounded,
+            size: 60,
+            color: Color(0xFF5162F6),
+          ),
+          SizedBox(height: 15),
+          Text(
+            'Cerrar Sesión',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+      content: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 15),
+        child: Text(
+          '¿Estás seguro de que quieres salir de tu cuenta?',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey[700],
+            height: 1.4,
+          ),
+        ),
+      ),
+      actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+      actions: [
+          SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancelar'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey[700],
+                  side: BorderSide(color: Colors.grey[400]!),
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+              
+              ),
+            ),),
+            SizedBox(width: 15),
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF5162F6),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Cerrar Sesión'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  ),
+) ??
                               false; // Si el diálogo se cierra sin valor, asigna false
 
                           if (confirm) await _logoutUser(context);
@@ -321,7 +387,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   nombre,
                                   style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: 14,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -329,7 +395,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   tipoUsuario,
                                   style: TextStyle(
                                     color: Colors.grey.shade900,
-                                    fontSize: 10,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ],
@@ -355,92 +421,95 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   void _showAboutDialog(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.30;
-    final height = MediaQuery.of(context).size.height * 0.25;
+    final height = MediaQuery.of(context).size.height * 0.32;
 
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16), // Bordes redondeados
-        ),
-        elevation: 8,
-        child: Container(
-          width: width,
-          height: height,
-          padding: EdgeInsets.all(16), // Padding general
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 50),
+        child: Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16), // Bordes redondeados
           ),
-          alignment: Alignment.center,
-          child: Column(
-            mainAxisSize: MainAxisSize.max, // Ocupa todo el espacio vertical
-            mainAxisAlignment:
-                MainAxisAlignment.center, // Centra verticalmente los
-            children: [
-              // Logo del software
-              Image.asset(
-                'assets/finora_hzt.png', // Ruta de la imagen
-                width: 150, // Ancho de la imagen
-                height: 50, // Alto de la imagen
-              ),
-              SizedBox(height: 8), // Espacio reducido
-              /* Text(
-                'Acerca de Finora',
-                style: TextStyle(
-                  fontSize: 18, // Título más pequeño
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF5162F6),
+          elevation: 8,
+          child: Container(
+            width: width,
+            height: height,
+            padding: EdgeInsets.all(16), // Padding general
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.max, // Ocupa todo el espacio vertical
+              mainAxisAlignment:
+                  MainAxisAlignment.center, // Centra verticalmente los
+              children: [
+                // Logo del software
+                Image.asset(
+                  'assets/finora_hzt.png', // Ruta de la imagen
+                  width: 150, // Ancho de la imagen
+                  height: 50, // Alto de la imagen
                 ),
-              ), */
-
-              // Contenido compacto
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 2), // Menos espacio
-                child: Column(
-                  children: [
-                    Text(
-                      'Desarrollado por CODX', // Texto combinado
-                      style: TextStyle(
-                        fontSize: 14, // Texto más pequeño
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    SizedBox(height: 18),
-                    Divider(
-                      color: Colors.grey[300],
-                      height: 1, // Divider más fino
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'Versión 1.0.0', // Texto combinado
-                      style: TextStyle(
-                          fontSize: 16, // Tamaño reducido
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF5162F6)),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 12),
-              // Botón minimalista
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 8), // Botón más pequeño
-                  minimumSize: Size(0, 0), // Eliminar tamaño mínimo
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  'Cerrar',
+                SizedBox(height: 8), // Espacio reducido
+                /* Text(
+                  'Acerca de Finora',
                   style: TextStyle(
-                    color: Colors.grey[700],
-                    fontSize: 14, // Texto más pequeño
+                    fontSize: 18, // Título más pequeño
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF5162F6),
+                  ),
+                ), */
+        
+                // Contenido compacto
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 2), // Menos espacio
+                  child: Column(
+                    children: [
+                      Text(
+                        'Desarrollado por CODX', // Texto combinado
+                        style: TextStyle(
+                          fontSize: 14, // Texto más pequeño
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      SizedBox(height: 18),
+                      Divider(
+                        color: Colors.grey[300],
+                        height: 1, // Divider más fino
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Versión 1.0.0', // Texto combinado
+                        style: TextStyle(
+                            fontSize: 16, // Tamaño reducido
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF5162F6)),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                SizedBox(height: 12),
+                // Botón minimalista
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8), // Botón más pequeño
+                    minimumSize: Size(0, 0), // Eliminar tamaño mínimo
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'Cerrar',
+                    style: TextStyle(
+                      color: Colors.grey[700],
+                      fontSize: 14, // Texto más pequeño
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

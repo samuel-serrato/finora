@@ -72,13 +72,23 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   bool _validarFormularioActual() {
-    if (_currentIndex == 0) {
-      return _infoGrupoFormKey.currentState?.validate() ?? false;
-    } else if (_currentIndex == 1) {
-      return _miembrosGrupoFormKey.currentState?.validate() ?? false;
+  bool isValid = false;
+  
+  if (_currentIndex == 0) {
+    isValid = _infoGrupoFormKey.currentState?.validate() ?? false;
+  } else if (_currentIndex == 1) {
+    isValid = _miembrosGrupoFormKey.currentState?.validate() ?? false;
+    
+    // Validación adicional para tipo grupal
+    if (isValid && selectedTipo == 'Grupal' && _selectedPersons.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Los grupos grupales requieren al menos 2 miembros'),
+      ));
+      return false;
     }
-    return false;
   }
+  return isValid;
+}
 
   Future<void> obtenerUsuarios() async {
     setState(() => _isLoadingUsuarios = true);
@@ -163,6 +173,102 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   void _agregarGrupo() async {
+   if (selectedTipo == 'Grupal' && _selectedPersons.length == 1) {
+  bool? cambiarAIndividual = await showDialog<bool>(
+    context: context,
+    builder: (context) => Theme(
+      data: Theme.of(context).copyWith(
+        dialogBackgroundColor: Colors.white,
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: Color(0xFF5162F6),
+          ),
+        ),
+      ),
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        contentPadding: EdgeInsets.only(top: 20, bottom: 20),
+        title: Column(
+          children: [
+            Icon(
+              Icons.group_remove,
+              size: 60,
+              color: Color(0xFF5162F6),),
+            SizedBox(height: 15),
+            Text(
+              'Grupo Incompleto',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+        content: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Los grupos de tipo "Grupal" requieren mínimo 2 integrantes.\n\n'
+            '¿Desea cambiar el tipo a "Individual" para continuar?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[700],
+              height: 1.4,
+            ),
+          ),
+        ),
+        actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey[700],
+                    side: BorderSide(color: Colors.grey[400]!),
+                    padding: EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text('Cancelar'),
+                ),
+              ),
+              SizedBox(width: 15),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF5162F6),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text('Cambiar Tipo'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+
+  if (cambiarAIndividual == true) {
+    setState(() => selectedTipo = 'Individual');
+  } else {
+    return;
+  }
+}
+
     if (!mounted) return;
 
     setState(() {
@@ -654,6 +760,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
     int pasoActual = 2; // Paso actual que queremos marcar como activo
 
     return Form(
+      key: _miembrosGrupoFormKey,
       child: Row(
         children: [
           Container(
