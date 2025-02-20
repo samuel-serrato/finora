@@ -268,8 +268,6 @@ class _InfoCreditoState extends State<InfoCredito> {
       }
 
       // ===== Lógica para "En Abonos" =====
-      // ===== Lógica para "En Abonos" =====
-      // ===== Lógica para "En Abonos" =====
       List<Map<String, dynamic>> nuevosAbonos = pagoActual.abonos
           .where((abono) => !abono.containsKey('idpagosdetalles'))
           .toList();
@@ -1633,9 +1631,13 @@ class _PaginaControlState extends State<PaginaControl> {
                                                         deposito:
                                                             pago.deposito ??
                                                                 0.00,
-                                                        fechaPago:
-                                                            pago.fechaPagoCompleto ??
-                                                                '',
+                                                        fechaPago: pago
+                                                                .fechaPagoCompleto
+                                                                .isNotEmpty
+                                                            ? pago
+                                                                .fechaPagoCompleto
+                                                            : pago
+                                                                .fechaPago, // <-- Cambio clave aquí
                                                         idfechaspagos:
                                                             pago.idfechaspagos ??
                                                                 '',
@@ -1681,8 +1683,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                                   : Colors.grey[400],
                                             ),
                                           ),
-                                          if (pago.tipoPago ==
-                                              'Completo') // CONDICIONAL PRINCIPAL
+                                          if (_puedeEditarPago(pago) &&
+                                              pago.tipoPago ==
+                                                  'Completo') // CONDICIONAL PRINCIPAL
                                             Padding(
                                               padding:
                                                   EdgeInsets.only(top: 4.0),
@@ -2956,57 +2959,71 @@ class _PaginaControlState extends State<PaginaControl> {
 
   // 1. Este es el método para editar la fecha
   void _editarFechaPago(BuildContext context, Pago pago) async {
-    DateTime initialDate = DateTime.now();
-    DateTime lastDate = DateTime.now();
+  DateTime initialDate = DateTime.now();
+  DateTime lastDate = DateTime.now();
 
-    // Priorizar fechaPagoCompleto si existe
-    String? fechaAUsar = pago.fechaPagoCompleto.isNotEmpty
-        ? pago.fechaPagoCompleto
-        : pago.fechaPago;
+  // Determinar qué fecha usar
+  String fechaAUsar = pago.fechaPagoCompleto.isNotEmpty
+      ? pago.fechaPagoCompleto
+      : pago.fechaPago.isNotEmpty
+          ? pago.fechaPago
+          : initialDate.toIso8601String();
 
-    if (fechaAUsar.isNotEmpty) {
-      try {
-        final DateTime parsedDate = DateTime.parse(fechaAUsar);
-
-        if (!parsedDate.isAfter(DateTime.now())) {
-          initialDate = parsedDate;
-        }
-      } catch (e) {
-        print("Fecha inválida: $fechaAUsar");
-      }
+  try {
+    final DateTime parsedDate = DateTime.parse(fechaAUsar);
+    if (!parsedDate.isAfter(DateTime.now())) {
+      initialDate = parsedDate;
     }
+  } catch (e) {
+    print("Fecha inválida: $fechaAUsar. Usando fecha actual.");
+    initialDate = DateTime.now();
+  }
 
-    final DateTime? fechaSeleccionada = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2000),
-      lastDate: lastDate,
-      builder: (context, child) {
-        return Theme(
-            child: child!,
-            data: Theme.of(context).copyWith(
-              colorScheme: ColorScheme.light(
-                primary: Color(0xFF5162F6),
-              ),
-            ));
-      },
+  // Mostrar selector de fecha
+  final DateTime? fechaSeleccionada = await showDatePicker(
+    context: context,
+    initialDate: initialDate,
+    firstDate: DateTime(2000),
+    lastDate: lastDate,
+    builder: (context, child) {
+      return Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: Color(0xFF5162F6),
+          ),
+        ),
+        child: child!,
+      );
+    },
+  );
+
+  if (fechaSeleccionada != null) {
+    // Agregar la hora actual automáticamente
+    DateTime fechaConHoraActual = DateTime(
+      fechaSeleccionada.year,
+      fechaSeleccionada.month,
+      fechaSeleccionada.day,
+      DateTime.now().hour,
+      DateTime.now().minute,
+      DateTime.now().second,
     );
 
-    if (fechaSeleccionada != null) {
-      setState(() {
-        // Actualizar SOLO la fecha de pago completo
-        pago.fechaPagoCompleto = fechaSeleccionada.toIso8601String();
+    setState(() {
+      // Guardar la fecha con la hora actual
+      pago.fechaPagoCompleto = fechaConHoraActual.toIso8601String();
 
-        // Mantener fechaPago original intacta
-        if (pago.fechaPago.isEmpty) {
-          pago.fechaPago = DateTime.now().toString();
-        }
+      // Si la fechaPago aún no está definida, asignarla también
+      if (pago.fechaPago.isEmpty) {
+        pago.fechaPago = fechaConHoraActual.toIso8601String();
+      }
 
-        Provider.of<PagosProvider>(context, listen: false)
-            .actualizarPago(pago.semana, pago.toPagoSeleccionado());
-      });
-    }
+      // Actualizar el provider con la nueva fecha y hora
+      Provider.of<PagosProvider>(context, listen: false)
+          .actualizarPago(pago.semana, pago.toPagoSeleccionado());
+    });
   }
+}
+
 
   Widget _buildTableCell(dynamic content,
       {bool isHeader = false, Color textColor = Colors.black, int flex = 1}) {
@@ -3149,7 +3166,9 @@ class Pago {
       semana: semana,
       tipoPago: tipoPago,
       deposito: deposito ?? 0.00,
-      fechaPago: fechaPago ?? '',
+      fechaPago: this.fechaPagoCompleto.isNotEmpty
+          ? this.fechaPagoCompleto
+          : this.fechaPago, // <-- Prioriza fechaPagoCompleto
       idfechaspagos: idfechaspagos ?? '',
       capitalMasInteres: capitalMasInteres,
       moratorio: moratorios?.moratorios,
