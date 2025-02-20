@@ -534,6 +534,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           DataColumn(
               label:
                   Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
+          DataColumn(
+              label: Text('Estado', style: TextStyle(fontSize: fontSize))),
         ],
         rows: listaCreditos.map((credito) {
           return DataRow(
@@ -612,6 +614,14 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   ),
                 ),
               ),
+              DataCell(
+                Center(
+                  child: Text(
+                    credito.estado,
+                    style: TextStyle(fontSize: fontSize),
+                  ),
+                ),
+              ),
             ],
             color: MaterialStateColor.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
@@ -647,6 +657,7 @@ class Credito {
   final String numPago;
   final String fechasIniciofin;
   final DateTime fCreacion;
+  final String estado;
   final EstadoCredito estadoCredito;
 
   Credito({
@@ -668,6 +679,7 @@ class Credito {
     required this.numPago,
     required this.fechasIniciofin,
     required this.estadoCredito,
+    required this.estado,
     required this.fCreacion,
   });
 
@@ -690,6 +702,7 @@ class Credito {
       montoMasInteres: json['montoMasInteres'].toDouble(),
       numPago: json['numPago'],
       fechasIniciofin: json['fechasIniciofin'],
+      estado: json['estado'],
       estadoCredito: EstadoCredito.fromJson(json['estado_credito']),
       fCreacion: DateTime.parse(json['fCreacion']),
     );

@@ -293,6 +293,10 @@ class _InfoClienteState extends State<InfoCliente> {
                                                         cuenta['numCuenta'] ??
                                                             'No asignado'),
                                                     _buildDetailRow(
+                                                        'CLABE Interbancaria:',
+                                                        cuenta['clbIntBanc'] ??
+                                                            'No asignado'),
+                                                    _buildDetailRow(
                                                         'Núm. de Tarjeta:',
                                                         cuenta['numTarjeta'] ??
                                                             'No asignado'),
@@ -401,10 +405,14 @@ class _InfoClienteState extends State<InfoCliente> {
                                                                   null ||
                                                               clienteData![
                                                                       'nombreConyuge'] ==
-                                                                  "null"
+                                                                  "null" ||
+                                                              (clienteData![
+                                                                          'nombreConyuge']
+                                                                      as String)
+                                                                  .isEmpty)
                                                           ? 'No asignado'
                                                           : clienteData![
-                                                              'nombreConyuge'])
+                                                              'nombreConyuge']
                                                       : 'No asignado',
                                                 ),
                                                 _buildDetailRow(
