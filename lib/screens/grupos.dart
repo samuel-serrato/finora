@@ -78,6 +78,9 @@ class _GruposScreenState extends State<GruposScreen> {
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
+              listaGrupos.sort((a, b) =>
+                  b.fCreacion.compareTo(a.fCreacion)); // <-- Agrega esta línea
+
               isLoading = false;
               errorDeConexion = false;
             });

@@ -85,6 +85,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             setState(() {
               listaCreditos =
                   data.map((item) => Credito.fromJson(item)).toList();
+              listaCreditos.sort((a, b) =>
+                  b.fCreacion.compareTo(a.fCreacion)); // <-- Agrega esta línea
+
               isLoading = false;
               errorDeConexion = false;
             });

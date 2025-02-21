@@ -79,6 +79,9 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
             setState(() {
               listaUsuarios =
                   data.map((item) => Usuario.fromJson(item)).toList();
+              listaUsuarios.sort((a, b) =>
+                  b.fCreacion.compareTo(a.fCreacion)); // <-- Agrega esta línea
+
               isLoading = false;
               errorDeConexion = false;
             });

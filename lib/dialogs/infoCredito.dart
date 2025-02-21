@@ -1722,6 +1722,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                             ),
                                           ),
                                           // Fila para seleccionar la fecha (se muestra tanto en "Completo" como en "Monto Parcial")
+                                          // Selector de fecha
                                           if (_puedeEditarPago(pago) &&
                                               (pago.tipoPago == 'Completo' ||
                                                   pago.tipoPago ==
@@ -1735,7 +1736,6 @@ class _PaginaControlState extends State<PaginaControl> {
                                                 mainAxisAlignment:
                                                     MainAxisAlignment.center,
                                                 children: [
-                                                  // Botón de editar
                                                   ElevatedButton(
                                                     onPressed: _puedeEditarPago(
                                                             pago)
@@ -1756,16 +1756,10 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 : Colors
                                                                     .transparent,
                                                       ),
-                                                      padding:
-                                                          MaterialStateProperty
-                                                              .all<EdgeInsets>(
-                                                        EdgeInsets.all(
-                                                            8), // Padding más ajustado
-                                                      ),
-                                                      minimumSize:
-                                                          MaterialStateProperty
-                                                              .all(Size
-                                                                  .zero), // Elimina tamaño mínimo
+                                                      padding: MaterialStateProperty.all<EdgeInsets>(
+  EdgeInsets.symmetric(horizontal: 8, vertical: 8), // Menos espacio interno
+),
+minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                       shape: MaterialStateProperty
                                                           .all<
                                                               RoundedRectangleBorder>(
@@ -1800,7 +1794,6 @@ class _PaginaControlState extends State<PaginaControl> {
                                                     ),
                                                   ),
                                                   SizedBox(width: 8),
-                                                  // Fecha formateada
                                                   Text(
                                                     _formatFecha(pago
                                                             .fechaPagoCompleto
@@ -1820,6 +1813,57 @@ class _PaginaControlState extends State<PaginaControl> {
                                                 ],
                                               ),
                                             ),
+
+                                          // Indicadores de Garantía DEBAJO del selector de fecha
+                                          if (pago.tipoPago == 'Completo') ...[
+                                            ...pago.abonos.map((abono) {
+                                              final esGarantia =
+                                                  (abono['garantia'] as String)
+                                                          .toLowerCase() ==
+                                                      'si';
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 4.0),
+                                                child: Column(
+                                                  children: [
+                                                    if (esGarantia)
+                                                      Container(
+                                                        margin: EdgeInsets.symmetric(horizontal: 12),
+                                                        padding: EdgeInsets
+                                                            .symmetric(
+                                                                horizontal: 6,
+                                                                vertical: 2),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.orange
+                                                              .withOpacity(0.2),
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(6),
+                                                        ),
+                                                        child: Row(
+                                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          children: [
+                                                            
+                                                            Text(
+                                                              "Garantía",
+                                                              style: TextStyle(
+                                                                  fontSize: 10,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  color: Colors
+                                                                      .orange),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              );
+                                            }).toList(),
+                                          ],
                                         ],
                                       ),
                                 flex: 22,
@@ -2314,6 +2358,10 @@ class _PaginaControlState extends State<PaginaControl> {
                                                 child: (editingState[index] ??
                                                         true) // Inicialmente será true
                                                     ? Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .center, // <-- Añade esta línea
+
                                                         children: [
                                                           TextField(
                                                             controller:
@@ -2637,6 +2685,96 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 ),
                                                               );
                                                             }).toList(),
+                                                          // Mostrar mensaje del total pagado de Garantía
+                                                          if (pago.abonos.any(
+                                                              (abono) =>
+                                                                  abono[
+                                                                      'garantia'] ==
+                                                                  'Si'))
+                                                            Padding(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .only(
+                                                                      top: 4.0),
+                                                              child: Container(
+                                                                decoration:
+                                                                    BoxDecoration(
+                                                                  color: Colors
+                                                                      .green
+                                                                      .shade50,
+                                                                  borderRadius:
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                              8),
+                                                                  border: Border.all(
+                                                                      color: Colors
+                                                                          .green
+                                                                          .shade100,
+                                                                      width: 1),
+                                                                ),
+                                                                padding: EdgeInsets
+                                                                    .symmetric(
+                                                                        horizontal:
+                                                                            8,
+                                                                        vertical:
+                                                                            4),
+                                                                child: Column(
+                                                                  mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                  children: [
+                                                                    //Icon(Icons.verified_outlined, size: 14, color: Colors.green.shade800),
+                                                                    SizedBox(
+                                                                        width:
+                                                                            4),
+                                                                    Padding(
+                                                                      padding: const EdgeInsets
+                                                                          .symmetric(
+                                                                          vertical:
+                                                                              4),
+                                                                      child:
+                                                                          RichText(
+                                                                        textAlign:
+                                                                            TextAlign.center,
+                                                                        text:
+                                                                            TextSpan(
+                                                                          style:
+                                                                              TextStyle(
+                                                                            fontSize:
+                                                                                10,
+                                                                            color:
+                                                                                Colors.grey.shade800,
+                                                                            fontWeight:
+                                                                                FontWeight.w500,
+                                                                          ),
+                                                                          children: [
+                                                                            TextSpan(text: 'Se pagó '),
+                                                                            TextSpan(
+                                                                              text: '\$${pago.capitalMasInteres?.toStringAsFixed(2) ?? '0.00'}',
+                                                                              style: TextStyle(
+                                                                                fontSize: 10,
+                                                                                color: Colors.green.shade800,
+                                                                                fontWeight: FontWeight.bold,
+                                                                              ),
+                                                                            ),
+                                                                            TextSpan(text: ' de '),
+                                                                            TextSpan(
+                                                                              text: '\$${widget.montoGarantia}',
+                                                                              style: TextStyle(
+                                                                                fontSize: 10,
+                                                                                color: Colors.green.shade800,
+                                                                                fontWeight: FontWeight.bold,
+                                                                              ),
+                                                                            ),
+                                                                            TextSpan(text: ' de Garantía'),
+                                                                          ],
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            ),
                                                         ],
                                                       )
                                                     : Text(
@@ -2685,6 +2823,81 @@ class _PaginaControlState extends State<PaginaControl> {
                                                           ),
                                                         );
                                                       }).toList(),
+                                                    if (pago.abonos.any(
+                                                        (abono) =>
+                                                            abono['garantia'] ==
+                                                            'Si'))
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(top: 12),
+                                                        child: Container(
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: Colors
+                                                                .green.shade50,
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        8),
+                                                            border: Border.all(
+                                                                color: Colors
+                                                                    .green
+                                                                    .shade100),
+                                                          ),
+                                                          padding: EdgeInsets
+                                                              .symmetric(
+                                                                  horizontal: 8,
+                                                                  vertical: 4),
+                                                          child: RichText(
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                            text: TextSpan(
+                                                              style: TextStyle(
+                                                                  fontSize: 10,
+                                                                  color: Colors
+                                                                      .grey
+                                                                      .shade800,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w500),
+                                                              children: [
+                                                                TextSpan(
+                                                                    text:
+                                                                        'Se pagó '),
+                                                                TextSpan(
+                                                                  text:
+                                                                      '\$${pago.capitalMasInteres.toStringAsFixed(2)}',
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .green
+                                                                          .shade800,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold),
+                                                                ),
+                                                                TextSpan(
+                                                                    text:
+                                                                        ' de '),
+                                                                TextSpan(
+                                                                  text:
+                                                                      '\$${widget.montoGarantia}',
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .green
+                                                                          .shade800,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold),
+                                                                ),
+                                                                TextSpan(
+                                                                    text:
+                                                                        ' de Garantía'),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
                                                   ],
                                                 ),
                                               ),

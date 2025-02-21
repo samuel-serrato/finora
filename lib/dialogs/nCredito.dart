@@ -1137,6 +1137,20 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     DateTime fechaTerminoCalculada =
         calcularFechaTermino(fechaInicio, frecuenciaPago!, plazoNumerico);
 
+    double calcularMontoGarantia(String garantiaTexto, double montoAutorizado) {
+      RegExp regex = RegExp(r'(\d+(\.\d+)?)'); // Extrae números del texto
+      Match? match = regex.firstMatch(garantiaTexto);
+
+      if (match != null) {
+        double porcentajeGarantia = double.parse(match.group(1)!);
+        return montoAutorizado * (porcentajeGarantia / 100);
+      }
+
+      return 0.0; // Si no hay un número en la garantía, asumimos 0
+    }
+
+    double montoGarantia = calcularMontoGarantia(garantiaTexto!, monto);
+
     void imprimirDatosGenerales() {
       print("=== Datos Generales ===");
       print("Grupo: ${selectedGrupo ?? "No especificado"}");
@@ -1145,6 +1159,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       print("Monto autorizado: \$${montoAutorizado}");
       print("Tasa de interés mensual: $tasaInteres");
       print("Garantía: $garantiaTexto");
+      print("Monto Garantía: \$${formatearNumero(montoGarantia)}");
       print("Frecuencia de pago: $frecuenciaPagoTexto");
       print("Plazo: $plazoNumerico");
       print("Interés Global: ${formatearNumero(interesGlobal)}%");
@@ -1355,8 +1370,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _infoRow(
-                                'Frecuencia de pago: ', frecuenciaPagoTexto!),
+                            _infoRow('Monto Garantía: ', '\$${formatearNumero(montoGarantia)}'),
+
                             _infoRow('Plazo: ', plazoNumerico.toString()),
                           ],
                         ),
@@ -1407,6 +1422,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
+                            _infoRow(
+                                'Frecuencia de pago: ', frecuenciaPagoTexto!),
                             _infoRow('Total a Recuperar: ',
                                 '\$${formatearNumero(totalARecuperar)}'),
                           ],

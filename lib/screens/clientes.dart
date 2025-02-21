@@ -78,6 +78,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
             setState(() {
               listaClientes =
                   data.map((item) => Cliente.fromJson(item)).toList();
+              listaClientes.sort((a, b) =>
+                  b.fCreacion.compareTo(a.fCreacion)); // <-- Agrega esta línea
+
               isLoading = false;
               errorDeConexion = false;
             });
