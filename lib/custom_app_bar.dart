@@ -218,92 +218,105 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       onSelected: (value) async {
                         if (value == 'logout') {
                           bool confirm = await showDialog(
-  context: context,
-  builder: (context) => Theme(
-    data: Theme.of(context).copyWith(
-      dialogBackgroundColor: Colors.white,
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: Color(0xFF5162F6),
-        ),
-      ),
-    ),
-    child: AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.0),
-      ),
-      contentPadding: EdgeInsets.only(top: 25, bottom: 10),
-      title: Column(
-        children: [
-          Icon(
-            Icons.exit_to_app_rounded,
-            size: 60,
-            color: Color(0xFF5162F6),
-          ),
-          SizedBox(height: 15),
-          Text(
-            'Cerrar Sesión',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ],
-      ),
-      content: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 15),
-        child: Text(
-          '¿Estás seguro de que quieres salir de tu cuenta?',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[700],
-            height: 1.4,
-          ),
-        ),
-      ),
-      actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
-      actions: [
-          SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancelar'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey[700],
-                  side: BorderSide(color: Colors.grey[400]!),
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-              
-              ),
-            ),),
-            SizedBox(width: 15),
-            Expanded(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF5162F6),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () => Navigator.pop(context, true),
-                child: Text('Cerrar Sesión'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  ),
-) ??
+                                context: context,
+                                builder: (context) => Theme(
+                                  data: Theme.of(context).copyWith(
+                                    dialogBackgroundColor: Colors.white,
+                                    textButtonTheme: TextButtonThemeData(
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Color(0xFF5162F6),
+                                      ),
+                                    ),
+                                  ),
+                                  child: AlertDialog(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20.0),
+                                    ),
+                                    contentPadding:
+                                        EdgeInsets.only(top: 25, bottom: 10),
+                                    title: Column(
+                                      children: [
+                                        Icon(
+                                          Icons.exit_to_app_rounded,
+                                          size: 60,
+                                          color: Color(0xFF5162F6),
+                                        ),
+                                        SizedBox(height: 15),
+                                        Text(
+                                          'Cerrar Sesión',
+                                          style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    content: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 15),
+                                      child: Text(
+                                        '¿Estás seguro de que quieres salir de tu cuenta?',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey[700],
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ),
+                                    actionsPadding: EdgeInsets.only(
+                                        bottom: 20, right: 25, left: 25),
+                                    actions: [
+                                      SizedBox(height: 20),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: OutlinedButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context, false),
+                                              child: Text('Cancelar'),
+                                              style: OutlinedButton.styleFrom(
+                                                foregroundColor:
+                                                    Colors.grey[700],
+                                                side: BorderSide(
+                                                    color: Colors.grey[400]!),
+                                                padding: EdgeInsets.symmetric(
+                                                    vertical: 14),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(width: 15),
+                                          Expanded(
+                                            child: ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    Color(0xFF5162F6),
+                                                foregroundColor: Colors.white,
+                                                padding: EdgeInsets.symmetric(
+                                                    vertical: 14),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                              ),
+                                              onPressed: () =>
+                                                  Navigator.pop(context, true),
+                                              child: Text('Cerrar Sesión'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ) ??
                               false; // Si el diálogo se cierra sin valor, asigna false
 
                           if (confirm) await _logoutUser(context);
@@ -409,13 +422,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ],
                 ),
                 SizedBox(width: 10),
-                Container(
+               
+              ],
+            ),
+          ])),
+           Container(
                   height: 1,
                   color: Colors.grey[300],
                 ),
-              ],
-            )
-          ]))
     ]);
   }
 
@@ -461,7 +475,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     color: Color(0xFF5162F6),
                   ),
                 ), */
-        
+
                 // Contenido compacto
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: 2), // Menos espacio

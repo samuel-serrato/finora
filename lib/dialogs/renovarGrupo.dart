@@ -281,7 +281,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
         body: json.encode({
           'idgrupos': idGrupo,
           'clientes': miembros,
-          'idusuarios': 'WVI8HMQAG5',
+           'idusuarios': grupoData['idusuario'], // Aquí el cambio
         }),
       );
 
