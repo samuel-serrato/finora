@@ -224,6 +224,8 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
         'tipoGrupo': selectedTipo,
       };
 
+      print('Sending data: $data'); // Debugging
+
       final response = await http.post(
         Uri.parse('http://$baseUrl/api/v1/grupos/renovacion'),
         headers: {
@@ -272,6 +274,14 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
               })
           .toList();
 
+      final requestBody = {
+        'idgrupos': idGrupo,
+        'clientes': miembros,
+        'idusuarios': grupoData['idusuario'], // Aquí el cambio
+      };
+
+      print('Sending members: $requestBody'); // Debugging
+
       final response = await http.post(
         Uri.parse('http://$baseUrl/api/v1/grupodetalles/renovacion'),
         headers: {
@@ -281,7 +291,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
         body: json.encode({
           'idgrupos': idGrupo,
           'clientes': miembros,
-           'idusuarios': grupoData['idusuario'], // Aquí el cambio
+          'idusuarios': grupoData['idusuario'], // Aquí el cambio
         }),
       );
 
