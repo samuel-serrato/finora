@@ -1547,7 +1547,7 @@ class _PaginaControlState extends State<PaginaControl> {
                               _buildTableCell(
                                 esPago1
                                     ? "-"
-                                    : "\$${pago.capitalMasInteres?.toStringAsFixed(2)}",
+                                    : "\$${formatearNumero(pago.capitalMasInteres)}",
                                 flex: 20,
                               ),
                               // Celda para tipo de pago
@@ -1756,10 +1756,19 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 : Colors
                                                                     .transparent,
                                                       ),
-                                                      padding: MaterialStateProperty.all<EdgeInsets>(
-  EdgeInsets.symmetric(horizontal: 8, vertical: 8), // Menos espacio interno
-),
-minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
+                                                      padding:
+                                                          MaterialStateProperty
+                                                              .all<EdgeInsets>(
+                                                        EdgeInsets.symmetric(
+                                                            horizontal: 8,
+                                                            vertical:
+                                                                8), // Menos espacio interno
+                                                      ),
+                                                      minimumSize:
+                                                          MaterialStateProperty
+                                                              .all<Size>(Size(
+                                                                  24,
+                                                                  24)), // Tamaño mínimo
                                                       shape: MaterialStateProperty
                                                           .all<
                                                               RoundedRectangleBorder>(
@@ -1828,7 +1837,9 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                   children: [
                                                     if (esGarantia)
                                                       Container(
-                                                        margin: EdgeInsets.symmetric(horizontal: 12),
+                                                        margin: EdgeInsets
+                                                            .symmetric(
+                                                                horizontal: 12),
                                                         padding: EdgeInsets
                                                             .symmetric(
                                                                 horizontal: 6,
@@ -1842,10 +1853,13 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                                   .circular(6),
                                                         ),
                                                         child: Row(
-                                                          crossAxisAlignment: CrossAxisAlignment.center,
-                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .center,
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .center,
                                                           children: [
-                                                            
                                                             Text(
                                                               "Garantía",
                                                               style: TextStyle(
@@ -2157,7 +2171,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                                               .spaceBetween,
                                                                       children: [
                                                                         Text(
-                                                                          "\$${monto.toStringAsFixed(2)}",
+                                                                          "\$${formatearNumero(monto)}",
                                                                           style:
                                                                               const TextStyle(
                                                                             fontSize:
@@ -2296,7 +2310,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                                             MainAxisAlignment.spaceBetween,
                                                                         children: [
                                                                           Text(
-                                                                            '\$${totalAbonos.toStringAsFixed(2)}',
+                                                                            '\$${formatearNumero(totalAbonos)}',
                                                                             style:
                                                                                 TextStyle(
                                                                               fontSize: 16,
@@ -2750,7 +2764,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                                           children: [
                                                                             TextSpan(text: 'Se pagó '),
                                                                             TextSpan(
-                                                                              text: '\$${pago.capitalMasInteres?.toStringAsFixed(2) ?? '0.00'}',
+                                                                              text: '\$${formatearNumero(pago.capitalMasInteres) ?? '0.00'}',
                                                                               style: TextStyle(
                                                                                 fontSize: 10,
                                                                                 color: Colors.green.shade800,
@@ -2759,7 +2773,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                                             ),
                                                                             TextSpan(text: ' de '),
                                                                             TextSpan(
-                                                                              text: '\$${widget.montoGarantia}',
+                                                                              text: '\$${formatearNumero(widget.montoGarantia)}',
                                                                               style: TextStyle(
                                                                                 fontSize: 10,
                                                                                 color: Colors.green.shade800,
@@ -2778,7 +2792,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                         ],
                                                       )
                                                     : Text(
-                                                        "\$${pago.deposito?.toStringAsFixed(2) ?? '0.00'}",
+                                                        "\$${pago.deposito ?? '0.00'}",
                                                         style: TextStyle(
                                                             fontSize: 12,
                                                             color:
@@ -2795,7 +2809,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                   children: [
                                                     // Mostrar el monto depositado
                                                     Text(
-                                                      "\$${pago.deposito?.toStringAsFixed(2) ?? '0.00'}",
+                                                      "\$${formatearNumero(pago.deposito!) ?? '0.00'}",
                                                       style: TextStyle(
                                                           fontSize: 14,
                                                           color: Colors.black),
@@ -2867,7 +2881,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                                         'Se pagó '),
                                                                 TextSpan(
                                                                   text:
-                                                                      '\$${pago.capitalMasInteres.toStringAsFixed(2)}',
+                                                                      '\$${formatearNumero(pago.capitalMasInteres)}',
                                                                   style: TextStyle(
                                                                       color: Colors
                                                                           .green
@@ -2881,7 +2895,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                                         ' de '),
                                                                 TextSpan(
                                                                   text:
-                                                                      '\$${widget.montoGarantia}',
+                                                                      '\$${formatearNumero(widget.montoGarantia)}',
                                                                   style: TextStyle(
                                                                       color: Colors
                                                                           .green
@@ -2913,7 +2927,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                         ? "-"
                                         : (pago.saldoFavor != null &&
                                                 pago.saldoFavor! > 0.0)
-                                            ? "\$${pago.saldoFavor!.toStringAsFixed(2)}"
+                                            ? "\$${formatearNumero(pago.saldoFavor!)}"
                                             : "-",
                                 flex: 18,
                               ),
@@ -2928,7 +2942,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                         ? "-"
                                         : (pago.saldoEnContra != null &&
                                                 pago.saldoEnContra! > 0.0)
-                                            ? "\$${pago.saldoEnContra!.toStringAsFixed(2)}"
+                                            ? "\$${formatearNumero(pago.saldoEnContra!)}"
                                             : "-",
                                 flex: 18,
                               ),
@@ -2947,7 +2961,7 @@ minimumSize: MaterialStateProperty.all<Size>(Size(24, 24)), // Tamaño mínimo
                                                 pago.moratorios!.moratorios ==
                                                         0.0
                                                     ? "-" // Mostrar "-" si el monto de moratorios es 0.0
-                                                    : "\$${pago.moratorios!.moratorios.toStringAsFixed(2)}",
+                                                    : "\$${formatearNumero(pago.moratorios!.moratorios)}",
                                                 style: TextStyle(
                                                     fontWeight:
                                                         FontWeight.normal),

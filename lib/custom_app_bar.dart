@@ -400,7 +400,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   nombre,
                                   style: TextStyle(
                                     color: Colors.black,
-                                    fontSize: 16,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -408,7 +408,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   tipoUsuario,
                                   style: TextStyle(
                                     color: Colors.grey.shade900,
-                                    fontSize: 12,
+                                    fontSize: 10,
                                   ),
                                 ),
                               ],
@@ -422,14 +422,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ],
                 ),
                 SizedBox(width: 10),
-               
               ],
             ),
           ])),
-           Container(
-                  height: 1,
-                  color: Colors.grey[300],
-                ),
+      Container(
+        height: 1,
+        color: Colors.grey[300],
+      ),
     ]);
   }
 

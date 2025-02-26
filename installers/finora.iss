@@ -2,15 +2,15 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Finora"
-#define MyAppVersion "1.0"
+#define MyAppVersion "1.0.0"
 #define MyAppPublisher "CODX"
-#define MyAppURL "https://www.codxtech.com"
+#define MyAppURL "https://www.codxtech.com/"
 #define MyAppExeName "finora.exe"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{857AC9A7-8718-47E8-9848-4EAD002865C4}
+AppId={{837E50D6-FB93-4BA1-8247-1392F32B53B8}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
@@ -31,7 +31,7 @@ DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
 OutputDir=C:\Users\PC\Desktop\Flutter Projects\finora\installers
-OutputBaseFilename=finora
+OutputBaseFilename=Finora
 SetupIconFile=C:\Users\PC\Desktop\Flutter Projects\finora\windows\runner\resources\app_icon.ico
 Compression=lzma
 SolidCompression=yes
@@ -47,6 +47,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\file_saver_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\flutter_windows.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\screen_retriever_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\window_manager_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
