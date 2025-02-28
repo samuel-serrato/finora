@@ -12,4 +12,4 @@
 //IP OFICINA TEST 2
 //const String baseUrl = '26.190.204.223:3001';
 
-const String baseUrl = '192.168.0.105:3001';
+const String baseUrl = '192.168.0.107:3001';

@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class nClienteDialog extends StatefulWidget {
@@ -1673,21 +1674,24 @@ class _nClienteDialogState extends State<nClienteDialog>
                       ),
                       SizedBox(width: 10),
                       Expanded(
-                        child: _buildTextField(
-                          controller: emailClientecontroller,
-                          label: 'Correo electróncio',
-                          icon: Icons.email,
-                          keyboardType: TextInputType
-                              .emailAddress, // <- Aquí se especifica
-
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese el correo electrónico';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
+  child: _buildTextField(
+    controller: emailClientecontroller,
+    label: 'Correo electrónico',
+    icon: Icons.email,
+    keyboardType: TextInputType.emailAddress, // <- Aquí se especifica
+    validator: (value) {
+      if (value == null || value.isEmpty) {
+        return 'Por favor, ingrese el correo electrónico';
+      }
+      // Expresión regular para validar el formato de un correo electrónico
+      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+      if (!emailRegex.hasMatch(value)) {
+        return 'Por favor, ingrese un correo electrónico válido';
+      }
+      return null;
+    },
+  ),
+),
                     ],
                   ),
                   SizedBox(height: verticalSpacing),
@@ -2730,6 +2734,7 @@ class _nClienteDialogState extends State<nClienteDialog>
       barrierDismissible: false,
       context: context,
       builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
         contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         title: Center(
           child: Text(
@@ -3212,6 +3217,7 @@ class _nClienteDialogState extends State<nClienteDialog>
       barrierDismissible: false,
       context: context,
       builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
         title: Text(
             index == null ? 'Nuevo Ingreso/Egreso' : 'Editar Ingreso/Egreso'),
         content: StatefulBuilder(
@@ -3432,63 +3438,56 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   // El widget para el campo de fecha
   Widget _buildFechaNacimientoField() {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click, // Cambiar el cursor a una mano
-      child: GestureDetector(
-        // Añadir GestureDetector para manejar la interacción
-        onTap: () async {
-          DateTime? pickedDate = await showDatePicker(
-            context: context,
-            initialDate: selectedDate ?? DateTime.now(),
-            firstDate: DateTime(1900),
-            lastDate: DateTime.now(),
-            locale: Locale('es', 'ES'),
-            builder: (BuildContext context, Widget? child) {
-              return Theme(
-                data: ThemeData.light().copyWith(
-                  primaryColor: Colors
-                      .white, // Cambia el color de los elementos destacados
-
-                  colorScheme: ColorScheme.fromSwatch().copyWith(
-                    primary: Color(0xFF5162F6),
-                  ),
+  return MouseRegion(
+    cursor: SystemMouseCursors.click,
+    child: GestureDetector(
+      onTap: () async {
+        DateTime? pickedDate = await showDatePicker(
+          context: context,
+          initialDate: selectedDate ?? DateTime.now(),
+          firstDate: DateTime(1900),
+          lastDate: DateTime.now(),
+          locale: const Locale('es', 'ES'),
+          builder: (BuildContext context, Widget? child) {
+            return Theme(
+              data: ThemeData.light().copyWith(
+                primaryColor: Colors.white,
+                colorScheme: ColorScheme.fromSwatch().copyWith(
+                  primary: const Color(0xFF5162F6),
                 ),
-                child: child!,
-              );
-            },
-          );
-          if (pickedDate != null) {
-            setState(() {
-              selectedDate = pickedDate;
-              _fechaController.text =
-                  "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}";
-            });
-          }
-        },
-        child: AbsorbPointer(
-          // Evitar que el TextFormField reciba foco
-          child: TextFormField(
-            controller: _fechaController,
-            style: TextStyle(fontSize: 12),
-            decoration: InputDecoration(
-              labelText: 'Fecha de Nacimiento',
-              labelStyle: TextStyle(fontSize: 12),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              hintText: 'Selecciona una fecha',
-            ),
-            validator: (value) {
-              // Validar que se haya seleccionado una fecha
-              if (selectedDate == null) {
-                return 'Por favor, selecciona una fecha de nacimiento';
-              }
-              return null; // Si la fecha es válida, retorna null
-            },
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (pickedDate != null) {
+          setState(() {
+            selectedDate = pickedDate;
+            _fechaController.text = DateFormat('dd/MM/yyyy').format(selectedDate!); // Formateado aquí
+          });
+        }
+      },
+      child: AbsorbPointer(
+        child: TextFormField(
+          controller: _fechaController,
+          style: const TextStyle(fontSize: 12),
+          decoration: InputDecoration(
+            labelText: 'Fecha de Nacimiento',
+            labelStyle: const TextStyle(fontSize: 12),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            hintText: 'Selecciona una fecha',
           ),
+          validator: (value) {
+            if (selectedDate == null) {
+              return 'Por favor, selecciona una fecha de nacimiento';
+            }
+            return null;
+          },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _agregarCliente() async {
     setState(() {

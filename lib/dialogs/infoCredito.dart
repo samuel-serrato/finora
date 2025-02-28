@@ -769,7 +769,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                             style: TextStyle(color: Colors.grey),
                           ),
                         ),
-                        ElevatedButton(
+                        /* ElevatedButton(
                           onPressed: () {
                             // Reinicia los datos del Provider
                             Provider.of<PagosProvider>(context, listen: false)
@@ -783,7 +783,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                             );
                           },
                           child: Text('Reiniciar Datos'),
-                        ),
+                        ), */
                         ElevatedButton(
                           onPressed: isSending
                               ? null // Deshabilita el botón si está enviando
@@ -1168,10 +1168,21 @@ class _PaginaControlState extends State<PaginaControl> {
         List<dynamic> data = json.decode(response.body);
         List<Pago> pagos = data.map((pago) => Pago.fromJson(pago)).toList();
 
+        // Dentro de _fetchPagos:
         for (var pago in pagos) {
           double totalDeuda = (pago.capitalMasInteres ?? 0.0) +
               (pago.moratorios?.moratorios ?? 0.0);
           double montoPagado = pago.sumaDepositoMoratorisos ?? 0.0;
+
+          // Nueva verificación de garantía
+          bool tieneGarantia =
+              pago.abonos.any((abono) => abono['garantia'] == 'Si');
+
+          // Si hay garantía, usar solo el capital como monto pagado
+          if (tieneGarantia) {
+            montoPagado = pago.capitalMasInteres ?? 0.0;
+          }
+
           bool sinActividad = pago.abonos.isEmpty && montoPagado == 0.0;
 
           if (sinActividad) {
@@ -1182,7 +1193,9 @@ class _PaginaControlState extends State<PaginaControl> {
               pago.saldoEnContra = totalDeuda - montoPagado;
               pago.saldoFavor = 0.0;
             } else {
-              pago.saldoFavor = montoPagado - totalDeuda;
+              // Si hay garantía, forzar saldo a favor a 0
+              pago.saldoFavor =
+                  tieneGarantia ? 0.0 : (montoPagado - totalDeuda);
               pago.saldoEnContra = 0.0;
             }
           }
@@ -1227,12 +1240,13 @@ class _PaginaControlState extends State<PaginaControl> {
         .toList());
 
     // Inicializamos los controladores para cada pago
+    // En _actualizarProviderConPagos:
     controllers = List.generate(pagos.length, (index) {
       return TextEditingController(
         text: pagos[index].sumaDepositoMoratorisos != null &&
                 pagos[index].sumaDepositoMoratorisos! > 0
-            ? pagos[index].sumaDepositoMoratorisos!.toStringAsFixed(2)
-            : '', // Si el valor de deposito es 0, no mostrar nada
+            ? "\$${formatearNumero(pagos[index].sumaDepositoMoratorisos!)}" // Formatea aquí
+            : "",
       );
     });
   }
@@ -1345,83 +1359,99 @@ class _PaginaControlState extends State<PaginaControl> {
           double saldoAcumuladoContra = 0.0;
 
           for (int i = 0; i < pagos.length; i++) {
-            final pago = pagos[i];
+  final pago = pagos[i];
 
-            // Excluir semana 0 (cuando no hay pagos aún)
-            if (i == 0) {
-              continue; // No se hace ningún cálculo para la semana 0
-            }
+  // Excluir semana 0 (cuando no hay pagos aún)
+  if (i == 0) {
+    continue; // No se hace ningún cálculo para la semana 0
+  }
 
-            double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
-            double deposito = pago.deposito ?? 0.0;
-            double moratorios = pago.moratorios?.moratorios ?? 0.0;
+  double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
+  double deposito = pago.deposito ?? 0.0;
+  double moratorios = pago.moratorios?.moratorios ?? 0.0;
 
-            // Usar sumaDepositoMoratorios en lugar de los abonos
-            double sumaDepositoMoratorios = pago.sumaDepositoMoratorisos ?? 0.0;
+  // Usar sumaDepositoMoratorios en lugar de los abonos
+  double sumaDepositoMoratorios = pago.sumaDepositoMoratorisos ?? 0.0;
 
-            if (sumaDepositoMoratorios == 0.0) {
-              sumaDepositoMoratorios = pago.abonos.fold(
-                    0.0,
-                    (sum, abono) => sum + (abono['deposito'] ?? 0.0),
-                  ) +
-                  deposito;
-            }
+  if (sumaDepositoMoratorios == 0.0) {
+    sumaDepositoMoratorios = pago.abonos.fold(
+      0.0,
+      (sum, abono) => sum + (abono['deposito'] ?? 0.0),
+    ) + deposito;
+  }
 
-            // Total de la deuda incluye capital + interés + moratorios
-            double totalDeuda = capitalMasInteres + moratorios;
+  // Total de la deuda incluye capital + interés + moratorios
+  double totalDeuda = capitalMasInteres + moratorios;
 
-            // Monto pagado es el valor de sumaDepositoMoratorios
-            double montoPagado = sumaDepositoMoratorios;
+  // Monto pagado es el valor de sumaDepositoMoratorios
+  double montoPagado = sumaDepositoMoratorios;
 
-            // Acumular el pago actual
-            totalPagoActual += montoPagado;
+  // Verificar si se usó garantía en este pago
+  bool tieneGarantia = pago.abonos.any((abono) => abono['garantia'] == 'Si');
 
-            // Verificar si el monto pagado excede lo que debe (capital + intereses + moratorios)
-            double saldoFavor = 0.0;
-            double saldoContra = 0.0;
-            if (montoPagado >= totalDeuda) {
-              saldoFavor = montoPagado - totalDeuda;
-            } else {
-              saldoContra = totalDeuda - montoPagado;
-            }
+  if (tieneGarantia) {
+    // Usar capitalMasInteres en lugar del monto depositado
+    montoPagado = pago.capitalMasInteres ?? 0.0;
+  }
 
-            // Si el saldo en contra es igual al total de la deuda, restablecer a 0
-            if (saldoContra == totalDeuda) {
-              saldoContra = 0.0;
-            }
+  // Acumular el pago actual
+  totalPagoActual += montoPagado;
 
-            // Si hay saldo a favor, este debe restar del saldo acumulado en contra
-            if (saldoFavor > 0) {
-              // Restamos del saldo en contra si es posible
-              if (saldoAcumuladoContra > 0) {
-                if (saldoAcumuladoContra <= saldoFavor) {
-                  saldoFavor -= saldoAcumuladoContra;
-                  saldoAcumuladoContra = 0;
-                } else {
-                  saldoAcumuladoContra -= saldoFavor;
-                  saldoFavor = 0;
-                }
-              }
-              totalSaldoFavor += saldoFavor;
-            }
+  // Verificar si el monto pagado excede lo que debe (capital + intereses + moratorios)
+  double saldoFavor = 0.0;
+  double saldoContra = 0.0;
 
-            // Si no hay saldo a favor, simplemente acumulamos el saldo en contra
-            if (saldoContra > 0) {
-              saldoAcumuladoContra += saldoContra;
-            }
+  if (tieneGarantia) {
+    // Si hay garantía, el saldo a favor siempre es 0
+    saldoFavor = 0.0;
+    // El saldo en contra solo considera los moratorios
+    saldoContra = moratorios;
+  } else {
+    // Si no hay garantía, calcular saldos normalmente
+    if (montoPagado >= totalDeuda) {
+      saldoFavor = montoPagado - totalDeuda;
+    } else {
+      saldoContra = totalDeuda - montoPagado;
+    }
+  }
 
-            // Acumular totales evitando duplicaciones
-            if (saldoAcumuladoContra > 0) {
-              totalSaldoContra = saldoAcumuladoContra;
-            }
+  // Si el saldo en contra es igual al total de la deuda, restablecer a 0
+  if (saldoContra == totalDeuda) {
+    saldoContra = 0.0;
+  }
 
-            // Debugging: Para verificar si los valores son correctos
-            print("Pago $i");
-            print("  Total deuda: $totalDeuda");
-            print("  Monto pagado: $montoPagado");
-            print("  Saldo Favor: $saldoFavor");
-            print("  Saldo Contra: $saldoContra");
-          }
+  // Si hay saldo a favor, este debe restar del saldo acumulado en contra
+  if (saldoFavor > 0) {
+    // Restamos del saldo en contra si es posible
+    if (saldoAcumuladoContra > 0) {
+      if (saldoAcumuladoContra <= saldoFavor) {
+        saldoFavor -= saldoAcumuladoContra;
+        saldoAcumuladoContra = 0;
+      } else {
+        saldoAcumuladoContra -= saldoFavor;
+        saldoFavor = 0;
+      }
+    }
+    totalSaldoFavor += saldoFavor;
+  }
+
+  // Si no hay saldo a favor, simplemente acumulamos el saldo en contra
+  if (saldoContra > 0) {
+    saldoAcumuladoContra += saldoContra;
+  }
+
+  // Acumular totales evitando duplicaciones
+  if (saldoAcumuladoContra > 0) {
+    totalSaldoContra = saldoAcumuladoContra;
+  }
+
+  // Debugging: Para verificar si los valores son correctos
+  print("Pago $i");
+  print("  Total deuda: $totalDeuda");
+  print("  Monto pagado: $montoPagado");
+  print("  Saldo Favor: $saldoFavor");
+  print("  Saldo Contra: $saldoContra");
+}
 
           // Mostrar los totales correctamente
           totalSaldoFavor = totalSaldoFavor > 0.0 ? totalSaldoFavor : 0.0;
@@ -2631,6 +2661,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                           10),
                                                             ),
                                                           ),
+
                                                           if (pago.abonos
                                                               .isNotEmpty)
                                                             ...pago.abonos

@@ -1,4 +1,5 @@
 import 'package:easy_sidemenu/easy_sidemenu.dart';
+import 'package:finora/screens/reportes.dart';
 import 'package:flutter/material.dart';
 import 'package:finora/screens/clientes.dart';
 import 'package:finora/screens/grupos.dart';
@@ -59,6 +60,12 @@ class _NavigationScreenState extends State<NavigationScreen> {
           username: widget.username, tipoUsuario: widget.userType));
     }
 
+
+    if (widget.userType != 'Invitado') {
+      pages.add(ReportesScreen(
+          username: widget.username, tipoUsuario: widget.userType));
+    }
+
     return pages;
   }
 
@@ -98,6 +105,18 @@ class _NavigationScreenState extends State<NavigationScreen> {
           onTap: (index, _) => sideMenu.changePage(5),
           icon: const Icon(Icons.manage_accounts),
         ),
+        
+      );
+    }
+
+    if (widget.userType != 'Invitado') {
+      items.add(
+        SideMenuItem(
+          title: 'Reportes',
+          onTap: (index, _) => sideMenu.changePage(6),
+          icon: const Icon(Icons.insert_chart_rounded),
+        ),
+        
       );
     }
 
