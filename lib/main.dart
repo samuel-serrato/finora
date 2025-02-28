@@ -89,7 +89,7 @@ class MyApp extends StatelessWidget {
         },
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          colorSchemeSeed: const Color(0xff6750a4),
+          colorSchemeSeed: Colors.white,
           useMaterial3: true,
         ),
       ),

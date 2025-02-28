@@ -198,78 +198,107 @@ class _ReportesScreenState extends State<ReportesScreen> {
       child: Row(
         children: [
           Expanded(
-            child: DropdownButtonFormField<String>(
-              value: selectedReportType,
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2), // Shadow color
+                    blurRadius: 8, // Softness of the shadow
+                    spreadRadius: 2, // How much the shadow spreads
+                    offset: Offset(0, 3), // Changes position of shadow (X, Y)
+                  ),
+                ],
               ),
-              hint: const Text('Selecciona tipo de reporte'),
-              items: reportTypes.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() => selectedReportType = value);
-              },
+              child: DropdownButtonFormField<String>(
+                value: selectedReportType,
+                dropdownColor: Colors.white,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                hint: const Text('Selecciona tipo de reporte',
+                    style: TextStyle(fontSize: 14)),
+                items: reportTypes.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => selectedReportType = value);
+                },
+              ),
             ),
           ),
           const SizedBox(width: 15),
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black
+                      .withOpacity(0.2), // Sombra negra con opacidad
+                  blurRadius: 8, // Difuminado de la sombra
+                  spreadRadius: 2, // Expansión de la sombra
+                  offset: Offset(0, 3), // Posición de la sombra (X, Y)
+                ),
+              ],
             ),
             child: InkWell(
               onTap: _selectDateRange,
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                 child: Row(
                   children: [
                     const Icon(Icons.calendar_today, size: 20),
                     const SizedBox(width: 10),
                     Text(
-                      selectedDateRange != null
-                          ? '${DateFormat('dd/MM/yy').format(selectedDateRange!.start)} - '
-                              '${DateFormat('dd/MM/yy').format(selectedDateRange!.end)}'
-                          : 'Seleccionar fechas',
-                    ),
+                        selectedDateRange != null
+                            ? '${DateFormat('dd/MM/yy').format(selectedDateRange!.start)} - '
+                                '${DateFormat('dd/MM/yy').format(selectedDateRange!.end)}'
+                            : 'Seleccionar fechas',
+                        style: TextStyle(fontSize: 14)),
                   ],
                 ),
               ),
             ),
           ),
           const SizedBox(width: 15),
-          ElevatedButton(
-            onPressed: selectedReportType != null
-                ? () {
-                    if (selectedReportType == null) {
-                      mostrarDialogoError('Selecciona un tipo de reporte');
-                      return;
+          Container(
+            width: 150,
+            child: ElevatedButton(
+              onPressed: selectedReportType != null
+                  ? () {
+                      if (selectedReportType == null) {
+                        mostrarDialogoError('Selecciona un tipo de reporte');
+                        return;
+                      }
+                      setState(() {
+                        hasGenerated = true;
+                      });
+                      obtenerReportes();
                     }
-                    setState(() {
-                      hasGenerated = true;
-                    });
-                    obtenerReportes();
-                  }
-                : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5162F6),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5162F6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-            ),
-            child: const Text(
-              'Generar',
-              style: TextStyle(color: Colors.white),
+              child: const Text(
+                'Generar',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -278,32 +307,66 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Future<void> _selectDateRange() async {
-    DateTimeRange? picked = await showDialog<DateTimeRange>(
-      context: context,
-      builder: (context) => Dialog(
-        child: SizedBox(
+  DateTimeRange? picked = await showDialog<DateTimeRange>(
+    context: context,
+    builder: (context) => Dialog(
+      backgroundColor: Color(0xFFf5fafb),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: EdgeInsets.all(20),
           width: MediaQuery.of(context).size.width * 0.4,
           height: MediaQuery.of(context).size.height * 0.8,
-          child: DateRangePickerDialog(
-            initialDateRange: selectedDateRange,
-            firstDate: DateTime(2020),
-            lastDate: DateTime(2030),
-            helpText: 'Selecciona rango de fechas',
-            cancelText: 'Cancelar',
-            confirmText: 'Confirmar',
-            saveText: 'Guardar',
-            errorInvalidRangeText: 'Rango inválido',
-            fieldStartLabelText: 'Fecha inicio',
-            fieldEndLabelText: 'Fecha fin',
+          child: Theme(
+            data: Theme.of(context).copyWith(
+          // 1. Color del contenedor principal del diálogo
+          dialogTheme: DialogTheme(
+            backgroundColor: Colors.red, // Fondo externo
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          
+          // 2. Tema específico del DatePicker
+          datePickerTheme: DatePickerThemeData(
+            backgroundColor: Colors.green, // Fondo interno del calendario
+            headerBackgroundColor: Colors.blue, // Color del encabezado
+          ),
+          
+          // 3. Esquema de colores crítico
+          colorScheme: ColorScheme.light(
+            primary: Colors.blue, // Color principal de botones y selección
+            onPrimary: Colors.white,
+            surface: Colors.yellow, // Color base del calendario
+            onSurface: Colors.black, // Color del texto
+          ),
+        ),
+            child: DateRangePickerDialog(
+              initialDateRange: selectedDateRange,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2030),
+              helpText: 'Selecciona rango de fechas',
+              cancelText: 'Cancelar',
+              confirmText: 'Confirmar',
+              saveText: 'Guardar',
+              errorInvalidRangeText: 'Rango inválido',
+              fieldStartLabelText: 'Fecha inicio',
+              fieldEndLabelText: 'Fecha fin',
+            ),
           ),
         ),
       ),
-    );
+    ),
+  );
 
-    if (picked != null) {
-      setState(() => selectedDateRange = picked);
-    }
+  if (picked != null) {
+    setState(() => selectedDateRange = picked);
   }
+}
+
 
   Widget _buildDataTable() {
     return Expanded(
@@ -382,7 +445,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.assignment_outlined, size: 50, color: Colors.grey,),
+          const Icon(
+            Icons.assignment_outlined,
+            size: 50,
+            color: Colors.grey,
+          ),
           SizedBox(height: 8),
           Text(
             'Selecciona el tipo de reporte y rango de fechas,\nluego presiona Generar',
