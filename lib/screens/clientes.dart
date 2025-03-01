@@ -532,9 +532,10 @@ class _ClientesScreenState extends State<ClientesScreen> {
   Widget tablaClientes(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: EdgeInsets.all(20),
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
         child: Container(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(0),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(15.0),
@@ -543,163 +544,158 @@ class _ClientesScreenState extends State<ClientesScreen> {
                 color: Colors.black.withOpacity(0.1),
                 spreadRadius: 0.5,
                 blurRadius: 5,
-                offset: Offset(2, 2),
               ),
             ],
           ),
-          child: listaClientes.isEmpty
-              ? Center(
-                  child: Text(
-                    'No hay clientes para mostrar.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15.0),
+            child: listaClientes.isEmpty
+                ? Center(
+                    child: Text(
+                      'No hay clientes para mostrar.',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth,
+                          ),
+                          child: DataTable(
+                            showCheckboxColumn: false,
+                            headingRowColor: MaterialStateProperty.resolveWith(
+                                (states) => const Color(0xFF5162F6)),
+                            dataRowHeight: 50,
+                            columnSpacing: 30,
+                            horizontalMargin: 50,
+                            headingTextStyle: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: textHeaderTableSize,
+                            ),
+                            columns: [
+                              DataColumn(
+                                  label: Text('Tipo Cliente',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Nombre',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('F. Nac',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Sexo',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Teléfono',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Email',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('E. Civil',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('F. Creación',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Acciones',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                            ],
+                            rows: listaClientes.map((cliente) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(cliente.tipoclientes ?? 'N/A',
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(
+                                      '${cliente.nombres ?? 'N/A'} ${cliente.apellidoP ?? 'N/A'} ${cliente.apellidoM ?? 'N/A'}',
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(
+                                      formatDate(cliente.fechaNac) ?? 'N/A',
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(cliente.sexo ?? 'N/A',
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(cliente.telefono ?? 'N/A',
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(cliente.email ?? 'N/A',
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(cliente.eCilvi ?? 'N/A',
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(
+                                      formatDate(cliente.fCreacion) ?? 'N/A',
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined,
+                                              color: Colors.grey),
+                                          onPressed: () {
+                                            mostrarDialogoEditarCliente(
+                                                cliente.idclientes!);
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline,
+                                              color: Colors.grey),
+                                          onPressed: () async {
+                                            await eliminarCliente(
+                                                context, cliente.idclientes!);
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                onSelectChanged: (isSelected) async {
+                                  if (isSelected!) {
+                                    final resultado = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => InfoCliente(
+                                          idCliente: cliente.idclientes!),
+                                    );
+                                    if (resultado == true) {
+                                      obtenerClientes();
+                                    }
+                                  }
+                                },
+                                color: MaterialStateColor.resolveWith((states) {
+                                  if (states.contains(MaterialState.selected)) {
+                                    return Colors.blue.withOpacity(0.1);
+                                  } else if (states
+                                      .contains(MaterialState.hovered)) {
+                                    return Colors.blue.withOpacity(0.2);
+                                  }
+                                  return Colors.transparent;
+                                }),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                )
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minWidth: constraints.maxWidth,
-                        ),
-                        child: DataTable(
-                          showCheckboxColumn: false,
-                          headingRowColor: MaterialStateProperty.resolveWith(
-                              (states) => Color(0xFFDFE7F5)),
-                          dataRowHeight: 50,
-                          columnSpacing: 30,
-                          headingTextStyle: TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.black),
-                          columns: [
-                            DataColumn(
-                              label: Text(
-                                'Tipo Cliente',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Nombre',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'F. Nac',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Sexo',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Teléfono',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Email',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'E. Civil',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'F. Creación',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                'Acciones',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                          ],
-                          rows: listaClientes.map((cliente) {
-                            return DataRow(
-                              cells: [
-                                DataCell(Text(cliente.tipoclientes ?? 'N/A',
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(
-                                  Text(
-                                    '${cliente.nombres ?? 'N/A'} ${cliente.apellidoP ?? 'N/A'} ${cliente.apellidoM ?? 'N/A'}',
-                                    style: TextStyle(fontSize: textTableSize),
-                                  ),
-                                ),
-                                DataCell(Text(
-                                    formatDate(cliente.fechaNac) ?? 'N/A',
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(cliente.sexo ?? 'N/A',
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(cliente.telefono ?? 'N /A',
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(cliente.email ?? 'N/A',
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(cliente.eCilvi ?? 'N/A',
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(
-                                    formatDate(cliente.fCreacion) ?? 'N/A',
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(Icons.edit_outlined,
-                                            color: Colors.grey),
-                                        onPressed: () {
-                                          mostrarDialogoEditarCliente(cliente
-                                              .idclientes!); // Llama la función para editar el cliente
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: Icon(Icons.delete_outline,
-                                            color: Colors.grey),
-                                        onPressed: () {
-                                          // Lógica para eliminar el cliente
-                                          eliminarCliente(
-                                              context, cliente.idclientes!);
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              onSelectChanged: (isSelected) {
-                                if (isSelected!) {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => InfoCliente(
-                                        idCliente: cliente.idclientes!),
-                                  );
-                                }
-                              },
-                              color: MaterialStateColor.resolveWith((states) {
-                                if (states.contains(MaterialState.selected)) {
-                                  return Colors.blue.withOpacity(0.1);
-                                } else if (states
-                                    .contains(MaterialState.hovered)) {
-                                  return Colors.blue.withOpacity(0.2);
-                                }
-                                return Colors.transparent;
-                              }),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+          ),
         ),
       ),
     );

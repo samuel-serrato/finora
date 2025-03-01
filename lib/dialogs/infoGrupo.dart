@@ -261,6 +261,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
+          backgroundColor: Colors.white,
           title: const Text('Error'),
           content: Text(mensaje),
           actions: [

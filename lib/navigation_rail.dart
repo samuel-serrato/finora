@@ -15,12 +15,13 @@ class NavigationScreen extends StatefulWidget {
   final String userType;
   final double scaleFactor; // Pasa el scaleFactor calculado
 
-  const NavigationScreen(
-      {required this.username,
-      required this.rol,
-      required this.userId,
-      required this.userType,
-      required this.scaleFactor});
+  const NavigationScreen({
+    required this.username,
+    required this.rol,
+    required this.userId,
+    required this.userType,
+    required this.scaleFactor,
+  });
 
   @override
   _NavigationScreenState createState() => _NavigationScreenState();
@@ -35,7 +36,9 @@ class _NavigationScreenState extends State<NavigationScreen> {
   void initState() {
     super.initState();
     sideMenu.addListener((index) {
-      pageController.jumpToPage(index);
+      if (index < _buildPages().length) {
+        pageController.jumpToPage(index);
+      }
     });
   }
 
@@ -48,22 +51,18 @@ class _NavigationScreenState extends State<NavigationScreen> {
   List<Widget> _buildPages() {
     List<Widget> pages = [
       HomeScreen(username: widget.username, tipoUsuario: widget.userType),
-      SeguimientoScreen(
-          username: widget.username, tipoUsuario: widget.userType),
+      SeguimientoScreen(username: widget.username, tipoUsuario: widget.userType),
       GruposScreen(username: widget.username, tipoUsuario: widget.userType),
       ClientesScreen(username: widget.username, tipoUsuario: widget.userType),
       SimuladorScreen(username: widget.username, tipoUsuario: widget.userType),
     ];
 
     if (widget.userType == 'Admin') {
-      pages.add(GestionUsuariosScreen(
-          username: widget.username, tipoUsuario: widget.userType));
+      pages.add(GestionUsuariosScreen(username: widget.username, tipoUsuario: widget.userType));
     }
 
-
     if (widget.userType != 'Invitado') {
-      pages.add(ReportesScreen(
-          username: widget.username, tipoUsuario: widget.userType));
+      pages.add(ReportesScreen(username: widget.username, tipoUsuario: widget.userType));
     }
 
     return pages;
@@ -71,53 +70,20 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   List<SideMenuItem> _buildMenuItems() {
     List<SideMenuItem> items = [
-      SideMenuItem(
-        title: 'Home',
-        onTap: (index, _) => sideMenu.changePage(0),
-        icon: const Icon(Icons.home),
-      ),
-      SideMenuItem(
-        title: 'Créditos',
-        onTap: (index, _) => sideMenu.changePage(1),
-        icon: const Icon(Icons.request_page),
-      ),
-      SideMenuItem(
-        title: 'Grupos',
-        onTap: (index, _) => sideMenu.changePage(2),
-        icon: const Icon(Icons.group),
-      ),
-      SideMenuItem(
-        title: 'Clientes',
-        onTap: (index, _) => sideMenu.changePage(3),
-        icon: const Icon(Icons.person),
-      ),
-      SideMenuItem(
-        title: 'Simulador',
-        onTap: (index, _) => sideMenu.changePage(4),
-        icon: const Icon(Icons.edit_document),
-      ),
+      SideMenuItem(title: 'Home', onTap: (index, _) => sideMenu.changePage(0), icon: const Icon(Icons.home)),
+      SideMenuItem(title: 'Créditos', onTap: (index, _) => sideMenu.changePage(1), icon: const Icon(Icons.request_page)),
+      SideMenuItem(title: 'Grupos', onTap: (index, _) => sideMenu.changePage(2), icon: const Icon(Icons.group)),
+      SideMenuItem(title: 'Clientes', onTap: (index, _) => sideMenu.changePage(3), icon: const Icon(Icons.person)),
+      SideMenuItem(title: 'Simulador', onTap: (index, _) => sideMenu.changePage(4), icon: const Icon(Icons.edit_document)),
     ];
 
     if (widget.userType == 'Admin') {
-      items.add(
-        SideMenuItem(
-          title: 'Usuarios',
-          onTap: (index, _) => sideMenu.changePage(5),
-          icon: const Icon(Icons.manage_accounts),
-        ),
-        
-      );
+      items.add(SideMenuItem(title: 'Usuarios', onTap: (index, _) => sideMenu.changePage(5), icon: const Icon(Icons.manage_accounts)));
     }
 
     if (widget.userType != 'Invitado') {
-      items.add(
-        SideMenuItem(
-          title: 'Reportes',
-          onTap: (index, _) => sideMenu.changePage(6),
-          icon: const Icon(Icons.insert_chart_rounded),
-        ),
-        
-      );
+      int reportesIndex = widget.userType == 'Admin' ? 6 : 5; // Ajuste de índice dinámico
+      items.add(SideMenuItem(title: 'Reportes', onTap: (index, _) => sideMenu.changePage(reportesIndex), icon: const Icon(Icons.insert_chart_rounded)));
     }
 
     return items;
@@ -128,11 +94,12 @@ class _NavigationScreenState extends State<NavigationScreen> {
     final List<Widget> pages = _buildPages();
     final List<SideMenuItem> menuItems = _buildMenuItems();
 
-    // Ajusta el ancho del menú según el factor de escala
-    double menuWidth = 180 *
-        widget.scaleFactor; // Aplica el factor de escala aquí (180px a 125%)
-    double collapsedMenuWidth = 90 *
-        widget.scaleFactor; // Aplica el factor de escala aquí (90px a 125%)
+    // Depuración: Ver lista de páginas y elementos del menú
+    print("Páginas disponibles: ${pages.length}");
+    print("Elementos del menú: ${menuItems.length}");
+
+    double menuWidth = 180 * widget.scaleFactor;
+    double collapsedMenuWidth = 90 * widget.scaleFactor;
 
     return Scaffold(
       body: Row(
@@ -143,11 +110,8 @@ class _NavigationScreenState extends State<NavigationScreen> {
               controller: sideMenu,
               showToggle: false,
               style: SideMenuStyle(
-                itemOuterPadding:
-                    EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                displayMode: isMenuOpen
-                    ? SideMenuDisplayMode.open
-                    : SideMenuDisplayMode.compact,
+                itemOuterPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                displayMode: isMenuOpen ? SideMenuDisplayMode.open : SideMenuDisplayMode.compact,
                 hoverColor: Colors.blue[100],
                 selectedHoverColor: Color(0xFF2D336B),
                 selectedColor: Color(0xFF5162F6),
@@ -158,48 +122,28 @@ class _NavigationScreenState extends State<NavigationScreen> {
                 backgroundColor: Colors.white,
               ),
               title: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10),
                 child: Row(
                   children: [
-                    // Ícono con padding condicional
                     Padding(
-                      // Padding solo aplicado cuando el menú está cerrado
-                      padding: isMenuOpen
-                          ? EdgeInsets.zero // Sin padding cuando está abierto
-                          : const EdgeInsets.all(
-                              10), // Ajusta el valor según necesites
+                      padding: isMenuOpen ? EdgeInsets.zero : const EdgeInsets.all(10),
                       child: SizedBox(
                         width: isMenuOpen ? 140 : 30,
                         height: isMenuOpen ? 80 : 30,
-                        child: Image.asset(
-                          isMenuOpen
-                              ? 'assets/finora_hzt.png'
-                              : 'assets/finora_icon.png',
-                          fit: BoxFit.contain,
-                        ),
+                        child: Image.asset(isMenuOpen ? 'assets/finora_hzt.png' : 'assets/finora_icon.png', fit: BoxFit.contain),
                       ),
                     ),
-
-                    // Espacio solo cuando el menú está abierto
                     if (isMenuOpen) Spacer(),
-
-                    // Botón de flecha (siempre visible)
                     Center(
                       child: IconButton(
                         icon: Icon(
-                          isMenuOpen
-                              ? Icons.arrow_back_ios
-                              : Icons.arrow_forward_ios,
+                          isMenuOpen ? Icons.arrow_back_ios : Icons.arrow_forward_ios,
                           size: 14,
                           color: Colors.grey[700],
                         ),
                         onPressed: toggleMenu,
                         padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(
-                          minHeight: 20,
-                          minWidth: 20,
-                        ),
+                        constraints: BoxConstraints(minHeight: 20, minWidth: 20),
                       ),
                     ),
                   ],
@@ -216,16 +160,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                   children: [
                     if (isMenuOpen) ...[
                       SizedBox(height: 4),
-                      Text(
-                        'Desarrollado por',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 10,
-                          fontFamily: 'Verdana',
-                          fontWeight: FontWeight.w100,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                      Text('Desarrollado por', style: TextStyle(color: Colors.black87, fontSize: 10, fontFamily: 'Verdana', fontWeight: FontWeight.w100), textAlign: TextAlign.center),
                       Container(
                         alignment: Alignment.center,
                         height: 30,
@@ -233,32 +168,16 @@ class _NavigationScreenState extends State<NavigationScreen> {
                         child: SizedBox(
                           width: 70,
                           height: 70,
-                          child: Image.asset(
-                            'assets/codx_transparente_full_negro.png',
-                          ),
+                          child: Image.asset('assets/codx_transparente_full_negro.png'),
                         ),
                       ),
-                      /* Text(
-                        '1.0.0',
-                        style: TextStyle(
-                          color: Colors.black87,
-                          fontSize: 10,
-                          fontFamily: 'Verdana',
-                          fontWeight: FontWeight.w100,
-                        ),
-                        textAlign: TextAlign.center,
-                      ), */
                     ],
                   ],
                 ),
               ),
             ),
           ),
-          Container(
-            width: 1,
-            height: double.infinity,
-            color: Colors.grey[300],
-          ),
+          Container(width: 1, height: double.infinity, color: Colors.grey[300]),
           Expanded(
             child: PageView(
               controller: pageController,

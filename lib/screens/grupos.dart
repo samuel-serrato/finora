@@ -439,22 +439,25 @@ class _GruposScreenState extends State<GruposScreen> {
   }
 
   Widget filaTabla(BuildContext context) {
-    return Expanded(
+  return Expanded(
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       child: Container(
-        padding: EdgeInsets.all(20),
-        child: Container(
-          padding: EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15.0),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                spreadRadius: 0.5,
-                blurRadius: 5,
-              ),
-            ],
-          ),
+        padding: const EdgeInsets.all(0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              spreadRadius: 0.5,
+              blurRadius: 5,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15.0),
           child: listaGrupos.isEmpty
               ? Center(
                   child: Text(
@@ -474,16 +477,20 @@ class _GruposScreenState extends State<GruposScreen> {
                       scrollDirection: Axis.vertical,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          minWidth: constraints.maxWidth,
+                          maxWidth: constraints.maxWidth,
                         ),
                         child: DataTable(
                           showCheckboxColumn: false,
                           headingRowColor: MaterialStateProperty.resolveWith(
-                              (states) => Color(0xFFDFE7F5)),
+                              (states) => const Color(0xFF5162F6)),
                           dataRowHeight: 50,
                           columnSpacing: 30,
+                          horizontalMargin: 50,
                           headingTextStyle: TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.black),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: textHeaderTableSize,
+                          ),
                           columns: [
                             DataColumn(
                                 label: Text('ID Grupo',
@@ -541,7 +548,7 @@ class _GruposScreenState extends State<GruposScreen> {
                                   Row(
                                     children: [
                                       IconButton(
-                                        icon: Icon(Icons.edit_outlined,
+                                        icon: const Icon(Icons.edit_outlined,
                                             color: Colors.grey),
                                         onPressed: () {
                                           mostrarDialogoEditarCliente(
@@ -549,7 +556,7 @@ class _GruposScreenState extends State<GruposScreen> {
                                         },
                                       ),
                                       IconButton(
-                                        icon: Icon(Icons.delete_outline,
+                                        icon: const Icon(Icons.delete_outline,
                                             color: Colors.grey),
                                         onPressed: () {
                                           _eliminarGrupo(grupo.idgrupos);
@@ -592,8 +599,9 @@ class _GruposScreenState extends State<GruposScreen> {
                 ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _eliminarGrupo(String idGrupo) async {
     print('[ELIMINAR GRUPO] Iniciando proceso...');

@@ -389,7 +389,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
           'idgrupos': idGrupo,
           'clientes': _selectedPersons
               .map((persona) => {
-                    'idcliente': persona['idclientes'],
+                    'idclientes': persona['idclientes'],
                     'nomCargo':
                         _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
                   })

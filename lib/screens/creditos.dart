@@ -463,10 +463,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
   Widget filaTabla(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       child: Center(
         child: Container(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(0),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(15.0),
@@ -475,156 +475,144 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 color: Colors.black.withOpacity(0.1),
                 spreadRadius: 0.5,
                 blurRadius: 5,
-                offset: Offset(2, 2),
+                offset: const Offset(2, 2),
               ),
             ],
           ),
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(child: tabla()),
-              ),
-            ],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15.0),
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(child: tabla(context)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget tabla() {
-    const double fontSize = 11;
-
-    // Lista para almacenar los índices de las filas seleccionadas
-    List<int> selectedRows = [];
+  final double textHeaderTableSize = 11.0;
+  final double textTableSize = 10.0;
+  Widget tabla(BuildContext context) {
 
     return SizedBox(
       width: MediaQuery.of(context).size.width,
       child: DataTable(
         showCheckboxColumn: false,
-        headingRowColor:
-            MaterialStateProperty.resolveWith((states) => Color(0xFFE8EFF9)),
+        headingRowColor: MaterialStateProperty.resolveWith(
+            (states) => const Color(0xFF5162F6)),
         columnSpacing: 10,
         headingRowHeight: 50,
         dataRowHeight: 60,
-        columns: const [
-          DataColumn(label: Text('Tipo', style: TextStyle(fontSize: fontSize))),
+        headingTextStyle: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          fontSize: textHeaderTableSize,
+        ),
+        columns:  [
+          DataColumn(label: Text('Tipo', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Frecuencia', style: TextStyle(fontSize: fontSize))),
+              label: Text('Frecuencia', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Nombre', style: TextStyle(fontSize: fontSize))),
+              label: Text('Nombre', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Autorizado', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label:
-                  Text('Desembolsado', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label: Text('Interés %', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label:
-                  Text('Interés Total', style: TextStyle(fontSize: fontSize))),
+              label: Text('Autorizado', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
               label:
-                  Text('M. a Recuperar', style: TextStyle(fontSize: fontSize))),
+                  Text('Desembolsado', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Día Pago', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label:
-                  Text('Pago Semanal', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label: Text('Núm de Pago', style: TextStyle(fontSize: fontSize))),
-          DataColumn(
-              label: Text('Duración', style: TextStyle(fontSize: fontSize))),
+              label: Text('Interés %', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
               label:
-                  Text('Estado de Pago', style: TextStyle(fontSize: fontSize))),
+                  Text('Interés Total', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Estado', style: TextStyle(fontSize: fontSize))),
+              label:
+                  Text('M. a Recuperar', style: TextStyle(fontSize: textHeaderTableSize))),
+          DataColumn(
+              label: Text('Día Pago', style: TextStyle(fontSize: textHeaderTableSize))),
+          DataColumn(
+              label:
+                  Text('Pago Semanal', style: TextStyle(fontSize: textHeaderTableSize))),
+          DataColumn(
+              label: Text('Núm de Pago', style: TextStyle(fontSize: textHeaderTableSize))),
+          DataColumn(
+              label: Text('Duración', style: TextStyle(fontSize: textHeaderTableSize))),
+          DataColumn(
+              label:
+                  Text('Estado de Pago', style: TextStyle(fontSize: textHeaderTableSize))),
+          DataColumn(
+              label: Text('Estado', style: TextStyle(fontSize: textHeaderTableSize))),
         ],
         rows: listaCreditos.map((credito) {
           return DataRow(
-            selected: selectedRows.contains(listaCreditos.indexOf(credito)),
             onSelectChanged: (isSelected) {
-              setState(() {
-                if (isSelected == true) {
-                  selectedRows.add(listaCreditos.indexOf(credito));
-                  showDialog(
-                    barrierDismissible: false,
-                    context: context,
-                    builder: (context) => InfoCredito(folio: credito.folio),
-                  );
-                }
-              });
+              if (isSelected == true) {
+                showDialog(
+                  barrierDismissible: false,
+                  context: context,
+                  builder: (context) => InfoCredito(folio: credito.folio),
+                );
+              }
             },
             cells: [
-              DataCell(
-                  Text(credito.tipo, style: TextStyle(fontSize: fontSize))),
+              DataCell(Text(credito.tipo,
+                  style:  TextStyle(fontSize: textTableSize))),
               DataCell(Text(credito.tipoPlazo,
-                  style: TextStyle(fontSize: fontSize))),
-              DataCell(
-                Container(
-                  width: 80,
-                  child: Text(
-                    credito.nombreGrupo,
-                    style: TextStyle(fontSize: fontSize),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                    softWrap: true,
-                  ),
+                  style:  TextStyle(fontSize: textTableSize))),
+              DataCell(Container(
+                width: 80,
+                child: Text(
+                  credito.nombreGrupo,
+                  style:  TextStyle(fontSize: textTableSize),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  softWrap: true,
                 ),
-              ),
+              )),
               DataCell(Center(
                   child: Text('\$${credito.montoTotal.toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: fontSize)))),
+                      style:  TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text(
                       '\$${credito.montoDesembolsado.toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: fontSize)))),
+                      style:  TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.interesGlobal}%',
-                      style: TextStyle(fontSize: fontSize)))),
+                      style:  TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('\$${credito.interesTotal.toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: fontSize)))),
+                      style:  TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('\$${credito.montoMasInteres.toStringAsFixed(2)}',
-                      style: TextStyle(fontSize: fontSize)))),
+                      style:  TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.diaPago}',
-                      style: TextStyle(fontSize: fontSize)))),
+                      style:  TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.pagoCuota}',
-                      style: TextStyle(fontSize: fontSize)))),
+                      style:  TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.numPago}',
-                      style: TextStyle(fontSize: fontSize)))),
-              DataCell(
-                Container(
-                  width: 70,
-                  child: Text(
-                    credito.fechasIniciofin,
-                    style: TextStyle(fontSize: fontSize),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                    softWrap: true,
-                  ),
+                      style:  TextStyle(fontSize: textTableSize)))),
+              DataCell(Container(
+                width: 70,
+                child: Text(
+                  credito.fechasIniciofin,
+                  style:  TextStyle(fontSize: textTableSize),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  softWrap: true,
                 ),
-              ),
-              DataCell(
-                Center(
-                  child: Text(
-                    credito.estadoCredito.estado,
-                    style: TextStyle(fontSize: fontSize),
-                  ),
-                ),
-              ),
-              DataCell(
-                Center(
-                  child: Text(
-                    credito.estado,
-                    style: TextStyle(fontSize: fontSize),
-                  ),
-                ),
-              ),
+              )),
+              DataCell(Center(
+                  child: Text(credito.estadoCredito.estado,
+                      style:  TextStyle(fontSize: textTableSize)))),
+              DataCell(Center(
+                  child: Text(credito.estado,
+                      style:  TextStyle(fontSize: textTableSize)))),
             ],
             color: MaterialStateColor.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {

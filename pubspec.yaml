@@ -52,6 +52,7 @@ dependencies:
   file_saver: ^0.2.14
   process_run: ^1.2.2+1
   window_manager: ^0.4.3
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:

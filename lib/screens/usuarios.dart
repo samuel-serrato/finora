@@ -499,22 +499,26 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   }
 
   Widget filaTabla(BuildContext context) {
-    return Expanded(
+  return Expanded(
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       child: Container(
-        padding: EdgeInsets.all(20),
-        child: Container(
-          padding: EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15.0),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                spreadRadius: 0.5,
-                blurRadius: 5,
-              ),
-            ],
-          ),
+        padding: const EdgeInsets.all(0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              spreadRadius: 0.5,
+              blurRadius: 5,
+            ),
+          ],
+        ),
+        // ClipRRect para que el contenido respete los bordes redondeados
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15.0),
           child: listaUsuarios.isEmpty
               ? Center(
                   child: Text(
@@ -528,40 +532,57 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                       scrollDirection: Axis.vertical,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          minWidth: constraints.maxWidth,
+                          // Si el contenido no ocupa todo el ancho, se centra
+                          maxWidth: constraints.maxWidth,
                         ),
                         child: DataTable(
                           showCheckboxColumn: false,
                           headingRowColor: MaterialStateProperty.resolveWith(
-                              (states) => Color(0xFFDFE7F5)),
+                              (states) => const Color(0xFF5162F6)),
                           dataRowHeight: 50,
                           columnSpacing: 30,
+                          horizontalMargin: 50,
+                          // Texto del encabezado centrado y en blanco
                           headingTextStyle: TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.black),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: textHeaderTableSize,
+                          ),
                           columns: [
                             DataColumn(
-                                label: Text('Tipo',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
+                                label: Text(
+                              'Tipo',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
                             DataColumn(
-                                label: Text('Usuario',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
+                                label: Text(
+                              'Usuario',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
                             DataColumn(
-                                label: Text('Nombre Completo',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
+                                label: Text(
+                              'Nombre Completo',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
                             DataColumn(
-                                label: Text('Email',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
+                                label: Text(
+                              'Email',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
                             DataColumn(
-                                label: Text('Fecha Creación',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
+                                label: Text(
+                              'Fecha Creación',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: textHeaderTableSize),
+                            )),
                             DataColumn(
                               label: Text(
                                 'Acciones',
+                                textAlign: TextAlign.center,
                                 style: TextStyle(fontSize: textHeaderTableSize),
                               ),
                             ),
@@ -569,21 +590,37 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                           rows: listaUsuarios.map((usuario) {
                             return DataRow(
                               cells: [
-                                DataCell(Text(usuario.tipoUsuario,
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(usuario.usuario,
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(usuario.nombreCompleto,
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(usuario.email,
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(formatDate(usuario.fCreacion),
-                                    style: TextStyle(fontSize: textTableSize))),
+                                DataCell(Text(
+                                  usuario.tipoUsuario,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: textTableSize),
+                                )),
+                                DataCell(Text(
+                                  usuario.usuario,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: textTableSize),
+                                )),
+                                DataCell(Text(
+                                  usuario.nombreCompleto,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: textTableSize),
+                                )),
+                                DataCell(Text(
+                                  usuario.email,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: textTableSize),
+                                )),
+                                DataCell(Text(
+                                  formatDate(usuario.fCreacion),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: textTableSize),
+                                )),
                                 DataCell(
                                   Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
                                     children: [
                                       IconButton(
-                                        icon: Icon(Icons.edit_outlined,
+                                        icon: const Icon(Icons.edit_outlined,
                                             color: Colors.grey),
                                         onPressed: () {
                                           mostrarDialogoEditarUsuario(
@@ -591,7 +628,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                                         },
                                       ),
                                       IconButton(
-                                        icon: Icon(Icons.delete_outline,
+                                        icon: const Icon(Icons.delete_outline,
                                             color: Colors.grey),
                                         onPressed: () async {
                                           bool confirmado =
@@ -615,7 +652,6 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                                       idUsuario: usuario.idusuarios,
                                     ),
                                   );
-
                                   if (resultado == true) {
                                     obtenerUsuarios();
                                   }
@@ -624,8 +660,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                               color: MaterialStateColor.resolveWith((states) {
                                 if (states.contains(MaterialState.selected)) {
                                   return Colors.blue.withOpacity(0.1);
-                                } else if (states
-                                    .contains(MaterialState.hovered)) {
+                                } else if (states.contains(MaterialState.hovered)) {
                                   return Colors.blue.withOpacity(0.2);
                                 }
                                 return Colors.transparent;
@@ -639,8 +674,11 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                 ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+
 
   void mostrarDialogAgregarUsuario() {
     showDialog(

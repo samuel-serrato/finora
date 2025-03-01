@@ -2840,7 +2840,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                   children: [
                                                     // Mostrar el monto depositado
                                                     Text(
-                                                      "\$${formatearNumero(pago.deposito!) ?? '0.00'}",
+                                                     "\$${formatearNumero(pago.deposito ?? 0.00)}",
                                                       style: TextStyle(
                                                           fontSize: 14,
                                                           color: Colors.black),
@@ -3062,7 +3062,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   .diferenciaEnDias >
                                                               0)
                                                             Text(
-                                                              "Monto Total a Pagar: ${pago.moratorios!.montoTotal}",
+                                                              "Monto Total a Pagar: ${formatearNumero(pago.moratorios!.montoTotal)}",
                                                               style: TextStyle(
                                                                   fontSize: 12,
                                                                   color: Colors
