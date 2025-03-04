@@ -14,6 +14,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:collection/collection.dart'; // Asegúrate de importar el paquete
 
 class ReportesScreen extends StatefulWidget {
   final String username;
@@ -230,263 +231,306 @@ class _ReportesScreenState extends State<ReportesScreen> {
     }
   } */
 
- Future<void> exportarReporte() async {
-  if (reporteData == null || selectedDateRange == null) {
-    mostrarDialogoError('No hay datos para exportar');
-    return;
-  }
+  Future<void> exportarReporte() async {
+    if (reporteData == null || selectedDateRange == null) {
+      mostrarDialogoError('No hay datos para exportar');
+      return;
+    }
 
-  try {
-    final doc = pw.Document();
+    try {
+      final doc = pw.Document();
 
-    // Función para construir el contenido paginado
-    void buildPdfPages() {
-      final headers = [
-        '#', 'Tipo Pago', 'Grupos', 'Folio', 'Pago Ficha',
-        'Fecha Depósito', 'Monto Ficha', 'Capital', 'Interés',
-        'Saldo', 'Moratorios'
-      ];
+      void buildPdfPages() {
+        final headers = [
+          '#',
+          'Tipo Pago',
+          'Grupos',
+          'Folio',
+          'Pago Ficha',
+          'Fecha Depósito',
+          'Monto Ficha',
+          'Capital',
+          'Interés',
+          'Saldo',
+          'Moratorios'
+        ];
 
-      // Configuración de la tabla
-      const rowHeight = 20.0;
-      final pageFormat = PdfPageFormat.a4.copyWith(
-        marginTop: 1.5 * PdfPageFormat.cm,
-        marginBottom: 1.5 * PdfPageFormat.cm,
-        marginLeft: 1.0 * PdfPageFormat.cm,
-        marginRight: 1.0 * PdfPageFormat.cm,
-      );
+        final groupedReportes =
+            groupBy(listaReportes, (Reporte r) => r.idficha);
+        final groups = groupedReportes.entries.toList();
 
-      // Calcular filas por página
-      final availableHeight = pageFormat.availableHeight - 100; // Espacio para header y footer
-      final rowsPerPage = (availableHeight / rowHeight).floor();
-
-      // Dividir los datos en chunks
-      final dataChunks = [];
-      for (var i = 0; i < listaReportes.length; i += rowsPerPage) {
-        dataChunks.add(listaReportes.sublist(
-          i, 
-          i + rowsPerPage > listaReportes.length ? listaReportes.length : i + rowsPerPage
-        ));
-      }
-
-      // Construir páginas
-      for (var chunk in dataChunks) {
         doc.addPage(
           pw.MultiPage(
-            pageTheme: pw.PageTheme(
-              pageFormat: pageFormat,
-              margin: const pw.EdgeInsets.all(20),
-            ),
+            margin: const pw.EdgeInsets.all(20), // Márgenes más pequeños
             header: (context) => _buildPdfHeader(),
             footer: (context) => _buildPdfFooter(context),
             build: (context) => [
-              _buildPdfTable(headers, chunk),
-              if (chunk == dataChunks.last) _buildPdfTotals(),
+              _buildPdfTable(headers, groups),
+              _buildPdfTotals(),
             ],
           ),
         );
       }
+
+      buildPdfPages();
+
+      final output = await FilePicker.platform.saveFile(
+        dialogTitle: 'Exportar Reporte',
+        fileName:
+            'reporte_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
+      );
+
+      if (output != null) {
+        final file = File(output);
+        await file.writeAsBytes(await doc.save());
+        await OpenFile.open(file.path);
+      }
+    } catch (e) {
+      mostrarDialogoError('Error al exportar: ${e.toString()}');
     }
-
-    buildPdfPages();
-
-    // Guardar el archivo
-    final output = await FilePicker.platform.saveFile(
-      dialogTitle: 'Exportar Reporte',
-      fileName: 'reporte_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
-    );
-
-    if (output != null) {
-      final file = File(output);
-      await file.writeAsBytes(await doc.save());
-      await OpenFile.open(file.path);
-    }
-  } catch (e) {
-    mostrarDialogoError('Error al exportar: ${e.toString()}');
   }
-}
 
-pw.Widget _buildPdfTable(List<String> headers, List<Reporte> data) {
+  pw.Widget _buildPdfTable(
+    List<String> headers, List<MapEntry<String, List<Reporte>>> data) {
+  int currentNumber = 1; // Inicializa el contador de números
+
   return pw.Table(
-    border: pw.TableBorder.all(color: PdfColor.fromHex('#DDDDDD')),
+    border: pw.TableBorder.all(color: PdfColor.fromHex('#3D3D3D')),
     columnWidths: {
-      0: const pw.FlexColumnWidth(0.5), // Reducir el ancho de la columna "#"
-      for (var i = 1; i < headers.length; i++) 
-        i: const pw.FlexColumnWidth(1), // Mantener el ancho de las otras columnas igual
+      0: const pw.FlexColumnWidth(0.5), // Columna "#"
+      1: const pw.FlexColumnWidth(1.2), // Columna "Tipo Pago"
+      2: const pw.FlexColumnWidth(2.5), // Columna "Grupos"
+      3: const pw.FlexColumnWidth(1.5), // Columna "Folio"
+      4: const pw.FlexColumnWidth(1.5), // Columna "Pago Ficha"
+      5: const pw.FlexColumnWidth(1.5), // Columna "Fecha Depósito"
+      6: const pw.FlexColumnWidth(1.5), // Columna "Monto Ficha"
+      7: const pw.FlexColumnWidth(1.5), // Columna "Capital"
+      8: const pw.FlexColumnWidth(1.5), // Columna "Interés"
+      9: const pw.FlexColumnWidth(1.5), // Columna "Saldo"
+      10: const pw.FlexColumnWidth(1.5), // Columna "Moratorios"
     },
     children: [
       pw.TableRow(
         decoration: pw.BoxDecoration(color: PdfColor.fromHex('#5162F6')),
         children: headers.map((header) => _buildPdfHeaderCell(header)).toList(),
       ),
-      ...data.map((reporte) {
-        final hasPagoFichaZero = reporte.pagoficha == 0;
+      ...data.map((group) {
+        final groupData = group.value;
 
-        return pw.TableRow(
-          verticalAlignment: pw.TableCellVerticalAlignment.middle,
+        // Suma los pagos realizados en el grupo
+        final totalPagos = groupData.fold(0.0, (sum, r) => sum + r.pagoficha);
+        final bool pagoIncompleto = totalPagos < groupData.first.montoficha && totalPagos > 0;
+
+        final row = pw.TableRow(
           decoration: pw.BoxDecoration(
-            color: hasPagoFichaZero
-                ? PdfColor.fromHex('#FFDDDD') 
-                : (data.indexOf(reporte).isEven
-                    ? PdfColor.fromHex('#F8F9FE')
-                    : PdfColors.white),
+            color: groupData.any((reporte) => reporte.pagoficha == 0)
+                ? PdfColor.fromHex('#ffcccc') // Rojo bajito si tiene pago ficha = 0
+                : (pagoIncompleto
+                    ? PdfColor.fromHex('#ffe2b0') // Naranja si el pago es incompleto
+                    : (groupData.indexOf(groupData.first).isEven
+                        ? PdfColor.fromHex('#F8F9FE') // Color para filas impares
+                        : PdfColors.white)), // Color para filas pares
           ),
           children: [
-            _buildPdfCell(reporte.numero.toString(), isNumeric: true),
-            _buildPdfCell(reporte.tipoPago),
-            _buildPdfCell(reporte.grupos),
-            _buildPdfCell(reporte.folio),
-            _buildPdfCell(currencyFormat.format(reporte.pagoficha), isNumeric: true),
-            _buildPdfCell(reporte.fechadeposito),
-            _buildPdfCell(currencyFormat.format(reporte.montoficha), isNumeric: true),
-            _buildPdfCell(currencyFormat.format(reporte.capitalsemanal), isNumeric: true),
-            _buildPdfCell(currencyFormat.format(reporte.interessemanal), isNumeric: true),
-            _buildPdfCell(currencyFormat.format(reporte.saldofavor), isNumeric: true),
-            _buildPdfCell(currencyFormat.format(reporte.moratorios), isNumeric: true),
+            _buildPdfCell(currentNumber.toString(), isNumeric: true),
+            _buildPdfCell(groupData.first.tipoPago),
+            _buildPdfCell(groupData.first.grupos),
+            _buildPdfCell(groupData.first.folio),
+            _buildPdfCell(
+                groupData
+                    .map((r) => currencyFormat.format(r.pagoficha))
+                    .join('\n'),
+                isNumeric: true),
+            _buildPdfCell(groupData.map((r) => r.fechadeposito).join('\n')),
+            _buildPdfCell(currencyFormat.format(groupData.first.montoficha),
+                isNumeric: true),
+            _buildPdfCell(currencyFormat.format(groupData.first.capitalsemanal),
+                isNumeric: true),
+            _buildPdfCell(currencyFormat.format(groupData.first.interessemanal),
+                isNumeric: true),
+            _buildPdfCell(
+                groupData
+                    .map((r) => currencyFormat.format(r.saldofavor))
+                    .join('\n'),
+                isNumeric: true),
+            _buildPdfCell(
+                groupData
+                    .map((r) => currencyFormat.format(r.moratorios))
+                    .join('\n'),
+                isNumeric: true),
           ],
         );
+
+        currentNumber++; // Incrementa el contador solo una vez por pago
+        return row;
       }).toList(),
     ],
   );
 }
 
 
-pw.Widget _buildPdfFooter(pw.Context context) {
-  return pw.Container(
-    alignment: pw.Alignment.centerRight,
-    margin: const pw.EdgeInsets.only(top: 10),
-    child: pw.Text(
-      'Página ${context.pageNumber} de ${context.pagesCount}',
-      style: const pw.TextStyle(
-        fontSize: 9,
-        color: PdfColors.grey,
-      ),
-    ),
-  );
-}
-
-pw.Widget _buildPdfHeader() {
-  return pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      // Fila para las imágenes
-      pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Image(pw.MemoryImage(File('assets/logo_mf_n_hzt.png').readAsBytesSync()), width: 100, height: 100),
-          pw.Image(pw.MemoryImage(File('assets/finora_hzt.png').readAsBytesSync()), width: 120, height: 120),
-        ],
-      ),
-      pw.SizedBox(height: 10), // Espacio entre la fila de imágenes y el texto
-      pw.Text(
-        '${selectedReportType ?? ''}',
-        style: pw.TextStyle(
-          fontSize: 20,
-          fontWeight: pw.FontWeight.bold,
-          color: PdfColor.fromHex('#5162F6'),
+  pw.Widget _buildPdfFooter(pw.Context context) {
+    return pw.Container(
+      alignment: pw.Alignment.centerRight,
+      margin: const pw.EdgeInsets.only(top: 10),
+      child: pw.Text(
+        'Página ${context.pageNumber} de ${context.pagesCount}',
+        style: const pw.TextStyle(
+          fontSize: 9,
+          color: PdfColors.grey,
         ),
       ),
-      pw.Text(
-        'Periodo: ${DateFormat('dd/MM/yyyy').format(selectedDateRange!.start)} - '
-        '${DateFormat('dd/MM/yyyy').format(selectedDateRange!.end)}',
-        style: const pw.TextStyle(fontSize: 10),
-      ),
-      pw.Text(
-        'Generado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
-        style: const pw.TextStyle(fontSize: 10),
-      ),
-    ],
-  );
-}
+    );
+  }
 
+  pw.Widget _buildPdfHeader() {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // Fila para las imágenes
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Image(
+                pw.MemoryImage(
+                    File('assets/logo_mf_n_hzt.png').readAsBytesSync()),
+                width: 100,
+                height: 100),
+            pw.Image(
+                pw.MemoryImage(File('assets/finora_hzt.png').readAsBytesSync()),
+                width: 120,
+                height: 120),
+          ],
+        ),
+        pw.SizedBox(height: 10), // Espacio entre la fila de imágenes y el texto
+        pw.Text(
+          '${selectedReportType ?? ''}',
+          style: pw.TextStyle(
+            fontSize: 20,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColor.fromHex('#5162F6'),
+          ),
+        ),
+        pw.SizedBox(height: 20),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(
+              'Periodo: ${DateFormat('dd/MM/yyyy').format(selectedDateRange!.start)} - '
+              '${DateFormat('dd/MM/yyyy').format(selectedDateRange!.end)}',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+            pw.Text(
+              'Generado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+              style: const pw.TextStyle(fontSize: 10),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 20),
+      ],
+    );
+  }
 
-
-
-pw.Widget _buildPdfHeaderCell(String text) {
-  return pw.Container(
-    alignment: pw.Alignment.center,
-    padding: const pw.EdgeInsets.all(8),
-    child: pw.Text(
-      text,
-      style: pw.TextStyle(
-        color: PdfColors.white,
-        fontWeight: pw.FontWeight.bold,
-        fontSize: 7,
+  pw.Widget _buildPdfHeaderCell(String text) {
+    return pw.Container(
+      alignment: pw.Alignment.center,
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          color: PdfColors.white,
+          fontWeight: pw.FontWeight.bold,
+          fontSize: 6,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-pw.Widget _buildPdfCell(String text, {bool isNumeric = false}) {
-  return pw.Container(
-    alignment: isNumeric ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
-    padding: const pw.EdgeInsets.all(6),
-    child: pw.Text(
-      text,
-      style: const pw.TextStyle(
-        fontSize: 7,
-        color: PdfColors.black,
+  pw.Widget _buildPdfCell(String text, {bool isNumeric = false}) {
+    return pw.Container(
+      alignment: isNumeric ? pw.Alignment.centerRight : pw.Alignment.centerLeft,
+      padding: const pw.EdgeInsets.all(4), // Reducir el padding
+      child: pw.Text(
+        text,
+        style: const pw.TextStyle(
+          fontSize: 6,
+          color: PdfColors.black,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-pw.Widget _buildPdfTotals() {
-  return pw.Table(
-    columnWidths: {
-      for (var i = 0; i < 11; i++) i: const pw.FlexColumnWidth(1),
-    },
-    children: [
-      pw.TableRow(
-        decoration: pw.BoxDecoration(color: PdfColor.fromHex('#5162F6')),
-        children: [
-          _buildTotalCell('Totales'),
-          _buildTotalCell(''),
-          _buildTotalCell(''),
-          _buildTotalCell(''),
-          _buildTotalCell(currencyFormat.format(reporteData!.totalPagoficha)),
-          _buildTotalCell(''),
-          _buildTotalCell(currencyFormat.format(reporteData!.totalFicha)),
-          _buildTotalCell(currencyFormat.format(reporteData!.totalCapital)),
-          _buildTotalCell(currencyFormat.format(reporteData!.totalInteres)),
-          _buildTotalCell(currencyFormat.format(reporteData!.totalSaldoFavor)),
-          _buildTotalCell(currencyFormat.format(reporteData!.saldoMoratorio)),
-        ],
-      ),
-      pw.TableRow(
-        decoration: pw.BoxDecoration(color: PdfColor.fromHex('#5162F6')),
-        children: [
-          _buildTotalCell('Total Final'),
-          _buildTotalCell(''),
-          _buildTotalCell(''),
-          _buildTotalCell(''),
-          _buildTotalCell(''),
-          _buildTotalCell(''),
-          _buildTotalCell(currencyFormat.format(reporteData!.totalTotal)),
-          _buildTotalCell(''),
-          _buildTotalCell(''),
-          _buildTotalCell(''),
-          _buildTotalCell(''),
-        ],
-      ),
-    ],
-  );
-}
+  pw.Widget _buildPdfTotals() {
+    return pw.Table(
+      border: pw.TableBorder.all(
+          color: PdfColor.fromHex('#3D3D3D')), // Borde para la tabla
+      columnWidths: {
+        0: const pw.FlexColumnWidth(1.7), // Columna "#"
+        1: const pw.FlexColumnWidth(1.2), // Columna "Tipo Pago"
+        2: const pw.FlexColumnWidth(1.3), // Columna "Grupos"
+        3: const pw.FlexColumnWidth(1.5), // Columna "Folio"
+        4: const pw.FlexColumnWidth(1.5), // Columna "Pago Ficha"
+        5: const pw.FlexColumnWidth(1.5), // Columna "Fecha Depósito"
+        6: const pw.FlexColumnWidth(1.5), // Columna "Monto Ficha"
+        7: const pw.FlexColumnWidth(1.5), // Columna "Capital"
+        8: const pw.FlexColumnWidth(1.5), // Columna "Interés"
+        9: const pw.FlexColumnWidth(1.5), // Columna "Saldo"
+        10: const pw.FlexColumnWidth(1.5), // Columna "Moratorios"
+      },
+      children: [
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColor.fromHex('#5162F6')),
+          children: [
+            _buildTotalCell('Totales', alignLeft: true),
+            _buildTotalCell(''),
+            _buildTotalCell(''),
+            _buildTotalCell(''),
+            _buildTotalCell(currencyFormat.format(reporteData!.totalPagoficha)),
+            _buildTotalCell(''),
+            _buildTotalCell(currencyFormat.format(reporteData!.totalFicha)),
+            _buildTotalCell(currencyFormat.format(reporteData!.totalCapital)),
+            _buildTotalCell(currencyFormat.format(reporteData!.totalInteres)),
+            _buildTotalCell(
+                currencyFormat.format(reporteData!.totalSaldoFavor)),
+            _buildTotalCell(currencyFormat.format(reporteData!.saldoMoratorio)),
+          ],
+        ),
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColor.fromHex('#5162F6')),
+          children: [
+            _buildTotalCell('Total Final', alignLeft: true),
+            _buildTotalCell(''),
+            _buildTotalCell(''),
+            _buildTotalCell(''),
+            _buildTotalCell(''),
+            _buildTotalCell(''),
+            _buildTotalCell(currencyFormat.format(reporteData!.totalTotal)),
+            _buildTotalCell(''),
+            _buildTotalCell(''),
+            _buildTotalCell(''),
+            _buildTotalCell(''),
+          ],
+        ),
+      ],
+    );
+  }
 
-pw.Widget _buildTotalCell(String text) {
-  return pw.Container(
-    alignment: pw.Alignment.centerRight,
-    padding: const pw.EdgeInsets.all(6),
-    child: pw.Text(
-      text,
-      style:  pw.TextStyle(
-        color: PdfColors.white,
-        fontWeight: pw.FontWeight.bold,
-        fontSize: 6,
+  pw.Widget _buildTotalCell(String text, {bool alignLeft = false}) {
+    return pw.Container(
+      alignment: alignLeft
+          ? pw.Alignment.centerLeft
+          : pw.Alignment.centerRight, // Alineación condicional
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          color: PdfColors.white,
+          fontWeight: pw.FontWeight.bold,
+          fontSize: 6,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   void setErrorState(bool dialogShown, [dynamic error]) {
     setState(() {
@@ -526,34 +570,33 @@ pw.Widget _buildTotalCell(String text) {
     );
   }
 
-
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: const Color(0xFFF7F8FA),
-    appBar: CustomAppBar(
-      isDarkMode: false,
-      toggleDarkMode: (value) {},
-      title: 'Reportes Financieros',
-      nombre: widget.username,
-      tipoUsuario: widget.tipoUsuario,
-    ),
-    body: Column(
-      children: [
-        _buildFilterRow(),
-        Expanded(
-          child: hasGenerated
-              ? isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : hasError
-                      ? _buildErrorDisplay()
-                      : _buildDataTableContent() // Aquí se arma la tabla completa
-              : _buildInitialMessage(),
-        ),
-      ],
-    ),
-  );
-}
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FA),
+      appBar: CustomAppBar(
+        isDarkMode: false,
+        toggleDarkMode: (value) {},
+        title: 'Reportes Financieros',
+        nombre: widget.username,
+        tipoUsuario: widget.tipoUsuario,
+      ),
+      body: Column(
+        children: [
+          _buildFilterRow(),
+          Expanded(
+            child: hasGenerated
+                ? isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : hasError
+                        ? _buildErrorDisplay()
+                        : _buildDataTableContent() // Aquí se arma la tabla completa
+                : _buildInitialMessage(),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildErrorDisplay() {
     // Parsear el mensaje de error
@@ -852,144 +895,194 @@ Widget build(BuildContext context) {
     }
   }
 
-
   /// Construye el contenedor de la tabla con header fijo, cuerpo desplazable y totales fijos.
-/// Construye el contenedor de la tabla con header fijo, cuerpo desplazable y totales fijos.
-Widget _buildDataTableContent() {
-  return Container(
-    padding: const EdgeInsets.all(20),
-    child: Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      // ClipRRect evita que el contenido se salga del contenedor con bordes redondeados
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: listaReportes.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+  /// Construye el contenedor de la tabla con header fijo, cuerpo desplazable y totales fijos.
+  Widget _buildDataTableContent() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        // ClipRRect evita que el contenido se salga del contenedor con bordes redondeados
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: listaReportes.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (isLoading)
+                        const CircularProgressIndicator()
+                      else if (noReportesFound)
+                        _buildErrorDisplay()
+                      else
+                        const Text('Selecciona parámetros y genera el reporte'),
+                    ],
+                  ),
+                )
+              : Column(
                   children: [
-                    if (isLoading)
-                      const CircularProgressIndicator()
-                    else if (noReportesFound)
-                      _buildErrorDisplay()
-                    else
-                      const Text('Selecciona parámetros y genera el reporte'),
+                    // Encabezado fijo
+                    _buildDataTableHeader(),
+                    // Cuerpo desplazable (filas de datos)
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: _verticalScrollController,
+                        child: _buildDataTableBody(),
+                      ),
+                    ),
+                    // Totales fijos
+                    if (reporteData != null) _buildTotalsWidget(),
                   ],
                 ),
-              )
-            : Column(
-                children: [
-                  // Encabezado fijo
-                  _buildDataTableHeader(),
-                  // Cuerpo desplazable (filas de datos)
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _verticalScrollController,
-                      child: _buildDataTableBody(),
-                    ),
-                  ),
-                  // Totales fijos
-                  if (reporteData != null) _buildTotalsWidget(),
-                ],
-              ),
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // Variables para los tamaños de fuente
   final double headerTextSize = 12.0; // Tamaño de fuente para los encabezados
   final double cellTextSize = 11.0; // Tamaño de fuente para las celdas
 
   /// Encabezado de la tabla (con estilo similar al DataTable original).
-Widget _buildDataTableHeader() {
-  return Container(
-    color: const Color(0xFF5162F6),
-    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-    child: Row(
-      children: [
-        _buildHeaderCell('#'),
-        _buildHeaderCell('Tipo de Pago'),
-        _buildHeaderCell('Grupos'),
-        _buildHeaderCell('Folio'),
-        _buildHeaderCell('ID Ficha'),
-        _buildHeaderCell('Pago Ficha'),
-        _buildHeaderCell('Fecha Depósito'),
-        _buildHeaderCell('Monto Ficha'),
-        _buildHeaderCell('Capital Semanal'),
-        _buildHeaderCell('Interés Semanal'),
-        _buildHeaderCell('Saldo Favor'),
-        _buildHeaderCell('Moratorios'),
-      ],
-    ),
-  );
-}
-
-/// Celda individual para el encabezado.
-Widget _buildHeaderCell(String text) {
-  return Expanded(
-    child: Text(
-      text,
-      textAlign: TextAlign.center,
-      style: TextStyle(
-        fontSize: headerTextSize,
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
+  Widget _buildDataTableHeader() {
+    return Container(
+      color: const Color(0xFF5162F6),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      child: Row(
+        children: [
+          _buildHeaderCell('#'),
+          _buildHeaderCell('Tipo de Pago'),
+          _buildHeaderCell('Grupos'),
+          _buildHeaderCell('Folio'),
+          _buildHeaderCell('ID Ficha'),
+          _buildHeaderCell('Pago Ficha'),
+          _buildHeaderCell('Fecha Depósito'),
+          _buildHeaderCell('Monto Ficha'),
+          _buildHeaderCell('Capital Semanal'),
+          _buildHeaderCell('Interés Semanal'),
+          _buildHeaderCell('Saldo Favor'),
+          _buildHeaderCell('Moratorios'),
+        ],
       ),
-    ),
-  );
-}
+    );
+  }
 
-/// Cuerpo de la tabla: se generan las filas de datos a partir de `listaReportes`.
-Widget _buildDataTableBody() {
+  /// Celda individual para el encabezado.
+  Widget _buildHeaderCell(String text) {
+    return Expanded(
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: headerTextSize,
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  /// Cuerpo de la tabla: se generan las filas de datos a partir de `listaReportes`.
+
+  Widget _buildDataTableBody() {
+  // Agrupa los reportes por idficha
+  final groupedReportes = groupBy(listaReportes, (Reporte r) => r.idficha);
+  final groups = groupedReportes.entries.toList();
+
   return Column(
-    children: listaReportes.asMap().entries.map((entry) {
-      final reporte = entry.value;
+    children: groups.asMap().entries.map((entry) {
       final index = entry.key;
+      final group = entry.value;
+      final idFicha = group.key;
+      final reportesInGroup = group.value;
+
+      // Verifica si todos los pagos de ficha son 0.0
+      final bool allPagosFichaZero =
+          reportesInGroup.every((r) => r.pagoficha == 0.0);
+
+      // Suma los pagos realizados
+      final totalPagos = reportesInGroup.fold(0.0, (sum, r) => sum + r.pagoficha);
+      final bool pagoIncompleto = totalPagos < reportesInGroup.first.montoficha && totalPagos > 0;
+
       return Container(
-        color: index.isEven ? const Color.fromARGB(255, 193, 213, 243) : Colors.white,
+        color: index.isEven
+            ? const Color.fromARGB(255, 216, 228, 245)
+            : Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         child: Row(
           children: [
-            _buildBodyCell(reporte.numero.toString(), alignment: Alignment.center),
-            _buildBodyCell(reporte.tipoPago),
-            _buildBodyCell(reporte.grupos),
-            _buildBodyCell(reporte.folio),
-            _buildBodyCell(reporte.idficha),
             _buildBodyCell(
-              currencyFormat.format(reporte.pagoficha),
+              () {
+                Color circleColor = Colors.transparent; // Por defecto, sin color
+                if (allPagosFichaZero) {
+                  circleColor = Colors.red; // Rojo si todos los pagos son 0.0
+                } else if (pagoIncompleto) {
+                  circleColor = Colors.orange; // Naranja si hay un pago incompleto
+                }
+
+                return Container(
+                  width: 20, // Tamaño del círculo
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: circleColor, // Color dinámico según la condición
+                    shape: BoxShape.circle,
+                  ),
+                  alignment:
+                      Alignment.center, // Asegura que el texto esté centrado
+                  child: Text(
+                    (index + 1).toString(),
+                    style: TextStyle(
+                      fontSize: cellTextSize,
+                      fontWeight: FontWeight.w700,
+                      color: circleColor == Colors.transparent
+                          ? Colors.black
+                          : Colors.white,
+                    ),
+                  ),
+                );
+              }(),
+              alignment:
+                  Alignment.center, // Asegura alineación vertical correcta
+            ),
+            _buildBodyCell(reportesInGroup.first.tipoPago), // Solo una vez
+            _buildBodyCell(reportesInGroup.first.grupos), // Solo una vez
+            _buildBodyCell(reportesInGroup.first.folio), // Solo una vez
+            _buildBodyCell(idFicha), // Identificador del grupo
+            _buildBodyCell(
+              reportesInGroup
+                  .map((r) => currencyFormat.format(r.pagoficha))
+                  .join('\n'),
               alignment: Alignment.centerRight,
             ),
-            _buildBodyCell(reporte.fechadeposito),
             _buildBodyCell(
-              currencyFormat.format(reporte.montoficha),
+                reportesInGroup.map((r) => r.fechadeposito).join('\n')),
+            _buildBodyCell(reportesInGroup.first.montoficha.toString(),
+                alignment: Alignment.centerRight), // Solo una vez
+            _buildBodyCell(reportesInGroup.first.capitalsemanal.toString(),
+                alignment: Alignment.centerRight), // Solo una vez
+            _buildBodyCell(reportesInGroup.first.interessemanal.toString(),
+                alignment: Alignment.centerRight), // Solo una vez
+            _buildBodyCell(
+              reportesInGroup
+                  .map((r) => currencyFormat.format(r.saldofavor))
+                  .join('\n'),
               alignment: Alignment.centerRight,
             ),
             _buildBodyCell(
-              currencyFormat.format(reporte.capitalsemanal),
-              alignment: Alignment.centerRight,
-            ),
-            _buildBodyCell(
-              currencyFormat.format(reporte.interessemanal),
-              alignment: Alignment.centerRight,
-            ),
-            _buildBodyCell(
-              currencyFormat.format(reporte.saldofavor),
-              alignment: Alignment.centerRight,
-            ),
-            _buildBodyCell(
-              currencyFormat.format(reporte.moratorios),
+              reportesInGroup
+                  .map((r) => currencyFormat.format(r.moratorios))
+                  .join('\n'),
               alignment: Alignment.centerRight,
             ),
           ],
@@ -999,76 +1092,64 @@ Widget _buildDataTableBody() {
   );
 }
 
-/// Celda individual para el cuerpo de la tabla.
-Widget _buildBodyCell(String text, {Alignment alignment = Alignment.centerLeft}) {
-  return Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      alignment: alignment,
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: cellTextSize,
-          color: Colors.grey[800],
-        ),
-      ),
-    ),
-  );
-}
 
-/// Totales fijos: muestra dos filas de totales utilizando los datos de `reporteData`.
-Widget _buildTotalsWidget() {
-  return Column(
-    children: [
-      _buildTotalsRow(
-        'Totales',
-        [
-          (value: reporteData!.totalPagoficha, column: 4),
-          (value: reporteData!.totalFicha, column: 6),
-          (value: reporteData!.totalCapital, column: 7),
-          (value: reporteData!.totalInteres, column: 8),
-          (value: reporteData!.totalSaldoFavor, column: 9),
-          (value: reporteData!.saldoMoratorio, column: 10),
-        ],
+  /// Celda individual para el cuerpo de la tabla.
+  Widget _buildBodyCell(dynamic content,
+      {Alignment alignment = Alignment.centerLeft}) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        alignment: alignment,
+        child: content is String
+            ? Text(
+                content,
+                style: TextStyle(
+                  fontSize: cellTextSize,
+                  color: Colors.grey[800],
+                ),
+              )
+            : content, // Si es un Widget, lo muestra directamente
       ),
-      _buildTotalsRow(
-        'Total Final',
-        [
-          (value: reporteData!.totalTotal, column: 6),
-        ],
-      ),
-    ],
-  );
-}
+    );
+  }
 
-/// Construye una fila de totales recibiendo el label y una lista de valores en celdas específicas.
-Widget _buildTotalsRow(String label, List<({double value, int column})> values) {
-  // Se generan 11 celdas (Expanded) vacías para cubrir las 11 columnas.
-  List<Widget> cells = List.generate(11, (_) => Expanded(child: Container()));
-  
-  // La primera celda muestra el label.
-  cells[0] = Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: cellTextSize,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
+  /// Totales fijos: muestra dos filas de totales utilizando los datos de `reporteData`.
+  Widget _buildTotalsWidget() {
+    return Column(
+      children: [
+        _buildTotalsRow(
+          'Totales',
+          [
+            (value: reporteData!.totalPagoficha, column: 5),
+            (value: reporteData!.totalFicha, column: 7),
+            (value: reporteData!.totalCapital, column: 8),
+            (value: reporteData!.totalInteres, column: 9),
+            (value: reporteData!.totalSaldoFavor, column: 10),
+            (value: reporteData!.saldoMoratorio, column: 11),
+          ],
         ),
-      ),
-    ),
-  );
-  
-  // Se asignan los valores a las columnas indicadas.
-  for (final val in values) {
-    cells[val.column] = Expanded(
+        _buildTotalsRow(
+          'Total Final',
+          [
+            (value: reporteData!.totalTotal, column: 7),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Construye una fila de totales recibiendo el label y una lista de valores en celdas específicas.
+  Widget _buildTotalsRow(
+      String label, List<({double value, int column})> values) {
+    // Se generan 12 celdas (Expanded) vacías para cubrir las 12 columnas.
+    List<Widget> cells = List.generate(12, (_) => Expanded(child: Container()));
+
+    // La primera celda muestra el label.
+    cells[0] = Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-        alignment: Alignment.centerRight,
         child: Text(
-          currencyFormat.format(val.value),
+          label,
           style: TextStyle(
             fontSize: cellTextSize,
             fontWeight: FontWeight.bold,
@@ -1077,13 +1158,31 @@ Widget _buildTotalsRow(String label, List<({double value, int column})> values) 
         ),
       ),
     );
+
+    // Se asignan los valores a las columnas indicadas.
+    for (final val in values) {
+      cells[val.column] = Flexible(
+        fit: FlexFit.tight,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          alignment: Alignment.centerRight,
+          child: Text(
+            currencyFormat.format(val.value),
+            style: TextStyle(
+              fontSize: cellTextSize,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      color: const Color(0xFF5162F6),
+      child: Row(children: cells),
+    );
   }
-  
-  return Container(
-    color: const Color(0xFF5162F6),
-    child: Row(children: cells),
-  );
-}
 
   Widget _buildInitialMessage() {
     return Center(
@@ -1108,7 +1207,6 @@ Widget _buildTotalsRow(String label, List<({double value, int column})> values) 
       ),
     );
   }
-
 }
 
 class ReporteData {
