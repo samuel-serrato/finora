@@ -811,8 +811,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                   if (pagosJson.isNotEmpty) {
                                     print('Datos a enviar: $pagosJson');
                                     // Llamar a la función para enviar los datos al servidor
-                                    await enviarDatosAlServidor(
-                                        context, pagosSeleccionados);
+                                     await enviarDatosAlServidor(
+                                       context, pagosSeleccionados);
                                   } else {
                                     print("No hay cambios para guardar.");
                                   }
@@ -1387,9 +1387,12 @@ class _PaginaControlState extends State<PaginaControl> {
             bool tieneGarantia =
                 pago.abonos.any((abono) => abono['garantia'] == 'Si');
 
+            // Código corregido (suma solo los abonos con garantía):
             if (tieneGarantia) {
-              // Usar capitalMasInteres en lugar del monto depositado
-              montoPagado = pago.capitalMasInteres ?? 0.0;
+              // Sumar solo los abonos marcados como garantía
+              montoPagado = pago.abonos
+                  .where((abono) => abono['garantia'] == 'Si')
+                  .fold(0.0, (sum, abono) => sum + (abono['deposito'] ?? 0.0));
             }
 
             // Acumular el pago actual
@@ -1399,11 +1402,11 @@ class _PaginaControlState extends State<PaginaControl> {
             double saldoFavor = 0.0;
             double saldoContra = 0.0;
 
+            // Código corregido:
             if (tieneGarantia) {
-              // Si hay garantía, el saldo a favor siempre es 0
               saldoFavor = 0.0;
-              // El saldo en contra solo considera los moratorios
-              saldoContra = moratorios;
+              saldoContra =
+                  totalDeuda - montoPagado; // <-- Usar el monto real pagado
             } else {
               // Si no hay garantía, calcular saldos normalmente
               if (montoPagado >= totalDeuda) {
@@ -1449,6 +1452,13 @@ class _PaginaControlState extends State<PaginaControl> {
             print("  Monto pagado: $montoPagado");
             print("  Saldo Favor: $saldoFavor");
             print("  Saldo Contra: $saldoContra");
+
+            pago.saldoEnContra = saldoContra; // <-- ¡Clave!
+            pago.saldoFavor = saldoFavor;
+
+            // Debugging
+            print(
+                "Pago ${pago.semana}: Saldo en contra UI = ${pago.saldoEnContra}");
           }
 
           // Mostrar los totales correctamente
@@ -1662,6 +1672,16 @@ class _PaginaControlState extends State<PaginaControl> {
                                                         pago.deposito = widget
                                                             .montoGarantia;
 
+                                                        pago.fechaPagoCompleto =
+                                                            DateTime.now()
+                                                                .toString(); // <-- Fecha de operación
+                                                        if (pago.fechaPago
+                                                            .isEmpty) {
+                                                          pago.fechaPago = DateTime
+                                                                  .now()
+                                                              .toString(); // <-- Fecha de pago
+                                                        }
+
                                                         // Calcular totalDeuda incluyendo moratorios
                                                         double totalDeuda =
                                                             (pago.capitalMasInteres ??
@@ -1874,7 +1894,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 vertical: 2),
                                                         decoration:
                                                             BoxDecoration(
-                                                          color: Colors.orange
+                                                          color: Color(0xFFE53888)
                                                               .withOpacity(0.2),
                                                           borderRadius:
                                                               BorderRadius
@@ -1895,8 +1915,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   fontWeight:
                                                                       FontWeight
                                                                           .bold,
-                                                                  color: Colors
-                                                                      .orange),
+                                                                  color: Color(0xFFE53888)),
                                                             ),
                                                           ],
                                                         ),
@@ -1976,75 +1995,126 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 )) ??
                                                                 [];
 
-                                                    
                                                         print(
                                                             'Nuevos abonos recibidos: $nuevosAbonos');
 
-                                                       setState(() {
-  if (nuevosAbonos.isNotEmpty) {
-    nuevosAbonos.forEach((abono) {
-      // Asigna un UID único a cada abono
-      abono['uid'] = uuid.v4();
+                                                        setState(() {
+                                                          if (nuevosAbonos
+                                                              .isNotEmpty) {
+                                                            nuevosAbonos
+                                                                .forEach(
+                                                                    (abono) {
+                                                              // Asigna un UID único a cada abono
+                                                              abono['uid'] =
+                                                                  uuid.v4();
 
-      // Evita duplicados comparando UID
-      bool existeAbono = pago.abonos.any((existeAbono) =>
-          existeAbono['uid'] == abono['uid']);
-      if (!existeAbono) {
-        print('Agregando abono con UID: ${abono['uid']}');
+                                                              // Evita duplicados comparando UID
+                                                              bool existeAbono = pago
+                                                                  .abonos
+                                                                  .any((existeAbono) =>
+                                                                      existeAbono[
+                                                                          'uid'] ==
+                                                                      abono[
+                                                                          'uid']);
+                                                              if (!existeAbono) {
+                                                                print(
+                                                                    'Agregando abono con UID: ${abono['uid']}');
 
-        // Actualizar la fecha de pago con la fecha de depósito
-        pago.fechaPago = abono['fechaDeposito']; // <-- Usar la fecha del diálogo
+                                                                // Actualizar la fecha de pago con la fecha de depósito
+                                                                pago.fechaPago =
+                                                                    abono[
+                                                                        'fechaDeposito']; // <-- Usar la fecha del diálogo
 
-        pago.abonos.add(abono);
-      } else {
-        print('Abono duplicado detectado con UID: ${abono['uid']}');
-      }
-    });
+                                                                pago.abonos
+                                                                    .add(abono);
+                                                              } else {
+                                                                print(
+                                                                    'Abono duplicado detectado con UID: ${abono['uid']}');
+                                                              }
+                                                            });
 
-    // Recalcular totales
-    double totalAbonos = pago.abonos.fold(
-      0.0,
-      (sum, abono) => sum + (abono['deposito'] ?? 0.0),
-    );
+                                                            // Recalcular totales
+                                                            double totalAbonos =
+                                                                pago.abonos
+                                                                    .fold(
+                                                              0.0,
+                                                              (sum, abono) =>
+                                                                  sum +
+                                                                  (abono['deposito'] ??
+                                                                      0.0),
+                                                            );
 
-    // Se suma el moratorio si existe (consulta en el objeto moratorios)
-    double totalDeuda = pago.capitalMasInteres! +
-        (pago.moratorios?.moratorios ?? 0.0);
+                                                            // Se suma el moratorio si existe (consulta en el objeto moratorios)
+                                                            double totalDeuda = pago
+                                                                    .capitalMasInteres! +
+                                                                (pago.moratorios
+                                                                        ?.moratorios ??
+                                                                    0.0);
 
-    double montoPagado = totalAbonos;
+                                                            double montoPagado =
+                                                                totalAbonos;
 
-    if (montoPagado < totalDeuda) {
-      pago.saldoEnContra = totalDeuda - montoPagado;
-      pago.saldoFavor = 0.0;
-    } else {
-      pago.saldoEnContra = 0.0;
-      pago.saldoFavor = montoPagado - totalDeuda;
-    }
+                                                            if (montoPagado <
+                                                                totalDeuda) {
+                                                              pago.saldoEnContra =
+                                                                  totalDeuda -
+                                                                      montoPagado;
+                                                              pago.saldoFavor =
+                                                                  0.0;
+                                                            } else {
+                                                              pago.saldoEnContra =
+                                                                  0.0;
+                                                              pago.saldoFavor =
+                                                                  montoPagado -
+                                                                      totalDeuda;
+                                                            }
 
-    print('Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
+                                                            print(
+                                                                'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
 
-    // Actualiza el Provider
-    final index = pagosProvider.pagosSeleccionados.indexWhere((p) =>
-        p.semana == pago.semana);
-    final pagoActualizado = PagoSeleccionado(
-      semana: pago.semana,
-      tipoPago: pago.tipoPago,
-      deposito: pago.deposito ?? 0.0,
-      saldoFavor: pago.saldoFavor,
-      saldoEnContra: pago.saldoEnContra,
-      abonos: pago.abonos,
-      idfechaspagos: pago.idfechaspagos,
-      fechaPago: pago.fechaPago, // <-- Usar la fecha del diálogo
-      capitalMasInteres: pago.capitalMasInteres,
-      moratorio: pago.moratorios?.moratorios,
-    );
-    if (index != -1) {
-      pagosProvider.pagosSeleccionados[index] = pagoActualizado;
-    } else {
-      pagosProvider.agregarPago(pagoActualizado);
-    }
-  }
-});
+                                                            // Actualiza el Provider
+                                                            final index = pagosProvider
+                                                                .pagosSeleccionados
+                                                                .indexWhere((p) =>
+                                                                    p.semana ==
+                                                                    pago.semana);
+                                                            final pagoActualizado =
+                                                                PagoSeleccionado(
+                                                              semana:
+                                                                  pago.semana,
+                                                              tipoPago:
+                                                                  pago.tipoPago,
+                                                              deposito:
+                                                                  pago.deposito ??
+                                                                      0.0,
+                                                              saldoFavor: pago
+                                                                  .saldoFavor,
+                                                              saldoEnContra: pago
+                                                                  .saldoEnContra,
+                                                              abonos:
+                                                                  pago.abonos,
+                                                              idfechaspagos: pago
+                                                                  .idfechaspagos,
+                                                              fechaPago: pago
+                                                                  .fechaPago, // <-- Usar la fecha del diálogo
+                                                              capitalMasInteres:
+                                                                  pago.capitalMasInteres,
+                                                              moratorio: pago
+                                                                  .moratorios
+                                                                  ?.moratorios,
+                                                            );
+                                                            if (index != -1) {
+                                                              pagosProvider
+                                                                          .pagosSeleccionados[
+                                                                      index] =
+                                                                  pagoActualizado;
+                                                            } else {
+                                                              pagosProvider
+                                                                  .agregarPago(
+                                                                      pagoActualizado);
+                                                            }
+                                                          }
+                                                        });
                                                       }
                                                     : null,
                                               ),
@@ -2173,7 +2243,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                                 const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                                             decoration:
                                                                                 BoxDecoration(
-                                                                              color: Colors.orange.withOpacity(0.2),
+                                                                              color: Color(0xFFE53888).withOpacity(0.2),
                                                                               borderRadius: BorderRadius.circular(6),
                                                                             ),
                                                                             child:
@@ -2182,7 +2252,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                               style: TextStyle(
                                                                                 fontSize: 10,
                                                                                 fontWeight: FontWeight.bold,
-                                                                                color: Colors.orange,
+                                                                                color: Color(0xFFE53888),
                                                                               ),
                                                                             ),
                                                                           ),
@@ -2661,8 +2731,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                                 2),
                                                                         decoration:
                                                                             BoxDecoration(
-                                                                          color: Colors
-                                                                              .orange
+                                                                          color: Color(0xFFE53888)
                                                                               .withOpacity(0.2),
                                                                           borderRadius:
                                                                               BorderRadius.circular(6),
@@ -2677,7 +2746,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                             fontWeight:
                                                                                 FontWeight.bold,
                                                                             color:
-                                                                                Colors.orange,
+                                                                                Color(0xFFE53888),
                                                                           ),
                                                                         ),
                                                                       ),
@@ -2919,20 +2988,17 @@ class _PaginaControlState extends State<PaginaControl> {
                               ),
 
                               // En la clase _PaginaControlState (dentro del método build):
-// Para "Saldo en Contra":
+// Código corregido (mostrar saldo aunque haya abonos/depósitos):
                               _buildTableCell(
                                 esPago1
                                     ? "-"
-                                    : (pago.abonos.isEmpty &&
-                                            pago.deposito == 0.0)
-                                        ? "-"
-                                        : (pago.saldoEnContra != null &&
-                                                pago.saldoEnContra! > 0.0)
-                                            ? "\$${formatearNumero(pago.saldoEnContra!)}"
-                                            : "-",
+                                    : (pago.saldoEnContra != null &&
+                                            pago.saldoEnContra! >
+                                                0.0) // ← Mostrar siempre si hay saldo
+                                        ? "\$${formatearNumero(pago.saldoEnContra!)}"
+                                        : "-",
                                 flex: 18,
                               ),
-
                               // Mostrar los moratorios con la misma lógica, solo si existen
                               _buildTableCell(
                                 esPago1
