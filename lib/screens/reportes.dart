@@ -27,7 +27,7 @@ class ReportesScreen extends StatefulWidget {
 
 class _ReportesScreenState extends State<ReportesScreen> {
   List<ReporteGeneral> listaReportes = [];
-  List<ReporteContable> listaReportesContable = [];
+  List<ReporteContableData> listaReportesContable = [];
   bool isLoading = false;
   bool errorDeConexion = false;
   bool noReportesFound = false;
@@ -63,15 +63,15 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
  Future<void> obtenerReportes() async {
-    if (selectedReportType == null || selectedDateRange == null) {
+  if (selectedReportType == null || selectedDateRange == null) {
     mostrarDialogoError('Selecciona tipo de reporte y rango de fechas');
-    return; // ← Añade validación temprana
+    return;
   }
 
   setState(() {
     isLoading = true;
     listaReportes = [];
-    listaReportesContable = []; // Asegúrate de tener esta lista
+    listaReportesContable = [];
     reporteData = null;
     hasError = false;
     errorDeConexion = false;
@@ -96,41 +96,38 @@ class _ReportesScreenState extends State<ReportesScreen> {
     final response = await http.get(
       url,
       headers: {'tokenauth': token, 'Content-Type': 'application/json'},
-    ).timeout(const Duration(seconds: 10));
+    ).timeout(const Duration(seconds: 15));
 
     if (!mounted) return;
 
+    print('Respuesta del servidor (${response.statusCode}): ${response.body}'); // Debug
+
     if (response.statusCode == 200) {
-  final data = json.decode(response.body);
-  print('Respuesta del servidor: $data'); // Depuración
-  setState(() {
-    if (selectedReportType == 'Reporte Contable') {
-  print('Procesando reporte contable...');
-  if (data['listaGrupos'] != null && data['listaGrupos'] is List) {
-    try {
-      listaReportesContable = (data['listaGrupos'] as List)
-          .map((json) => ReporteContable.fromJson(json))
-          .toList();
-      print('Lista de reportes contables: ${listaReportesContable.length} elementos');
-    } catch (e, stackTrace) {
-      print('Error mapeando listaGrupos: $e'); // Mensaje detallado
-      print('Stack trace: $stackTrace'); // Pista del error
-      setState(() {
-        hasError = true;
-        errorMessage = 'Error formateando datos';
-      });
-    }
-  } else {
-    print('listaGrupos no es una lista o es nulo');
-  }
-}else {
-  reporteData = ReporteGeneralData.fromJson(data);
-  listaReportes = reporteData?.listaGrupos ?? [];
-}
-    isLoading = false;
-    hasGenerated = true;
-  });
-} else if (response.statusCode == 401) {
+      final data = json.decode(response.body);
+      
+      if (selectedReportType == 'Reporte Contable') {
+        // Debug: Verificar estructura del JSON
+        print('Keys en JSON recibido: ${data.keys}');
+        print('¿Existe fechaSemana? ${data.containsKey('fechaSemana')}');
+        print('¿Existe listaGrupos? ${data.containsKey('listaGrupos')}');
+        
+        // Validar estructura básica
+        if (!data.containsKey('listaGrupos')) {
+          throw FormatException('Estructura JSON inválida: falta listaGrupos');
+        }
+
+        setState(() {
+          listaReportesContable = [ReporteContableData.fromJson(data)];
+          print('Reporte contable creado: ${listaReportesContable.first}'); // Debug
+        });
+      } else {
+        setState(() {
+          reporteData = ReporteGeneralData.fromJson(data);
+          listaReportes = reporteData?.listaGrupos ?? [];
+        });
+      }
+      
+    } else if (response.statusCode == 401) {
       await prefs.remove('tokenauth');
       if (mounted) {
         Navigator.pushReplacement(
@@ -144,11 +141,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
         noReportesFound = true;
       });
     } else {
-      setState(() {
-        isLoading = false;
-        hasError = true;
-        errorMessage = 'Error ${response.statusCode}: ${response.body}';
-      });
+      throw Exception('Error ${response.statusCode}: ${response.body}');
     }
   } on SocketException {
     setState(() {
@@ -162,12 +155,27 @@ class _ReportesScreenState extends State<ReportesScreen> {
       hasError = true;
       errorMessage = 'Tiempo de espera agotado';
     });
+  } on FormatException catch (e) {
+    print('Error de formato: $e');
+    setState(() {
+      isLoading = false;
+      hasError = true;
+      errorMessage = 'Error en formato de datos: ${e.message}';
+    });
   } catch (e) {
+    print('Error inesperado: $e');
     setState(() {
       isLoading = false;
       hasError = true;
       errorMessage = 'Error inesperado: ${e.toString()}';
     });
+  } finally {
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+        hasGenerated = true;
+      });
+    }
   }
 }
 
@@ -212,12 +220,7 @@ Widget build(BuildContext context) {
                   : hasError
                       ? _buildErrorDisplay()
                       : selectedReportType == 'Reporte Contable'
-                          ? ReporteContableWidget(
-                              listaReportes: listaReportesContable,
-                              currencyFormat: currencyFormat,
-                              verticalScrollController: _verticalScrollController,
-                              horizontalScrollController: _horizontalScrollController,
-                            )
+                          ? _buildContableWithDebug() // Función modificada
                           : ReporteGeneralWidget(
                               listaReportes: listaReportes,
                               reporteData: reporteData,
@@ -229,6 +232,35 @@ Widget build(BuildContext context) {
         ),
       ],
     ),
+  );
+}
+
+Widget _buildContableWithDebug() {
+  // Debug: Verificar datos antes de enviar al widget
+  debugPrint('=== DEBUG REPORTE CONTABLE ===');
+  debugPrint('Cantidad de reportes contables: ${listaReportesContable.length}');
+  
+  if (listaReportesContable.isNotEmpty) {
+    final reporte = listaReportesContable.first;
+    debugPrint('Fecha semana: ${reporte.fechaSemana}');
+    debugPrint('Total capital: ${reporte.totalCapital}');
+    debugPrint('Total grupos: ${reporte.listaGrupos.length}');
+    
+    if (reporte.listaGrupos.isNotEmpty) {
+      final primerGrupo = reporte.listaGrupos.first;
+      debugPrint('Primer grupo: ${primerGrupo.grupos}');
+      debugPrint('Depósitos en primer grupo: ${primerGrupo.pagoficha.depositos.length}');
+      debugPrint('Clientes en primer grupo: ${primerGrupo.clientes.length}');
+    }
+  } else {
+    debugPrint('Lista de reportes contables VACÍA');
+  }
+  
+  return ReporteContableWidget(
+    reporteData: listaReportesContable.first,
+    currencyFormat: currencyFormat,
+    verticalScrollController: _verticalScrollController,
+    horizontalScrollController: _horizontalScrollController,
   );
 }
 

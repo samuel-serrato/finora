@@ -866,61 +866,73 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                 ),
                 const SizedBox(height: 20),
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: _selectedPersons.length,
-                    itemBuilder: (context, index) {
-                      final person = _selectedPersons[index];
-                      final nombre = person['nombres'] ?? '';
-                      final idCliente = person[
-                          'idclientes']; // Usamos idclientes para acceder al rol
+  child: ListView.builder(
+    itemCount: _selectedPersons.length,
+    itemBuilder: (context, index) {
+      final person = _selectedPersons[index];
+      final nombre = person['nombres'] ?? '';
+      final idCliente = person['idclientes'];
 
-                      return ListTile(
-                        title: Row(
-                          children: [
-                            // Mostrar la numeración antes del nombre
-                            Text(
-                              '${index + 1}. ', // Esto es para mostrar la numeración
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.black),
-                            ),
-                            Text(
-                              '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                        subtitle: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Teléfono: ${person['telefono'] ?? ''}'),
-                            SizedBox(width: 10),
-                            Text(
-                                'Fecha de Nacimiento: ${person['fechaNac'] ?? ''}'),
-                          ],
-                        ),
-                        trailing: DropdownButton<String>(
-                          value: _rolesSeleccionados[
-                              idCliente], // Usamos idCliente para obtener el rol seleccionado
-                          onChanged: (nuevoRol) {
-                            setState(() {
-                              _rolesSeleccionados[idCliente] = nuevoRol!;
-                            });
-                          },
-                          items: roles
-                              .map<DropdownMenuItem<String>>(
-                                (rol) => DropdownMenuItem<String>(
-                                  value: rol,
-                                  child: Text(rol),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+      return ListTile(
+        title: Row(
+          children: [
+            Text(
+              '${index + 1}. ',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.black),
+            ),
+            Text(
+              '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        subtitle: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Teléfono: ${person['telefono'] ?? ''}'),
+            SizedBox(width: 10),
+            Text('Fecha de Nacimiento: ${person['fechaNac'] ?? ''}'),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min, // Para que no ocupe espacio extra
+          children: [
+            DropdownButton<String>(
+              value: _rolesSeleccionados[idCliente],
+              onChanged: (nuevoRol) {
+                setState(() {
+                  _rolesSeleccionados[idCliente] = nuevoRol!;
+                });
+              },
+              items: roles
+                  .map<DropdownMenuItem<String>>(
+                    (rol) => DropdownMenuItem<String>(
+                      value: rol,
+                      child: Text(rol),
+                    ),
+                  )
+                  .toList(),
+            ),
+            SizedBox(width: 10), // Espacio entre el dropdown y el icono
+            IconButton(
+              icon: Icon(Icons.delete, color: Colors.red),
+              onPressed: () {
+                setState(() {
+                  // Eliminar de la lista y del mapa de roles
+                  _selectedPersons.removeAt(index);
+                  _rolesSeleccionados.remove(idCliente);
+                });
+              },
+            ),
+          ],
+        ),
+      );
+    },
+  ),
+),
               ],
             ),
           ),

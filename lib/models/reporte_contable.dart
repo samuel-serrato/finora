@@ -1,21 +1,95 @@
-class ReporteContable {
-  final int numero;
-  final String tipoPago;
+class ParseHelpers {
+  static double parseDouble(dynamic value) {
+  if (value == null) return 0.0;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is String) {
+    // Eliminar comas y símbolos de moneda
+    String cleanedValue = value
+        .replaceAll(RegExp(r'[^0-9.]'), '')
+        .replaceAll(',', '');
+    return double.tryParse(cleanedValue) ?? 0.0;
+  }
+  return 0.0;
+}
+
+  static List<T> parseList<T>(dynamic data, T Function(dynamic) converter) {
+    if (data == null) return [];
+    if (data is! List) return [];
+    try {
+      return data.map((item) => converter(item)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+}
+
+class ReporteContableData {
+  final String fechaSemana;
+  final String fechaActual;
+  final double totalCapital;
+  final double totalInteres;
+  final double totalPagoficha;
+  final double totalSaldoFavor;
+  final double saldoMoratorio;
+  final double totalTotal;
+  final double totalFicha;
+  final List<ReporteContableGrupo> listaGrupos;
+
+  ReporteContableData({
+    required this.fechaSemana,
+    required this.fechaActual,
+    required this.totalCapital,
+    required this.totalInteres,
+    required this.totalPagoficha,
+    required this.totalSaldoFavor,
+    required this.saldoMoratorio,
+    required this.totalTotal,
+    required this.totalFicha,
+    required this.listaGrupos,
+  });
+
+  factory ReporteContableData.fromJson(Map<String, dynamic> json) {
+      print('JSON recibido en fromJson:');
+  print('Keys disponibles: ${json.keys}');
+  print('¿Existe fechaSemana? ${json.containsKey('fechaSemana')}');
+  print('¿Existe listaGrupos? ${json.containsKey('listaGrupos')}');
+    return ReporteContableData(
+      fechaSemana: json['fechaSemana'] ?? '',
+      fechaActual: json['fechaActual'] ?? '',
+      totalCapital: ParseHelpers.parseDouble(json['totalCapital']),
+      totalInteres: ParseHelpers.parseDouble(json['totalInteres']),
+      totalPagoficha: ParseHelpers.parseDouble(json['totalPagoficha']),
+      totalSaldoFavor: ParseHelpers.parseDouble(json['totalSaldoFavor']),
+      saldoMoratorio: ParseHelpers.parseDouble(json['saldoMoratorio']),
+      totalTotal: ParseHelpers.parseDouble(json['totalTotal']),
+      totalFicha: ParseHelpers.parseDouble(json['totalFicha']),
+      listaGrupos: ParseHelpers.parseList(
+        json['listaGrupos'],
+        (item) => ReporteContableGrupo.fromJson(item),
+      ),
+    );
+  }
+}
+
+class ReporteContableGrupo {
+  final int num;
+  final String tipopago;
   final int semanas;
   final double tazaInteres;
   final String folio;
   final int pagoPeriodo;
   final String grupos;
   final String estado;
-  final PagoFicha pagoficha;
+  final Pagoficha pagoficha;
   final double montoficha;
   final double capitalsemanal;
   final double interessemanal;
   final List<Cliente> clientes;
 
-  ReporteContable({
-    required this.numero,
-    required this.tipoPago,
+  ReporteContableGrupo({
+    required this.num,
+    required this.tipopago,
     required this.semanas,
     required this.tazaInteres,
     required this.folio,
@@ -29,35 +103,75 @@ class ReporteContable {
     required this.clientes,
   });
 
-  factory ReporteContable.fromJson(Map<String, dynamic> json) {
-   // ✅ Corrección: 
-double parseValor(dynamic value) {
-  if (value is String) {
-    String cleanedValue = value.replaceAll(RegExp(r'[^0-9.]'), '');
-    return double.tryParse(cleanedValue) ?? 0.0;
-  } else if (value is num) { // Maneja int o double
-    return value.toDouble();
+  factory ReporteContableGrupo.fromJson(Map<String, dynamic> json) {
+      print('JSON recibido: $json'); // Debug clave
+
+    return ReporteContableGrupo(
+      num: json['num'] ?? 0,
+      tipopago: json['tipopago'] ?? '',
+      semanas: json['semanas'] ?? 0,
+      tazaInteres: ParseHelpers.parseDouble(json['taza_interes']),
+      folio: json['folio'] ?? '',
+      pagoPeriodo: json['pagoPeriodo'] ?? 0,
+      grupos: json['grupos'] ?? '',
+      estado: json['estado'] ?? '',
+      pagoficha: Pagoficha.fromJson(json['pagoficha'] ?? {}),
+      montoficha: ParseHelpers.parseDouble(json['montoficha']),
+      capitalsemanal: ParseHelpers.parseDouble(json['capitalsemanal']),
+      interessemanal: ParseHelpers.parseDouble(json['interessemanal']),
+      clientes: ParseHelpers.parseList(
+        json['clientes'],
+        (item) => Cliente.fromJson(item),
+      ),
+    );
   }
-  return 0.0;
 }
 
+class Pagoficha {
+  final String idpagosdetalles;
+  final String idgrupos;
+  final String fechaDeposito;
+  final List<Deposito> depositos;
 
-    return ReporteContable(
-      numero: json['num'] ?? 0,
-      tipoPago: json['tipopago'] ?? 'N/A',
-      semanas: json['semanas'] ?? 0,
-      tazaInteres: json['taza_interes'] ?? 0.0,
-      folio: json['folio'] ?? 'N/A',
-      pagoPeriodo: json['pagoPeriodo'] ?? 0,
-      grupos: json['grupos'] ?? 'N/A',
-      estado: json['estado'] ?? 'N/A',
-      pagoficha: PagoFicha.fromJson(json['pagoficha']),
-      montoficha: parseValor(json['montoficha']),
-      capitalsemanal: parseValor(json['capitalsemanal']),
-      interessemanal: parseValor(json['interessemanal']),
-      clientes: (json['clientes'] as List)
-          .map((cliente) => Cliente.fromJson(cliente))
-          .toList(),
+  Pagoficha({
+    required this.idpagosdetalles,
+    required this.idgrupos,
+    required this.fechaDeposito,
+    required this.depositos,
+  });
+
+  factory Pagoficha.fromJson(Map<String, dynamic> json) {
+  return Pagoficha(
+    idpagosdetalles: json['idpagosdetalles']?.toString() ?? '',
+    idgrupos: json['idgrupos']?.toString() ?? '',
+    fechaDeposito: json['fechaDeposito']?.toString() ?? '', // ¡Verifica el nombre del campo!
+    depositos: ParseHelpers.parseList(
+      json['depositos'],
+      (item) => Deposito.fromJson(item),
+    ),
+  );
+}
+}
+
+class Deposito {
+  final double deposito;
+  final double saldofavor;
+  final double pagoMoratorio;
+  final String garantia;
+
+  Deposito({
+    required this.deposito,
+    required this.saldofavor,
+    required this.pagoMoratorio,
+    required this.garantia,
+  });
+
+  factory Deposito.fromJson(Map<String, dynamic> json) {
+    return Deposito(
+      deposito: ParseHelpers.parseDouble(json['deposito']),
+      saldofavor: ParseHelpers.parseDouble(json['saldofavor']),
+      pagoMoratorio: ParseHelpers.parseDouble(json['pagoMoratorio']),
+      garantia: json['garantia'] ?? 'No',
     );
   }
 }
@@ -84,74 +198,15 @@ class Cliente {
   });
 
   factory Cliente.fromJson(Map<String, dynamic> json) {
-    double parseValor(dynamic value) {
-  if (value is String) {
-    String cleanedValue = value.replaceAll(RegExp(r'[^0-9.]'), '');
-    return double.tryParse(cleanedValue) ?? 0.0;
-  } else if (value is num) { // Maneja int o double
-    return value.toDouble();
-  }
-  return 0.0;
-}
-
     return Cliente(
-      nombreCompleto: json['nombreCompleto'] ?? 'N/A',
-      montoIndividual: parseValor(json['montoIndividual']),
-      periodoCapital: parseValor(json['periodoCapital']),
-      periodoInteres: parseValor(json['periodoInteres']),
-      totalCapital: parseValor(json['totalCapital']),
-      interesTotal: parseValor(json['interesTotal']),
-      capitalMasInteres: parseValor(json['capitalMasInteres']),
-      totalFicha: parseValor(json['totalFicha']),
+      nombreCompleto: json['nombreCompleto'] ?? '',
+      montoIndividual: ParseHelpers.parseDouble(json['montoIndividual']),
+      periodoCapital: ParseHelpers.parseDouble(json['periodoCapital']),
+      periodoInteres: ParseHelpers.parseDouble(json['periodoInteres']),
+      totalCapital: ParseHelpers.parseDouble(json['totalCapital']),
+      interesTotal: ParseHelpers.parseDouble(json['interesTotal']),
+      capitalMasInteres: ParseHelpers.parseDouble(json['capitalMasInteres']),
+      totalFicha: ParseHelpers.parseDouble(json['totalFicha']),
     );
   }
-}
-
-class PagoFicha {
-  final String idpagosdetalles;
-  final String idgrupos;
-  final String fechaDeposito;
-  final List<Deposito> depositos;
-
-  PagoFicha({
-    required this.idpagosdetalles,
-    required this.idgrupos,
-    required this.fechaDeposito,
-    required this.depositos,
-  });
-
-  factory PagoFicha.fromJson(Map<String, dynamic> json) {
-    return PagoFicha(
-      idpagosdetalles: json['idpagosdetalles'] ?? '',
-      idgrupos: json['idgrupos'] ?? '',
-      fechaDeposito: json['fechaDeposito'] ?? 'Pendiente',
-      depositos: (json['depositos'] as List)
-          .map((deposito) => Deposito.fromJson(deposito))
-          .toList(),
-    );
-  }
-}
-
-class Deposito {
-  final double deposito;
-  final double saldofavor;
-  final double pagoMoratorio;
-  final String garantia;
-
-  Deposito({
-    required this.deposito,
-    required this.saldofavor,
-    required this.pagoMoratorio,
-    required this.garantia,
-  });
-
- factory Deposito.fromJson(Map<String, dynamic> json) {
-  return Deposito(
-    // ✅ Corrección: Convierte directamente desde num
-    deposito: (json['deposito'] as num).toDouble(),
-    saldofavor: (json['saldofavor'] as num).toDouble(),
-    pagoMoratorio: (json['pagoMoratorio'] as num).toDouble(),
-    garantia: json['garantia'] ?? 'No',
-  );
-}
 }

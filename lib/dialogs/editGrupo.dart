@@ -237,15 +237,86 @@ class _editGrupoDialogState extends State<editGrupoDialog>
 }
 
   Future<List<Map<String, dynamic>>> findPersons(String query) async {
-    final url = Uri.parse('http://$baseUrl/api/v1/clientes/$query');
-    final response = await http.get(url);
+    if (query.isEmpty) return [];
 
-    if (response.statusCode == 200) {
-      List<dynamic> data = json.decode(response.body);
-      return List<Map<String, dynamic>>.from(data);
-    } else {
-      throw Exception('Error al cargar los datos: ${response.statusCode}');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.get(
+        Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      } else if (response.statusCode == 404) {
+        final errorData = json.decode(response.body);
+        if (errorData["Error"]["Message"] == "jwt expired") {
+          _handleTokenExpiration();
+        }
+      }
+      return [];
+    } catch (e) {
+      if (mounted && !_dialogShown) {
+        _mostrarDialogo(
+          title: 'Error',
+          message:
+              'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+          isSuccess: false,
+        );
+      }
+      return [];
     }
+  }
+void _handleTokenExpiration() async {
+    if (mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('tokenauth');
+
+      _mostrarDialogo(
+        title: 'Sesión expirada',
+        message: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+        isSuccess: false,
+        onClose: () => Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        ),
+      );
+    }
+  }
+
+  void _mostrarDialogo({
+    required String title,
+    required String message,
+    required bool isSuccess,
+    VoidCallback? onClose,
+  }) {
+    if (!mounted || _dialogShown) return;
+
+    _dialogShown = true;
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title,
+            style: TextStyle(color: isSuccess ? Colors.green : Colors.red)),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              onClose?.call();
+            },
+            child: Text('Aceptar'),
+          ),
+        ],
+      ),
+    ).then((_) => _dialogShown = false);
   }
 
   Future<void> enviarGrupo() async {
@@ -298,81 +369,92 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     }
   }
 
-  Future<void> _enviarMiembros(String idGrupo) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
+  // 1. Modificar _enviarMiembros para enviar todos los miembros en una sola solicitud
+Future<bool> _enviarMiembros(String idGrupo) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
 
-      for (var persona in _selectedPersons) {
-        if (originalMemberIds.contains(persona['idclientes'].toString()))
-          continue;
+    // Filtrar solo nuevos miembros (no existentes originalmente)
+    final nuevosMiembros = _selectedPersons.where((persona) => 
+      !originalMemberIds.contains(persona['idclientes'].toString())
+    ).toList();
 
-        final miembroData = {
-          'idgrupos': idGrupo,
-          'idclientes': persona['idclientes'],
-          'idusuarios': '6KNV796U0O',
-          'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
-        };
+    if (nuevosMiembros.isEmpty) return true; // No hay miembros nuevos
 
-        final response = await http.post(
-          Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
-          headers: {'Content-Type': 'application/json', 'tokenauth': token},
-          body: json.encode(miembroData),
-        );
+    final response = await http.post(
+      Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
+      headers: {'Content-Type': 'application/json', 'tokenauth': token},
+      body: json.encode({
+        'idgrupos': idGrupo,
+        'clientes': nuevosMiembros.map((persona) => {
+          'idclientes': persona['idclientes'].toString(), // Asegurar string
+          'nomCargo': _cargosSeleccionados[persona['idclientes'] ?? 'Miembro'],
+        }).toList(),
+        'idusuarios': grupoData['idusuario'] ?? '6KNV796U0O', // Ajustar según tu lógica
+      }),
+    );
 
-        if (response.statusCode != 201) {
-          throw Exception('Error al agregar miembro: ${response.body}');
-        }
-      }
-    } catch (e) {
-      _handleNetworkError(e);
-      rethrow;
+   print('Body enviado: ${json.encode({
+  'idgrupos': idGrupo,
+  'clientes': nuevosMiembros.map((persona) => {
+    'idclientes': persona['idclientes'].toString(),
+    'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
+  }).toList(),
+  'idusuarios': grupoData['idusuario'] ?? '6KNV796U0O',
+})}');
+
+    if (!mounted) return false;
+
+    if (response.statusCode == 201) {
+      return true;
+    } else {
+      _handleApiError(response, 'Error al agregar miembros');
+      return false;
     }
+  } catch (e) {
+    _handleNetworkError(e);
+    return false;
   }
+}
 
-  Future<void> editarGrupo() async {
-    if (!_validarFormularioActual()) return;
+// 2. Actualizar editarGrupo para manejar el nuevo flujo
+Future<void> editarGrupo() async {
+  if (!_validarFormularioActual()) return;
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
 
-      // Actualizar grupo
-      await enviarGrupo();
+    // Actualizar datos básicos del grupo
+    await enviarGrupo();
 
-      // Eliminar miembros removidos
-      await eliminarClienteGrupo(widget.idGrupo, token);
+    // Eliminar miembros removidos
+    await eliminarClienteGrupo(widget.idGrupo, token);
 
-      // Actualizar cargos
-      for (var cliente in _selectedPersons) {
-        String idCliente = cliente['idclientes'].toString();
-        String cargoEditado = _cargosSeleccionados[idCliente] ?? 'Miembro';
+    // Actualizar cargos de miembros existentes
+    verificarCambios();
 
-        if (originalMemberIds.contains(idCliente)) {
-          await actualizarCargo(widget.idGrupo, idCliente, cargoEditado, token);
-        }
-      }
-
-      // Agregar nuevos miembros
-      await _enviarMiembros(widget.idGrupo);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Grupo y miembros actualizados correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      _handleNetworkError(e);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    // Agregar nuevos miembros (ahora envía array en una sola llamada)
+    final success = await _enviarMiembros(widget.idGrupo);
+    
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Grupo y miembros actualizados correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.of(context).pop();
     }
+  } catch (e) {
+    mostrarDialogoError('Error durante la actualización: ${e.toString()}');
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 
   Future<void> eliminarClienteGrupo(String idGrupo, String token) async {
     if (_clientesEliminados.isEmpty) return;
@@ -460,20 +542,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
 }
 
 // Funciones de ayuda para manejo de errores
-  void _handleTokenExpiration() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('tokenauth');
-
-    if (mounted) {
-      mostrarDialogoError(
-        'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-        onClose: () => Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-        ),
-      );
-    }
-  }
+  
 
   void _handleApiError(http.Response response, String mensajeBase) {
     final errorData = json.decode(response.body);
@@ -498,6 +567,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: width,
