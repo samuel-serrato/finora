@@ -23,43 +23,119 @@ class ReporteGeneralWidget extends StatelessWidget {
     this.cellTextSize = 11.0,
   });
 
+    // Color principal definido como constante para fácil referencia
+  static const Color primaryColor = Color(0xFF5162F6);
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              spreadRadius: 2,
+  return Container(
+    padding: const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
+    child: Column(
+      children: [
+        // Header fuera del container con ClipRRect
+        if (reporteData != null) _buildHeader(context),
+        const SizedBox(height: 10), // Espacio entre el header y el contenedor principal
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: listaReportes.isEmpty
+                  ? const Center(child: Text('No hay datos para mostrar'))
+                  : Column(
+                      children: [
+                        _buildDataTableHeader(),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            controller: verticalScrollController,
+                            child: _buildDataTableBody(),
+                          ),
+                        ),
+                        if (reporteData != null) _buildTotalsWidget(),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildHeader(BuildContext context) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      const Icon(
+        Icons.bar_chart_rounded,
+        color: primaryColor,
+        size: 22,
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          /*   Text(
+              'Reporte Contable Financiero',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                    fontSize: 14,
+                  ),
+            ), */
+            Row(
+              children: [
+                Text(
+                  'Período: ',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  reporteData!.fechaSemana,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Generado: ',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  reporteData!.fechaActual,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-          child: listaReportes.isEmpty
-              ? const Center(child: Text('No hay datos para mostrar'))
-              : Column(
-                  children: [
-                    _buildDataTableHeader(),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: verticalScrollController,
-                        child: _buildDataTableBody(),
-                      ),
-                    ),
-                    if (reporteData != null) _buildTotalsWidget(),
-                  ],
-                ),
-        ),
       ),
-    );
-  }
+    ],
+  );
+}
 
   Widget _buildDataTableHeader() {
     return Container(

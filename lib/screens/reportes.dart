@@ -293,7 +293,7 @@ Widget _buildContableWithDebug() {
 
   Widget _buildFilterRow() {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Row(
         children: [
           Expanded(

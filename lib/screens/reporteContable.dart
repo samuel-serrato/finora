@@ -15,367 +15,699 @@ class ReporteContableWidget extends StatelessWidget {
     required this.horizontalScrollController,
   });
 
+  // Color principal definido como constante para fácil referencia
+  static const Color primaryColor = Color(0xFF5162F6);
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: Column(
-        children: [
-          _buildHeader(context),
-          _buildTotalsSection(context),
-          const SizedBox(height: 20),
-          Expanded(
-            child: _buildGroupList(), // Cambiamos a lista de grupos
-          ),
-        ],
+    return Scaffold(
+      body: Container(
+        padding: const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header fuera del container principal
+            _buildHeader(context),
+            const SizedBox(height: 10),
+            // Container principal con bordes redondeados y sombra
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        // Contenido principal
+                        Expanded(
+                          child: _buildGruposList(),
+                        ),
+                        const SizedBox(height: 12),
+                        // La tarjeta de totales ahora va al final
+                        _buildTotalesCard(context),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildGroupList() {
+  // SECCIÓN: CABECERA CON TÍTULO Y FECHAS
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.bar_chart_rounded,
+          color: primaryColor,
+          size: 22,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Período: ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    reporteData.fechaSemana,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Generado: ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    reporteData.fechaActual,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // SECCIÓN: TARJETA DE TOTALES (renombrado de _buildSummaryCard)
+  Widget _buildTotalesCard(BuildContext context) {
+    return Card(
+      elevation: 1,
+      color: Colors.white,
+       shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              // Totales text now as part of the row
+              Container(
+                padding: const EdgeInsets.only(right: 16),
+                child: const Text(
+                  'Totales',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                   ),
+                ),
+              ),
+              // Vertical divider between title and items
+              Container(
+                height: 24,
+                width: 1,
+                color: Colors.white30,
+                margin: const EdgeInsets.only(right: 16),
+              ),
+              // All summary items in a single row
+              _buildSummaryItem('Capital Total', reporteData.totalCapital,
+                  isWhiteText: true),
+              const SizedBox(width: 24),
+              _buildSummaryItem('Interés Total', reporteData.totalInteres,
+                  isWhiteText: true),
+              const SizedBox(width: 24),
+              _buildSummaryItem('Pago Fichas', reporteData.totalPagoficha,
+                  isWhiteText: true),
+              const SizedBox(width: 24),
+              _buildSummaryItem('Saldo Favor', reporteData.totalSaldoFavor,
+                  isWhiteText: true),
+              const SizedBox(width: 24),
+              _buildSummaryItem('Moratorio', reporteData.saldoMoratorio,
+                  isWhiteText: true),
+              const SizedBox(width: 24),
+              _buildSummaryItem(
+                'Total General',
+                reporteData.totalTotal,
+                isWhiteText: true,
+              ),
+              const SizedBox(width: 24),
+              _buildSummaryItem('Total Fichas', reporteData.totalFicha,
+                  isWhiteText: true),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // The _buildSummaryItem method remains the same
+  Widget _buildSummaryItem(String label, double value,
+      {bool isPrimary = false, bool isWhiteText = false}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            color: isPrimary ? primaryColor : Colors.grey[300],
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+              ),
+            ),
+            Text(
+              currencyFormat.format(value),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+                color: isPrimary ? primaryColor : Colors.grey[800],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // SECCIÓN: LISTA DE GRUPOS
+  Widget _buildGruposList() {
     return ListView.builder(
       controller: verticalScrollController,
       itemCount: reporteData.listaGrupos.length,
       itemBuilder: (context, index) {
         final grupo = reporteData.listaGrupos[index];
-        return _buildGroupCard(grupo);
+        return _buildGrupoCard(grupo);
       },
     );
   }
 
-  Widget _buildGroupCard(ReporteContableGrupo grupo) {
+  Widget _buildGrupoCard(ReporteContableGrupo grupo) {
+    final isActivo = grupo.estado.toLowerCase() == 'activo';
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 15),
-      elevation: 3,
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 1,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: BorderSide(
+          color: Colors.grey[400]!,
+          width: 1,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(15.0),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildGroupHeader(grupo),
-            const SizedBox(height: 10),
-            _buildClientsList(grupo.clientes),
-            const SizedBox(height: 10),
-            _buildDepositInfo(grupo.pagoficha),
-          ],
-        ),
-      ),
-    );
-  }
+            // Encabezado del grupo
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Text(
+                                  grupo.grupos,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '(Folio: ${grupo.folio})',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Wrap(
+                            spacing: 12,
+                            children: [
+                              _buildInfoText('Semanas: ${grupo.semanas}'),
+                              _buildInfoText('Tasa: ${grupo.tazaInteres}%'),
+                              _buildInfoText('Semana: ${grupo.pagoPeriodo}'),
+                              _buildInfoText('Pago: ${grupo.tipopago}'),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                    ],
+                  ),
+                ),
+              ],
+            ),
 
-  Widget _buildGroupHeader(ReporteContableGrupo grupo) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        children: [
-          Expanded(
-            child: Column(
+            const Divider(height: 16, thickness: 0.5),
+
+            // Nueva disposición: Row con 3 columnas
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  grupo.grupos,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[800],
+                // COLUMNA 1: Tabla de clientes (lado izquierdo)
+                Expanded(
+                  flex: 3,
+                  child: _buildClientesSection(grupo),
+                ),
+
+                // COLUMNA 2: Información financiera (ahora en medio)
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Título de sección financiera
+                      Row(
+                        children: [
+                          Icon(Icons.attach_money,
+                              size: 14, color: primaryColor),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Información Financiera',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 11,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // CAMBIO: De Column a Row para los elementos financieros
+                      Row(
+                        children: [
+                          // Capital Semanal
+                          Expanded(
+                            child: _buildFinancialInfo(
+                                'Capital Semanal', grupo.capitalsemanal),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // Interés Semanal
+                          Expanded(
+                            child: _buildFinancialInfo(
+                                'Interés Semanal', grupo.interessemanal),
+                          ),
+                          const SizedBox(width: 8),
+                          // Monto Ficha
+                          Expanded(
+                            child: _buildFinancialInfo(
+                                'Monto Ficha', grupo.montoficha),
+                          ),
+                        ],
+                      ),
+
+                      // Espacio para alinear mejor con las otras columnas
+                      const SizedBox(height: 30),
+                    ],
                   ),
                 ),
-                Text(
-                  'Folio: ${grupo.folio} | Grupo #${grupo.num}',
-                  style: TextStyle(color: Colors.grey[600]),
+
+                // COLUMNA 3: Información de depósitos (lado derecho)
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: _buildDepositosSection(grupo.pagoficha),
                 ),
               ],
             ),
-          ),
-          _buildEstadoChip(grupo.estado),
-        ],
+          ],
+        ),
       ),
-      const SizedBox(height: 8),
-      Wrap(
-        spacing: 15,
-        runSpacing: 8,
-        children: [
-          _buildGroupDetailItem('Tipo Pago:', grupo.tipopago),
-          _buildGroupDetailItem('Semanas:', '${grupo.semanas}'),
-          _buildGroupDetailItem('Tasa Interés:', '${grupo.tazaInteres}%'),
-          _buildGroupDetailItem('Pago Periodo:', '${grupo.pagoPeriodo}'),
-        ],
-      ),
-      const SizedBox(height: 8),
-      Wrap(
-        spacing: 15,
-        runSpacing: 8,
-        children: [
-          _buildGroupDetailItem('Monto Ficha:', currencyFormat.format(grupo.montoficha)),
-          _buildGroupDetailItem('Capital Semanal:', currencyFormat.format(grupo.capitalsemanal)),
-          _buildGroupDetailItem('Interés Semanal:', currencyFormat.format(grupo.interessemanal)),
-        ],
-      ),
-    ],
-  );
-}
+    );
+  }
 
-Widget _buildGroupDetailItem(String label, String value) {
-  return RichText(
-    text: TextSpan(
+  Widget _buildInfoText(String text) {
+    return Text(
+      text,
       style: TextStyle(
-        color: Colors.grey[700],
-        fontSize: 13,
-      ),
-      children: [
-        TextSpan(
-          text: label,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        TextSpan(text: ' $value'),
-      ],
-    ),
-  );
-}
-
-  Widget _buildClientsList(List<Cliente> clientes) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Clientes (${clientes.length})',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: Colors.grey[700],
-          ),
-        ),
-        const SizedBox(height: 8),
-        ...clientes.map((cliente) => _buildClientCard(cliente)).toList(),
-      ],
-    );
-  }
-
-  Widget _buildClientCard(Cliente cliente) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      color: Colors.grey[50],
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              cliente.nombreCompleto,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 6),
-            _buildClientDetails(cliente),
-          ],
-        ),
+        fontSize: 11,
+        color: Colors.grey[900],
+        fontWeight: FontWeight.w500,
       ),
     );
   }
 
- Widget _buildClientDetails(Cliente cliente) {
-  return Wrap(
-    spacing: 15,
-    runSpacing: 10,
-    children: [
-      _buildDetailItem('Monto Individual', cliente.montoIndividual),
-      _buildDetailItem('Capital/Periodo', cliente.periodoCapital),
-      _buildDetailItem('Interés/Periodo', cliente.periodoInteres),
-      _buildDetailItem('Capital + Interés', cliente.capitalMasInteres),
-      _buildDetailItem('Total Capital', cliente.totalCapital),
-      _buildDetailItem('Total Interés', cliente.interesTotal),
-      _buildDetailItem('Total Ficha', cliente.totalFicha),
-    ],
-  );
-}
-
-String _formatDateSafe(String dateString) {
-  try {
-    if (dateString.isEmpty) return 'Fecha no disponible';
-    final date = DateTime.parse(dateString);
-    return DateFormat('dd/MM/yyyy').format(date);
-  } catch (e) {
-    print('Error formateando fecha: $dateString. Error: $e');
-    return 'Fecha inválida';
-  }
-}
-
-  Widget _buildDepositInfo(Pagoficha pagoficha) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Divider(),
-      const SizedBox(height: 8),
-      Text(
-        'Información de Depósitos',
-        style: TextStyle(
-          fontWeight: FontWeight.w500,
-          color: Colors.grey[700],
-        ),
+  // Versión para usar en Row (horizontal)
+  Widget _buildFinancialInfo(String label, double value) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey[200]!),
       ),
-      const SizedBox(height: 8),
-      Text(
-        'Fecha de depósito: ${_formatDateSafe(pagoficha.fechaDeposito)}',
-        style: TextStyle(color: Colors.grey[600]),
-      ),
-      const SizedBox(height: 8),
-      ...pagoficha.depositos.map((deposito) => _buildDepositItem(deposito)),
-    ],
-  );
-}
-
-Widget _buildDepositItem(Deposito deposito) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Card(
-      color: Colors.grey[50],
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildDetailItem('Depósito', deposito.deposito),
-                _buildDetailItem('Saldo', deposito.saldofavor),
-                _buildDetailItem('Moratorio', deposito.pagoMoratorio),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Chip(
-                  label: Text(deposito.garantia),
-                  backgroundColor: deposito.garantia == "Si" 
-                      ? Colors.green[50] 
-                      : Colors.red[50],
-                  labelStyle: TextStyle(
-                    color: deposito.garantia == "Si"
-                        ? Colors.green[800]
-                        : Colors.red[800],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-  Widget _buildDetailItem(String label, double value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[600],
+            ),
           ),
           Text(
             currencyFormat.format(value),
-            style: const TextStyle(fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+              color: primaryColor,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEstadoChip(String estado) {
-    final isActivo = estado.toLowerCase() == 'activo';
-    return Chip(
-      label: Text(estado),
-      labelStyle: TextStyle(
-        color: isActivo ? Colors.green[800] : Colors.red[800],
-      ),
-      backgroundColor: isActivo ? Colors.green[50] : Colors.red[50],
-      side: BorderSide.none,
-    );
-  }
+  // SECCIÓN: CLIENTES
+  Widget _buildClientesSection(ReporteContableGrupo grupo) {
+    // Calcular totales
+    double totalCapital = 0;
+    double totalInteres = 0;
+    double totalGeneral = 0;
 
-   Widget _buildHeader(BuildContext context) {
+    for (var cliente in grupo.clientes) {
+      totalCapital += cliente.periodoCapital;
+      totalInteres += cliente.periodoInteres;
+      totalGeneral += cliente.capitalMasInteres;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Reporte Contable Financiero',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.blue[800],
-              ),
-        ),
-        const SizedBox(height: 10),
         Row(
           children: [
-            _buildInfoItem('Período:', reporteData.fechaSemana),
-            const SizedBox(width: 20),
-            _buildInfoItem('Generado:', reporteData.fechaActual),
+            Icon(Icons.people, size: 14, color: primaryColor),
+            const SizedBox(width: 6),
+            Text(
+              'Clientes (${grupo.clientes.length})',
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                color: primaryColor,
+              ),
+            ),
+            const SizedBox(width: 6),
+           
           ],
         ),
-      ],
-    );
-  }
-
-
-  Widget _buildInfoItem(String label, String value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(width: 5),
-        Text(value.isNotEmpty ? value : '--/--/----'),
-      ],
-    );
-  }
-
-  Widget _buildTotalsSection(BuildContext context) {
-    return Card(
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Wrap(
-          spacing: 30,
-          runSpacing: 15,
-          children: [
-            _buildTotalItem('Capital Total:', reporteData.totalCapital),
-            _buildTotalItem('Interés Total:', reporteData.totalInteres),
-            _buildTotalItem('Pago Fichas:', reporteData.totalPagoficha),
-            _buildTotalItem('Saldo a Favor:', reporteData.totalSaldoFavor),
-            _buildTotalItem('Moratorio:', reporteData.saldoMoratorio),
-            _buildTotalItem('Total General:', reporteData.totalTotal),
-            _buildTotalItem('Total Fichas:', reporteData.totalFicha),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTotalItem(String label, double value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey[700],
-            fontWeight: FontWeight.w500,
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: horizontalScrollController,
+            child: DataTable(
+              headingRowHeight: 36,
+              dataRowHeight: 32,
+              horizontalMargin: 12,
+              columnSpacing: 16,
+              headingRowColor: MaterialStateProperty.all(Colors.white),
+              headingTextStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: primaryColor,
+                fontSize: 11,
+              ),
+              dataTextStyle: const TextStyle(
+                fontSize: 11,
+                color: Colors.black87,
+              ),
+              columns: const [
+                DataColumn(
+                  label: Text('Nombre Cliente'),
+                ),
+                DataColumn(
+                  label: Text('Capital'),
+                  numeric: true,
+                ),
+                DataColumn(
+                  label: Text('Interés'),
+                  numeric: true,
+                ),
+                DataColumn(
+                  label: Text('Capital + Interés'),
+                  numeric: true,
+                ),
+              ],
+              rows: [
+                ...grupo.clientes.map(
+                  (cliente) => DataRow(
+                    cells: [
+                      DataCell(Text(cliente.nombreCompleto)),
+                      DataCell(
+                          Text(currencyFormat.format(cliente.periodoCapital))),
+                      DataCell(
+                          Text(currencyFormat.format(cliente.periodoInteres))),
+                      DataCell(Text(
+                          currencyFormat.format(cliente.capitalMasInteres))),
+                    ],
+                  ),
+                ),
+                // Fila de totales
+                DataRow(
+                  color: MaterialStateProperty.all(
+                      const Color.fromRGBO(81, 98, 246, 0.1)),
+                  cells: [
+                    const DataCell(
+                      Text(
+                        'Totales',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        currencyFormat.format(totalCapital),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        currencyFormat.format(totalInteres),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        currencyFormat.format(totalGeneral),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(width: 5),
+      ],
+    );
+  }
+
+  // SECCIÓN: DEPÓSITOS
+  Widget _buildDepositosSection(Pagoficha pagoficha) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.account_balance, size: 14, color: primaryColor),
+            const SizedBox(width: 6),
+            Text(
+              'Depósitos',
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                color: primaryColor,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Fecha: ${_formatDateSafe(pagoficha.fechaDeposito)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 250),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: pagoficha.depositos.length,
+            itemBuilder: (context, index) {
+              final deposito = pagoficha.depositos[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildDepositoDetail(
+                          'Depósito',
+                          deposito.deposito,
+                          Icons.arrow_downward,
+                        ),
+                        _buildDepositoDetail(
+                          'Saldo a Favor',
+                          deposito.saldofavor,
+                          Icons.account_balance_wallet,
+                        ),
+                        _buildDepositoDetail(
+                          'Moratorio',
+                          deposito.pagoMoratorio,
+                          Icons.warning,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // Solo mostrar la etiqueta de garantía cuando sea "Si"
+                    if (deposito.garantia == "Si")
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Color(0xFFE53888),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Garantía',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDepositoDetail(String label, double value, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 10, color: Colors.grey[600]),
+            const SizedBox(width: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
         Text(
           currencyFormat.format(value),
           style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
+            fontWeight: FontWeight.w500,
+            fontSize: 11,
           ),
         ),
       ],
     );
   }
 
+  String _formatDateSafe(String dateString) {
+    try {
+      if (dateString.isEmpty) return 'N/A';
+      final date = DateTime.parse(dateString);
+      return DateFormat('dd/MM/yyyy').format(date);
+    } catch (e) {
+      return 'Fecha inválida';
+    }
+  }
 }
