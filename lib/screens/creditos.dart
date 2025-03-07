@@ -494,8 +494,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     );
   }
 
-  final double textHeaderTableSize = 11.0;
-  final double textTableSize = 10.0;
+  final double textHeaderTableSize = 12.0;
+  final double textTableSize = 11.0;
   Widget tabla(BuildContext context) {
 
     return SizedBox(
@@ -525,9 +525,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   Text('Desembolsado', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
               label: Text('Interés %', style: TextStyle(fontSize: textHeaderTableSize))),
-          DataColumn(
-              label:
-                  Text('Interés Total', style: TextStyle(fontSize: textHeaderTableSize))),
+         
           DataColumn(
               label:
                   Text('M. a Recuperar', style: TextStyle(fontSize: textHeaderTableSize))),
@@ -582,9 +580,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               DataCell(Center(
                   child: Text('${credito.interesGlobal}%',
                       style:  TextStyle(fontSize: textTableSize)))),
-              DataCell(Center(
-                  child: Text('\$${credito.interesTotal.toStringAsFixed(2)}',
-                      style:  TextStyle(fontSize: textTableSize)))),
+            
               DataCell(Center(
                   child: Text('\$${credito.montoMasInteres.toStringAsFixed(2)}',
                       style:  TextStyle(fontSize: textTableSize)))),

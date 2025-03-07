@@ -1,17 +1,16 @@
 class ParseHelpers {
   static double parseDouble(dynamic value) {
-  if (value == null) return 0.0;
-  if (value is double) return value;
-  if (value is int) return value.toDouble();
-  if (value is String) {
-    // Eliminar comas y símbolos de moneda
-    String cleanedValue = value
-        .replaceAll(RegExp(r'[^0-9.]'), '')
-        .replaceAll(',', '');
-    return double.tryParse(cleanedValue) ?? 0.0;
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      // Eliminar comas y símbolos de moneda
+      String cleanedValue =
+          value.replaceAll(RegExp(r'[^0-9.]'), '').replaceAll(',', '');
+      return double.tryParse(cleanedValue) ?? 0.0;
+    }
+    return 0.0;
   }
-  return 0.0;
-}
 
   static List<T> parseList<T>(dynamic data, T Function(dynamic) converter) {
     if (data == null) return [];
@@ -50,10 +49,10 @@ class ReporteContableData {
   });
 
   factory ReporteContableData.fromJson(Map<String, dynamic> json) {
-      print('JSON recibido en fromJson:');
-  print('Keys disponibles: ${json.keys}');
-  print('¿Existe fechaSemana? ${json.containsKey('fechaSemana')}');
-  print('¿Existe listaGrupos? ${json.containsKey('listaGrupos')}');
+    print('JSON recibido en fromJson:');
+    print('Keys disponibles: ${json.keys}');
+    print('¿Existe fechaSemana? ${json.containsKey('fechaSemana')}');
+    print('¿Existe listaGrupos? ${json.containsKey('listaGrupos')}');
     return ReporteContableData(
       fechaSemana: json['fechaSemana'] ?? '',
       fechaActual: json['fechaActual'] ?? '',
@@ -82,9 +81,17 @@ class ReporteContableGrupo {
   final String grupos;
   final String estado;
   final Pagoficha pagoficha;
+  final String garantia;
+  final double montoDesembolsado;
+  final double montoSolicitado;
+  final double interesCredito;
+  final double montoARecuperar;
+  final double restanteGlobal;
   final double montoficha;
+  final double restanteFicha;
   final double capitalsemanal;
   final double interessemanal;
+  final double saldoGlobal;
   final List<Cliente> clientes;
 
   ReporteContableGrupo({
@@ -97,15 +104,21 @@ class ReporteContableGrupo {
     required this.grupos,
     required this.estado,
     required this.pagoficha,
+    required this.garantia,
+    required this.montoDesembolsado,
+    required this.montoSolicitado,
+    required this.interesCredito,
+    required this.montoARecuperar,
+    required this.restanteGlobal,
     required this.montoficha,
+    required this.restanteFicha,
     required this.capitalsemanal,
     required this.interessemanal,
+    required this.saldoGlobal,
     required this.clientes,
   });
 
   factory ReporteContableGrupo.fromJson(Map<String, dynamic> json) {
-      print('JSON recibido: $json'); // Debug clave
-
     return ReporteContableGrupo(
       num: json['num'] ?? 0,
       tipopago: json['tipopago'] ?? '',
@@ -116,9 +129,17 @@ class ReporteContableGrupo {
       grupos: json['grupos'] ?? '',
       estado: json['estado'] ?? '',
       pagoficha: Pagoficha.fromJson(json['pagoficha'] ?? {}),
+      garantia: json['garantia'] ?? '',
+      montoDesembolsado: ParseHelpers.parseDouble(json['montoDesembolsado']),
+      montoSolicitado: ParseHelpers.parseDouble(json['montoSolicitado']),
+      interesCredito: ParseHelpers.parseDouble(json['interesCredito']),
+      montoARecuperar: ParseHelpers.parseDouble(json['montoARecuperar']),
+      restanteGlobal: ParseHelpers.parseDouble(json['restanteGlobal']),
       montoficha: ParseHelpers.parseDouble(json['montoficha']),
+      restanteFicha: ParseHelpers.parseDouble(json['restanteFicha']),
       capitalsemanal: ParseHelpers.parseDouble(json['capitalsemanal']),
       interessemanal: ParseHelpers.parseDouble(json['interessemanal']),
+      saldoGlobal: ParseHelpers.parseDouble(json['saldoGlobal']),
       clientes: ParseHelpers.parseList(
         json['clientes'],
         (item) => Cliente.fromJson(item),
@@ -130,27 +151,33 @@ class ReporteContableGrupo {
 class Pagoficha {
   final String idpagosdetalles;
   final String idgrupos;
-  final String fechaDeposito;
+  final int semanaPago;
+  final String fechasPago;
+  final double sumaDeposito;
   final List<Deposito> depositos;
 
   Pagoficha({
     required this.idpagosdetalles,
     required this.idgrupos,
-    required this.fechaDeposito,
+    required this.semanaPago,
+    required this.fechasPago,
+    required this.sumaDeposito,
     required this.depositos,
   });
 
   factory Pagoficha.fromJson(Map<String, dynamic> json) {
-  return Pagoficha(
-    idpagosdetalles: json['idpagosdetalles']?.toString() ?? '',
-    idgrupos: json['idgrupos']?.toString() ?? '',
-    fechaDeposito: json['fechaDeposito']?.toString() ?? '', // ¡Verifica el nombre del campo!
-    depositos: ParseHelpers.parseList(
-      json['depositos'],
-      (item) => Deposito.fromJson(item),
-    ),
-  );
-}
+    return Pagoficha(
+      idpagosdetalles: json['idpagosdetalles']?.toString() ?? '',
+      idgrupos: json['idgrupos']?.toString() ?? '',
+      semanaPago: json['semanaPago'] ?? 0,
+      fechasPago: json['fechasPago']?.toString() ?? '',
+      sumaDeposito: ParseHelpers.parseDouble(json['sumaDeposito']),
+      depositos: ParseHelpers.parseList(
+        json['depositos'],
+        (item) => Deposito.fromJson(item),
+      ),
+    );
+  }
 }
 
 class Deposito {
@@ -158,12 +185,14 @@ class Deposito {
   final double saldofavor;
   final double pagoMoratorio;
   final String garantia;
+  final String fechaDeposito; // New field
 
   Deposito({
     required this.deposito,
     required this.saldofavor,
     required this.pagoMoratorio,
     required this.garantia,
+    required this.fechaDeposito, // New parameter
   });
 
   factory Deposito.fromJson(Map<String, dynamic> json) {
@@ -172,6 +201,7 @@ class Deposito {
       saldofavor: ParseHelpers.parseDouble(json['saldofavor']),
       pagoMoratorio: ParseHelpers.parseDouble(json['pagoMoratorio']),
       garantia: json['garantia'] ?? 'No',
+      fechaDeposito: json['fechaDeposito'] ?? '', // Parse the new field
     );
   }
 }

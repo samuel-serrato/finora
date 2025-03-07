@@ -9,7 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:finora/models/reporte_general.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
-class ExportHelper {
+class ExportHelperGeneral {
   
   static void mostrarDialogoError(BuildContext context, String mensaje) {
     // Mostrar un SnackBar

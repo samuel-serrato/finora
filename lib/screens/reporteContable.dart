@@ -22,7 +22,8 @@ class ReporteContableWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        padding: const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
+        padding:
+            const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -54,7 +55,7 @@ class ReporteContableWidget extends StatelessWidget {
                         Expanded(
                           child: _buildGruposList(),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 0),
                         // La tarjeta de totales ahora va al final
                         _buildTotalesCard(context),
                       ],
@@ -128,61 +129,73 @@ class ReporteContableWidget extends StatelessWidget {
 
   // SECCIÓN: TARJETA DE TOTALES (renombrado de _buildSummaryCard)
   Widget _buildTotalesCard(BuildContext context) {
-    return Card(
-      elevation: 1,
-      color: Colors.white,
-       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+    return SizedBox(
+      width: double.infinity, // Ocupa todo el ancho disponible
+      child: Card(
+        elevation: 1,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: BorderSide(
+            color: Colors.grey[400]!,
+            width: 1,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment
+                .spaceBetween, // Separa el texto "Totales" y los elementos de resumen
             children: [
-              // Totales text now as part of the row
-              Container(
-                padding: const EdgeInsets.only(right: 16),
-                child: const Text(
-                  'Totales',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
-                   ),
+              // Texto "Totales" a la izquierda
+              const Text(
+                'Totales',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: primaryColor,
                 ),
               ),
-              // Vertical divider between title and items
-              Container(
-                height: 24,
-                width: 1,
-                color: Colors.white30,
-                margin: const EdgeInsets.only(right: 16),
+              // Elementos de resumen a la derecha
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    // Vertical divider entre el texto "Totales" y los elementos de resumen
+                    Container(
+                      height: 24,
+                      width: 1,
+                      color: Colors.white30,
+                      margin: const EdgeInsets.only(right: 16),
+                    ),
+                    // Todos los elementos de resumen en una fila
+                    _buildSummaryItem('Capital Total', reporteData.totalCapital,
+                        isWhiteText: true),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem('Interés Total', reporteData.totalInteres,
+                        isWhiteText: true),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem('Monto Fichas', reporteData.totalFicha,
+                        isWhiteText: true),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem('Pago Fichas', reporteData.totalPagoficha,
+                        isWhiteText: true),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem(
+                        'Saldo Favor', reporteData.totalSaldoFavor,
+                        isWhiteText: true),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem('Moratorios', reporteData.saldoMoratorio,
+                        isWhiteText: true),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem(
+                      'Total Total',
+                      reporteData.totalTotal,
+                      isWhiteText: true,
+                    ),
+                  ],
+                ),
               ),
-              // All summary items in a single row
-              _buildSummaryItem('Capital Total', reporteData.totalCapital,
-                  isWhiteText: true),
-              const SizedBox(width: 24),
-              _buildSummaryItem('Interés Total', reporteData.totalInteres,
-                  isWhiteText: true),
-              const SizedBox(width: 24),
-              _buildSummaryItem('Pago Fichas', reporteData.totalPagoficha,
-                  isWhiteText: true),
-              const SizedBox(width: 24),
-              _buildSummaryItem('Saldo Favor', reporteData.totalSaldoFavor,
-                  isWhiteText: true),
-              const SizedBox(width: 24),
-              _buildSummaryItem('Moratorio', reporteData.saldoMoratorio,
-                  isWhiteText: true),
-              const SizedBox(width: 24),
-              _buildSummaryItem(
-                'Total General',
-                reporteData.totalTotal,
-                isWhiteText: true,
-              ),
-              const SizedBox(width: 24),
-              _buildSummaryItem('Total Fichas', reporteData.totalFicha,
-                  isWhiteText: true),
             ],
           ),
         ),
@@ -207,7 +220,7 @@ class ReporteContableWidget extends StatelessWidget {
         const SizedBox(width: 6),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-           children: [
+          children: [
             Text(
               label,
               style: TextStyle(
@@ -236,12 +249,14 @@ class ReporteContableWidget extends StatelessWidget {
       itemCount: reporteData.listaGrupos.length,
       itemBuilder: (context, index) {
         final grupo = reporteData.listaGrupos[index];
-        return _buildGrupoCard(grupo);
+        return Container(
+            margin: EdgeInsets.symmetric(horizontal: 4),
+            child: _buildGrupoCard(context, grupo));
       },
     );
   }
 
-  Widget _buildGrupoCard(ReporteContableGrupo grupo) {
+  Widget _buildGrupoCard(context, ReporteContableGrupo grupo) {
     final isActivo = grupo.estado.toLowerCase() == 'activo';
 
     return Card(
@@ -295,7 +310,7 @@ class ReporteContableWidget extends StatelessWidget {
                             spacing: 12,
                             children: [
                               _buildInfoText('Semanas: ${grupo.semanas}'),
-                              _buildInfoText('Tasa: ${grupo.tazaInteres}%'),
+                              //_buildInfoText('Tasa: ${grupo.tazaInteres}%'),
                               _buildInfoText('Semana: ${grupo.pagoPeriodo}'),
                               _buildInfoText('Pago: ${grupo.tipopago}'),
                             ],
@@ -315,16 +330,18 @@ class ReporteContableWidget extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // COLUMNA 1: Tabla de clientes (lado izquierdo)
+                // COLUMNA 1: Tabla de clientes (lado izquierdo) - EXPANSIBLE
                 Expanded(
-                  flex: 3,
                   child: _buildClientesSection(grupo),
                 ),
 
-                // COLUMNA 2: Información financiera (ahora en medio)
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
+                // Separador (mínimo)
+                const SizedBox(width: 20),
+
+                // COLUMNA 2: Información financiera - ANCHO FIJO
+                // Actualización de la COLUMNA 2: Información financiera
+                Container(
+                  width: 300, // Ancho fijo reducido
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -335,7 +352,7 @@ class ReporteContableWidget extends StatelessWidget {
                               size: 14, color: primaryColor),
                           const SizedBox(width: 6),
                           const Text(
-                            'Información Financiera',
+                            'Información del Crédito',
                             style: TextStyle(
                               fontWeight: FontWeight.w500,
                               fontSize: 11,
@@ -346,7 +363,73 @@ class ReporteContableWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
 
-                      // CAMBIO: De Column a Row para los elementos financieros
+                      // Información de garantía y montos
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: _buildFinancialInfoText(
+                                      'Garantía', grupo.garantia),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: _buildFinancialInfoCompact(
+                                      'Tasa', grupo.tazaInteres,
+                                      isPercentage: true),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: _buildFinancialInfoCompact(
+                                      'Monto Solicitado',
+                                      grupo.montoSolicitado),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: _buildFinancialInfoCompact(
+                                      'Monto Desembolsado',
+                                      grupo.montoDesembolsado),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: _buildFinancialInfoCompact(
+                                      'Interés Total', grupo.interesCredito),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: _buildFinancialInfoCompact(
+                                      'Monto a Recuperar',
+                                      grupo.montoARecuperar),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Elementos financieros por período
                       Row(
                         children: [
                           // Capital Semanal
@@ -354,14 +437,13 @@ class ReporteContableWidget extends StatelessWidget {
                             child: _buildFinancialInfo(
                                 'Capital Semanal', grupo.capitalsemanal),
                           ),
-                          const SizedBox(width: 8),
-
+                          const SizedBox(width: 4),
                           // Interés Semanal
                           Expanded(
                             child: _buildFinancialInfo(
                                 'Interés Semanal', grupo.interessemanal),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 4),
                           // Monto Ficha
                           Expanded(
                             child: _buildFinancialInfo(
@@ -369,23 +451,117 @@ class ReporteContableWidget extends StatelessWidget {
                           ),
                         ],
                       ),
-
-                      // Espacio para alinear mejor con las otras columnas
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
 
-                // COLUMNA 3: Información de depósitos (lado derecho)
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
+                // Separador (mínimo)
+                const SizedBox(width: 20),
+
+                // COLUMNA 3: Información de depósitos - ANCHO FIJO
+                Container(
+                  width: 300, // Ancho fijo reducido
                   child: _buildDepositosSection(grupo.pagoficha),
                 ),
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Método para mostrar información financiera de manera compacta
+  Widget _buildFinancialInfoCompact(String label, double value,
+      {bool isPercentage = false}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+              ),
+            ),
+            Text(
+              '${currencyFormat.format(value)}${isPercentage ? '%' : ''}', // Agrega % si es necesario
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                color: Colors.black87,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+// Método nuevo para valores de texto (String)
+  Widget _buildFinancialInfoText(String label, String value) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                color: Colors.black87,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+// Método para mostrar etiquetas tipo "pill"
+  Widget _buildInfoPill(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -462,110 +638,193 @@ class ReporteContableWidget extends StatelessWidget {
                 color: primaryColor,
               ),
             ),
-            const SizedBox(width: 6),
-           
           ],
         ),
         const SizedBox(height: 6),
         Container(
+          width: double.infinity,
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey[300]!),
             borderRadius: BorderRadius.circular(4),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            controller: horizontalScrollController,
-            child: DataTable(
-              headingRowHeight: 36,
-              dataRowHeight: 32,
-              horizontalMargin: 12,
-              columnSpacing: 16,
-              headingRowColor: MaterialStateProperty.all(Colors.white),
-              headingTextStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-                fontSize: 11,
-              ),
-              dataTextStyle: const TextStyle(
-                fontSize: 11,
-                color: Colors.black87,
-              ),
-              columns: const [
-                DataColumn(
-                  label: Text('Nombre Cliente'),
-                ),
-                DataColumn(
-                  label: Text('Capital'),
-                  numeric: true,
-                ),
-                DataColumn(
-                  label: Text('Interés'),
-                  numeric: true,
-                ),
-                DataColumn(
-                  label: Text('Capital + Interés'),
-                  numeric: true,
-                ),
-              ],
-              rows: [
-                ...grupo.clientes.map(
-                  (cliente) => DataRow(
-                    cells: [
-                      DataCell(Text(cliente.nombreCompleto)),
-                      DataCell(
-                          Text(currencyFormat.format(cliente.periodoCapital))),
-                      DataCell(
-                          Text(currencyFormat.format(cliente.periodoInteres))),
-                      DataCell(Text(
-                          currencyFormat.format(cliente.capitalMasInteres))),
-                    ],
-                  ),
-                ),
-                // Fila de totales
-                DataRow(
-                  color: MaterialStateProperty.all(
-                      const Color.fromRGBO(81, 98, 246, 0.1)),
-                  cells: [
-                    const DataCell(
-                      Text(
-                        'Totales',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        currencyFormat.format(totalCapital),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        currencyFormat.format(totalInteres),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        currencyFormat.format(totalGeneral),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          // Aquí está el cambio principal, en vez de usar DataTable que tiene espaciado
+          // predeterminado, usaremos una tabla personalizada
+          child: Table(
+            columnWidths: const {
+              0: FlexColumnWidth(4), // Nombre del cliente - ancho mayor
+              1: FlexColumnWidth(1.5), // Capital
+              2: FlexColumnWidth(1.5), // Interés
+              3: FlexColumnWidth(1.5), // Capital + Interés
+            },
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            border: TableBorder(
+              horizontalInside: BorderSide(color: Colors.grey[300]!),
             ),
+            children: [
+              // Encabezado
+              TableRow(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+                ),
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Text(
+                      'Nombre Cliente',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Text(
+                      'Capital',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Text(
+                      'Interés',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Text(
+                      'Capital + Interés',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              // Filas de datos
+              ...grupo.clientes.map((cliente) => TableRow(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        child: Text(
+                          cliente.nombreCompleto,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
+                        child: Text(
+                          currencyFormat.format(cliente.periodoCapital),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
+                        child: Text(
+                          currencyFormat.format(cliente.periodoInteres),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 8),
+                        child: Text(
+                          currencyFormat.format(cliente.capitalMasInteres),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )),
+              // Fila de totales
+              TableRow(
+                decoration: const BoxDecoration(
+                  color: Color.fromRGBO(81, 98, 246, 0.1),
+                ),
+                children: [
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Text(
+                      'Totales',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Text(
+                      currencyFormat.format(totalCapital),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Text(
+                      currencyFormat.format(totalInteres),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    child: Text(
+                      currencyFormat.format(totalGeneral),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
@@ -573,38 +832,43 @@ class ReporteContableWidget extends StatelessWidget {
   }
 
   // SECCIÓN: DEPÓSITOS
+  // SECCIÓN: DEPÓSITOS
   Widget _buildDepositosSection(Pagoficha pagoficha) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(Icons.account_balance, size: 14, color: primaryColor),
-            const SizedBox(width: 6),
-            Text(
-              'Depósitos',
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 11,
-                color: primaryColor,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                'Fecha: ${_formatDateSafe(pagoficha.fechaDeposito)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey[600],
+            Row(
+              children: [
+                Icon(Icons.account_balance, size: 14, color: primaryColor),
+                const SizedBox(width: 6),
+                Text(
+                  'Depósitos',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 11,
+                    color: primaryColor,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
+              ],
+            ),
+            Text(
+              'Fecha programada: ${_formatDateSafe(pagoficha.fechasPago)}',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
         const SizedBox(height: 6),
+
         Container(
-          constraints: const BoxConstraints(maxHeight: 250),
+          constraints: const BoxConstraints(
+              maxHeight: 220), // Reducido para acomodar el nuevo elemento
           child: ListView.builder(
             shrinkWrap: true,
             itemCount: pagoficha.depositos.length,
@@ -620,6 +884,18 @@ class ReporteContableWidget extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
+                    // Mostrar la fecha del depósito
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        'Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -666,6 +942,38 @@ class ReporteContableWidget extends StatelessWidget {
                 ),
               );
             },
+          ),
+        ),
+        // Mostrar suma total de depósitos
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(8),
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: primaryColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: primaryColor.withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total depósitos:',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: primaryColor,
+                ),
+              ),
+              Text(
+                currencyFormat.format(pagoficha.sumaDeposito),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: primaryColor,
+                ),
+              ),
+            ],
           ),
         ),
       ],

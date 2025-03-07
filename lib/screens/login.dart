@@ -119,25 +119,25 @@ class _LoginScreenState extends State<LoginScreen> {
   final List<Map<String, dynamic>> _slides = [
     {
       'title': 'Control Financiero\nen un Solo Lugar',
-      'image': 'assets/finance.png',
+      //'image': 'assets/finance.png',
       'color': const Color(0xFF5162F6),
     },
     {
       'title': 'Crea Grupos Personalizados\nde Créditos',
       //'subtitle': 'Organiza por tasa de interés, garantías\no perfil de riesgo',
-      'image': 'assets/custom_groups.png', // Ej: Diagrama de nodos o tags
+      //'image': 'assets/custom_groups.png', // Ej: Diagrama de nodos o tags
       'color': const Color(0xFF009688), // Verde-azul profesional
     },
     {
       'title': 'Historial Completo\nde Transacciones',
       //'subtitle': 'Accede al registro de pagos,\nabonos y ajustes',
-      'image':
-          'assets/transaction_history.png', // Ej: Tabla con fechas y montos
+      //'image':
+        //  'assets/transaction_history.png', // Ej: Tabla con fechas y montos
       'color': const Color(0xFF9C27B0), // Morado para datos históricos
     },
     {
       'title': 'Reportes Detallados\ny en Tiempo Real',
-      'image': 'assets/reports.png',
+     // 'image': 'assets/reports.png',
       'color': const Color(0xFF3F51B5), // Azul corporativo
     },
   ];
@@ -271,14 +271,14 @@ class _SliderWidgetState extends State<SliderWidget> {
                   return Container(
                     decoration: BoxDecoration(
                       color: slide['color'],
-                      image: DecorationImage(
+                      /* image: DecorationImage(
                         image: AssetImage(slide['image']),
                         fit: BoxFit.cover,
                         colorFilter: ColorFilter.mode(
                           Colors.black.withOpacity(0.2),
                           BlendMode.darken,
                         ),
-                      ),
+                      ), */
                     ),
                     child: Center(
                       child: Padding(
