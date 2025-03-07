@@ -10,7 +10,6 @@ import 'package:finora/models/reporte_general.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 class ExportHelperGeneral {
-  
   static void mostrarDialogoError(BuildContext context, String mensaje) {
     // Mostrar un SnackBar
     ScaffoldMessenger.of(context).showSnackBar(
@@ -19,7 +18,9 @@ class ExportHelperGeneral {
         backgroundColor: Colors.red,
         duration: const Duration(seconds: 3),
       ),
-    );}
+    );
+  }
+
   static Future<void> exportToPdf({
     required BuildContext context,
     required ReporteGeneralData? reporteData,
@@ -60,11 +61,16 @@ class ExportHelperGeneral {
             header: (context) => _buildPdfHeader(
               selectedReportType: selectedReportType,
               selectedDateRange: selectedDateRange,
+              reporteData: reporteData,
             ),
             footer: (context) => _buildPdfFooter(context),
             build: (context) => [
               _buildPdfTable(headers, groups, currencyFormat),
+              pw.SizedBox(height: 10),
               _buildPdfTotals(reporteData, currencyFormat),
+              //pw.SizedBox(height: 10),  // Agregar espacio entre los totales
+              _buildTotalsIdealPdfWidget(
+                  reporteData, currencyFormat), // Aquí lo agregas
             ],
           ),
         );
@@ -89,57 +95,98 @@ class ExportHelperGeneral {
   }
 
   static pw.Widget _buildPdfTable(
-  List<String> headers, List<MapEntry<String, List<ReporteGeneral>>> data, NumberFormat currencyFormat) {
+    List<String> headers,
+    List<MapEntry<String, List<ReporteGeneral>>> data,
+    NumberFormat currencyFormat) {
   int currentNumber = 1; // Inicializa el contador
 
-  return pw.Table(
-    border: pw.TableBorder.all(color: PdfColor.fromHex('#3D3D3D')),
-    columnWidths: {
-      0: const pw.FlexColumnWidth(0.5),
-      1: const pw.FlexColumnWidth(1.2),
-      2: const pw.FlexColumnWidth(2.5),
-      3: const pw.FlexColumnWidth(1.5),
-      4: const pw.FlexColumnWidth(1.5),
-      5: const pw.FlexColumnWidth(1.5),
-      6: const pw.FlexColumnWidth(1.5),
-      7: const pw.FlexColumnWidth(1.5),
-      8: const pw.FlexColumnWidth(1.5),
-      9: const pw.FlexColumnWidth(1.5),
-      10: const pw.FlexColumnWidth(1.5),
-    },
-    children: [
-      pw.TableRow(
-        decoration: pw.BoxDecoration(color: PdfColor.fromHex('#5162F6')),
-        children: headers.map((header) => _buildPdfHeaderCell(header)).toList(),
+  return pw.Container(
+    decoration: pw.BoxDecoration(
+      borderRadius: pw.BorderRadius.circular(10),
+      color: PdfColors.white,
+    ),
+    child: pw.Table(
+      // Aquí agregamos el borde horizontal gris suave
+      border: pw.TableBorder(
+        horizontalInside: pw.BorderSide(
+          color: PdfColors.grey500, // Gris claro para los bordes horizontales
+          width: 0.5,
+        ),
       ),
-      ...data.map((group) {
-        final groupData = group.value;
-        final totalPagos = groupData.fold(0.0, (sum, r) => sum + r.pagoficha);
-        final pagoIncompleto = totalPagos < groupData.first.montoficha && totalPagos > 0;
+      columnWidths: {
+        0: const pw.FlexColumnWidth(0.5),
+        1: const pw.FlexColumnWidth(1.2),
+        2: const pw.FlexColumnWidth(2.5),
+        3: const pw.FlexColumnWidth(1.5),
+        4: const pw.FlexColumnWidth(1.5),
+        5: const pw.FlexColumnWidth(1.5),
+        6: const pw.FlexColumnWidth(1.5),
+        7: const pw.FlexColumnWidth(1.5),
+        8: const pw.FlexColumnWidth(1.5),
+        9: const pw.FlexColumnWidth(1.5),
+        10: const pw.FlexColumnWidth(1.5),
+      },
+      children: [
+        pw.TableRow(
+          decoration: pw.BoxDecoration(
+            color: PdfColor.fromHex('#5162F6'),
+            borderRadius: const pw.BorderRadius.only(
+              topLeft: pw.Radius.circular(10),
+              topRight: pw.Radius.circular(10),
+            ),
+          ),
+          children:
+              headers.map((header) => _buildPdfHeaderCell(header)).toList(),
+        ),
+        ...data.map((group) {
+          final groupData = group.value;
+          final totalPagos =
+              groupData.fold(0.0, (sum, r) => sum + r.pagoficha);
+          final pagoIncompleto =
+              totalPagos < groupData.first.montoficha && totalPagos > 0;
 
-        final row = pw.TableRow(
-          decoration: _rowDecoration(groupData, pagoIncompleto),
-          children: [
-            _buildPdfCell(currentNumber.toString(), isNumeric: true), // Usa el contador actual
-            _buildPdfCell(groupData.first.tipoPago),
-            _buildPdfCell(groupData.first.grupos),
-            _buildPdfCell(groupData.first.folio),
-            _buildPagosColumn(groupData, currencyFormat),
-            _buildPdfCell(groupData.map((r) => r.fechadeposito).join('\n')),
-            _buildPdfCell(currencyFormat.format(groupData.first.montoficha), isNumeric: true),
-            _buildPdfCell(currencyFormat.format(groupData.first.capitalsemanal), isNumeric: true),
-            _buildPdfCell(currencyFormat.format(groupData.first.interessemanal), isNumeric: true),
-            _buildPdfCell(groupData.map((r) => currencyFormat.format(r.saldofavor)).join('\n'), isNumeric: true),
-            _buildPdfCell(groupData.map((r) => currencyFormat.format(r.moratorios)).join('\n'), isNumeric: true),
-          ],
-        );
+          final isLastRow = data.indexOf(group) == data.length - 1;
+          final rowDecoration = _rowDecoration(groupData, pagoIncompleto,
+              isLastRow: isLastRow, isFirstRow: data.indexOf(group) == 0);
 
-        currentNumber++; // Incrementa el contador después de construir la fila
-        return row;
-      }).toList(),
-    ],
+          final row = pw.TableRow(
+            decoration: rowDecoration,
+            children: [
+              _buildPdfCell(currentNumber.toString(), isNumeric: true),
+              _buildPdfCell(groupData.first.tipoPago),
+              _buildPdfCell(groupData.first.grupos),
+              _buildPdfCell(groupData.first.folio),
+              _buildPagosColumn(groupData, currencyFormat),
+              _buildPdfCell(groupData.map((r) => r.fechadeposito).join('\n')),
+              _buildPdfCell(currencyFormat.format(groupData.first.montoficha),
+                  isNumeric: true),
+              _buildPdfCell(
+                  currencyFormat.format(groupData.first.capitalsemanal),
+                  isNumeric: true),
+              _buildPdfCell(
+                  currencyFormat.format(groupData.first.interessemanal),
+                  isNumeric: true),
+              _buildPdfCell(
+                  groupData
+                      .map((r) => currencyFormat.format(r.saldofavor))
+                      .join('\n'),
+                  isNumeric: true),
+              _buildPdfCell(
+                  groupData
+                      .map((r) => currencyFormat.format(r.moratorios))
+                      .join('\n'),
+                  isNumeric: true),
+            ],
+          );
+
+          currentNumber++;
+          return row;
+        }).toList(),
+      ],
+    ),
   );
 }
+
 
   static pw.Widget _buildPdfFooter(pw.Context context) {
     return pw.Container(
@@ -158,6 +205,7 @@ class ExportHelperGeneral {
   static pw.Widget _buildPdfHeader({
     required String? selectedReportType,
     required DateTimeRange? selectedDateRange,
+    required ReporteGeneralData reporteData,
   }) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -182,7 +230,7 @@ class ExportHelperGeneral {
         pw.Text(
           selectedReportType ?? '',
           style: pw.TextStyle(
-            fontSize: 20,
+            fontSize: 16,
             fontWeight: pw.FontWeight.bold,
             color: PdfColor.fromHex('#5162F6'),
           ),
@@ -191,18 +239,15 @@ class ExportHelperGeneral {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text(
-              'Periodo: ${DateFormat('dd/MM/yyyy').format(selectedDateRange!.start)} - '
-              '${DateFormat('dd/MM/yyyy').format(selectedDateRange.end)}',
-              style: const pw.TextStyle(fontSize: 10),
-            ),
+            pw.Text('Período: ${reporteData.fechaSemana}',
+                style: const pw.TextStyle(fontSize: 8)),
             pw.Text(
               'Generado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
-              style: const pw.TextStyle(fontSize: 10),
+              style: const pw.TextStyle(fontSize: 8),
             ),
           ],
         ),
-        pw.SizedBox(height: 20),
+        pw.SizedBox(height: 10),
       ],
     );
   }
@@ -238,62 +283,61 @@ class ExportHelperGeneral {
 
   static pw.Widget _buildPdfTotals(
       ReporteGeneralData reporteData, NumberFormat currencyFormat) {
-    return pw.Table(
-      border: pw.TableBorder.all(color: PdfColor.fromHex('#3D3D3D')),
-      columnWidths: {
-        0: const pw.FlexColumnWidth(1.7),
-        1: const pw.FlexColumnWidth(1.2),
-        2: const pw.FlexColumnWidth(1.3),
-        3: const pw.FlexColumnWidth(1.5),
-        4: const pw.FlexColumnWidth(1.5),
-        5: const pw.FlexColumnWidth(1.5),
-        6: const pw.FlexColumnWidth(1.5),
-        7: const pw.FlexColumnWidth(1.5),
-        8: const pw.FlexColumnWidth(1.5),
-        9: const pw.FlexColumnWidth(1.5),
-        10: const pw.FlexColumnWidth(1.5),
-      },
-      children: [
-        pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColor.fromHex('#5162F6')),
-          children: [
-            _buildTotalCell('Totales', alignLeft: true),
-            _buildTotalCell(''),
-            _buildTotalCell(''),
-            _buildTotalCell(''),
-            _buildTotalCell(currencyFormat.format(reporteData.totalPagoficha)),
-            _buildTotalCell(''),
-            _buildTotalCell(currencyFormat.format(reporteData.totalFicha)),
-            _buildTotalCell(currencyFormat.format(reporteData.totalCapital)),
-            _buildTotalCell(currencyFormat.format(reporteData.totalInteres)),
-            _buildTotalCell(currencyFormat.format(reporteData.totalSaldoFavor)),
-            _buildTotalCell(currencyFormat.format(reporteData.saldoMoratorio)),
-          ],
-        ),
-        pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColor.fromHex('#5162F6')),
-          children: [
-            _buildTotalCell('Total Final', alignLeft: true),
-            _buildTotalCell(''),
-            _buildTotalCell(''),
-            _buildTotalCell(''),
-            _buildTotalCell(''),
-            _buildTotalCell(''),
-            _buildTotalCell(currencyFormat.format(reporteData.totalTotal)),
-            _buildTotalCell(''),
-            _buildTotalCell(''),
-            _buildTotalCell(''),
-            _buildTotalCell(''),
-          ],
-        ),
-      ],
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        borderRadius: pw.BorderRadius.circular(10),
+        color: PdfColors.white,
+      ),
+      child: pw.Table(
+        border: null,
+        columnWidths: {
+          0: const pw.FlexColumnWidth(1.7),
+          1: const pw.FlexColumnWidth(1.2),
+          2: const pw.FlexColumnWidth(1.3),
+          3: const pw.FlexColumnWidth(1.5),
+          4: const pw.FlexColumnWidth(1.5),
+          5: const pw.FlexColumnWidth(1.5),
+          6: const pw.FlexColumnWidth(1.5),
+          7: const pw.FlexColumnWidth(1.5),
+          8: const pw.FlexColumnWidth(1.5),
+          9: const pw.FlexColumnWidth(1.5),
+          10: const pw.FlexColumnWidth(1.5),
+        },
+        children: [
+          pw.TableRow(
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('#5162F6'),
+              borderRadius: const pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(10),
+                topRight: pw.Radius.circular(10),
+              ),
+            ),
+            children: [
+              _buildTotalCell('Totales', alignLeft: true),
+              _buildTotalCell(''),
+              _buildTotalCell(''),
+              _buildTotalCell(''),
+              _buildTotalCell(
+                  currencyFormat.format(reporteData.totalPagoficha)),
+              _buildTotalCell(''),
+              _buildTotalCell(currencyFormat.format(reporteData.totalFicha)),
+              _buildTotalCell(currencyFormat.format(reporteData.totalCapital)),
+              _buildTotalCell(currencyFormat.format(reporteData.totalInteres)),
+              _buildTotalCell(
+                  currencyFormat.format(reporteData.totalSaldoFavor)),
+              _buildTotalCell(
+                  currencyFormat.format(reporteData.saldoMoratorio)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   static pw.Widget _buildTotalCell(String text, {bool alignLeft = false}) {
     return pw.Container(
       alignment: alignLeft ? pw.Alignment.centerLeft : pw.Alignment.centerRight,
-      padding: const pw.EdgeInsets.all(6),
+      padding: pw.EdgeInsets.symmetric(vertical: 10, horizontal: 10),
       child: pw.Text(
         text,
         style: pw.TextStyle(
@@ -306,17 +350,34 @@ class ExportHelperGeneral {
   }
 
   static pw.BoxDecoration _rowDecoration(
-      List<ReporteGeneral> groupData, bool pagoIncompleto) {
+      List<ReporteGeneral> groupData, bool pagoIncompleto,
+      {bool isLastRow = false, bool isFirstRow = false}) {
+    // Base color for the row
+    PdfColor backgroundColor;
+
     if (groupData.any((r) => r.pagoficha == 0)) {
-      return pw.BoxDecoration(color: PdfColor.fromHex('#ffcccc'));
-    }
-    if (pagoIncompleto) {
-      return pw.BoxDecoration(color: PdfColor.fromHex('#ffe2b0'));
-    }
-    return pw.BoxDecoration(
-      color: groupData.indexOf(groupData.first).isEven
+      backgroundColor = PdfColor.fromHex('#ffcccc');
+    } else if (pagoIncompleto) {
+      backgroundColor = PdfColor.fromHex('#ffe2b0');
+    } else {
+      backgroundColor = groupData.indexOf(groupData.first).isEven
           ? PdfColor.fromHex('#F8F9FE')
-          : PdfColors.white,
+          : PdfColors.white;
+    }
+
+    // Add border radius only for first and last rows
+    pw.BorderRadius? borderRadius;
+
+    if (isLastRow) {
+      borderRadius = const pw.BorderRadius.only(
+        bottomLeft: pw.Radius.circular(10),
+        bottomRight: pw.Radius.circular(10),
+      );
+    }
+
+    return pw.BoxDecoration(
+      color: backgroundColor,
+      borderRadius: borderRadius,
     );
   }
 
@@ -357,5 +418,67 @@ class ExportHelperGeneral {
       ),
     );
   }
-  
+
+  static pw.Widget _buildTotalsIdealPdfWidget(
+      ReporteGeneralData reporteData, currencyFormat) {
+    return pw.Container(
+        padding: pw.EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+        decoration: pw.BoxDecoration(
+          color: PdfColor.fromInt(0xFF6D79E8), // Color similar al de Flutter
+          borderRadius: pw.BorderRadius.only(
+            bottomLeft:
+                pw.Radius.circular(15), // Borde redondeado inferior izquierdo
+            bottomRight:
+                pw.Radius.circular(15), // Borde redondeado inferior derecho
+          ),
+        ),
+        child: pw.Row(
+          mainAxisAlignment:
+              pw.MainAxisAlignment.start, // Alinea los elementos a la izquierda
+          children: [
+            // Total Ideal con ícono de información
+            pw.Row(
+              children: [
+                _buildTotalPdfItem(
+                    'Total Ideal', reporteData.totalTotal, currencyFormat),
+                pw.SizedBox(width: 8), // Espacio entre el texto y el ícono
+              ],
+            ),
+            pw.SizedBox(width: 70), // Espacio entre los elementos
+            // Diferencia con ícono de información
+            pw.Row(
+              children: [
+                _buildTotalPdfItem(
+                    'Diferencia', reporteData.restante, currencyFormat),
+                pw.SizedBox(width: 8), // Espacio entre el texto y el ícono
+              ],
+            ),
+          ],
+        ));
+  }
+
+  static pw.Widget _buildTotalPdfItem(
+      String label, double value, NumberFormat currencyFormat) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: 6,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColors.white,
+          ),
+        ),
+        pw.SizedBox(height: 4), // Espacio entre el texto y el monto
+        pw.Text(
+          currencyFormat.format(value), // Usar el formato de moneda aquí
+          style: pw.TextStyle(
+            fontSize: 6,
+            color: PdfColors.white,
+          ),
+        ),
+      ],
+    );
+  }
 }

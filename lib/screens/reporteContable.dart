@@ -187,11 +187,72 @@ class ReporteContableWidget extends StatelessWidget {
                     const SizedBox(width: 24),
                     _buildSummaryItem('Moratorios', reporteData.saldoMoratorio,
                         isWhiteText: true),
-                    const SizedBox(width: 24),
+
+                    const SizedBox(width: 100),
                     _buildSummaryItem(
-                      'Total Total',
+                      'Total Ideal',
                       reporteData.totalTotal,
                       isWhiteText: true,
+                    ),
+                    const SizedBox(width: 10),
+                    Tooltip(
+                      message: 'El Total Ideal representa la suma de:\n\n'
+                          '• Monto ficha\n'
+                          '• Saldo a favor\n'
+                          '• Moratorios\n\n'
+                          'Es el monto objetivo que se debe alcanzar.',
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53888),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      preferBelow:
+                          false, // Evita que el tooltip se oculte debajo
+                      child: const MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: Icon(
+                          Icons.info_outline,
+                          color: Colors.black38,
+                          size:
+                              18, // Tamaño ligeramente mayor para mejor visibilidad
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem(
+                      'Diferencia',
+                      reporteData.restante,
+                      isWhiteText: true,
+                    ),
+                    const SizedBox(width: 10),
+                    Tooltip(
+                      message:
+                          'La Diferencia es el monto restante para alcanzar el Total Ideal.\n\n'
+                          'Se calcula restando el total de pagos recibidos del Total Ideal.',
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53888),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      preferBelow: false,
+                      child: const MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: Icon(
+                          Icons.info_outline,
+                          color: Colors.black38,
+                          size: 18,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -309,10 +370,11 @@ class ReporteContableWidget extends StatelessWidget {
                           Wrap(
                             spacing: 12,
                             children: [
-                              _buildInfoText('Semanas: ${grupo.semanas}'),
                               //_buildInfoText('Tasa: ${grupo.tazaInteres}%'),
-                              _buildInfoText('Semana: ${grupo.pagoPeriodo}'),
                               _buildInfoText('Pago: ${grupo.tipopago}'),
+                              _buildInfoText('Plazo: ${grupo.plazo}'),
+                              _buildInfoText(
+                                  'Periodo Pago: ${grupo.pagoPeriodo}'),
                             ],
                           ),
                         ],
@@ -429,66 +491,24 @@ class ReporteContableWidget extends StatelessWidget {
 
                       const SizedBox(height: 8),
 
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.grey[200]!),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Resumen Global',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 11,
-                                color: primaryColor,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: _buildFinancialInfoCompact(
-                                    'Saldo Global',
-                                    grupo.saldoGlobal,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: _buildFinancialInfoCompact(
-                                    'Restante Global',
-                                    grupo.restanteGlobal,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
                       // Elementos financieros por período
                       Row(
                         children: [
-                          // Capital Semanal
+                          // Capital (Semanal/Quincenal según tipopago)
                           Expanded(
                             child: _buildFinancialInfo(
-                                'Capital Semanal', grupo.capitalsemanal),
+                                '${grupo.tipopago == "SEMANAL" ? "Capital Semanal" : "Capital Quincenal"}',
+                                grupo.capitalsemanal),
                           ),
                           const SizedBox(width: 4),
-                          // Interés Semanal
+                          // Interés (Semanal/Quincenal según tipopago)
                           Expanded(
                             child: _buildFinancialInfo(
-                                'Interés Semanal', grupo.interessemanal),
+                                '${grupo.tipopago == "SEMANAL" ? "Interés Semanal" : "Interés Quincenal"}',
+                                grupo.interessemanal),
                           ),
                           const SizedBox(width: 4),
-                          // Monto Ficha
+                          // Monto Ficha (no cambia)
                           Expanded(
                             child: _buildFinancialInfo(
                                 'Monto Ficha', grupo.montoficha),
@@ -507,7 +527,7 @@ class ReporteContableWidget extends StatelessWidget {
                 Container(
                   width: 300, // Ancho fijo reducido
                   child: _buildDepositosSection(
-                      grupo.pagoficha, grupo.restanteFicha),
+                      grupo.pagoficha, grupo.restanteFicha, grupo),
                 ),
               ],
             ),
@@ -878,7 +898,8 @@ class ReporteContableWidget extends StatelessWidget {
 
   // SECCIÓN: DEPÓSITOS
   // SECCIÓN: DEPÓSITOS
-  Widget _buildDepositosSection(Pagoficha pagoficha, double restanteFicha) {
+  Widget _buildDepositosSection(
+      Pagoficha pagoficha, double restanteFicha, ReporteContableGrupo grupo) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -934,7 +955,8 @@ class ReporteContableWidget extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Color(0xFF5162F6).withOpacity(0.2), // Fondo azul claro
+                        color: Color(0xFF5162F6)
+                            .withOpacity(0.2), // Fondo azul claro
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(4),
                           topRight: Radius.circular(4),
@@ -1071,6 +1093,49 @@ class ReporteContableWidget extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: Colors.orange[900],
                 ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Resumen Global',
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                  color: primaryColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: _buildFinancialInfoCompact(
+                      'Saldo Global',
+                      grupo.saldoGlobal,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: _buildFinancialInfoCompact(
+                      'Restante Global',
+                      grupo.restanteGlobal,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

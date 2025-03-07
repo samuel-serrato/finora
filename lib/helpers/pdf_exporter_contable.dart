@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
@@ -8,8 +11,10 @@ class PDFExportHelperContable {
   static const PdfColor warningColor = PdfColor.fromInt(0xFFF59E0B);
   final ReporteContableData reporteData;
   final NumberFormat currencyFormat;
+  final String? selectedReportType; // Agregar este campo
 
-  PDFExportHelperContable(this.reporteData, this.currencyFormat);
+  PDFExportHelperContable(
+      this.reporteData, this.currencyFormat, this.selectedReportType);
 
   Future<pw.Document> generatePDF() async {
     final pdf = pw.Document();
@@ -19,7 +24,7 @@ class PDFExportHelperContable {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(10), // Reducido margen general
         build: (context) => [
-          _buildHeader(),
+          _buildHeader(selectedReportType: selectedReportType),
           pw.SizedBox(height: 8), // Reducido espacio
           pw.ListView.builder(
             itemCount: reporteData.listaGrupos.length,
@@ -36,25 +41,50 @@ class PDFExportHelperContable {
     return pdf;
   }
 
-  pw.Widget _buildHeader() {
-    return pw.Row(
+  pw.Widget _buildHeader({
+    required String? selectedReportType,
+  }) {
+    return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Reporte Contable',
-            style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
-                color: primaryColor)),
-        pw.Spacer(),
-        pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.end,
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Período: ${reporteData.fechaSemana}',
-                style: const pw.TextStyle(fontSize: 10)),
-            pw.Text('Generado: ${reporteData.fechaActual}',
-                style: const pw.TextStyle(fontSize: 10)),
+            pw.Image(
+              pw.MemoryImage(
+                  File('assets/logo_mf_n_hzt.png').readAsBytesSync()),
+              width: 100,
+              height: 100,
+            ),
+            pw.Image(
+              pw.MemoryImage(File('assets/finora_hzt.png').readAsBytesSync()),
+              width: 120,
+              height: 120,
+            ),
           ],
         ),
+        pw.SizedBox(height: 10),
+        pw.Text(
+          selectedReportType ?? '',
+          style: pw.TextStyle(
+            fontSize: 16,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColor.fromHex('#5162F6'),
+          ),
+        ),
+        pw.SizedBox(height: 20),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text('Período: ${reporteData.fechaSemana}',
+                style: const pw.TextStyle(fontSize: 8)),
+            pw.Text(
+              'Generado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+              style: const pw.TextStyle(fontSize: 8),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 10),
       ],
     );
   }
@@ -75,13 +105,15 @@ class PDFExportHelperContable {
             pw.Divider(color: PdfColors.grey400),
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
-              mainAxisSize: pw.MainAxisSize.max, // Asegura que use todo el ancho disponible
+              mainAxisSize: pw
+                  .MainAxisSize.max, // Asegura que use todo el ancho disponible
               children: [
                 _buildClientesTable(grupo),
                 pw.SizedBox(width: 10), // Reducido espacio
                 _buildFinancialInfoSection(grupo),
                 pw.SizedBox(width: 10), // Reducido espacio
-                _buildDepositosSection(grupo.pagoficha, grupo.restanteFicha),
+                _buildDepositosSection(
+                    grupo.pagoficha, grupo.restanteFicha, grupo),
               ],
             ),
           ],
@@ -95,20 +127,18 @@ class PDFExportHelperContable {
       children: [
         pw.Text(grupo.grupos,
             style: pw.TextStyle(
-                fontSize: 9,
+                fontSize: 7,
                 fontWeight: pw.FontWeight.bold,
                 color: primaryColor)),
         pw.SizedBox(width: 9),
         pw.Text('(Folio: ${grupo.folio})',
             style: pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
         pw.Spacer(),
-        pw.Text('Semanas: ${grupo.semanas}',
-            style: pw.TextStyle(fontSize: 6)),
+        pw.Text('Pago: ${grupo.tipopago}', style: pw.TextStyle(fontSize: 6)),
         pw.SizedBox(width: 15),
-        pw.Text('Semana: ${grupo.pagoPeriodo}',
-            style: pw.TextStyle(fontSize: 6)),
+        pw.Text('Plazo: ${grupo.plazo}', style: pw.TextStyle(fontSize: 6)),
         pw.SizedBox(width: 15),
-        pw.Text('Pago: ${grupo.tipopago}',
+        pw.Text('Periodo Pago: ${grupo.pagoPeriodo}',
             style: pw.TextStyle(fontSize: 6)),
       ],
     );
@@ -116,35 +146,52 @@ class PDFExportHelperContable {
 
   pw.Widget _buildClientesTable(ReporteContableGrupo grupo) {
     return pw.Expanded(
-      flex: 50, // Ajustado el ratio de ancho para balancear las columnas
-      child: pw.Table(
-        border: pw.TableBorder.all(color: PdfColors.grey300),
-        columnWidths: {
-          0: const pw.FlexColumnWidth(2),
-          1: const pw.FlexColumnWidth(1),
-          2: const pw.FlexColumnWidth(1),
-          3: const pw.FlexColumnWidth(1),
-        },
+      flex: 50,
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.TableRow(
-            decoration: pw.BoxDecoration(color: primaryColor),
+          // Añadir el encabezado de la sección
+          pw.Text('Clientes',
+              style: pw.TextStyle(
+                  fontSize: 6,
+                  fontWeight: pw.FontWeight.bold,
+                  color: primaryColor)),
+          pw.SizedBox(height: 4), // Espacio entre el título y la tabla
+
+          // La tabla existente
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(2),
+              1: const pw.FlexColumnWidth(1),
+              2: const pw.FlexColumnWidth(1),
+              3: const pw.FlexColumnWidth(1),
+            },
             children: [
-              _buildHeaderCell('Cliente'),
-              _buildHeaderCell('Capital'),
-              _buildHeaderCell('Interés'),
-              _buildHeaderCell('Total'),
+              pw.TableRow(
+                decoration: pw.BoxDecoration(color: PdfColors.white),
+                children: [
+                  _buildHeaderCell('Nombre Cliente'),
+                  _buildHeaderCell('Capital'),
+                  _buildHeaderCell('Interés'),
+                  _buildHeaderCell('Capital + Interés'),
+                ],
+              ),
+              ...grupo.clientes.map((cliente) => pw.TableRow(
+                    children: [
+                      _buildDataCell(cliente.nombreCompleto),
+                      _buildDataCell(
+                          currencyFormat.format(cliente.periodoCapital)),
+                      _buildDataCell(
+                          currencyFormat.format(cliente.periodoInteres)),
+                      _buildDataCell(
+                          currencyFormat.format(cliente.capitalMasInteres)),
+                    ],
+                  )),
+              // Añadir fila de totales
+              _buildTotalesRow(grupo.clientes),
             ],
           ),
-          ...grupo.clientes.map((cliente) => pw.TableRow(
-                children: [
-                  _buildDataCell(cliente.nombreCompleto),
-                  _buildDataCell(currencyFormat.format(cliente.periodoCapital)),
-                  _buildDataCell(currencyFormat.format(cliente.periodoInteres)),
-                  _buildDataCell(currencyFormat.format(cliente.capitalMasInteres)),
-                ],
-              )),
-          // Añadir fila de totales
-          _buildTotalesRow(grupo.clientes),
         ],
       ),
     );
@@ -195,7 +242,7 @@ class PDFExportHelperContable {
         style: pw.TextStyle(
           fontSize: 6,
           fontWeight: pw.FontWeight.bold,
-          color: PdfColors.white,
+          color: primaryColor,
         ),
       ),
     );
@@ -214,7 +261,7 @@ class PDFExportHelperContable {
 
   pw.Widget _buildFinancialInfoSection(ReporteContableGrupo grupo) {
     return pw.Expanded(
-      flex: 20, // Ajustado el ratio de ancho para balancear las columnas
+      flex: 20,
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -223,272 +270,402 @@ class PDFExportHelperContable {
                   fontSize: 6,
                   fontWeight: pw.FontWeight.bold,
                   color: primaryColor)),
-          pw.SizedBox(height: 4), // Reducido espacio
-          
-          // Fila para Garantía y Tasa
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              _buildFinancialRow('Garantía ', grupo.garantia, isText: true),
-              _buildFinancialRow('Tasa ', grupo.tazaInteres, isPercentage: true),
-            ],
-          ),
-          pw.SizedBox(height: 2), // Espaciado reducido entre filas
+          pw.SizedBox(height: 6),
 
-          _buildFinancialRow('Monto Solicitado', grupo.montoSolicitado),
-          pw.SizedBox(height: 2), // Espaciado reducido entre filas
-          _buildFinancialRow('Monto Desembolsado', grupo.montoDesembolsado),
-          pw.SizedBox(height: 2), // Espaciado reducido entre filas
-          _buildFinancialRow('Interés Total', grupo.interesCredito),
-          pw.SizedBox(height: 2), // Espaciado reducido entre filas
-          _buildFinancialRow('Monto a Recuperar', grupo.montoARecuperar),
-          
-          pw.SizedBox(height: 6), // Espacio para la siguiente sección
-          
-          // Sección de Resumen Global
-          pw.Text('Resumen Global',
-              style: pw.TextStyle(
-                  fontSize: 6,
-                  fontWeight: pw.FontWeight.bold,
-                  color: primaryColor)),
+          // Container para los 6 elementos de información del crédito
+          pw.Container(
+            padding: pw.EdgeInsets.all(4),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+              borderRadius: pw.BorderRadius.circular(2),
+            ),
+            child: pw.Column(
+              children: [
+                // Primera fila con 2 columnas (Garantía y Tasa)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildFinancialColumn('Garantía', grupo.garantia,
+                        isText: true),
+                    _buildFinancialColumn('Tasa', grupo.tazaInteres,
+                        isPercentage: true),
+                  ],
+                ),
+                pw.SizedBox(height: 6),
+
+                // Segunda fila con 2 columnas (Monto Solicitado y Monto Desembolsado)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildFinancialColumn(
+                        'Monto Solicitado', grupo.montoSolicitado),
+                    _buildFinancialColumn(
+                        'Monto Desembolsado', grupo.montoDesembolsado),
+                  ],
+                ),
+                pw.SizedBox(height: 6),
+
+                // Tercera fila con 2 columnas (Interés Total y Monto a Recuperar)
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildFinancialColumn(
+                        'Interés Total', grupo.interesCredito),
+                    _buildFinancialColumn(
+                        'Monto a Recuperar', grupo.montoARecuperar),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
           pw.SizedBox(height: 4),
-          _buildFinancialRow('Saldo Global', grupo.saldoGlobal),
-          pw.SizedBox(height: 2),
-          _buildFinancialRow('Restante Global', grupo.restanteGlobal),
-          
-          pw.SizedBox(height: 6), // Espacio para la siguiente sección
-          
-          // Sección de información semanal
-          pw.Text('Información Semanal',
-              style: pw.TextStyle(
-                  fontSize: 6,
-                  fontWeight: pw.FontWeight.bold,
-                  color: primaryColor)),
-          pw.SizedBox(height: 4),
-          _buildFinancialRow('Capital Semanal', grupo.capitalsemanal),
-          pw.SizedBox(height: 2),
-          _buildFinancialRow('Interés Semanal', grupo.interessemanal),
-          pw.SizedBox(height: 2),
-          _buildFinancialRow('Monto Ficha', grupo.montoficha),
+
+          // Container para la información semanal con 3 columnas
+          pw.Container(
+            padding: pw.EdgeInsets.all(4),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+              borderRadius: pw.BorderRadius.circular(2),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                _buildFinancialColumn(
+                    '${grupo.tipopago == "SEMANAL" ? "Capital Semanal" : "Capital Quincenal"}',
+                    grupo.capitalsemanal),
+                _buildFinancialColumn(
+                    '${grupo.tipopago == "SEMANAL" ? "Interés Semanal" : "Interés Quincenal"}',
+                    grupo.interessemanal),
+                _buildFinancialColumn('Monto Ficha', grupo.montoficha),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  pw.Widget _buildDepositosSection(Pagoficha pagoficha, double restanteFicha) {
-  return pw.Expanded(
-    flex: 30,
-    child: pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Text(
-              'Depósitos',
-              style: pw.TextStyle(
-                fontSize: 6,
-                fontWeight: pw.FontWeight.bold,
-                color: primaryColor,
+// Método auxiliar para crear columnas con texto arriba y valor abajo
+  pw.Widget _buildFinancialColumn(String label, dynamic value,
+      {bool isText = false, bool isPercentage = false}) {
+    return pw.Expanded(
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(label,
+              style: pw.TextStyle(fontSize: 5, color: PdfColors.grey600)),
+          pw.SizedBox(height: 2),
+          pw.Text(
+              isText
+                  ? value.toString()
+                  : isPercentage
+                      ? '${value.toString()}%'
+                      : currencyFormat.format(value),
+              style: pw.TextStyle(fontSize: 6)),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildDepositosSection(
+      Pagoficha pagoficha, double restanteFicha, ReporteContableGrupo grupo) {
+    return pw.Expanded(
+      flex: 30,
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'Depósitos',
+                style: pw.TextStyle(
+                  fontSize: 6,
+                  fontWeight: pw.FontWeight.bold,
+                  color: primaryColor,
+                ),
               ),
-            ),
-            pw.Text(
-              'Fecha prog: ${_formatDateSafe(pagoficha.fechasPago)}',
-              style: const pw.TextStyle(fontSize: 6),
-            ),
-          ],
-        ),
-        pw.SizedBox(height: 4),
-        pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            ...pagoficha.depositos.map((deposito) => pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 4),
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey300),
-                    borderRadius: pw.BorderRadius.circular(4),
-                  ),
-                  child: pw.Column(
-                    children: [
-                      // Encabezado con la fecha de depósito
-                      pw.Container(
-  width: double.infinity,
-  padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-  decoration: pw.BoxDecoration(
-    color: PdfColor.fromInt(0xFFdce0fd),
-    borderRadius: const pw.BorderRadius.only(
-      topLeft: pw.Radius.circular(4),
-      topRight: pw.Radius.circular(4),
-    ),
-  ),
-  child: pw.Text(
-    'Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}',
-    style: pw.TextStyle(
-      fontSize: 6,
-      color: PdfColors.black,
-    ),
-    textAlign: pw.TextAlign.center, // Centra el texto
-  ),
-),
-
-                      // Contenido de la tarjeta
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.all(8),
-                        child: pw.Column(
-                          children: [
-                            pw.Row(
-                              mainAxisAlignment:
-                                  pw.MainAxisAlignment.spaceBetween,
-                              children: [
-                                _buildDepositoDetailPDF(
-                                  'Depósito',
-                                  deposito.deposito,
-                                ),
-                                _buildDepositoDetailPDF(
-                                  'Saldo a Favor',
-                                  deposito.saldofavor,
-                                ),
-                                _buildDepositoDetailPDF(
-                                  'Moratorio',
-                                  deposito.pagoMoratorio,
-                                ),
-                              ],
+              pw.Text(
+                'Fecha prog: ${_formatDateSafe(pagoficha.fechasPago)}',
+                style: const pw.TextStyle(fontSize: 6),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 4),
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              ...pagoficha.depositos.map((deposito) => pw.Container(
+                    margin: const pw.EdgeInsets.only(bottom: 4),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.grey300),
+                      borderRadius: pw.BorderRadius.circular(4),
+                    ),
+                    child: pw.Column(
+                      children: [
+                        // Encabezado con la fecha de depósito
+                        pw.Container(
+                          width: double.infinity,
+                          padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColor.fromInt(0xFFdce0fd),
+                            borderRadius: const pw.BorderRadius.only(
+                              topLeft: pw.Radius.circular(4),
+                              topRight: pw.Radius.circular(4),
                             ),
-                            if (deposito.garantia == "Si")
-                              pw.Row(
-  mainAxisAlignment: pw.MainAxisAlignment.start,
-  children: [
-    pw.Container(
-      margin: const pw.EdgeInsets.only(top: 4),
-      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: pw.BoxDecoration(
-        color: PdfColor.fromInt(0xFFE53888),
-        borderRadius: pw.BorderRadius.circular(4),
-      ),
-      child: pw.Text(
-        'Garantía',
-        style: pw.TextStyle(
-          fontSize: 6,
-          color: PdfColors.white,
-          fontWeight: pw.FontWeight.bold,
-        ),
-      ),
-    ),
-  ],
-),
+                          ),
+                          child: pw.Text(
+                            'Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}',
+                            style: pw.TextStyle(
+                              fontSize: 6,
+                              color: PdfColors.black,
+                            ),
+                            textAlign: pw.TextAlign.center, // Centra el texto
+                          ),
+                        ),
 
+                        // Contenido de la tarjeta
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(8),
+                          child: pw.Column(
+                            children: [
+                              pw.Row(
+                                mainAxisAlignment:
+                                    pw.MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildDepositoDetailPDF(
+                                    'Depósito',
+                                    deposito.deposito,
+                                  ),
+                                  _buildDepositoDetailPDF(
+                                    'Saldo a Favor',
+                                    deposito.saldofavor,
+                                  ),
+                                  _buildDepositoDetailPDF(
+                                    'Moratorio',
+                                    deposito.pagoMoratorio,
+                                  ),
+                                ],
+                              ),
+                              if (deposito.garantia == "Si")
+                                pw.Row(
+                                  mainAxisAlignment: pw.MainAxisAlignment.start,
+                                  children: [
+                                    pw.Container(
+                                      margin: const pw.EdgeInsets.only(top: 4),
+                                      padding: const pw.EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: pw.BoxDecoration(
+                                        color: PdfColor.fromInt(0xFFE53888),
+                                        borderRadius:
+                                            pw.BorderRadius.circular(4),
+                                      ),
+                                      child: pw.Text(
+                                        'Garantía',
+                                        style: pw.TextStyle(
+                                          fontSize: 6,
+                                          color: PdfColors.white,
+                                          fontWeight: pw.FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+              // Total de depósitos
+              pw.Container(
+                padding:
+                    const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromInt(0xFFedeffe),
+                  borderRadius: pw.BorderRadius.circular(4),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'Total depósitos:',
+                      style: pw.TextStyle(
+                        fontSize: 6,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF5465f6),
+                      ),
+                    ),
+                    pw.Text(
+                      currencyFormat.format(pagoficha.sumaDeposito),
+                      style: pw.TextStyle(
+                        fontSize: 6,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF5465f6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              // Restante ficha
+              pw.Container(
+                padding:
+                    const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromInt(0xFFfff3e0),
+                  borderRadius: pw.BorderRadius.circular(4),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      'Restante ficha:',
+                      style: pw.TextStyle(
+                        fontSize: 6,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFFe9661d),
+                      ),
+                    ),
+                    pw.Text(
+                      currencyFormat.format(restanteFicha),
+                      style: pw.TextStyle(
+                        fontSize: 6,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFFe9661d),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 6), // Espacio para la siguiente sección
+
+              // Sección de Resumen Global
+
+              pw.Container(
+                padding:
+                    const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                decoration: pw.BoxDecoration(
+                  borderRadius: pw.BorderRadius.circular(4),
+                  border: pw.Border.all(color: PdfColors.grey300),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Resumen Global',
+                      style: pw.TextStyle(
+                        fontSize: 6,
+                        fontWeight: pw.FontWeight.bold,
+                        color: primaryColor,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'Saldo Global',
+                              style: pw.TextStyle(
+                                fontSize: 6,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                            pw.Text(
+                              currencyFormat.format(grupo
+                                  .saldoGlobal), // Convertido a string con formato
+                              style: pw.TextStyle(
+                                fontSize: 6,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                )),
-            // Total de depósitos
-            pw.Container(
-              padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              decoration: pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFedeffe),
-                borderRadius: pw.BorderRadius.circular(4),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    'Total depósitos:',
-                    style: pw.TextStyle(
-                      fontSize: 6,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColor.fromInt(0xFF5465f6),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'Restante Global',
+                              style: pw.TextStyle(
+                                fontSize: 6,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                            pw.Text(
+                              currencyFormat.format(grupo
+                                  .restanteGlobal), // Convertido a string con formato
+                              style: pw.TextStyle(
+                                fontSize: 6,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                  pw.Text(
-                    currencyFormat.format(pagoficha.sumaDeposito),
-                    style: pw.TextStyle(
-                      fontSize: 6,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColor.fromInt(0xFF5465f6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            pw.SizedBox(height: 4),
-            // Restante ficha
-            pw.Container(
-              padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              decoration: pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFfff3e0),
-                borderRadius: pw.BorderRadius.circular(4),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text(
-                    'Restante ficha:',
-                    style: pw.TextStyle(
-                      fontSize: 6,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColor.fromInt(0xFFe9661d),
-                    ),
-                  ),
-                  pw.Text(
-                    currencyFormat.format(restanteFicha),
-                    style: pw.TextStyle(
-                      fontSize: 6,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColor.fromInt(0xFFe9661d),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-}
+                  ],
+                ),
+              )
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
 // Función auxiliar para construir detalles del depósito en el PDF
-pw.Widget _buildDepositoDetailPDF(String label, double value) {
-  return pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Text(
-        label,
-        style: const pw.TextStyle(fontSize: 6),
-      ),
-      pw.Text(
-        currencyFormat.format(value),
-        style: pw.TextStyle(
-          fontSize: 6,
-          fontWeight: pw.FontWeight.bold,
+  pw.Widget _buildDepositoDetailPDF(String label, double value) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          label,
+          style: const pw.TextStyle(fontSize: 6),
         ),
-      ),
-    ],
-  );
-}
+        pw.Text(
+          currencyFormat.format(value),
+          style: pw.TextStyle(
+            fontSize: 6,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
 
   pw.Widget _buildTotalesCard() {
     return pw.Container(
       decoration: pw.BoxDecoration(
-        color: primaryColor,
+        //color: primaryColor,
         borderRadius: pw.BorderRadius.circular(6),
-        border: pw.Border.all(color: primaryColor),
+        border: pw.Border.all(color: PdfColors.grey300),
       ),
-      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10), // Reducido padding
+      padding: const pw.EdgeInsets.symmetric(
+          vertical: 8, horizontal: 10), // Reducido padding
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text('Totales', style: pw.TextStyle(color: PdfColors.white, fontSize: 9)),
+          pw.Text('Totales',
+              style: pw.TextStyle(
+                  color: primaryColor,
+                  fontSize: 8,
+                  fontWeight: pw.FontWeight.bold)),
           pw.Row(
             children: [
-              _buildTotalItem('Capital', reporteData.totalCapital),
-              _buildTotalItem('Interés', reporteData.totalInteres),
-              _buildTotalItem('Fichas', reporteData.totalFicha),
-              _buildTotalItem('Pagos', reporteData.totalPagoficha),
-              _buildTotalItem('Saldo', reporteData.totalSaldoFavor),
-              _buildTotalItem('Total', reporteData.totalTotal),
+              _buildTotalItem('Capital Total', reporteData.totalCapital),
+              _buildTotalItem('Interés Total', reporteData.totalInteres),
+              _buildTotalItem('Monto Fichas', reporteData.totalFicha),
+              _buildTotalItem('Pago Fichas', reporteData.totalPagoficha),
+              _buildTotalItem('Saldo Favor', reporteData.totalSaldoFavor),
+              _buildTotalItem('Moratorios', reporteData.saldoMoratorio),
+              pw.SizedBox(width: 70),
+              _buildTotalItem('Total Ideal', reporteData.totalTotal),
+              _buildTotalItem('Diferencia', reporteData.restante),
             ],
           ),
         ],
@@ -496,17 +673,17 @@ pw.Widget _buildDepositoDetailPDF(String label, double value) {
     );
   }
 
-  pw.Widget _buildFinancialRow(String label, dynamic value, {bool isText = false, bool isPercentage = false}) {
+  pw.Widget _buildFinancialRow(String label, dynamic value,
+      {bool isText = false, bool isPercentage = false}) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         pw.Text(label, style: const pw.TextStyle(fontSize: 6)),
-        isText 
+        isText
             ? pw.Text(value.toString(), style: const pw.TextStyle(fontSize: 6))
             : pw.Text(
                 '${isText ? value.toString() : currencyFormat.format(value)}${isPercentage ? '%' : ''}',
-                style: const pw.TextStyle(fontSize: 6)
-              ),
+                style: const pw.TextStyle(fontSize: 6)),
       ],
     );
   }
@@ -516,10 +693,13 @@ pw.Widget _buildDepositoDetailPDF(String label, double value) {
       padding: const pw.EdgeInsets.symmetric(horizontal: 6), // Reducido espacio
       child: pw.Column(
         children: [
-          pw.Text(label, style: const pw.TextStyle(fontSize: 6, color: PdfColors.white)),
+          pw.Text(label,
+              style: const pw.TextStyle(fontSize: 6, color: PdfColors.black)),
           pw.Text(currencyFormat.format(value),
               style: pw.TextStyle(
-                  fontSize: 6, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                  fontSize: 6,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.black)),
         ],
       ),
     );

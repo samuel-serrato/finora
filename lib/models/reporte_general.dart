@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class ReporteGeneralData {
   final String fechaSemana;
   final String fechaActual;
@@ -7,6 +9,7 @@ class ReporteGeneralData {
   final double totalSaldoFavor;
   final double saldoMoratorio;
   final double totalTotal;
+  final double restante;
   final double totalFicha;
   final List<ReporteGeneral> listaGrupos;
 
@@ -19,6 +22,7 @@ class ReporteGeneralData {
     required this.totalSaldoFavor,
     required this.saldoMoratorio,
     required this.totalTotal,
+    required this.restante,
     required this.totalFicha,
     required this.listaGrupos,
   });
@@ -28,7 +32,7 @@ class ReporteGeneralData {
         double.parse(value.replaceAll(RegExp(r'[^0-9.]'), ''));
 
     return ReporteGeneralData(
-      fechaSemana: json['fechaSemana'] ?? 'N/A',
+      fechaSemana: _formatearFechaSemana(json['fechaSemana']?? 'N/A'),
       fechaActual: json['fechaActual'] ?? 'N/A',
       totalCapital: parseValor(json['totalCapital']),
       totalInteres: parseValor(json['totalInteres']),
@@ -36,6 +40,7 @@ class ReporteGeneralData {
       totalSaldoFavor: parseValor(json['totalSaldoFavor']),
       saldoMoratorio: parseValor(json['saldoMoratorio']),
       totalTotal: parseValor(json['totalTotal']),
+      restante: parseValor(json['restante']),
       totalFicha: parseValor(json['totalFicha']),
       listaGrupos: (json['listaGrupos'] as List)
           .map((item) => ReporteGeneral.fromJson(item))
@@ -43,6 +48,24 @@ class ReporteGeneralData {
     );
   }
 }
+
+ String _formatearFechaSemana(String fechaOriginal) {
+    try {
+      final partes = fechaOriginal.split(' - ');
+      final fechaInicio = partes[0].split(' ')[0];
+      final fechaFin = partes[1].split(' ')[0];
+      
+      final formateador = DateFormat('d \'de\' MMMM \'de\' yyyy', 'es');
+      
+      final inicio = formateador.format(DateTime.parse(fechaInicio));
+      final fin = formateador.format(DateTime.parse(fechaFin));
+      
+      return '$inicio - $fin';
+    } catch (e) {
+      return fechaOriginal; // En caso de error, devolver original
+    }
+  }
+
 
 class ReporteGeneral {
   final int numero;

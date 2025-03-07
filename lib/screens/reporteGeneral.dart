@@ -62,7 +62,12 @@ class ReporteGeneralWidget extends StatelessWidget {
                             child: _buildDataTableBody(),
                           ),
                         ),
-                        if (reporteData != null) _buildTotalsWidget(),
+                        if (reporteData != null) Column(
+                          children: [
+                            _buildTotalsWidget(),
+                            _buildTotalsIdealWidget()
+                          ],
+                        ),
                       ],
                     ),
             ),
@@ -347,25 +352,142 @@ Widget _buildHeader(BuildContext context) {
             (value: reporteData!.saldoMoratorio, column: 11),
           ],
         ),
-        _buildTotalsRow(
-          'Total Final',
-          [
-            (value: reporteData!.totalTotal, column: 7),
-          ],
-        ),
+       
       ],
     );
   }
 
-  Widget _buildTotalsRow(
-      String label, List<({double value, int column})> values) {
-    List<Widget> cells = List.generate(12, (_) => Expanded(child: Container()));
 
-    cells[0] = Expanded(
+ Widget _buildTotalsIdealWidget() {
+  return Container(
+    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+    decoration: BoxDecoration(
+      color: const Color.fromARGB(255, 109, 121, 232),
+      borderRadius: BorderRadius.circular(0),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.start, // Alinea los elementos a la izquierda
+      children: [
+        // Total Ideal con ícono de información
+        Row(
+          children: [
+            _buildTotalItem('Total Ideal', reporteData!.totalTotal),
+            const SizedBox(width: 8), // Espacio entre el texto y el ícono
+            Tooltip(
+              message: 'El Total Ideal representa la suma de:\n\n'
+                  '• Monto ficha\n'
+                  '• Saldo a favor\n'
+                  '• Moratorios\n\n'
+                  'Es el monto objetivo que se debe alcanzar.',
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE53888),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              textStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              padding: const EdgeInsets.all(12),
+              preferBelow: false, // Evita que el tooltip se oculte debajo
+              child: const MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Icon(
+                  Icons.info_outline,
+                  color: Colors.white,
+                  size: 18, // Tamaño ligeramente mayor para mejor visibilidad
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 100), // Espacio entre los elementos
+        // Diferencia con ícono de información
+        Row(
+          children: [
+            _buildTotalItem('Diferencia', reporteData!.restante),
+            const SizedBox(width: 8), // Espacio entre el texto y el ícono
+            Tooltip(
+              message: 'La Diferencia es el monto restante para alcanzar el Total Ideal.\n\n'
+                  'Se calcula restando el total de pagos recibidos del Total Ideal.',
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE53888),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              textStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              padding: const EdgeInsets.all(12),
+              preferBelow: false,
+              child: const MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Icon(
+                  Icons.info_outline,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+
+  Widget _buildTotalItem(String label, double value) {
+  return Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: cellTextSize,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      Text(
+        currencyFormat.format(value),
+        style: TextStyle(
+          fontSize: cellTextSize,
+          color: Colors.white,
+        ),
+      ),
+    ],
+  );
+}
+
+
+  Widget _buildTotalsRow(
+    String label, List<({double value, int column})> values) {
+  List<Widget> cells = List.generate(12, (_) => Expanded(child: Container()));
+
+  cells[0] = Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: cellTextSize,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    ),
+  );
+
+  for (final val in values) {
+    cells[val.column] = Flexible(
+      fit: FlexFit.tight,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        alignment: Alignment.center,
         child: Text(
-          label,
+          currencyFormat.format(val.value),
           style: TextStyle(
             fontSize: cellTextSize,
             fontWeight: FontWeight.bold,
@@ -374,28 +496,11 @@ Widget _buildHeader(BuildContext context) {
         ),
       ),
     );
-
-    for (final val in values) {
-      cells[val.column] = Flexible(
-        fit: FlexFit.tight,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          alignment: Alignment.center,
-          child: Text(
-            currencyFormat.format(val.value),
-            style: TextStyle(
-              fontSize: cellTextSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      color: const Color(0xFF5162F6),
-      child: Row(children: cells),
-    );
   }
+
+  return Container(
+    color: const Color(0xFF5162F6),
+    child: Row(children: cells),
+  );
+}
 }

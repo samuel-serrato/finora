@@ -811,8 +811,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                   if (pagosJson.isNotEmpty) {
                                     print('Datos a enviar: $pagosJson');
                                     // Llamar a la función para enviar los datos al servidor
-                                     await enviarDatosAlServidor(
-                                       context, pagosSeleccionados);
+                                    await enviarDatosAlServidor(
+                                        context, pagosSeleccionados);
                                   } else {
                                     print("No hay cambios para guardar.");
                                   }
@@ -1672,14 +1672,20 @@ class _PaginaControlState extends State<PaginaControl> {
                                                         pago.deposito = widget
                                                             .montoGarantia;
 
+                                                        // Cambiar estas líneas para usar la fecha seleccionada
                                                         pago.fechaPagoCompleto =
-                                                            DateTime.now()
-                                                                .toString(); // <-- Fecha de operación
+                                                            pago.fechaPagoCompleto
+                                                                    .isEmpty
+                                                                ? DateTime.now()
+                                                                    .toString()
+                                                                : pago
+                                                                    .fechaPagoCompleto;
+
                                                         if (pago.fechaPago
                                                             .isEmpty) {
-                                                          pago.fechaPago = DateTime
-                                                                  .now()
-                                                              .toString(); // <-- Fecha de pago
+                                                          pago.fechaPago =
+                                                              DateTime.now()
+                                                                  .toString();
                                                         }
 
                                                         // Calcular totalDeuda incluyendo moratorios
@@ -1771,10 +1777,13 @@ class _PaginaControlState extends State<PaginaControl> {
                                           ),
                                           // Fila para seleccionar la fecha (se muestra tanto en "Completo" como en "Monto Parcial")
                                           // Selector de fecha
+                                          // Selector de fecha (modificar esta condición)
                                           if (_puedeEditarPago(pago) &&
                                               (pago.tipoPago == 'Completo' ||
                                                   pago.tipoPago ==
-                                                      'Monto Parcial'))
+                                                      'Monto Parcial' ||
+                                                  pago.tipoPago ==
+                                                      'Garantia')) // <- Añadir Garantia aquí
                                             Padding(
                                               padding:
                                                   EdgeInsets.only(top: 4.0),
@@ -1894,7 +1903,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 vertical: 2),
                                                         decoration:
                                                             BoxDecoration(
-                                                          color: Color(0xFFE53888)
+                                                          color: Color(
+                                                                  0xFFE53888)
                                                               .withOpacity(0.2),
                                                           borderRadius:
                                                               BorderRadius
@@ -1915,7 +1925,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   fontWeight:
                                                                       FontWeight
                                                                           .bold,
-                                                                  color: Color(0xFFE53888)),
+                                                                  color: Color(
+                                                                      0xFFE53888)),
                                                             ),
                                                           ],
                                                         ),
@@ -2731,8 +2742,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                                 2),
                                                                         decoration:
                                                                             BoxDecoration(
-                                                                          color: Color(0xFFE53888)
-                                                                              .withOpacity(0.2),
+                                                                          color:
+                                                                              Color(0xFFE53888).withOpacity(0.2),
                                                                           borderRadius:
                                                                               BorderRadius.circular(6),
                                                                         ),

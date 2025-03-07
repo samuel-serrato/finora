@@ -32,6 +32,7 @@ class ReporteContableData {
   final double totalSaldoFavor;
   final double saldoMoratorio;
   final double totalTotal;
+  final double restante;
   final double totalFicha;
   final List<ReporteContableGrupo> listaGrupos;
 
@@ -44,6 +45,7 @@ class ReporteContableData {
     required this.totalSaldoFavor,
     required this.saldoMoratorio,
     required this.totalTotal,
+    required this.restante,
     required this.totalFicha,
     required this.listaGrupos,
   });
@@ -62,6 +64,7 @@ class ReporteContableData {
       totalSaldoFavor: ParseHelpers.parseDouble(json['totalSaldoFavor']),
       saldoMoratorio: ParseHelpers.parseDouble(json['saldoMoratorio']),
       totalTotal: ParseHelpers.parseDouble(json['totalTotal']),
+      restante: ParseHelpers.parseDouble(json['restante']),
       totalFicha: ParseHelpers.parseDouble(json['totalFicha']),
       listaGrupos: ParseHelpers.parseList(
         json['listaGrupos'],
@@ -74,7 +77,7 @@ class ReporteContableData {
 class ReporteContableGrupo {
   final int num;
   final String tipopago;
-  final int semanas;
+  final int plazo;
   final double tazaInteres;
   final String folio;
   final int pagoPeriodo;
@@ -97,7 +100,7 @@ class ReporteContableGrupo {
   ReporteContableGrupo({
     required this.num,
     required this.tipopago,
-    required this.semanas,
+    required this.plazo,
     required this.tazaInteres,
     required this.folio,
     required this.pagoPeriodo,
@@ -122,7 +125,7 @@ class ReporteContableGrupo {
     return ReporteContableGrupo(
       num: json['num'] ?? 0,
       tipopago: json['tipopago'] ?? '',
-      semanas: json['semanas'] ?? 0,
+      plazo: json['plazo'] ?? 0,
       tazaInteres: ParseHelpers.parseDouble(json['taza_interes']),
       folio: json['folio'] ?? '',
       pagoPeriodo: json['pagoPeriodo'] ?? 0,
