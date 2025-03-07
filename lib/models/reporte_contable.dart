@@ -185,14 +185,14 @@ class Deposito {
   final double saldofavor;
   final double pagoMoratorio;
   final String garantia;
-  final String fechaDeposito; // New field
+  final String fechaDeposito;
 
   Deposito({
     required this.deposito,
     required this.saldofavor,
     required this.pagoMoratorio,
     required this.garantia,
-    required this.fechaDeposito, // New parameter
+    required this.fechaDeposito,
   });
 
   factory Deposito.fromJson(Map<String, dynamic> json) {

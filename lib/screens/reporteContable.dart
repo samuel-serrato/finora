@@ -427,7 +427,51 @@ class ReporteContableWidget extends StatelessWidget {
                         ),
                       ),
 
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
+
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Resumen Global',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                                color: primaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: _buildFinancialInfoCompact(
+                                    'Saldo Global',
+                                    grupo.saldoGlobal,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: _buildFinancialInfoCompact(
+                                    'Restante Global',
+                                    grupo.restanteGlobal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
 
                       // Elementos financieros por período
                       Row(
@@ -462,7 +506,8 @@ class ReporteContableWidget extends StatelessWidget {
                 // COLUMNA 3: Información de depósitos - ANCHO FIJO
                 Container(
                   width: 300, // Ancho fijo reducido
-                  child: _buildDepositosSection(grupo.pagoficha),
+                  child: _buildDepositosSection(
+                      grupo.pagoficha, grupo.restanteFicha),
                 ),
               ],
             ),
@@ -833,7 +878,7 @@ class ReporteContableWidget extends StatelessWidget {
 
   // SECCIÓN: DEPÓSITOS
   // SECCIÓN: DEPÓSITOS
-  Widget _buildDepositosSection(Pagoficha pagoficha) {
+  Widget _buildDepositosSection(Pagoficha pagoficha, double restanteFicha) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -876,7 +921,6 @@ class ReporteContableWidget extends StatelessWidget {
               final deposito = pagoficha.depositos[index];
               return Container(
                 margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(4),
@@ -884,60 +928,82 @@ class ReporteContableWidget extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    // Mostrar la fecha del depósito
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        'Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey[600],
+                    // Encabezado con la fecha de depósito
+                    Container(
+                      width: double.infinity, // Ocupa todo el ancho
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF5162F6).withOpacity(0.2), // Fondo azul claro
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(4),
+                          topRight: Radius.circular(4),
+                        ), // Bordes redondeados solo arriba
+                      ),
+                      child: Align(
+                        alignment:
+                            Alignment.center, // Alinea la fecha a la derecha
+                        child: Text(
+                          'Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.black, // Texto azul oscuro
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildDepositoDetail(
-                          'Depósito',
-                          deposito.deposito,
-                          Icons.arrow_downward,
-                        ),
-                        _buildDepositoDetail(
-                          'Saldo a Favor',
-                          deposito.saldofavor,
-                          Icons.account_balance_wallet,
-                        ),
-                        _buildDepositoDetail(
-                          'Moratorio',
-                          deposito.pagoMoratorio,
-                          Icons.warning,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    // Solo mostrar la etiqueta de garantía cuando sea "Si"
-                    if (deposito.garantia == "Si")
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Color(0xFFE53888),
-                            borderRadius: BorderRadius.circular(4),
+                    // Contenido de la tarjeta
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildDepositoDetail(
+                                'Depósito',
+                                deposito.deposito,
+                                Icons.arrow_downward,
+                              ),
+                              _buildDepositoDetail(
+                                'Saldo a Favor',
+                                deposito.saldofavor,
+                                Icons.account_balance_wallet,
+                              ),
+                              _buildDepositoDetail(
+                                'Moratorio',
+                                deposito.pagoMoratorio,
+                                Icons.warning,
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            'Garantía',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
+                          const SizedBox(height: 6),
+                          // Mostrar la etiqueta de garantía si es "Si"
+                          if (deposito.garantia == "Si")
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Color(0xFFE53888),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Garantía',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               );
@@ -945,6 +1011,7 @@ class ReporteContableWidget extends StatelessWidget {
           ),
         ),
         // Mostrar suma total de depósitos
+        // Mostrar suma total de depósitos - Ya existe pero mejoraremos su visualización
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(8),
@@ -962,7 +1029,7 @@ class ReporteContableWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: primaryColor,
+                  color: const Color.fromARGB(255, 39, 48, 135),
                 ),
               ),
               Text(
@@ -971,6 +1038,38 @@ class ReporteContableWidget extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: primaryColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Añadir el restanteFicha
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.orange[50],
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.orange[200]!),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Restante ficha:',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.orange[900],
+                ),
+              ),
+              Text(
+                currencyFormat.format(restanteFicha),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange[900],
                 ),
               ),
             ],

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:finora/custom_app_bar.dart';
+import 'package:finora/helpers/pdf_exporter_contable.dart';
 import 'package:finora/helpers/pdf_exporter_general.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/models/reporte_contable.dart';
@@ -12,6 +14,7 @@ import 'package:finora/screens/reporteGeneral.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
+import 'package:open_file/open_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:finora/models/reporte_general.dart'; // Importación correcta de modelos
 
@@ -562,7 +565,34 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Future<void> exportarReporte() async {
-    try {
+  try {
+    if (selectedReportType == 'Reporte Contable') {
+      // Exportar reporte contable
+      if (listaReportesContable.isEmpty) {
+        mostrarDialogoError('No hay datos contables para exportar');
+        return;
+      }
+
+      final pdfHelper = PDFExportHelperContable(
+        listaReportesContable.first,
+        currencyFormat,
+      );
+      
+      final pdfDocument = await pdfHelper.generatePDF();
+      final bytes = await pdfDocument.save();
+
+      final output = await FilePicker.platform.saveFile(
+        dialogTitle: 'Exportar Reporte Contable',
+        fileName: 'reporte_contable_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
+      );
+
+      if (output != null) {
+        final file = File(output);
+        await file.writeAsBytes(bytes);
+        await OpenFile.open(file.path);
+      }
+    } else {
+      // Exportar reporte general existente
       await ExportHelperGeneral.exportToPdf(
         context: context,
         reporteData: reporteData,
@@ -571,8 +601,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
         selectedReportType: selectedReportType,
         currencyFormat: currencyFormat,
       );
-    } catch (e) {
-      mostrarDialogoError('Error al exportar: ${e.toString()}');
     }
+  } catch (e) {
+    mostrarDialogoError('Error al exportar: ${e.toString()}');
   }
+}
 }
