@@ -7,7 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
 import 'package:finora/models/reporte_general.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show ByteData, Uint8List, rootBundle;
 
 class ExportHelperGeneral {
   static void mostrarDialogoError(BuildContext context, String mensaje) {
@@ -19,6 +19,11 @@ class ExportHelperGeneral {
         duration: const Duration(seconds: 3),
       ),
     );
+  }
+
+  static Future<Uint8List> _loadAsset(String path) async {
+    final ByteData data = await rootBundle.load(path);
+    return data.buffer.asUint8List();
   }
 
   static Future<void> exportToPdf({
@@ -36,6 +41,10 @@ class ExportHelperGeneral {
 
     try {
       final doc = pw.Document();
+
+      // Precargar imágenes fuera de la construcción del PDF
+      final logoMf = await _loadAsset('assets/logo_mf_n_hzt.png');
+      final finoraLogo = await _loadAsset('assets/finora_hzt.png');
 
       void buildPdfPages() {
         final headers = [
@@ -61,16 +70,16 @@ class ExportHelperGeneral {
             header: (context) => _buildPdfHeader(
               selectedReportType: selectedReportType,
               selectedDateRange: selectedDateRange,
-              reporteData: reporteData,
+              reporteData: reporteData!,
+              logoMf: logoMf,
+              finoraLogo: finoraLogo,
             ),
             footer: (context) => _buildPdfFooter(context),
             build: (context) => [
               _buildPdfTable(headers, groups, currencyFormat),
               pw.SizedBox(height: 10),
               _buildPdfTotals(reporteData, currencyFormat),
-              //pw.SizedBox(height: 10),  // Agregar espacio entre los totales
-              _buildTotalsIdealPdfWidget(
-                  reporteData, currencyFormat), // Aquí lo agregas
+              _buildTotalsIdealPdfWidget(reporteData, currencyFormat),
             ],
           ),
         );
@@ -95,98 +104,97 @@ class ExportHelperGeneral {
   }
 
   static pw.Widget _buildPdfTable(
-    List<String> headers,
-    List<MapEntry<String, List<ReporteGeneral>>> data,
-    NumberFormat currencyFormat) {
-  int currentNumber = 1; // Inicializa el contador
+      List<String> headers,
+      List<MapEntry<String, List<ReporteGeneral>>> data,
+      NumberFormat currencyFormat) {
+    int currentNumber = 1; // Inicializa el contador
 
-  return pw.Container(
-    decoration: pw.BoxDecoration(
-      borderRadius: pw.BorderRadius.circular(10),
-      color: PdfColors.white,
-    ),
-    child: pw.Table(
-      // Aquí agregamos el borde horizontal gris suave
-      border: pw.TableBorder(
-        horizontalInside: pw.BorderSide(
-          color: PdfColors.grey500, // Gris claro para los bordes horizontales
-          width: 0.5,
-        ),
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        borderRadius: pw.BorderRadius.circular(10),
+        color: PdfColors.white,
       ),
-      columnWidths: {
-        0: const pw.FlexColumnWidth(0.5),
-        1: const pw.FlexColumnWidth(1.2),
-        2: const pw.FlexColumnWidth(2.5),
-        3: const pw.FlexColumnWidth(1.5),
-        4: const pw.FlexColumnWidth(1.5),
-        5: const pw.FlexColumnWidth(1.5),
-        6: const pw.FlexColumnWidth(1.5),
-        7: const pw.FlexColumnWidth(1.5),
-        8: const pw.FlexColumnWidth(1.5),
-        9: const pw.FlexColumnWidth(1.5),
-        10: const pw.FlexColumnWidth(1.5),
-      },
-      children: [
-        pw.TableRow(
-          decoration: pw.BoxDecoration(
-            color: PdfColor.fromHex('#5162F6'),
-            borderRadius: const pw.BorderRadius.only(
-              topLeft: pw.Radius.circular(10),
-              topRight: pw.Radius.circular(10),
-            ),
+      child: pw.Table(
+        // Aquí agregamos el borde horizontal gris suave
+        border: pw.TableBorder(
+          horizontalInside: pw.BorderSide(
+            color: PdfColors.grey500, // Gris claro para los bordes horizontales
+            width: 0.5,
           ),
-          children:
-              headers.map((header) => _buildPdfHeaderCell(header)).toList(),
         ),
-        ...data.map((group) {
-          final groupData = group.value;
-          final totalPagos =
-              groupData.fold(0.0, (sum, r) => sum + r.pagoficha);
-          final pagoIncompleto =
-              totalPagos < groupData.first.montoficha && totalPagos > 0;
+        columnWidths: {
+          0: const pw.FlexColumnWidth(0.5),
+          1: const pw.FlexColumnWidth(1.2),
+          2: const pw.FlexColumnWidth(2.5),
+          3: const pw.FlexColumnWidth(1.5),
+          4: const pw.FlexColumnWidth(1.5),
+          5: const pw.FlexColumnWidth(1.5),
+          6: const pw.FlexColumnWidth(1.5),
+          7: const pw.FlexColumnWidth(1.5),
+          8: const pw.FlexColumnWidth(1.5),
+          9: const pw.FlexColumnWidth(1.5),
+          10: const pw.FlexColumnWidth(1.5),
+        },
+        children: [
+          pw.TableRow(
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('#5162F6'),
+              borderRadius: const pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(10),
+                topRight: pw.Radius.circular(10),
+              ),
+            ),
+            children:
+                headers.map((header) => _buildPdfHeaderCell(header)).toList(),
+          ),
+          ...data.map((group) {
+            final groupData = group.value;
+            final totalPagos =
+                groupData.fold(0.0, (sum, r) => sum + r.pagoficha);
+            final pagoIncompleto =
+                totalPagos < groupData.first.montoficha && totalPagos > 0;
 
-          final isLastRow = data.indexOf(group) == data.length - 1;
-          final rowDecoration = _rowDecoration(groupData, pagoIncompleto,
-              isLastRow: isLastRow, isFirstRow: data.indexOf(group) == 0);
+            final isLastRow = data.indexOf(group) == data.length - 1;
+            final rowDecoration = _rowDecoration(groupData, pagoIncompleto,
+                isLastRow: isLastRow, isFirstRow: data.indexOf(group) == 0);
 
-          final row = pw.TableRow(
-            decoration: rowDecoration,
-            children: [
-              _buildPdfCell(currentNumber.toString(), isNumeric: true),
-              _buildPdfCell(groupData.first.tipoPago),
-              _buildPdfCell(groupData.first.grupos),
-              _buildPdfCell(groupData.first.folio),
-              _buildPagosColumn(groupData, currencyFormat),
-              _buildPdfCell(groupData.map((r) => r.fechadeposito).join('\n')),
-              _buildPdfCell(currencyFormat.format(groupData.first.montoficha),
-                  isNumeric: true),
-              _buildPdfCell(
-                  currencyFormat.format(groupData.first.capitalsemanal),
-                  isNumeric: true),
-              _buildPdfCell(
-                  currencyFormat.format(groupData.first.interessemanal),
-                  isNumeric: true),
-              _buildPdfCell(
-                  groupData
-                      .map((r) => currencyFormat.format(r.saldofavor))
-                      .join('\n'),
-                  isNumeric: true),
-              _buildPdfCell(
-                  groupData
-                      .map((r) => currencyFormat.format(r.moratorios))
-                      .join('\n'),
-                  isNumeric: true),
-            ],
-          );
+            final row = pw.TableRow(
+              decoration: rowDecoration,
+              children: [
+                _buildPdfCell(currentNumber.toString(), isNumeric: true),
+                _buildPdfCell(groupData.first.tipoPago),
+                _buildPdfCell(groupData.first.grupos),
+                _buildPdfCell(groupData.first.folio),
+                _buildPagosColumn(groupData, currencyFormat),
+                _buildPdfCell(groupData.map((r) => r.fechadeposito).join('\n')),
+                _buildPdfCell(currencyFormat.format(groupData.first.montoficha),
+                    isNumeric: true),
+                _buildPdfCell(
+                    currencyFormat.format(groupData.first.capitalsemanal),
+                    isNumeric: true),
+                _buildPdfCell(
+                    currencyFormat.format(groupData.first.interessemanal),
+                    isNumeric: true),
+                _buildPdfCell(
+                    groupData
+                        .map((r) => currencyFormat.format(r.saldofavor))
+                        .join('\n'),
+                    isNumeric: true),
+                _buildPdfCell(
+                    groupData
+                        .map((r) => currencyFormat.format(r.moratorios))
+                        .join('\n'),
+                    isNumeric: true),
+              ],
+            );
 
-          currentNumber++;
-          return row;
-        }).toList(),
-      ],
-    ),
-  );
-}
-
+            currentNumber++;
+            return row;
+          }).toList(),
+        ],
+      ),
+    );
+  }
 
   static pw.Widget _buildPdfFooter(pw.Context context) {
     return pw.Container(
@@ -206,6 +214,8 @@ class ExportHelperGeneral {
     required String? selectedReportType,
     required DateTimeRange? selectedDateRange,
     required ReporteGeneralData reporteData,
+    required Uint8List logoMf,
+    required Uint8List finoraLogo,
   }) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -214,13 +224,12 @@ class ExportHelperGeneral {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Image(
-              pw.MemoryImage(
-                  File('assets/logo_mf_n_hzt.png').readAsBytesSync()),
+              pw.MemoryImage(logoMf),
               width: 100,
               height: 100,
             ),
             pw.Image(
-              pw.MemoryImage(File('assets/finora_hzt.png').readAsBytesSync()),
+              pw.MemoryImage(finoraLogo),
               width: 120,
               height: 120,
             ),

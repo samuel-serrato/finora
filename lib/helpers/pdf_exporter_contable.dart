@@ -11,20 +11,34 @@ class PDFExportHelperContable {
   static const PdfColor warningColor = PdfColor.fromInt(0xFFF59E0B);
   final ReporteContableData reporteData;
   final NumberFormat currencyFormat;
-  final String? selectedReportType; // Agregar este campo
+  final String? selectedReportType;
 
   PDFExportHelperContable(
       this.reporteData, this.currencyFormat, this.selectedReportType);
 
+  // Función para cargar assets
+  Future<Uint8List> _loadAsset(String path) async {
+    final ByteData data = await rootBundle.load(path);
+    return data.buffer.asUint8List();
+  }
+
   Future<pw.Document> generatePDF() async {
     final pdf = pw.Document();
+
+    // Precargar imágenes fuera de la construcción del PDF
+    final logoMf = await _loadAsset('assets/logo_mf_n_hzt.png');
+    final finoraLogo = await _loadAsset('assets/finora_hzt.png');
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(10), // Reducido margen general
         build: (context) => [
-          _buildHeader(selectedReportType: selectedReportType),
+          _buildHeader(
+            selectedReportType: selectedReportType,
+            logoMf: logoMf,
+            finoraLogo: finoraLogo,
+          ),
           pw.SizedBox(height: 8), // Reducido espacio
           pw.ListView.builder(
             itemCount: reporteData.listaGrupos.length,
@@ -43,6 +57,8 @@ class PDFExportHelperContable {
 
   pw.Widget _buildHeader({
     required String? selectedReportType,
+    required Uint8List logoMf,
+    required Uint8List finoraLogo,
   }) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -51,13 +67,12 @@ class PDFExportHelperContable {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Image(
-              pw.MemoryImage(
-                  File('assets/logo_mf_n_hzt.png').readAsBytesSync()),
+              pw.MemoryImage(logoMf), // Usa los bytes cargados
               width: 100,
               height: 100,
             ),
             pw.Image(
-              pw.MemoryImage(File('assets/finora_hzt.png').readAsBytesSync()),
+              pw.MemoryImage(finoraLogo),
               width: 120,
               height: 120,
             ),
