@@ -524,7 +524,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               label:
                   Text('Desembolsado', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Interés %', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Interés', style: TextStyle(fontSize: textHeaderTableSize))),
          
           DataColumn(
               label:
@@ -533,7 +533,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               label: Text('Día Pago', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
               label:
-                  Text('Pago Semanal', style: TextStyle(fontSize: textHeaderTableSize))),
+                  Text('Pago Periodo', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
               label: Text('Núm de Pago', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
@@ -543,6 +543,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   Text('Estado de Pago', style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
               label: Text('Estado', style: TextStyle(fontSize: textHeaderTableSize))),
+                 DataColumn(
+                              label: Text(
+                                'Acciones',
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              ),
+                            ),
         ],
         rows: listaCreditos.map((credito) {
           return DataRow(
@@ -578,7 +584,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                       '\$${credito.montoDesembolsado.toStringAsFixed(2)}',
                       style:  TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
-                  child: Text('${credito.interesGlobal}%',
+                  child: Text('${credito.ti_mensual}%',
                       style:  TextStyle(fontSize: textTableSize)))),
             
               DataCell(Center(
@@ -609,6 +615,20 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               DataCell(Center(
                   child: Text(credito.estado,
                       style:  TextStyle(fontSize: textTableSize)))),
+                      DataCell(
+                                  Row(
+                                    children: [
+                                     
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline,
+                                            color: Colors.grey),
+                                        onPressed: () {
+                                        //_eliminarGrupo();
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
             ],
             color: MaterialStateColor.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
@@ -622,6 +642,138 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         }).toList(),
       ),
     );
+  }
+
+  Future<void> _eliminarGrupo(String idGrupo) async {
+    print('[ELIMINAR GRUPO] Iniciando proceso...');
+
+    // Diálogo de confirmación
+    bool confirmado = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar Grupo'),
+        content: const Text(
+            '¿Estás seguro de eliminar este grupo y todos sus clientes asociados?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    print(
+        '[ELIMINAR GRUPO] Confirmación del usuario: ${confirmado ? "Aceptada" : "Cancelada"}');
+    if (confirmado != true) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    print(
+        '[ELIMINAR GRUPO] Token obtenido: ${token.isNotEmpty ? "OK" : "ERROR - Token vacío"}');
+
+    try {
+      // 1. Obtener la lista de clientes asociados al grupo
+      final urlClientes = 'http://$baseUrl/api/v1/grupodetalles/$idGrupo';
+      print('[ELIMINAR GRUPO] URL para obtener clientes: $urlClientes');
+
+      final responseClientes = await http.get(
+        Uri.parse(urlClientes),
+        headers: {'tokenauth': token},
+      );
+
+      print(
+          '[ELIMINAR GRUPO] Respuesta obtener clientes - Código: ${responseClientes.statusCode}');
+      print(
+          '[ELIMINAR GRUPO] Respuesta obtener clientes - Body: ${responseClientes.body}');
+
+      if (responseClientes.statusCode == 200) {
+        final data = json.decode(responseClientes.body) as List;
+        print('[ELIMINAR GRUPO] Número de grupos encontrados: ${data.length}');
+
+        // Recorrer cada grupo (aunque debería ser solo uno)
+        for (var grupo in data) {
+          final clientes = grupo['clientes'] as List;
+          print(
+              '[ELIMINAR GRUPO] Número de clientes en el grupo: ${clientes.length}');
+
+          // 2. Eliminar cada cliente asociado al grupo
+          for (var cliente in clientes) {
+            final idCliente = cliente['idclientes'];
+            final urlEliminarCliente =
+                'http://$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente';
+            print(
+                '[ELIMINAR GRUPO] URL para eliminar cliente: $urlEliminarCliente');
+
+            final responseEliminarCliente = await http.delete(
+              Uri.parse(urlEliminarCliente),
+              headers: {'tokenauth': token},
+            );
+
+            print(
+                '[ELIMINAR GRUPO] Respuesta eliminar cliente $idCliente - Código: ${responseEliminarCliente.statusCode}');
+            print(
+                '[ELIMINAR GRUPO] Respuesta eliminar cliente $idCliente - Body: ${responseEliminarCliente.body}');
+
+            if (responseEliminarCliente.statusCode != 200) {
+              print('[ELIMINAR GRUPO] Error al eliminar cliente $idCliente');
+              final errorData = json.decode(responseEliminarCliente.body);
+              print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
+              mostrarDialogoError('Error al eliminar cliente $idCliente');
+              return;
+            }
+          }
+        }
+
+        // 3. Eliminar el grupo
+        final urlEliminarGrupo = 'http://$baseUrl/api/v1/grupos/$idGrupo';
+        print('[ELIMINAR GRUPO] URL para eliminar grupo: $urlEliminarGrupo');
+
+        final responseEliminarGrupo = await http.delete(
+          Uri.parse(urlEliminarGrupo),
+          headers: {'tokenauth': token},
+        );
+
+        print(
+            '[ELIMINAR GRUPO] Respuesta eliminar grupo - Código: ${responseEliminarGrupo.statusCode}');
+        print(
+            '[ELIMINAR GRUPO] Respuesta eliminar grupo - Body: ${responseEliminarGrupo.body}');
+
+        if (responseEliminarGrupo.statusCode == 200) {
+          print('[ELIMINAR GRUPO] Eliminación exitosa, actualizando lista...');
+          //obtenerGrupos();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Grupo y clientes asociados eliminados exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          print('[ELIMINAR GRUPO] Error al eliminar grupo');
+          final errorData = json.decode(responseEliminarGrupo.body);
+          print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
+          mostrarDialogoError(
+              errorData['Error']['Message'] ?? 'Error al eliminar el grupo');
+        }
+      } else {
+        print('[ELIMINAR GRUPO] Error al obtener clientes del grupo');
+        final errorData = json.decode(responseClientes.body);
+        print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
+        mostrarDialogoError(errorData['Error']['Message'] ??
+            'Error al obtener los clientes del grupo');
+      }
+    } catch (e) {
+      print('[ELIMINAR GRUPO] Excepción capturada: $e');
+      print('[ELIMINAR GRUPO] StackTrace: ${e is Error ? e.stackTrace : ""}');
+      mostrarDialogoError('Error de conexión: $e');
+    }
+
+    print('[ELIMINAR GRUPO] Proceso finalizado');
   }
 }
 
@@ -639,6 +791,7 @@ class Credito {
   final double pagoCuota;
   final double interesGlobal;
   final double montoTotal;
+  final double ti_mensual;
   final double interesTotal;
   final double montoMasInteres;
   final String numPago;
@@ -661,6 +814,7 @@ class Credito {
     required this.pagoCuota,
     required this.interesGlobal,
     required this.montoTotal,
+    required this.ti_mensual,
     required this.interesTotal,
     required this.montoMasInteres,
     required this.numPago,
@@ -684,6 +838,7 @@ class Credito {
       garantia: double.parse(json['garantia'].replaceAll('%', '')),
       pagoCuota: json['pagoCuota'].toDouble(),
       interesGlobal: json['interesGlobal'].toDouble(),
+      ti_mensual: json['ti_mensual'].toDouble(),
       montoTotal: json['montoTotal'].toDouble(),
       interesTotal: json['interesTotal'].toDouble(),
       montoMasInteres: json['montoMasInteres'].toDouble(),
