@@ -497,7 +497,6 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   final double textHeaderTableSize = 12.0;
   final double textTableSize = 11.0;
   Widget tabla(BuildContext context) {
-
     return SizedBox(
       width: MediaQuery.of(context).size.width,
       child: DataTable(
@@ -512,43 +511,52 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           color: Colors.white,
           fontSize: textHeaderTableSize,
         ),
-        columns:  [
-          DataColumn(label: Text('Tipo', style: TextStyle(fontSize: textHeaderTableSize))),
+        columns: [
           DataColumn(
-              label: Text('Frecuencia', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Tipo',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Nombre', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Frecuencia',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Autorizado', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Nombre',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label:
-                  Text('Desembolsado', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Autorizado',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Interés', style: TextStyle(fontSize: textHeaderTableSize))),
-         
+              label: Text('Desembolsado',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label:
-                  Text('M. a Recuperar', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Interés',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Día Pago', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('M. a Recuperar',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label:
-                  Text('Pago Periodo', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Día Pago',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Núm de Pago', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Pago Periodo',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Duración', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Núm de Pago',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label:
-                  Text('Estado de Pago', style: TextStyle(fontSize: textHeaderTableSize))),
+              label: Text('Duración',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Estado', style: TextStyle(fontSize: textHeaderTableSize))),
-                 DataColumn(
-                              label: Text(
-                                'Acciones',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
+              label: Text('Estado de Pago',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
+          DataColumn(
+              label: Text('Estado',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
+          DataColumn(
+            label: Text(
+              'Acciones',
+              style: TextStyle(fontSize: textHeaderTableSize),
+            ),
+          ),
         ],
         rows: listaCreditos.map((credito) {
           return DataRow(
@@ -563,14 +571,14 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             },
             cells: [
               DataCell(Text(credito.tipo,
-                  style:  TextStyle(fontSize: textTableSize))),
+                  style: TextStyle(fontSize: textTableSize))),
               DataCell(Text(credito.tipoPlazo,
-                  style:  TextStyle(fontSize: textTableSize))),
+                  style: TextStyle(fontSize: textTableSize))),
               DataCell(Container(
                 width: 80,
                 child: Text(
                   credito.nombreGrupo,
-                  style:  TextStyle(fontSize: textTableSize),
+                  style: TextStyle(fontSize: textTableSize),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 2,
                   softWrap: true,
@@ -578,32 +586,31 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               )),
               DataCell(Center(
                   child: Text('\$${credito.montoTotal.toStringAsFixed(2)}',
-                      style:  TextStyle(fontSize: textTableSize)))),
+                      style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text(
                       '\$${credito.montoDesembolsado.toStringAsFixed(2)}',
-                      style:  TextStyle(fontSize: textTableSize)))),
+                      style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.ti_mensual}%',
-                      style:  TextStyle(fontSize: textTableSize)))),
-            
+                      style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('\$${credito.montoMasInteres.toStringAsFixed(2)}',
-                      style:  TextStyle(fontSize: textTableSize)))),
+                      style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.diaPago}',
-                      style:  TextStyle(fontSize: textTableSize)))),
+                      style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.pagoCuota}',
-                      style:  TextStyle(fontSize: textTableSize)))),
+                      style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.numPago}',
-                      style:  TextStyle(fontSize: textTableSize)))),
+                      style: TextStyle(fontSize: textTableSize)))),
               DataCell(Container(
                 width: 70,
                 child: Text(
                   credito.fechasIniciofin,
-                  style:  TextStyle(fontSize: textTableSize),
+                  style: TextStyle(fontSize: textTableSize),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 2,
                   softWrap: true,
@@ -611,24 +618,44 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               )),
               DataCell(Center(
                   child: Text(credito.estadoCredito.estado,
-                      style:  TextStyle(fontSize: textTableSize)))),
+                      style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text(credito.estado,
-                      style:  TextStyle(fontSize: textTableSize)))),
-                      DataCell(
-                                  Row(
-                                    children: [
-                                     
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline,
-                                            color: Colors.grey),
-                                        onPressed: () {
-                                        //_eliminarGrupo();
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                      style: TextStyle(fontSize: textTableSize)))),
+              DataCell(
+                Row(
+                  children: [
+                    IconButton(
+                      icon:
+                          const Icon(Icons.delete_outline, color: Colors.grey),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Confirmar eliminación'),
+                            content: const Text(
+                                '¿Estás seguro de eliminar este crédito?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancelar'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _eliminarCredito(credito.idCredito);
+                                },
+                                child: const Text('Eliminar',
+                                    style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ],
             color: MaterialStateColor.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
@@ -644,136 +671,101 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     );
   }
 
-  Future<void> _eliminarGrupo(String idGrupo) async {
-    print('[ELIMINAR GRUPO] Iniciando proceso...');
+  Future<void> _eliminarCredito(String idCredito) async {
+    // Mostrar SnackBar de carga
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            ),
+            SizedBox(width: 20),
+            Text('Eliminando crédito...'),
+          ],
+        ),
+        duration: const Duration(
+            minutes: 1), // Duración larga para mantenerlo visible
+      ),
+    );
 
-    // Diálogo de confirmación
-    bool confirmado = await showDialog(
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.delete(
+        Uri.parse('http://$baseUrl/api/v1/credito/$idCredito'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (response.statusCode == 200) {
+        // Actualizar lista
+        obtenerCreditos();
+        // Mostrar SnackBar de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Crédito eliminado exitosamente'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else if (response.statusCode == 401) {
+        _handleTokenExpiration();
+      } else {
+        final errorData = json.decode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Error al eliminar: ${errorData['Error']['Message']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } on SocketException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error de conexión. Verifica tu red.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error inesperado: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void mostrarDialogoExito(String mensaje) {
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Eliminar Grupo'),
-        content: const Text(
-            '¿Estás seguro de eliminar este grupo y todos sus clientes asociados?'),
+        title: Text('Éxito'),
+        content: Text(mensaje),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('OK'),
           ),
         ],
       ),
     );
-
-    print(
-        '[ELIMINAR GRUPO] Confirmación del usuario: ${confirmado ? "Aceptada" : "Cancelada"}');
-    if (confirmado != true) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    print(
-        '[ELIMINAR GRUPO] Token obtenido: ${token.isNotEmpty ? "OK" : "ERROR - Token vacío"}');
-
-    try {
-      // 1. Obtener la lista de clientes asociados al grupo
-      final urlClientes = 'http://$baseUrl/api/v1/grupodetalles/$idGrupo';
-      print('[ELIMINAR GRUPO] URL para obtener clientes: $urlClientes');
-
-      final responseClientes = await http.get(
-        Uri.parse(urlClientes),
-        headers: {'tokenauth': token},
-      );
-
-      print(
-          '[ELIMINAR GRUPO] Respuesta obtener clientes - Código: ${responseClientes.statusCode}');
-      print(
-          '[ELIMINAR GRUPO] Respuesta obtener clientes - Body: ${responseClientes.body}');
-
-      if (responseClientes.statusCode == 200) {
-        final data = json.decode(responseClientes.body) as List;
-        print('[ELIMINAR GRUPO] Número de grupos encontrados: ${data.length}');
-
-        // Recorrer cada grupo (aunque debería ser solo uno)
-        for (var grupo in data) {
-          final clientes = grupo['clientes'] as List;
-          print(
-              '[ELIMINAR GRUPO] Número de clientes en el grupo: ${clientes.length}');
-
-          // 2. Eliminar cada cliente asociado al grupo
-          for (var cliente in clientes) {
-            final idCliente = cliente['idclientes'];
-            final urlEliminarCliente =
-                'http://$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente';
-            print(
-                '[ELIMINAR GRUPO] URL para eliminar cliente: $urlEliminarCliente');
-
-            final responseEliminarCliente = await http.delete(
-              Uri.parse(urlEliminarCliente),
-              headers: {'tokenauth': token},
-            );
-
-            print(
-                '[ELIMINAR GRUPO] Respuesta eliminar cliente $idCliente - Código: ${responseEliminarCliente.statusCode}');
-            print(
-                '[ELIMINAR GRUPO] Respuesta eliminar cliente $idCliente - Body: ${responseEliminarCliente.body}');
-
-            if (responseEliminarCliente.statusCode != 200) {
-              print('[ELIMINAR GRUPO] Error al eliminar cliente $idCliente');
-              final errorData = json.decode(responseEliminarCliente.body);
-              print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
-              mostrarDialogoError('Error al eliminar cliente $idCliente');
-              return;
-            }
-          }
-        }
-
-        // 3. Eliminar el grupo
-        final urlEliminarGrupo = 'http://$baseUrl/api/v1/grupos/$idGrupo';
-        print('[ELIMINAR GRUPO] URL para eliminar grupo: $urlEliminarGrupo');
-
-        final responseEliminarGrupo = await http.delete(
-          Uri.parse(urlEliminarGrupo),
-          headers: {'tokenauth': token},
-        );
-
-        print(
-            '[ELIMINAR GRUPO] Respuesta eliminar grupo - Código: ${responseEliminarGrupo.statusCode}');
-        print(
-            '[ELIMINAR GRUPO] Respuesta eliminar grupo - Body: ${responseEliminarGrupo.body}');
-
-        if (responseEliminarGrupo.statusCode == 200) {
-          print('[ELIMINAR GRUPO] Eliminación exitosa, actualizando lista...');
-          //obtenerGrupos();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content:
-                  Text('Grupo y clientes asociados eliminados exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          print('[ELIMINAR GRUPO] Error al eliminar grupo');
-          final errorData = json.decode(responseEliminarGrupo.body);
-          print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
-          mostrarDialogoError(
-              errorData['Error']['Message'] ?? 'Error al eliminar el grupo');
-        }
-      } else {
-        print('[ELIMINAR GRUPO] Error al obtener clientes del grupo');
-        final errorData = json.decode(responseClientes.body);
-        print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
-        mostrarDialogoError(errorData['Error']['Message'] ??
-            'Error al obtener los clientes del grupo');
-      }
-    } catch (e) {
-      print('[ELIMINAR GRUPO] Excepción capturada: $e');
-      print('[ELIMINAR GRUPO] StackTrace: ${e is Error ? e.stackTrace : ""}');
-      mostrarDialogoError('Error de conexión: $e');
-    }
-
-    print('[ELIMINAR GRUPO] Proceso finalizado');
   }
 }
 
