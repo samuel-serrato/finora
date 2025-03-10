@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 class ParseHelpers {
   static double parseDouble(dynamic value) {
     if (value == null) return 0.0;
@@ -20,6 +22,23 @@ class ParseHelpers {
     } catch (e) {
       return [];
     }
+  }
+}
+
+String _formatearFechaSemana(String fechaOriginal) {
+  try {
+    final partes = fechaOriginal.split(' - ');
+    final fechaInicio = partes[0].split(' ')[0];
+    final fechaFin = partes[1].split(' ')[0];
+
+    final formateador = DateFormat('d \'de\' MMMM \'de\' yyyy', 'es');
+
+    final inicio = formateador.format(DateTime.parse(fechaInicio));
+    final fin = formateador.format(DateTime.parse(fechaFin));
+
+    return '$inicio - $fin';
+  } catch (e) {
+    return fechaOriginal; // En caso de error, devolver original
   }
 }
 
@@ -56,7 +75,7 @@ class ReporteContableData {
     print('¿Existe fechaSemana? ${json.containsKey('fechaSemana')}');
     print('¿Existe listaGrupos? ${json.containsKey('listaGrupos')}');
     return ReporteContableData(
-      fechaSemana: json['fechaSemana'] ?? '',
+      fechaSemana: _formatearFechaSemana(json['fechaSemana'] ?? 'N/A'),
       fechaActual: json['fechaActual'] ?? '',
       totalCapital: ParseHelpers.parseDouble(json['totalCapital']),
       totalInteres: ParseHelpers.parseDouble(json['totalInteres']),
