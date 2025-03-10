@@ -73,6 +73,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
     setState(() {
       isLoading = true;
+      hasGenerated = true; // Establece hasGenerated = true desde el principio
       listaReportes = [];
       listaReportesContable = [];
       reporteData = null;
@@ -80,6 +81,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
       errorDeConexion = false;
       noReportesFound = false;
     });
+
+      await Future.delayed(Duration(milliseconds: 200));
+
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -178,7 +182,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
       if (mounted) {
         setState(() {
           isLoading = false;
-          hasGenerated = true;
+          //hasGenerated = true;
         });
       }
     }
@@ -221,7 +225,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
           Expanded(
             child: hasGenerated
                 ? isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF5162F6)))
                     : hasError
                         ? _buildErrorDisplay()
                         : selectedReportType == 'Reporte Contable'
@@ -490,7 +494,6 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       Colors.blue, // Color del encabezado - color original
                   headerForegroundColor:
                       Colors.white, // Color del texto en el encabezado
-                      
 
                   // Añadimos solo mejoras para los campos de texto manteniendo tus colores originales
                   inputDecorationTheme: InputDecorationTheme(
@@ -516,7 +519,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   primary: Colors
                       .blue, // Color principal de botones y selección - color original
                   onPrimary: Colors.white,
-                 
+
                   onSurface: Colors.black, // Color del texto - color original
                 ),
               ),
@@ -565,10 +568,37 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Future<void> exportarReporte() async {
+  // Mostrar diálogo de carga
+  showDialog(
+    context: context,
+    barrierDismissible: false, // El usuario no puede cerrar el diálogo tocando fuera
+    builder: (BuildContext context) {
+      return Dialog(
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 50),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: Color(0xFF5162F6),),
+              const SizedBox(height: 20),
+              const Text('Exportando reporte...'),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
   try {
+    // Agregar un pequeño delay para asegurar que el diálogo se muestre
+    await Future.delayed(Duration(milliseconds: 500));
+    
     if (selectedReportType == 'Reporte Contable') {
       // Exportar reporte contable
       if (listaReportesContable.isEmpty) {
+        // Cerrar el diálogo de carga
+        Navigator.pop(context);
         mostrarDialogoError('No hay datos contables para exportar');
         return;
       }
@@ -587,12 +617,18 @@ class _ReportesScreenState extends State<ReportesScreen> {
         fileName: 'reporte_contable_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
       );
 
+      // Cerrar el diálogo de carga antes de mostrar el selector de archivos
+      Navigator.pop(context);
+
       if (output != null) {
         final file = File(output);
         await file.writeAsBytes(bytes);
         await OpenFile.open(file.path);
       }
     } else {
+      // Cerrar el diálogo de carga antes de llamar a exportToPdf
+      Navigator.pop(context);
+      
       // Exportar reporte general existente
       await ExportHelperGeneral.exportToPdf(
         context: context,
@@ -604,6 +640,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
       );
     }
   } catch (e) {
+    // Cerrar el diálogo de carga en caso de error
+    Navigator.pop(context);
     mostrarDialogoError('Error al exportar: ${e.toString()}');
   }
 }

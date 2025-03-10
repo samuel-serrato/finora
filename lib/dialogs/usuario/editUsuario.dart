@@ -241,6 +241,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: width,
@@ -372,7 +373,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                                         widget.idUsuario),
                                           ),
                                           icon:
-                                              Icon(Icons.lock_reset, size: 18),
+                                              Icon(Icons.lock_reset, size: 18, color: Colors.white,),
                                           label: Text('CAMBIAR CONTRASEÑA'),
                                           style: ElevatedButton.styleFrom(
                                               backgroundColor:
@@ -633,6 +634,7 @@ class __CambiarPasswordDialogState extends State<_CambiarPasswordDialog> {
   @override
   Widget build(BuildContext context) {
   return AlertDialog(
+    backgroundColor: Colors.white,
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(20.0),
       side: BorderSide(color: Colors.blue.shade100, width: 2),
@@ -641,7 +643,7 @@ class __CambiarPasswordDialogState extends State<_CambiarPasswordDialog> {
       children: [
         Icon(Icons.lock_reset, size: 40, color: Colors.blue.shade800),
         SizedBox(height: 10),
-        Text('Cambiar Contraseña', 
+        Text('Cambiar Contraseña',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,

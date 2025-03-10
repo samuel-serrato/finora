@@ -22,7 +22,7 @@ class InfoGrupo extends StatefulWidget {
 }
 
 class _InfoGrupoState extends State<InfoGrupo> {
-  Map<String, dynamic>? grupoData;
+  Grupo? grupoData; // Cambiar el tipo aquí
   bool isLoading = true;
   Timer? _timerData;
   Timer? _timerHistorial;
@@ -81,19 +81,24 @@ class _InfoGrupoState extends State<InfoGrupo> {
         },
       ).timeout(Duration(seconds: 10));
 
-      print('Respuesta recibida (grupo): ${response.statusCode}');
+      print(
+          'Respuesta recibida (grupodetalles fetchGrupoData): ${response.statusCode}');
+      print(
+          'Respuesta completa (grupodetalles fetchGrupoData): ${response.body}'); // Imprime respuesta completa
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         if (responseData is List && responseData.isNotEmpty) {
           setState(() {
-            grupoData = responseData[0];
+            grupoData =
+                Grupo.fromJson(responseData[0]); // Convertir JSON a modelo
             errorDeConexion = false;
           });
         } else {
           throw Exception('Datos del grupo no encontrados');
         }
       } else if (response.statusCode == 401) {
+        print('Error 401: ${response.body}'); // Imprime detalle del error
         if (mounted) {
           setState(() => isLoading = false);
           final prefs = await SharedPreferences.getInstance();
@@ -113,6 +118,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
           }
         }
       } else if (response.statusCode == 404) {
+        print('Error 404: ${response.body}'); // Imprime detalle del error
         final errorData = json.decode(response.body);
         if (errorData["Error"]["Message"] == "jwt expired") {
           if (mounted) {
@@ -135,16 +141,20 @@ class _InfoGrupoState extends State<InfoGrupo> {
           }
           return;
         } else {
-          throw Exception('Endpoint no encontrado');
+          throw Exception('Endpoint no encontrado: ${response.body}');
         }
       } else {
-        throw Exception('Error del servidor: ${response.statusCode}');
+        throw Exception(
+            'Error del servidor: ${response.statusCode}, Respuesta: ${response.body}');
       }
-    } on SocketException {
+    } on SocketException catch (e) {
+      print('Error de conexión: $e'); // Imprime el error completo
       setErrorState(dialogShown, SocketException('Error de conexión'));
-    } on TimeoutException {
+    } on TimeoutException catch (e) {
+      print('Error de timeout: $e'); // Imprime el error completo
       setErrorState(dialogShown, TimeoutException('Timeout'));
     } catch (e) {
+      print('Error general fetchGrupoData: $e'); // Imprime el error completo
       setErrorState(dialogShown, e);
     }
   }
@@ -160,27 +170,36 @@ class _InfoGrupoState extends State<InfoGrupo> {
       final uri = Uri.parse(
           'http://$baseUrl/api/v1/grupodetalles/historial/$nombreCodificado');
 
+      print(
+          'Iniciando petición de historial para grupo: $nombreGrupo'); // Añadir log inicial
+
       final response = await http.get(
         uri,
         headers: {'tokenauth': token},
       ).timeout(Duration(seconds: 10));
 
+      print('Respuesta recibida (historial): ${response.statusCode}');
+      print(
+          'Respuesta completa (historial): ${response.body}'); // Imprime respuesta completa
+
       if (response.statusCode == 200) {
-        // ... (tu procesamiento normal de datos) ...
-           final List<dynamic> data = json.decode(response.body);
-      setState(() {
-        historialData = data;
-        errorDeConexion = false;
-      });
-      } else if (response.statusCode == 400) {
-        // ... (manejo de "no hay registros" como antes) ...
-           final errorData = json.decode(response.body);
-      if (errorData["Error"]["Message"] == "No hay registros de historial para este grupo") {
+        final List<dynamic> data = json.decode(response.body);
         setState(() {
-          historialData = [];
+          historialData = data;
           errorDeConexion = false;
-        });}
+        });
+      } else if (response.statusCode == 400) {
+        print('Error 400: ${response.body}'); // Imprime detalle del error
+        final errorData = json.decode(response.body);
+        if (errorData["Error"]["Message"] ==
+            "No hay historial del grupo registrado con este nombre") {
+          setState(() {
+            historialData = [];
+            errorDeConexion = false;
+          });
+        }
       } else if (response.statusCode == 404) {
+        print('Error 404: ${response.body}'); // Imprime detalle del error
         final errorData = json.decode(response.body);
         if (errorData["Error"]["Message"] == "jwt expired") {
           if (mounted) {
@@ -203,10 +222,10 @@ class _InfoGrupoState extends State<InfoGrupo> {
           }
           return;
         } else {
-          throw Exception('Endpoint no encontrado');
+          throw Exception('Endpoint no encontrado: ${response.body}');
         }
       } else if (response.statusCode == 401) {
-        // Manejo alternativo para 401 (no basado en mensaje)
+        print('Error 401: ${response.body}'); // Imprime detalle del error
         if (mounted) {
           setState(() => isLoading = false);
           final prefs = await SharedPreferences.getInstance();
@@ -226,13 +245,18 @@ class _InfoGrupoState extends State<InfoGrupo> {
           }
         }
       } else {
-        throw Exception('Error del servidor: ${response.statusCode}');
+        throw Exception(
+            'Error del servidor: ${response.statusCode}, Respuesta: ${response.body}');
       }
-    } on SocketException {
+    } on SocketException catch (e) {
+      print('Error de conexión: $e'); // Imprime el error completo
       setErrorState(dialogShown, SocketException('Error de conexión'));
-    } on TimeoutException {
+    } on TimeoutException catch (e) {
+      print('Error de timeout: $e'); // Imprime el error completo
       setErrorState(dialogShown, TimeoutException('Timeout'));
     } catch (e) {
+      print(
+          'Error general fetchGrupoHistorial: $e'); // Imprime el error completo
       setErrorState(dialogShown, e);
     }
   }
@@ -295,6 +319,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
 
     Future<void> fetchData() async {
       try {
+        print('Iniciando petición para obtener grupos');
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('tokenauth') ?? '';
 
@@ -306,19 +331,23 @@ class _InfoGrupoState extends State<InfoGrupo> {
           },
         );
 
+        print(
+            'Respuesta recibida (grupodetalles fetchData): ${response.statusCode}');
+        print(
+            'Respuesta completa (grupodetalles fetchData): ${response.body}'); // Imprime respuesta completa
+
         if (mounted) {
           if (response.statusCode == 200) {
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
-              listaGrupos.sort((a, b) =>
-                  b.fCreacion.compareTo(a.fCreacion)); // <-- Agrega esta línea
-
+              listaGrupos.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
               isLoading = false;
               errorDeConexion = false;
             });
             _timer?.cancel();
           } else if (response.statusCode == 404) {
+            print('Error 404: ${response.body}'); // Imprime detalle del error
             final errorData = json.decode(response.body);
             if (errorData["Error"]["Message"] == "jwt expired") {
               if (mounted) {
@@ -340,6 +369,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
               setErrorState(dialogShown);
             }
           } else if (response.statusCode == 400) {
+            print('Error 400: ${response.body}'); // Imprime detalle del error
             final errorData = json.decode(response.body);
             if (errorData["Error"]["Message"] ==
                 "No hay detalle de grupos registrados") {
@@ -353,10 +383,13 @@ class _InfoGrupoState extends State<InfoGrupo> {
               setErrorState(dialogShown);
             }
           } else {
+            print(
+                'Error no manejado: ${response.statusCode}, Respuesta: ${response.body}');
             setErrorState(dialogShown);
           }
         }
       } catch (e) {
+        print('Error en obtenerGrupos: $e'); // Imprime el error completo
         if (mounted) {
           setErrorState(dialogShown, e);
         }
@@ -434,18 +467,16 @@ class _InfoGrupoState extends State<InfoGrupo> {
                               SizedBox(
                                   height:
                                       8), // Espacio entre el título y los detalles
-                              _buildDetailRowIG('ID:', grupoData!['idgrupos']),
+                              _buildDetailRowIG('ID:', grupoData!.idgrupos),
                               _buildDetailRowIG(
-                                  'Nombre:', grupoData!['nombreGrupo']),
+                                  'Nombre:', grupoData!.nombreGrupo),
+                              _buildDetailRowIG('Tipo:', grupoData!.tipoGrupo),
                               _buildDetailRowIG(
-                                  'Tipo:', grupoData!['tipoGrupo']),
-                              _buildDetailRowIG(
-                                  'Detalles:', grupoData!['detalles']),
-                              _buildDetailRowIG(
-                                  'Estado:', grupoData!['estado']),
+                                  'Detalles:', grupoData!.detalles),
+                              _buildDetailRowIG('Estado:', grupoData!.estado),
 
                               _buildDetailRowIG('Folio del Crédito:',
-                                  grupoData!['folio'] ?? 'No asignado'),
+                                  grupoData!.folio ?? 'No asignado'),
                               SizedBox(height: 30),
                               ElevatedButton(
                                 onPressed: () {
@@ -493,9 +524,9 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       _buildSectionTitle('Integrantes'),
-                                      if (grupoData!['clientes'] is List) ...[
-                                        for (var cliente
-                                            in grupoData!['clientes'])
+                                      // Dentro del método build, en la sección donde se muestran los detalles de los clientes:
+                                      if (grupoData!.clientes.isNotEmpty) ...[
+                                        for (var cliente in grupoData!.clientes)
                                           Card(
                                             color: Colors.white,
                                             margin: EdgeInsets.symmetric(
@@ -505,9 +536,8 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                               borderRadius:
                                                   BorderRadius.circular(12),
                                             ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(16),
-                                              child: Row(
+                                            child: ExpansionTile(
+                                              title: Row(
                                                 children: [
                                                   Icon(
                                                     Icons.account_circle,
@@ -521,27 +551,78 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                           CrossAxisAlignment
                                                               .start,
                                                       children: [
-                                                        Padding(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                                  vertical:
-                                                                      4.0),
-                                                          child: Text(
-                                                              cliente[
-                                                                  'nombres'],
+                                                        Text(cliente.nombres,
+                                                            style: TextStyle(
+                                                                fontSize: 14)),
+                                                        Row(
+                                                          children: [
+                                                            Text('Cargo:',
+                                                                style: TextStyle(
+                                                                    fontSize:
+                                                                        12)),
+                                                            SizedBox(width: 4),
+                                                            Text(
+                                                              cliente.cargo!,
                                                               style: TextStyle(
-                                                                fontSize: 12,
-                                                              )),
+                                                                  fontSize: 12),
+                                                            ),
+                                                          ],
                                                         ),
-                                                        _buildDetailRow(
-                                                            'Cargo:',
-                                                            cliente['cargo']),
                                                       ],
                                                     ),
                                                   ),
                                                 ],
                                               ),
+                                              children: [
+                                                if (cliente.cuenta != null) ...[
+                                                  Padding(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 16.0,
+                                                        vertical: 8.0),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        _buildDetailRow(
+                                                          'Banco:',
+                                                          cliente.cuenta!
+                                                              .nombreBanco,
+                                                        ),
+                                                        _buildDetailRow(
+                                                          'Número de Cuenta:',
+                                                          cliente.cuenta!
+                                                              .numCuenta,
+                                                        ),
+                                                        _buildDetailRow(
+                                                          'Número de Tarjeta:',
+                                                          cliente.cuenta!
+                                                              .numTarjeta,
+                                                        ),
+                                                        _buildDetailRow(
+                                                          'CLABE:',
+                                                          cliente.cuenta!
+                                                              .clbIntBanc,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ] else ...[
+                                                  Padding(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 16.0,
+                                                        vertical: 8.0),
+                                                    child: Text(
+                                                      'No hay información de cuenta bancaria.',
+                                                      style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: Colors.grey),
+                                                    ),
+                                                  ),
+                                                ]
+                                              ],
                                             ),
                                           ),
                                       ],
@@ -804,14 +885,21 @@ class _InfoGrupoState extends State<InfoGrupo> {
     );
   }
 
-  Widget _buildDetailRow(String title, String? value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Text('$title $value',
-          style: TextStyle(
-            fontSize: 12,
-          )),
-    );
+  Widget _buildDetailRow(String label, String? value, {IconData? icon}) {
+    if (value?.isNotEmpty ?? false) {
+      return Row(
+        children: [
+          Text(label,
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          SizedBox(width: 4),
+          SelectableText(
+            value!,
+            style: TextStyle(fontSize: 12),
+          ),
+        ],
+      );
+    }
+    return SizedBox.shrink();
   }
 
   Widget _buildDetailRowIG(String title, String? value) {
@@ -834,36 +922,106 @@ class _InfoGrupoState extends State<InfoGrupo> {
   }
 }
 
-
 class Grupo {
   final String idgrupos;
+  final String idusuario;
+  final String? folio;
+  final String asesor;
+  final String estado;
   final String tipoGrupo;
   final String nombreGrupo;
   final String detalles;
-  final String asesor;
-  final String fCreacion;
-  final String estado; // Agregamos el campo 'estado'
+  final List<Cliente> clientes;
+  final DateTime fCreacion;
 
   Grupo({
     required this.idgrupos,
+    required this.idusuario,
+    required this.folio,
+    required this.asesor,
+    required this.estado,
     required this.tipoGrupo,
     required this.nombreGrupo,
     required this.detalles,
-    required this.asesor,
+    required this.clientes,
     required this.fCreacion,
-    required this.estado, // Inicializamos el campo 'estado' en el constructor
   });
 
   factory Grupo.fromJson(Map<String, dynamic> json) {
     return Grupo(
       idgrupos: json['idgrupos'],
+      idusuario: json['idusuario'],
+      folio: json['folio'],
+      asesor: json['asesor'],
+      estado: json['estado'] ?? 'N/A',
       tipoGrupo: json['tipoGrupo'],
       nombreGrupo: json['nombreGrupo'],
       detalles: json['detalles'],
-      asesor: json['asesor'],
-      fCreacion: json['fCreacion'],
-      estado:
-          json['estado'], // Asignamos el valor del campo 'estado' desde el JSON
+      clientes: (json['clientes'] as List)
+          .map((cliente) => Cliente.fromJson(cliente))
+          .toList(),
+      fCreacion: DateTime.parse(json['fCreacion']),
+    );
+  }
+}
+
+class Cliente {
+  final String iddetallegrupos;
+  final String idclientes;
+  final String nombres;
+  final String telefono;
+  final DateTime fechaNacimiento;
+  final String cargo;
+  final Cuenta? cuenta;
+
+  Cliente({
+    required this.iddetallegrupos,
+    required this.idclientes,
+    required this.nombres,
+    required this.telefono,
+    required this.fechaNacimiento,
+    required this.cargo,
+    this.cuenta,
+  });
+
+  factory Cliente.fromJson(Map<String, dynamic> json) {
+    return Cliente(
+      iddetallegrupos: json['iddetallegrupos'],
+      idclientes: json['idclientes'],
+      nombres: json['nombres'],
+      telefono: json['telefono'],
+      fechaNacimiento: DateTime.parse(json['fechaNacimiento']),
+      cargo: json['cargo'],
+      cuenta: json['cuenta'] != null ? Cuenta.fromJson(json['cuenta']) : null,
+    );
+  }
+}
+
+class Cuenta {
+  final String idcuantabank;
+  final String nombreBanco;
+  final String numCuenta;
+  final String numTarjeta;
+  final String clbIntBanc;
+  final String idclientes;
+
+  Cuenta({
+    required this.idcuantabank,
+    required this.nombreBanco,
+    required this.numCuenta,
+    required this.numTarjeta,
+    required this.clbIntBanc,
+    required this.idclientes,
+  });
+
+  factory Cuenta.fromJson(Map<String, dynamic> json) {
+    return Cuenta(
+      idcuantabank: json['idcuantabank'],
+      nombreBanco: json['nombreBanco'],
+      numCuenta: json['numCuenta'],
+      numTarjeta: json['numTarjeta'],
+      clbIntBanc: json['clbIntBanc'],
+      idclientes: json['idclientes'],
     );
   }
 }

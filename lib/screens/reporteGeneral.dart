@@ -244,14 +244,30 @@ Widget _buildHeader(BuildContext context) {
 }
 
   Widget _buildIndexCircle(int index, bool allPagosFichaZero, bool pagoIncompleto) {
-    Color circleColor = Colors.transparent;
-    if (allPagosFichaZero) {
-      circleColor = Colors.red;
-    } else if (pagoIncompleto) {
-      circleColor = Colors.orange;
-    }
-
-    return Container(
+  Color circleColor = Colors.transparent;
+  String tooltipMessage = '';
+  
+  if (allPagosFichaZero) {
+    circleColor = Colors.red;
+    tooltipMessage = 'Pago no realizado';
+  } else if (pagoIncompleto) {
+    circleColor = Colors.orange;
+    tooltipMessage = 'Pago incompleto';
+  }
+  
+  return Tooltip(
+    message: tooltipMessage,
+    verticalOffset: 20,
+    preferBelow: true,
+    textStyle: const TextStyle(
+      fontSize: 12,
+      color: Colors.white,
+    ),
+    decoration: BoxDecoration(
+      color: circleColor != Colors.transparent ? circleColor : Colors.transparent,
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Container(
       width: 20,
       height: 20,
       decoration: BoxDecoration(
@@ -267,8 +283,9 @@ Widget _buildHeader(BuildContext context) {
           color: circleColor == Colors.transparent ? Colors.black : Colors.white,
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPagosColumn(List<ReporteGeneral> reportes) {
     return Column(

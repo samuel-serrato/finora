@@ -226,6 +226,8 @@ class _InfoClienteState extends State<InfoCliente> {
                                   clienteData!['dependientes_economicos']),
                               _buildDetailRowIG(
                                   'Email:', clienteData!['email']),
+                              _buildDetailRowIG(
+                                  'Estado:', clienteData!['estado'] ?? 'N/A'),
                             ],
                           ),
                         ),

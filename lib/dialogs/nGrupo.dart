@@ -72,23 +72,23 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   bool _validarFormularioActual() {
-  bool isValid = false;
-  
-  if (_currentIndex == 0) {
-    isValid = _infoGrupoFormKey.currentState?.validate() ?? false;
-  } else if (_currentIndex == 1) {
-    isValid = _miembrosGrupoFormKey.currentState?.validate() ?? false;
-    
-    // Validación adicional para tipo grupal
-    if (isValid && selectedTipo == 'Grupal' && _selectedPersons.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Los grupos grupales requieren al menos 2 miembros'),
-      ));
-      return false;
+    bool isValid = false;
+
+    if (_currentIndex == 0) {
+      isValid = _infoGrupoFormKey.currentState?.validate() ?? false;
+    } else if (_currentIndex == 1) {
+      isValid = _miembrosGrupoFormKey.currentState?.validate() ?? false;
+
+      // Validación adicional para tipo grupal
+      if (isValid && selectedTipo == 'Grupal' && _selectedPersons.length < 2) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Los grupos grupales requieren al menos 2 miembros'),
+        ));
+        return false;
+      }
     }
+    return isValid;
   }
-  return isValid;
-}
 
   Future<void> obtenerUsuarios() async {
     setState(() => _isLoadingUsuarios = true);
@@ -173,150 +173,252 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   void _agregarGrupo() async {
-   if (selectedTipo == 'Grupal' && _selectedPersons.length == 1) {
-  bool? cambiarAIndividual = await showDialog<bool>(
-    context: context,
-    builder: (context) => Theme(
-      data: Theme.of(context).copyWith(
-        dialogBackgroundColor: Colors.white,
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: Color(0xFF5162F6),
-          ),
-        ),
-      ),
-      child: AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0),
-        ),
-        contentPadding: EdgeInsets.only(top: 20, bottom: 20),
-        title: Column(
-          children: [
-            Icon(
-              Icons.group_remove,
-              size: 60,
-              color: Color(0xFF5162F6),),
-            SizedBox(height: 15),
-            Text(
-              'Grupo Incompleto',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-        content: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'Los grupos de tipo "Grupal" requieren mínimo 2 integrantes.\n\n'
-            '¿Desea cambiar el tipo a "Individual" para continuar?',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[700],
-              height: 1.4,
+  // Verificación para grupo individual con múltiples miembros
+  if (selectedTipo == 'Individual' && _selectedPersons.length > 1) {
+    bool? cambiarAGrupal = await showDialog<bool>(
+      context: context,
+      builder: (context) => Theme(
+        data: Theme.of(context).copyWith(
+          dialogBackgroundColor: Colors.white,
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: Color(0xFF5162F6),
             ),
           ),
         ),
-        actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 20, bottom: 20),
+          title: Column(
             children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.grey[700],
-                    side: BorderSide(color: Colors.grey[400]!),
-                    padding: EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text('Cancelar'),
-                ),
+              Icon(
+                Icons.group_add,
+                size: 60,
+                color: Color(0xFF5162F6),
               ),
-              SizedBox(width: 15),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF5162F6),
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text('Cambiar Tipo'),
+              SizedBox(height: 15),
+              Text(
+                'Varios Integrantes',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
             ],
           ),
-        ],
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Has seleccionado ${_selectedPersons.length} integrantes, pero el tipo de grupo es "Individual".\n\n'
+              '¿Desea cambiar el tipo a "Grupal" para continuar?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey[700],
+                      side: BorderSide(color: Colors.grey[400]!),
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('Cancelar'),
+                  ),
+                ),
+                SizedBox(width: 15),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF5162F6),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text('Cambiar Tipo'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
 
-  if (cambiarAIndividual == true) {
-    setState(() => selectedTipo = 'Individual');
-  } else {
-    return;
-  }
-}
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorDeConexion = false;
-      _dialogShown = false;
-    });
-
-    _timer = Timer(Duration(seconds: 10), () {
-      if (mounted && !_dialogShown) {
-        setState(() {
-          _isLoading = false;
-          _errorDeConexion = true;
-        });
-        _mostrarDialogo(
-          title: 'Error',
-          message: 'Tiempo de espera agotado. Verifica tu conexión.',
-          isSuccess: false,
-        );
-      }
-    });
-
-    try {
-      final grupoResponse = await _enviarGrupo();
-      if (!mounted) return;
-
-      if (grupoResponse != null) {
-        final idGrupo = grupoResponse["idgrupos"];
-        if (idGrupo != null) {
-          final miembrosAgregados = await _enviarMiembros(idGrupo);
-          if (!mounted) return;
-
-          if (miembrosAgregados) {
-            widget.onGrupoAgregado();
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                backgroundColor: Colors.green,
-                content: Text('Grupo agregado correctamente')));
-            Navigator.of(context).pop();
-          }
-        }
-      }
-    } finally {
-      _timer?.cancel();
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    if (cambiarAGrupal == true) {
+      setState(() => selectedTipo = 'Grupal');
+    } else {
+      return;
     }
   }
+
+  // Verificación para grupo grupal con un solo miembro
+  if (selectedTipo == 'Grupal' && _selectedPersons.length == 1) {
+    bool? cambiarAIndividual = await showDialog<bool>(
+      context: context,
+      builder: (context) => Theme(
+        data: Theme.of(context).copyWith(
+          dialogBackgroundColor: Colors.white,
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: Color(0xFF5162F6),
+            ),
+          ),
+        ),
+        child: AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 20, bottom: 20),
+          title: Column(
+            children: [
+              Icon(
+                Icons.group_remove,
+                size: 60,
+                color: Color(0xFF5162F6),
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Grupo Incompleto',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Los grupos de tipo "Grupal" requieren mínimo 2 integrantes.\n\n'
+              '¿Desea cambiar el tipo a "Individual" para continuar?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey[700],
+                      side: BorderSide(color: Colors.grey[400]!),
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('Cancelar'),
+                  ),
+                ),
+                SizedBox(width: 15),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF5162F6),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text('Cambiar Tipo'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (cambiarAIndividual == true) {
+      setState(() => selectedTipo = 'Individual');
+    } else {
+      return;
+    }
+  }
+
+  if (!mounted) return;
+
+  setState(() {
+    _isLoading = true;
+    _errorDeConexion = false;
+    _dialogShown = false;
+  });
+
+  _timer = Timer(Duration(seconds: 10), () {
+    if (mounted && !_dialogShown) {
+      setState(() {
+        _isLoading = false;
+        _errorDeConexion = true;
+      });
+      _mostrarDialogo(
+        title: 'Error',
+        message: 'Tiempo de espera agotado. Verifica tu conexión.',
+        isSuccess: false,
+      );
+    }
+  });
+
+  try {
+    final grupoResponse = await _enviarGrupo();
+    if (!mounted) return;
+
+    if (grupoResponse != null) {
+      final idGrupo = grupoResponse["idgrupos"];
+      if (idGrupo != null) {
+        final miembrosAgregados = await _enviarMiembros(idGrupo);
+        if (!mounted) return;
+
+        if (miembrosAgregados) {
+          widget.onGrupoAgregado();
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              backgroundColor: Colors.green,
+              content: Text('Grupo agregado correctamente')));
+          Navigator.of(context).pop();
+        }
+      }
+    }
+  } finally {
+    _timer?.cancel();
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
 
   Future<Map<String, dynamic>?> _enviarGrupo() async {
     try {
@@ -834,6 +936,34 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
                                   color: Colors.grey[700])),
+                          Expanded(
+                              child:
+                                  SizedBox()), // Esto empuja el estado hacia la derecha
+                          // Container para el estado
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(person['estado']),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _getStatusColor(person['estado'])
+                                    .withOpacity(
+                                        0.6), // Borde con el mismo color pero más fuerte
+                                width: 1, // Grosor del borde
+                              ),
+                            ),
+                            child: Text(
+                              person['estado'] ?? 'N/A',
+                              style: TextStyle(
+                                color: _getStatusColor(person['estado'])
+                                    .withOpacity(
+                                        0.8), // Color del texto más oscuro
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -866,79 +996,122 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                 ),
                 const SizedBox(height: 20),
                 Expanded(
-  child: ListView.builder(
-    itemCount: _selectedPersons.length,
-    itemBuilder: (context, index) {
-      final person = _selectedPersons[index];
-      final nombre = person['nombres'] ?? '';
-      final idCliente = person['idclientes'];
+                  child: ListView.builder(
+                    itemCount: _selectedPersons.length,
+                    itemBuilder: (context, index) {
+                      final person = _selectedPersons[index];
+                      final nombre = person['nombres'] ?? '';
+                      final idCliente = person['idclientes'];
 
-      return ListTile(
-        title: Row(
-          children: [
-            Text(
-              '${index + 1}. ',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: Colors.black),
-            ),
-            Text(
-              '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-        subtitle: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Teléfono: ${person['telefono'] ?? ''}'),
-            SizedBox(width: 10),
-            Text('Fecha de Nacimiento: ${person['fechaNac'] ?? ''}'),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min, // Para que no ocupe espacio extra
-          children: [
-            DropdownButton<String>(
-              value: _rolesSeleccionados[idCliente],
-              onChanged: (nuevoRol) {
-                setState(() {
-                  _rolesSeleccionados[idCliente] = nuevoRol!;
-                });
-              },
-              items: roles
-                  .map<DropdownMenuItem<String>>(
-                    (rol) => DropdownMenuItem<String>(
-                      value: rol,
-                      child: Text(rol),
-                    ),
-                  )
-                  .toList(),
-            ),
-            SizedBox(width: 10), // Espacio entre el dropdown y el icono
-            IconButton(
-              icon: Icon(Icons.delete, color: Colors.red),
-              onPressed: () {
-                setState(() {
-                  // Eliminar de la lista y del mapa de roles
-                  _selectedPersons.removeAt(index);
-                  _rolesSeleccionados.remove(idCliente);
-                });
-              },
-            ),
-          ],
-        ),
-      );
-    },
-  ),
-),
+                      return ListTile(
+                        title: Row(
+                          children: [
+                            Text(
+                              '${index + 1}. ',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.black),
+                            ),
+                            Text(
+                              '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        subtitle: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Teléfono: ${person['telefono'] ?? ''}'),
+                            SizedBox(width: 10),
+                            Text(
+                                'F. Nacimiento: ${person['fechaNac'] ?? ''}'),
+                            SizedBox(width: 10),
+                            // Aquí añadimos el estado al lado derecho
+                           Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 0),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(person['estado']),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _getStatusColor(person['estado'])
+                                    .withOpacity(
+                                        0.6), // Borde con el mismo color pero más fuerte
+                                width: 1, // Grosor del borde
+                              ),
+                            ),
+                            child: Text(
+                              person['estado'] ?? 'N/A',
+                              style: TextStyle(
+                                color: _getStatusColor(person['estado'])
+                                    .withOpacity(
+                                        0.8), // Color del texto más oscuro
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            DropdownButton<String>(
+                              value: _rolesSeleccionados[idCliente],
+                              onChanged: (nuevoRol) {
+                                setState(() {
+                                  _rolesSeleccionados[idCliente] = nuevoRol!;
+                                });
+                              },
+                              items: roles
+                                  .map<DropdownMenuItem<String>>(
+                                    (rol) => DropdownMenuItem<String>(
+                                      value: rol,
+                                      child: Text(rol),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                            SizedBox(width: 10),
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  // Eliminar de la lista y del mapa de roles
+                                  _selectedPersons.removeAt(index);
+                                  _rolesSeleccionados.remove(idCliente);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Color _getStatusColor(String? estado) {
+    switch (estado) {
+      case 'En Credito':
+        return Color(0xFFA31D1D)
+            .withOpacity(0.1); // Color suave de fondo para "En Credito"
+      case 'En Grupo':
+        return Color(0xFF3674B5)
+            .withOpacity(0.1); // Color suave de fondo para "En Grupo"
+      case 'Disponible':
+        return Color(0xFF059212)
+            .withOpacity(0.1); // Color suave de fondo para "Disponible"
+      default:
+        return Colors.grey.withOpacity(0.1); // Color suave de fondo por defecto
+    }
   }
 }
 

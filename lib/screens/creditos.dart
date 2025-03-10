@@ -700,7 +700,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.delete(
-        Uri.parse('http://$baseUrl/api/v1/credito/$idCredito'),
+        Uri.parse('http://$baseUrl/api/v1/creditos/$idCredito'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',

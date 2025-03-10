@@ -602,11 +602,11 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                       style: TextStyle(
                                           fontSize: textHeaderTableSize))),
                               DataColumn(
-                                  label: Text('E. Civil',
+                                  label: Text('F. Creación',
                                       style: TextStyle(
                                           fontSize: textHeaderTableSize))),
                               DataColumn(
-                                  label: Text('F. Creación',
+                                  label: Text('Estado',
                                       style: TextStyle(
                                           fontSize: textHeaderTableSize))),
                               DataColumn(
@@ -637,13 +637,36 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                   DataCell(Text(cliente.email ?? 'N/A',
                                       style:
                                           TextStyle(fontSize: textTableSize))),
-                                  DataCell(Text(cliente.eCilvi ?? 'N/A',
-                                      style:
-                                          TextStyle(fontSize: textTableSize))),
                                   DataCell(Text(
                                       formatDate(cliente.fCreacion) ?? 'N/A',
                                       style:
                                           TextStyle(fontSize: textTableSize))),
+                                  DataCell(
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(cliente.estado),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: _getStatusColor(cliente.estado)
+                                              .withOpacity(
+                                                  0.6), // Borde con el mismo color pero más fuerte
+                                          width: 1, // Grosor del borde
+                                        ),
+                                      ),
+                                      child: Text(
+                                        cliente.estado ?? 'N/A',
+                                        style: TextStyle(
+                                          color: _getStatusColor(cliente.estado)
+                                              .withOpacity(
+                                                  0.8), // Color del texto más oscuro
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                   DataCell(
                                     Row(
                                       children: [
@@ -701,6 +724,19 @@ class _ClientesScreenState extends State<ClientesScreen> {
     );
   }
 
+  Color _getStatusColor(String? estado) {
+    switch (estado) {
+      case 'En Credito':
+        return Color(0xFFA31D1D).withOpacity(0.1); // Color suave de fondo para "En Credito"
+      case 'En Grupo':
+        return Color(0xFF3674B5).withOpacity(0.1); // Color suave de fondo para "En Grupo"
+      case 'Disponible':
+        return Color(0xFF059212).withOpacity(0.1); // Color suave de fondo para "Disponible"
+      default:
+        return Colors.grey.withOpacity(0.1); // Color suave de fondo por defecto
+    }
+  }
+
   void mostrarDialogoAgregarCliente() {
     showDialog(
       barrierDismissible: false, // No se puede cerrar tocando fuera
@@ -742,6 +778,7 @@ class Cliente {
   final String? telefono; // Cambiar a String?
   final String? email; // Cambiar a String?
   final String eCilvi;
+  final String estado;
   final String fCreacion;
 
   Cliente({
@@ -755,6 +792,7 @@ class Cliente {
     this.telefono,
     this.email,
     required this.eCilvi,
+    required this.estado,
     required this.fCreacion,
   });
 
@@ -770,6 +808,7 @@ class Cliente {
       telefono: json['telefono'] ?? 'N/A', // Proveer 'N/A' si es null
       email: json['email'] ?? 'N/A', // Proveer 'N/A' si es null
       eCilvi: json['eCivil'],
+      estado: json['estado'] ?? 'N/A',
       fCreacion: json['fCreacion'],
     );
   }
