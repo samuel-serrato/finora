@@ -82,8 +82,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
       noReportesFound = false;
     });
 
-      await Future.delayed(Duration(milliseconds: 200));
-
+    //await Future.delayed(Duration(milliseconds: 200));
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -225,7 +224,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
           Expanded(
             child: hasGenerated
                 ? isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF5162F6)))
+                    ? const Center(
+                        child:
+                            CircularProgressIndicator(color: Color(0xFF5162F6)))
                     : hasError
                         ? _buildErrorDisplay()
                         : selectedReportType == 'Reporte Contable'
@@ -568,81 +569,82 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Future<void> exportarReporte() async {
-  // Mostrar diálogo de carga
-  showDialog(
-    context: context,
-    barrierDismissible: false, // El usuario no puede cerrar el diálogo tocando fuera
-    builder: (BuildContext context) {
-      return Dialog(
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 50),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: Color(0xFF5162F6),),
-              const SizedBox(height: 20),
-              const Text('Exportando reporte...'),
-            ],
+    // Mostrar diálogo de carga
+    showDialog(
+      context: context,
+      barrierDismissible:
+          false, // El usuario no puede cerrar el diálogo tocando fuera
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 50),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                  color: Color(0xFF5162F6),
+                ),
+                const SizedBox(height: 20),
+                const Text('Exportando reporte...'),
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
 
-  try {
-    // Agregar un pequeño delay para asegurar que el diálogo se muestre
-    await Future.delayed(Duration(milliseconds: 500));
-    
-    if (selectedReportType == 'Reporte Contable') {
-      // Exportar reporte contable
-      if (listaReportesContable.isEmpty) {
-        // Cerrar el diálogo de carga
+    try {
+      // Agregar un pequeño delay para asegurar que el diálogo se muestre
+      await Future.delayed(Duration(milliseconds: 500));
+
+      if (selectedReportType == 'Reporte Contable') {
+        // Exportar reporte contable
+        if (listaReportesContable.isEmpty) {
+          // Cerrar el diálogo de carga
+          Navigator.pop(context);
+          mostrarDialogoError('No hay datos contables para exportar');
+          return;
+        }
+
+        final pdfHelper = PDFExportHelperContable(
+            listaReportesContable.first, currencyFormat, selectedReportType);
+
+        final pdfDocument = await pdfHelper.generatePDF();
+        final bytes = await pdfDocument.save();
+
+        final output = await FilePicker.platform.saveFile(
+          dialogTitle: 'Exportar Reporte Contable',
+          fileName:
+              'reporte_contable_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
+        );
+
+        // Cerrar el diálogo de carga antes de mostrar el selector de archivos
         Navigator.pop(context);
-        mostrarDialogoError('No hay datos contables para exportar');
-        return;
+
+        if (output != null) {
+          final file = File(output);
+          await file.writeAsBytes(bytes);
+          await OpenFile.open(file.path);
+        }
+      } else {
+        // Cerrar el diálogo de carga antes de llamar a exportToPdf
+        Navigator.pop(context);
+
+        // Exportar reporte general existente
+        await ExportHelperGeneral.exportToPdf(
+          context: context,
+          reporteData: reporteData,
+          listaReportes: listaReportes,
+          selectedDateRange: selectedDateRange,
+          selectedReportType: selectedReportType,
+          currencyFormat: currencyFormat,
+        );
       }
-
-      final pdfHelper = PDFExportHelperContable(
-        listaReportesContable.first,
-        currencyFormat,
-        selectedReportType
-      );
-      
-      final pdfDocument = await pdfHelper.generatePDF();
-      final bytes = await pdfDocument.save();
-
-      final output = await FilePicker.platform.saveFile(
-        dialogTitle: 'Exportar Reporte Contable',
-        fileName: 'reporte_contable_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
-      );
-
-      // Cerrar el diálogo de carga antes de mostrar el selector de archivos
+    } catch (e) {
+      // Cerrar el diálogo de carga en caso de error
       Navigator.pop(context);
-
-      if (output != null) {
-        final file = File(output);
-        await file.writeAsBytes(bytes);
-        await OpenFile.open(file.path);
-      }
-    } else {
-      // Cerrar el diálogo de carga antes de llamar a exportToPdf
-      Navigator.pop(context);
-      
-      // Exportar reporte general existente
-      await ExportHelperGeneral.exportToPdf(
-        context: context,
-        reporteData: reporteData,
-        listaReportes: listaReportes,
-        selectedDateRange: selectedDateRange,
-        selectedReportType: selectedReportType,
-        currencyFormat: currencyFormat,
-      );
+      mostrarDialogoError('Error al exportar: ${e.toString()}');
     }
-  } catch (e) {
-    // Cerrar el diálogo de carga en caso de error
-    Navigator.pop(context);
-    mostrarDialogoError('Error al exportar: ${e.toString()}');
   }
-}
 }
