@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:finora/custom_app_bar.dart';
@@ -9,6 +10,7 @@ import 'package:finora/dialogs/infoCredito.dart';
 import 'package:finora/dialogs/nCredito.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Para manejar fechas
 
 class SeguimientoScreen extends StatefulWidget {
@@ -290,25 +292,24 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     );
   }
 
-  bool _isDarkMode = false;
-
-  void _toggleDarkMode(bool value) {
-    setState(() {
-      _isDarkMode = value;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Scaffold(
       appBar: CustomAppBar(
-        isDarkMode: _isDarkMode,
-        toggleDarkMode: _toggleDarkMode,
+        isDarkMode: isDarkMode,
+        toggleDarkMode: (value) {
+          themeProvider.toggleDarkMode(value); // Cambia el tema
+        },
         title: 'Créditos Activos',
         nombre: widget.username,
         tipoUsuario: widget.tipoUsuario,
       ),
-      backgroundColor: Color(0xFFF7F8FA),
+      backgroundColor:
+          isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
       body: Column(
         children: [
           // Solo muestra la fila de búsqueda si NO hay error de conexión
@@ -323,6 +324,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   // Este widget se encarga de mostrar el contenedor de la tabla o, en su defecto,
 // un CircularProgressIndicator mientras se realiza la petición.
   Widget _buildTableContainer() {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     if (isLoading) {
       return Center(
         child: CircularProgressIndicator(
@@ -336,7 +341,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           children: [
             Text(
               'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(
+                  fontSize: 16, color: isDarkMode ? Colors.white : Colors.grey),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
@@ -367,7 +373,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           ? Center(
               child: Text(
                 'No hay créditos para mostrar.',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(
+                    fontSize: 16,
+                    color: isDarkMode ? Colors.white : Colors.grey),
               ),
             )
           : filaTabla(context);
@@ -375,6 +383,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   Widget filaBuscarYAgregar(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
     return Padding(
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
@@ -385,7 +397,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             height: 40,
             constraints: BoxConstraints(maxWidth: maxWidth),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.white, // Fondo dinámico
               borderRadius: BorderRadius.circular(20.0),
               boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
             ),
@@ -399,10 +413,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   borderSide:
                       BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
                 ),
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(Icons.search,
+                    color: isDarkMode ? Colors.white : Colors.grey),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear),
+                        icon: Icon(Icons.clear,
+                            color: isDarkMode ? Colors.white : Colors.grey),
                         onPressed: () {
                           _searchController.clear();
                           // Si se borra el texto, se vuelve a cargar la lista completa
@@ -411,8 +427,13 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: isDarkMode
+                    ? Colors.grey[800]
+                    : Colors.white, // Fondo dinámico
                 hintText: 'Buscar...',
+                hintStyle:
+                    TextStyle(color: isDarkMode ? Colors.white70 : Colors.grey),
+
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
                   borderSide: BorderSide.none,
@@ -462,13 +483,18 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   Widget filaTabla(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Container(
       padding: const EdgeInsets.all(20),
       child: Center(
         child: Container(
           padding: const EdgeInsets.all(0),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color:
+                isDarkMode ? Colors.grey[800] : Colors.white, // Fondo dinámico
             borderRadius: BorderRadius.circular(15.0),
             boxShadow: [
               BoxShadow(
@@ -497,18 +523,22 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   final double textHeaderTableSize = 12.0;
   final double textTableSize = 11.0;
   Widget tabla(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
     return SizedBox(
       width: MediaQuery.of(context).size.width,
       child: DataTable(
         showCheckboxColumn: false,
         headingRowColor: MaterialStateProperty.resolveWith(
-            (states) => const Color(0xFF5162F6)),
+            (states) => Color(0xFF5162F6)), // Fondo dinámico
+
         columnSpacing: 10,
         headingRowHeight: 50,
         dataRowHeight: 60,
         headingTextStyle: TextStyle(
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: isDarkMode ? Colors.white : Colors.white, // Texto dinámico
           fontSize: textHeaderTableSize,
         ),
         columns: [
@@ -543,13 +573,13 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               label: Text('Núm de Pago',
                   style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
+              label: Text('Estado Pago',
+                  style: TextStyle(fontSize: textHeaderTableSize))),
+          DataColumn(
               label: Text('Duración',
                   style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Estado de Pago',
-                  style: TextStyle(fontSize: textHeaderTableSize))),
-          DataColumn(
-              label: Text('Estado',
+              label: Text('Estado Crédito',
                   style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
             label: Text(
@@ -606,6 +636,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               DataCell(Center(
                   child: Text('${credito.numPago}',
                       style: TextStyle(fontSize: textTableSize)))),
+              DataCell(Center(
+                  child: Text(credito.estadoCredito.estado,
+                      style: TextStyle(fontSize: textTableSize)))),
               DataCell(Container(
                 width: 70,
                 child: Text(
@@ -616,12 +649,30 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   softWrap: true,
                 ),
               )),
-              DataCell(Center(
-                  child: Text(credito.estadoCredito.estado,
-                      style: TextStyle(fontSize: textTableSize)))),
-              DataCell(Center(
-                  child: Text(credito.estado,
-                      style: TextStyle(fontSize: textTableSize)))),
+              DataCell(
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(
+                        credito.estado, context), // Fondo dinámico
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _getStatusColor(credito.estado, context)
+                          .withOpacity(0.6), // Borde dinámico
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    credito.estado ?? 'N/A',
+                    style: TextStyle(
+                      color: _getStatusTextColor(
+                          credito.estado, context), // Texto dinámico
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
               DataCell(
                 Row(
                   children: [
@@ -669,6 +720,52 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         }).toList(),
       ),
     );
+  }
+
+  Color _getStatusColor(String? estado, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
+    switch (estado) {
+      case 'Activo':
+        return isDarkMode
+            ? Color(0xFF3674B5)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFF3674B5).withOpacity(0.1); // Fondo claro para modo claro
+      case 'Finalizado':
+        return isDarkMode
+            ? Color(0xFFA31D1D)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFFA31D1D).withOpacity(0.1); // Fondo claro para modo claro
+      default:
+        return isDarkMode
+            ? Colors.grey.withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Colors.grey.withOpacity(0.1); // Fondo claro para modo claro
+    }
+  }
+
+  Color _getStatusTextColor(String? estado, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
+    if (isDarkMode) {
+      // En modo oscuro, el texto será blanco para contrastar con el fondo oscuro
+      return Colors.white;
+    } else {
+      // En modo claro, mantenemos el color original del texto
+      switch (estado) {
+        case 'Activo':
+          return Color(0xFF3674B5)
+              .withOpacity(0.8); // Color original para "Activo"
+        case 'Finalizado':
+          return Color(0xFFA31D1D)
+              .withOpacity(0.8); // Color original para "Finalizado"
+        default:
+          return Colors.grey.withOpacity(0.8); // Color original por defecto
+      }
+    }
   }
 
   Future<void> _eliminarCredito(String idCredito) async {

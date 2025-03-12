@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class editUsuarioDialog extends StatefulWidget {
@@ -82,7 +84,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
 
   Future<void> _editarUsuario() async {
     print('flutter: [_editarUsuario] Iniciando edición de usuario...');
-    
+
     if (!_formKey.currentState!.validate()) {
       print('flutter: [_editarUsuario] Validación de formulario fallida');
       return;
@@ -114,12 +116,13 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
-      print('flutter: [_editarUsuario] Token obtenido: ${token.isNotEmpty ? "****" : "VACÍO"}');
+      print(
+          'flutter: [_editarUsuario] Token obtenido: ${token.isNotEmpty ? "****" : "VACÍO"}');
 
       // URL CORREGIDA CON IDUSUARIO
       final url = 'http://$baseUrl/api/v1/usuarios/${widget.idUsuario}';
       print('flutter: [_editarUsuario] URL: $url');
-      
+
       // BODY ACTUALIZADO (sin password)
       final requestBody = {
         'usuario': usuarioController.text,
@@ -128,7 +131,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
         'email': emailController.text,
         //'roles': ['user']
       };
-      
+
       print('flutter: [_editarUsuario] Cuerpo de la petición:');
       print('• Usuario: ${requestBody['usuario']}');
       print('• Tipo: ${requestBody['tipoUsuario']}');
@@ -144,10 +147,12 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
         body: json.encode(requestBody),
       );
 
-      print('flutter: [_editarUsuario] Respuesta recibida - Código: ${response.statusCode}');
+      print(
+          'flutter: [_editarUsuario] Respuesta recibida - Código: ${response.statusCode}');
       print('flutter: [_editarUsuario] Body de respuesta: ${response.body}');
 
-      if (response.statusCode == 200) { // Debería ser 200 en lugar de 201 para actualización
+      if (response.statusCode == 200) {
+        // Debería ser 200 en lugar de 201 para actualización
         print('flutter: [_editarUsuario] Edición exitosa');
         widget.onUsuarioEditado();
         Navigator.of(context).pop();
@@ -162,10 +167,12 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
       }
     } catch (e) {
       print('flutter: [_editarUsuario] Excepción capturada: $e');
-      print('flutter: [_editarUsuario] Stack trace: ${e is Error ? (e as Error).stackTrace : ""}');
+      print(
+          'flutter: [_editarUsuario] Stack trace: ${e is Error ? (e as Error).stackTrace : ""}');
       _mostrarDialogo(
         title: 'Error',
-        message: 'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+        message:
+            'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
         isSuccess: false,
       );
     } finally {
@@ -214,21 +221,37 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
   }) {
     if (_dialogShown) return;
 
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
     _dialogShown = true;
     showDialog(
       barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title,
-            style: TextStyle(color: isSuccess ? Colors.green : Colors.red)),
-        content: Text(message),
+        backgroundColor: isDarkMode ? Color(0xFF303030) : Colors.white,
+        title: Text(
+          title,
+          style: TextStyle(color: isSuccess ? Colors.green : Colors.red),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black87,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
               onClose?.call();
             },
-            child: Text('Aceptar'),
+            child: Text(
+              'Aceptar',
+              style: TextStyle(
+                color: Color(0xFF5162F6),
+              ),
+            ),
           ),
         ],
       ),
@@ -237,11 +260,14 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     final width = MediaQuery.of(context).size.width * 0.6;
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: isDarkMode ? Color(0xFF212121) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: width,
@@ -260,18 +286,20 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                         "Editar Usuario",
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.black,
+                          color: isDarkMode ? Colors.white : Colors.black,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    Divider(color: Colors.grey, thickness: 0.5),
+                    Divider(
+                        color: isDarkMode ? Colors.grey[700] : Colors.grey,
+                        thickness: 0.5),
                     SizedBox(height: 10),
                     Expanded(
                       child: Row(
                         children: [
-                          // Panel lateral izquierdo (rojo)
+                          // Panel lateral izquierdo (azul)
                           Container(
                             decoration: BoxDecoration(
                                 color: Color(0xFF5162F6),
@@ -317,6 +345,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                           label: 'Nombre de usuario',
                                           icon: Icons.person_outline,
                                           maxLength: 20,
+                                          isDarkMode: isDarkMode,
                                           validator: (value) {
                                             if (value == null ||
                                                 value.isEmpty) {
@@ -331,6 +360,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                           controller: nombreCompletoController,
                                           label: 'Nombre completo',
                                           icon: Icons.badge_outlined,
+                                          isDarkMode: isDarkMode,
                                           validator: (value) {
                                             if (value == null ||
                                                 value.isEmpty) {
@@ -347,6 +377,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                           icon: Icons.alternate_email,
                                           keyboardType:
                                               TextInputType.emailAddress,
+                                          isDarkMode: isDarkMode,
                                           validator: (value) {
                                             if (value == null ||
                                                 value.isEmpty) {
@@ -362,23 +393,24 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                         ),
                                         SizedBox(height: 20),
 
-                                        // Dentro de tu formulario principal, reemplaza el campo de contraseña por:
+                                        // Botón cambiar contraseña
                                         SizedBox(height: 20),
                                         ElevatedButton.icon(
                                           onPressed: () => showDialog(
                                             context: context,
                                             builder: (context) =>
                                                 _CambiarPasswordDialog(
-                                                    idUsuario:
-                                                        widget.idUsuario),
+                                              idUsuario: widget.idUsuario,
+                                              isDarkMode: isDarkMode,
+                                            ),
                                           ),
-                                          icon:
-                                              Icon(Icons.lock_reset, size: 18, color: Colors.white,),
+                                          icon: Icon(Icons.lock_reset,
+                                              size: 18, color: Colors.white),
                                           label: Text('CAMBIAR CONTRASEÑA'),
                                           style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  Color(0xFF5162F6),
-                                              foregroundColor: Colors.white),
+                                            backgroundColor: Color(0xFF5162F6),
+                                            foregroundColor: Colors.white,
+                                          ),
                                         ),
                                         SizedBox(height: 20),
                                         SizedBox(height: 20),
@@ -388,6 +420,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                           hint: 'Tipo de usuario',
                                           items: tiposUsuario,
                                           icon: Icons.group_work_outlined,
+                                          isDarkMode: isDarkMode,
                                           onChanged: (value) {
                                             setState(() {
                                               selectedTipoUsuario = value;
@@ -412,8 +445,11 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                   decoration: BoxDecoration(
                                     border: Border(
                                       top: BorderSide(
-                                          color: Colors.grey.shade300,
-                                          width: 1.0),
+                                        color: isDarkMode
+                                            ? Colors.grey[800]!
+                                            : Colors.grey[300]!,
+                                        width: 1.0,
+                                      ),
                                     ),
                                   ),
                                   child: Row(
@@ -423,14 +459,20 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                         onPressed: () =>
                                             Navigator.of(context).pop(),
                                         style: TextButton.styleFrom(
-                                          foregroundColor: Colors.grey[700],
+                                          foregroundColor: isDarkMode
+                                              ? Colors.grey[300]
+                                              : Colors.grey[700],
                                           padding: EdgeInsets.symmetric(
                                               horizontal: 25, vertical: 12),
                                           side: BorderSide(
-                                              color: Colors.grey.shade400),
+                                            color: isDarkMode
+                                                ? Colors.grey[600]!
+                                                : Colors.grey[400]!,
+                                          ),
                                           shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8)),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
                                         ),
                                         child: Text('CANCELAR'),
                                       ),
@@ -442,8 +484,9 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                           padding: EdgeInsets.symmetric(
                                               horizontal: 30, vertical: 12),
                                           shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8)),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
                                         ),
                                         child: Text('EDITAR USUARIO',
                                             style:
@@ -465,11 +508,12 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
     );
   }
 
-// Widgets reutilizables con el estilo original
+  // Widgets reutilizables con soporte para dark mode
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    required bool isDarkMode,
     TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
     int? maxLength,
@@ -480,24 +524,45 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       maxLength: maxLength,
-      style: TextStyle(fontSize: 14),
+      style: TextStyle(
+        fontSize: 14,
+        color: isDarkMode ? Colors.white : Colors.black,
+      ),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: Colors.grey[600]),
+        prefixIcon: Icon(
+          icon,
+          color: isDarkMode ? Colors.blue[300] : Colors.grey[600],
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey[400]!),
+          borderSide: BorderSide(
+            color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Color(0xFF5162F6), width: 1.5),
+          borderSide: BorderSide(
+            color: Color(0xFF5162F6),
+            width: 1.5,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+            color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: Colors.red),
         ),
         contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        labelStyle: TextStyle(color: Colors.grey[600]),
+        labelStyle: TextStyle(
+          color: isDarkMode ? Colors.grey[300] : Colors.grey[600],
+        ),
+        fillColor: isDarkMode ? Color(0xFF303030) : Colors.white,
+        filled: true,
       ),
       validator: validator,
       autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -509,42 +574,82 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
     required String hint,
     required List<String> items,
     required IconData icon,
+    required bool isDarkMode,
     required void Function(String?) onChanged,
     String? Function(String?)? validator,
   }) {
     return DropdownButtonFormField<String>(
       value: value,
-      hint: Text(hint, style: TextStyle(color: Colors.grey[600])),
+      hint: Text(
+        hint,
+        style: TextStyle(
+          color: isDarkMode ? Colors.grey[300] : Colors.grey[600],
+        ),
+      ),
       items: items.map((item) {
         return DropdownMenuItem(
           value: item,
-          child: Text(item, style: TextStyle(fontSize: 14)),
+          child: Text(
+            item,
+            style: TextStyle(
+              fontSize: 14,
+              color: isDarkMode ? Colors.white : Colors.black,
+            ),
+          ),
         );
       }).toList(),
       onChanged: onChanged,
       validator: validator,
+      dropdownColor: isDarkMode ? Color(0xFF424242) : Colors.white,
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.grey[600]),
+        prefixIcon: Icon(
+          icon,
+          color: isDarkMode ? Colors.blue[300] : Colors.grey[600],
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey[400]!),
+          borderSide: BorderSide(
+            color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+          ),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+            color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Color(0xFF5162F6), width: 1.5),
+          borderSide: BorderSide(
+            color: Color(0xFF5162F6),
+            width: 1.5,
+          ),
         ),
         contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        fillColor: isDarkMode ? Color(0xFF303030) : Colors.white,
+        filled: true,
       ),
-      style: TextStyle(color: Colors.black, fontSize: 14),
+      style: TextStyle(
+        color: isDarkMode ? Colors.white : Colors.black,
+        fontSize: 14,
+      ),
       autovalidateMode: AutovalidateMode.onUserInteraction,
+      icon: Icon(
+        Icons.arrow_drop_down,
+        color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+      ),
     );
   }
 }
 
 class _CambiarPasswordDialog extends StatefulWidget {
   final String idUsuario;
+  final bool isDarkMode;
 
-  const _CambiarPasswordDialog({required this.idUsuario});
+  const _CambiarPasswordDialog({
+    required this.idUsuario,
+    required this.isDarkMode,
+  });
 
   @override
   __CambiarPasswordDialogState createState() => __CambiarPasswordDialogState();
@@ -633,136 +738,214 @@ class __CambiarPasswordDialogState extends State<_CambiarPasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
-  return AlertDialog(
-    backgroundColor: Colors.white,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20.0),
-      side: BorderSide(color: Colors.blue.shade100, width: 2),
-    ),
-    title: Column(
-      children: [
-        Icon(Icons.lock_reset, size: 40, color: Colors.blue.shade800),
-        SizedBox(height: 10),
-        Text('Cambiar Contraseña',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue.shade900
-          ),
-        ),
-        Divider(color: Colors.grey.shade300, height: 20),
-      ],
-    ),
-    content: Form(
-      key: _formKey,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    final isDarkMode = widget.isDarkMode;
+
+    return AlertDialog(
+      backgroundColor: isDarkMode ? Color(0xFF303030) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20.0),
+        side: BorderSide(
+            color: isDarkMode ? Colors.blue.shade800 : Colors.blue.shade100,
+            width: 2),
+      ),
+      title: Column(
         children: [
-          TextFormField(
-            controller: _nuevaPasswordController,
-            obscureText: true,
-            style: TextStyle(fontSize: 14),
-            decoration: InputDecoration(
-              labelText: 'Nueva contraseña',
-              labelStyle: TextStyle(color: Colors.grey.shade600),
-              prefixIcon: Icon(Icons.lock_outline, color: Colors.blue.shade600),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.blue.shade200),
-              ),
-              contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) return '⚠️ Campo obligatorio';
-              if (value.length < 4) return '⚠️ Mínimo 4 caracteres';
-              return null;
-            },
+          Icon(Icons.lock_reset,
+              size: 40,
+              color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade800),
+          SizedBox(height: 10),
+          Text(
+            'Cambiar Contraseña',
+            style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color:
+                    isDarkMode ? Colors.blue.shade200 : Colors.blue.shade900),
           ),
-          SizedBox(height: 20),
-          TextFormField(
-            controller: _confirmarPasswordController,
-            obscureText: true,
-            style: TextStyle(fontSize: 14),
-            decoration: InputDecoration(
-              labelText: 'Confirmar contraseña',
-              labelStyle: TextStyle(color: Colors.grey.shade600),
-              prefixIcon: Icon(Icons.lock_reset, color: Colors.blue.shade600),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.blue.shade200),
-              ),
-              contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            ),
-            validator: (value) {
-              if (value != _nuevaPasswordController.text) {
-                return '⚠️ Las contraseñas no coinciden';
-              }
-              return null;
-            },
-          ),
+          Divider(
+              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
+              height: 20),
         ],
       ),
-    ),
-    actions: [
-      Container(
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: Colors.grey.shade400),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            TextFormField(
+              controller: _nuevaPasswordController,
+              obscureText: true,
+              style: TextStyle(
+                fontSize: 14,
+                color: isDarkMode ? Colors.white : Colors.black87,
               ),
-              child: Text('Cancelar', 
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  fontWeight: FontWeight.w500
+              decoration: InputDecoration(
+                labelText: 'Nueva contraseña',
+                labelStyle: TextStyle(
+                    color: isDarkMode
+                        ? Colors.grey.shade300
+                        : Colors.grey.shade600),
+                prefixIcon: Icon(Icons.lock_outline,
+                    color: isDarkMode
+                        ? Colors.blue.shade300
+                        : Colors.blue.shade600),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                      color: isDarkMode
+                          ? Colors.blue.shade700
+                          : Colors.blue.shade200),
                 ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                      color: isDarkMode
+                          ? Colors.grey.shade600
+                          : Colors.grey.shade400),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                      color: isDarkMode
+                          ? Colors.blue.shade400
+                          : Colors.blue.shade600,
+                      width: 1.5),
+                ),
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                fillColor: isDarkMode ? Color(0xFF424242) : Colors.white,
+                filled: true,
               ),
+              validator: (value) {
+                if (value == null || value.isEmpty)
+                  return '⚠️ Campo obligatorio';
+                if (value.length < 4) return '⚠️ Mínimo 4 caracteres';
+                return null;
+              },
             ),
-            SizedBox(width: 10),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _cambiarPassword,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade800,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-                padding: EdgeInsets.symmetric(horizontal: 25, vertical: 12),
-                elevation: 2,
+            SizedBox(height: 20),
+            TextFormField(
+              controller: _confirmarPasswordController,
+              obscureText: true,
+              style: TextStyle(
+                fontSize: 14,
+                color: isDarkMode ? Colors.white : Colors.black87,
               ),
-              child: _isLoading 
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.save_rounded, size: 18, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text('Guardar', 
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600
-                          ),
-                        ),
-                      ],
-                    ),
+              decoration: InputDecoration(
+                labelText: 'Confirmar contraseña',
+                labelStyle: TextStyle(
+                    color: isDarkMode
+                        ? Colors.grey.shade300
+                        : Colors.grey.shade600),
+                prefixIcon: Icon(Icons.lock_reset,
+                    color: isDarkMode
+                        ? Colors.blue.shade300
+                        : Colors.blue.shade600),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                      color: isDarkMode
+                          ? Colors.blue.shade700
+                          : Colors.blue.shade200),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                      color: isDarkMode
+                          ? Colors.grey.shade600
+                          : Colors.grey.shade400),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(
+                      color: isDarkMode
+                          ? Colors.blue.shade400
+                          : Colors.blue.shade600,
+                      width: 1.5),
+                ),
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                fillColor: isDarkMode ? Color(0xFF424242) : Colors.white,
+                filled: true,
+              ),
+              validator: (value) {
+                if (value != _nuevaPasswordController.text) {
+                  return '⚠️ Las contraseñas no coinciden';
+                }
+                return null;
+              },
             ),
           ],
         ),
       ),
-    ],
-  );
-}
+      actions: [
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  backgroundColor:
+                      isDarkMode ? Color(0xFF424242) : Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(
+                        color: isDarkMode
+                            ? Colors.grey.shade600
+                            : Colors.grey.shade400),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                child: Text(
+                  'Cancelar',
+                  style: TextStyle(
+                      color: isDarkMode
+                          ? Colors.grey.shade300
+                          : Colors.grey.shade700,
+                      fontWeight: FontWeight.w500),
+                ),
+              ),
+              SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: _isLoading ? null : _cambiarPassword,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      isDarkMode ? Colors.blue.shade700 : Colors.blue.shade800,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  padding: EdgeInsets.symmetric(horizontal: 25, vertical: 12),
+                  elevation: 2,
+                ),
+                child: _isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.save_rounded,
+                              size: 18, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Guardar',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

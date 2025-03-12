@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import 'package:finora/dialogs/nCliente.dart';
 import 'package:finora/dialogs/nGrupo.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GruposScreen extends StatefulWidget {
@@ -287,21 +289,21 @@ class _GruposScreenState extends State<GruposScreen> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
-  bool _isDarkMode = false;
-
-  void _toggleDarkMode(bool value) {
-    setState(() {
-      _isDarkMode = value;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Scaffold(
-      backgroundColor: Color(0xFFF7F8FA),
+      backgroundColor:
+          isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
+
       appBar: CustomAppBar(
-        isDarkMode: _isDarkMode,
-        toggleDarkMode: _toggleDarkMode,
+        isDarkMode: isDarkMode,
+        toggleDarkMode: (value) {
+          themeProvider.toggleDarkMode(value); // Cambia el tema
+        },
         title: 'Grupos',
         nombre: widget.username,
         tipoUsuario: widget.tipoUsuario,
@@ -316,6 +318,9 @@ class _GruposScreenState extends State<GruposScreen> {
   }
 
   Widget _buildTableContainer() {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
     if (isLoading) {
       return Center(
         child: CircularProgressIndicator(
@@ -329,7 +334,10 @@ class _GruposScreenState extends State<GruposScreen> {
           children: [
             Text(
               'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.white : Colors.grey,
+              ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
@@ -360,7 +368,9 @@ class _GruposScreenState extends State<GruposScreen> {
           ? Center(
               child: Text(
                 'No hay grupos para mostrar.',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(
+                    fontSize: 16,
+                    color: isDarkMode ? Colors.white : Colors.grey),
               ),
             )
           : filaTabla(context);
@@ -368,6 +378,10 @@ class _GruposScreenState extends State<GruposScreen> {
   }
 
   Widget filaBuscarYAgregar(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
     return Padding(
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
@@ -378,7 +392,9 @@ class _GruposScreenState extends State<GruposScreen> {
             height: 40,
             constraints: BoxConstraints(maxWidth: maxWidth),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.white, // Fondo dinámico
               borderRadius: BorderRadius.circular(20.0),
               boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
             ),
@@ -392,10 +408,12 @@ class _GruposScreenState extends State<GruposScreen> {
                   borderSide:
                       BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
                 ),
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(Icons.search,
+                    color: isDarkMode ? Colors.white : Colors.grey),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear),
+                        icon: Icon(Icons.clear,
+                            color: isDarkMode ? Colors.white : Colors.grey),
                         onPressed: () {
                           _searchController.clear();
                           obtenerGrupos();
@@ -403,8 +421,12 @@ class _GruposScreenState extends State<GruposScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: isDarkMode
+                    ? Colors.grey[800]
+                    : Colors.white, // Fondo dinámico
                 hintText: 'Buscar...',
+                hintStyle:
+                    TextStyle(color: isDarkMode ? Colors.white70 : Colors.grey),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
                   borderSide: BorderSide.none,
@@ -439,169 +461,277 @@ class _GruposScreenState extends State<GruposScreen> {
   }
 
   Widget filaTabla(BuildContext context) {
-  return Expanded(
-    child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      child: Container(
-        padding: const EdgeInsets.all(0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              spreadRadius: 0.5,
-              blurRadius: 5,
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15.0),
-          child: listaGrupos.isEmpty
-              ? Center(
-                  child: Text(
-                    'No hay grupos para mostrar.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                )
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    var gruposFiltrados = listaGrupos
-                        .where((grupo) =>
-                            grupo.estado == 'Disponible' ||
-                            grupo.estado == 'Liquidado' ||
-                            grupo.estado == 'Activo')
-                        .toList();
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: constraints.maxWidth,
-                        ),
-                        child: DataTable(
-                          showCheckboxColumn: false,
-                          headingRowColor: MaterialStateProperty.resolveWith(
-                              (states) => const Color(0xFF5162F6)),
-                          dataRowHeight: 50,
-                          columnSpacing: 30,
-                          horizontalMargin: 50,
-                          headingTextStyle: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontSize: textHeaderTableSize,
-                          ),
-                          columns: [
-                            DataColumn(
-                                label: Text('ID Grupo',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
-                            DataColumn(
-                                label: Text('Tipo Grupo',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
-                            DataColumn(
-                                label: Text('Nombre',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
-                            DataColumn(
-                                label: Text('Detalles',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
-                            DataColumn(
-                                label: Text('Asesor',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
-                            DataColumn(
-                                label: Text('Fecha Creación',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
-                            DataColumn(
-                                label: Text('Estado',
-                                    style: TextStyle(
-                                        fontSize: textHeaderTableSize))),
-                            DataColumn(
-                              label: Text(
-                                'Acciones',
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                          ],
-                          rows: gruposFiltrados.map((grupo) {
-                            return DataRow(
-                              cells: [
-                                DataCell(Text(grupo.idgrupos.toString(),
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(grupo.tipoGrupo.toString(),
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(grupo.nombreGrupo,
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(grupo.detalles,
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(grupo.asesor,
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text(formatDate(grupo.fCreacion),
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(Text((grupo.estado),
-                                    style: TextStyle(fontSize: textTableSize))),
-                                DataCell(
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit_outlined,
-                                            color: Colors.grey),
-                                        onPressed: () {
-                                          mostrarDialogoEditarCliente(
-                                              grupo.idgrupos!);
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline,
-                                            color: Colors.grey),
-                                        onPressed: () {
-                                          _eliminarGrupo(grupo.idgrupos);
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              onSelectChanged: (isSelected) async {
-                                if (isSelected!) {
-                                  final resultado = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) => InfoGrupo(
-                                      idGrupo: grupo.idgrupos.toString(),
-                                      nombreGrupo: grupo.nombreGrupo,
-                                    ),
-                                  );
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
 
-                                  if (resultado == true) {
-                                    obtenerGrupos();
+    return Expanded(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        child: Container(
+          padding: const EdgeInsets.all(0),
+          decoration: BoxDecoration(
+            color:
+                isDarkMode ? Colors.grey[800] : Colors.white, // Fondo dinámico
+            borderRadius: BorderRadius.circular(15.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                spreadRadius: 0.5,
+                blurRadius: 5,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15.0),
+            child: listaGrupos.isEmpty
+                ? Center(
+                    child: Text(
+                      'No hay grupos para mostrar.',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      var gruposFiltrados = listaGrupos
+                          .where((grupo) =>
+                              grupo.estado == 'Disponible' ||
+                              grupo.estado == 'Liquidado' ||
+                              grupo.estado == 'Activo')
+                          .toList();
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth,
+                          ),
+                          child: DataTable(
+                            showCheckboxColumn: false,
+                            headingRowColor: MaterialStateProperty.resolveWith(
+                                (states) => const Color(0xFF5162F6)),
+                            dataRowHeight: 50,
+                            columnSpacing: 30,
+                            horizontalMargin: 50,
+                            headingTextStyle: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: textHeaderTableSize,
+                            ),
+                            columns: [
+                              DataColumn(
+                                  label: Text('ID Grupo',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Tipo Grupo',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Nombre',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Detalles',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Asesor',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Fecha Creación',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                  label: Text('Estado',
+                                      style: TextStyle(
+                                          fontSize: textHeaderTableSize))),
+                              DataColumn(
+                                label: Text(
+                                  'Acciones',
+                                  style:
+                                      TextStyle(fontSize: textHeaderTableSize),
+                                ),
+                              ),
+                            ],
+                            rows: gruposFiltrados.map((grupo) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(grupo.idgrupos.toString(),
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(grupo.tipoGrupo.toString(),
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(grupo.nombreGrupo,
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(grupo.detalles,
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(grupo.asesor,
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(Text(formatDate(grupo.fCreacion),
+                                      style:
+                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(
+                                    Container(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(grupo.estado,
+                                            context), // Fondo dinámico
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: _getStatusColor(
+                                                  grupo.estado, context)
+                                              .withOpacity(
+                                                  0.6), // Borde dinámico
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        grupo.estado ?? 'N/A',
+                                        style: TextStyle(
+                                          color: _getStatusTextColor(
+                                              grupo.estado,
+                                              context), // Texto dinámico
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined,
+                                              color: Colors.grey),
+                                          onPressed: () {
+                                            mostrarDialogoEditarCliente(
+                                                grupo.idgrupos!);
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline,
+                                              color: Colors.grey),
+                                          onPressed: () {
+                                            _eliminarGrupo(grupo.idgrupos);
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                onSelectChanged: (isSelected) async {
+                                  if (isSelected!) {
+                                    final resultado = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => InfoGrupo(
+                                        idGrupo: grupo.idgrupos.toString(),
+                                        nombreGrupo: grupo.nombreGrupo,
+                                      ),
+                                    );
+
+                                    if (resultado == true) {
+                                      obtenerGrupos();
+                                    }
                                   }
-                                }
-                              },
-                              color: MaterialStateColor.resolveWith((states) {
-                                if (states.contains(MaterialState.selected)) {
-                                  return Colors.blue.withOpacity(0.1);
-                                } else if (states
-                                    .contains(MaterialState.hovered)) {
-                                  return Colors.blue.withOpacity(0.2);
-                                }
-                                return Colors.transparent;
-                              }),
-                            );
-                          }).toList(),
+                                },
+                                color: MaterialStateColor.resolveWith((states) {
+                                  if (states.contains(MaterialState.selected)) {
+                                    return Colors.blue.withOpacity(0.1);
+                                  } else if (states
+                                      .contains(MaterialState.hovered)) {
+                                    return Colors.blue.withOpacity(0.2);
+                                  }
+                                  return Colors.transparent;
+                                }),
+                              );
+                            }).toList(),
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
+
+  Color _getStatusColor(String? estado, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
+    switch (estado) {
+      case 'Finalizado':
+        return isDarkMode
+            ? Color(0xFE73879)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFE73879).withOpacity(0.1); // Fondo claro para modo claro
+      case 'Liquidado':
+        return isDarkMode
+            ? Color(0xFFFAA300)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFFFAA300).withOpacity(0.1); // Fondo claro para modo claro
+      case 'Cancelado':
+        return isDarkMode
+            ? Color(0xFFA31D1D)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFFA31D1D).withOpacity(0.1); // Fondo claro para modo claro
+      case 'Activo':
+        return isDarkMode
+            ? Color(0xFF3674B5)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFF3674B5).withOpacity(0.1); // Fondo claro para modo claro
+      case 'Disponible':
+        return isDarkMode
+            ? Color(0xFF059212)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFF059212).withOpacity(0.1); // Fondo claro para modo claro
+      default:
+        return isDarkMode
+            ? Colors.grey.withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Colors.grey.withOpacity(0.1); // Fondo claro para modo claro
+    }
+  }
+
+  Color _getStatusTextColor(String? estado, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
+    if (isDarkMode) {
+      // En modo oscuro, el texto será blanco para contrastar con el fondo oscuro
+      return Colors.white;
+    } else {
+      // En modo claro, mantenemos el color original del texto
+      switch (estado) {
+        case 'Finalizado':
+          return Color(0xFE73879)
+              .withOpacity(0.8); // Color original para "Finalizado"
+        case 'Liquidado':
+          return Color(0xFFFAA300)
+              .withOpacity(0.8); // Color original para "Liquidado"
+        case 'Cancelado':
+          return Color(0xFFA31D1D)
+              .withOpacity(0.8); // Color original para "Cancelado"
+        case 'Activo':
+          return Color(0xFF3674B5)
+              .withOpacity(0.8); // Color original para "Activo"
+        case 'Disponible':
+          return Color(0xFF059212)
+              .withOpacity(0.8); // Color original para "Disponible"
+        default:
+          return Colors.grey.withOpacity(0.8); // Color original por defecto
+      }
+    }
+  }
 
   Future<void> _eliminarGrupo(String idGrupo) async {
     print('[ELIMINAR GRUPO] Iniciando proceso...');

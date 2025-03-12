@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -6,6 +7,7 @@ import 'package:finora/custom_app_bar.dart';
 import 'package:finora/screens/simGrupal.dart';
 import 'package:finora/widgets/CardUserWidget.dart';
 import 'package:finora/formateador.dart';
+import 'package:provider/provider.dart';
 
 class SimuladorScreen extends StatefulWidget {
   final String username;
@@ -62,21 +64,21 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
     super.initState();
   }
 
-  bool _isDarkMode = false; // Estado del modo oscuro
-
-  void _toggleDarkMode(bool value) {
-    setState(() {
-      _isDarkMode = value;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Scaffold(
-      backgroundColor: Color(0xFFf7f8fa),
+      backgroundColor: isDarkMode
+          ? Colors.grey[900]
+          : const Color(0xFFF7F8FA), // Fondo dinámico
       appBar: CustomAppBar(
-        isDarkMode: _isDarkMode,
-        toggleDarkMode: _toggleDarkMode,
+        isDarkMode: isDarkMode,
+        toggleDarkMode: (value) {
+          themeProvider.toggleDarkMode(value); // Cambia el tema
+        },
         title: 'Simulador', // Título específico para esta pantalla
         nombre: widget.username,
         tipoUsuario: widget.tipoUsuario,
@@ -176,6 +178,10 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   }
 
   Widget filaTabla(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Expanded(
       child: Container(
         padding: EdgeInsets.only(top: 0, bottom: 20, right: 20, left: 20),
@@ -183,7 +189,9 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
           child: Container(
             padding: EdgeInsets.all(16.0),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.white, // Fondo dinámico
               borderRadius: BorderRadius.circular(15.0),
               boxShadow: [
                 BoxShadow(
@@ -204,6 +212,10 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
   }
 
   Widget simuladorGeneral() {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     double capitalQuincenal = monto / (plazoSemanas * 2); // Capital quincenal
     double interesQuincenal =
         (monto * (interesMensual / 100) / 4) * 2; // Interés quincenal
@@ -239,14 +251,19 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
         locale: Locale('es', 'ES'),
         builder: (BuildContext context, Widget? child) {
           return Theme(
-            data: ThemeData.light().copyWith(
-              primaryColor:
-                  Colors.white, // Cambia el color de los elementos destacados
-
-              colorScheme: ColorScheme.fromSwatch().copyWith(
-                primary: Color(0xFF5162F6),
-              ),
-            ),
+            data: isDarkMode
+                ? ThemeData.dark().copyWith(
+                    colorScheme: ColorScheme.dark().copyWith(
+                      primary: Color(0xFF5162F6),
+                      surface: Colors.grey[850],
+                    ),
+                  )
+                : ThemeData.light().copyWith(
+                    primaryColor: Colors.white,
+                    colorScheme: ColorScheme.fromSwatch().copyWith(
+                      primary: Color(0xFF5162F6),
+                    ),
+                  ),
             child: child!,
           );
         },
@@ -283,14 +300,22 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                   decoration: InputDecoration(
                                     labelText: 'Monto',
                                     labelStyle: TextStyle(
-                                        fontSize: 12.0,
-                                        color: Colors.grey[700]),
+                                      fontSize: 12.0,
+                                      color: isDarkMode
+                                          ? Colors.white70
+                                          : Colors.grey[700],
+                                    ),
                                     filled: true,
-                                    fillColor: Colors.white,
+                                    fillColor: isDarkMode
+                                        ? Colors.grey[850]
+                                        : Colors.white,
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(15.0),
                                       borderSide: BorderSide(
-                                          color: Colors.grey[300]!, width: 2.0),
+                                          color: isDarkMode
+                                              ? Colors.grey[700]!
+                                              : Colors.grey[300]!,
+                                          width: 2.0),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(15.0),
@@ -304,7 +329,11 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                         vertical: 10, horizontal: 10),
                                   ),
                                   keyboardType: TextInputType.number,
-                                  style: TextStyle(fontSize: 14.0),
+                                  style: TextStyle(
+                                      fontSize: 14.0,
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black),
                                   onChanged: (value) {
                                     // Llama a la función de formateo directamente aquí
                                     String formatted = formatMonto(value);
@@ -324,13 +353,18 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 height: 40, // Consistencia en altura
                                 padding: EdgeInsets.symmetric(horizontal: 10),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: isDarkMode
+                                      ? Colors.grey[850]
+                                      : Colors.white,
                                   border: Border.all(
-                                      color: Colors.grey[300]!, width: 2.0),
+                                      color: isDarkMode
+                                          ? Colors.grey[700]!
+                                          : Colors.grey[300]!,
+                                      width: 2.0),
                                   borderRadius: BorderRadius.circular(15.0),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.grey.withOpacity(0.1),
+                                      color: Colors.black.withOpacity(0.1),
                                       blurRadius: 5,
                                       offset: Offset(0, 2),
                                     ),
@@ -341,7 +375,12 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                     isExpanded: true,
                                     value: periodo,
                                     hint: Text('Selecciona periodo',
-                                        style: TextStyle(fontSize: 12)),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isDarkMode
+                                              ? Colors.white70
+                                              : Colors.grey[700],
+                                        )),
                                     onChanged: (String? newValue) {
                                       setState(() {
                                         periodo = newValue!;
@@ -373,13 +412,20 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                         return DropdownMenuItem<String>(
                                           value: value,
                                           child: Text(value,
-                                              style: TextStyle(fontSize: 12.0)),
+                                              style: TextStyle(
+                                                fontSize: 12.0,
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.black,
+                                              )),
                                         );
                                       },
                                     ).toList(),
                                     icon: Icon(Icons.arrow_drop_down,
                                         color: Color(0xFF5162F6)),
-                                    dropdownColor: Colors.white,
+                                    dropdownColor: isDarkMode
+                                        ? Colors.grey[800]
+                                        : Colors.white,
                                   ),
                                 ),
                               ),
@@ -395,10 +441,14 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                               child: Container(
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: isDarkMode
+                                      ? Colors.grey[850]
+                                      : Colors.white,
                                   borderRadius: BorderRadius.circular(15.0),
                                   border: Border.all(
-                                    color: Colors.grey[300]!,
+                                    color: isDarkMode
+                                        ? Colors.grey[700]!
+                                        : Colors.grey[300]!,
                                     width: 1.5,
                                   ),
                                 ),
@@ -409,7 +459,9 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       'Elige una tasa de interés',
                                       style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey[700]),
+                                          color: isDarkMode
+                                              ? Colors.white70
+                                              : Colors.grey[700]),
                                     ),
                                     isExpanded: true,
                                     value: tasaInteresMensualSeleccionada,
@@ -431,13 +483,17 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                           value == 0.0 ? 'Otro' : '$value %',
                                           style: TextStyle(
                                               fontSize: 14.0,
-                                              color: Colors.black),
+                                              color: isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black),
                                         ),
                                       );
                                     }).toList(),
                                     icon: Icon(Icons.arrow_drop_down,
                                         color: Color(0xFF5162F6)),
-                                    dropdownColor: Colors.white,
+                                    dropdownColor: isDarkMode
+                                        ? Colors.grey[800]
+                                        : Colors.white,
                                   ),
                                 ),
                               ),
@@ -456,14 +512,20 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       hintText: 'Especificar Tasa',
                                       hintStyle: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey[600]),
+                                          color: isDarkMode
+                                              ? Colors.white70
+                                              : Colors.grey[600]),
                                       filled: true,
-                                      fillColor: Colors.grey[100],
+                                      fillColor: isDarkMode
+                                          ? Colors.grey[700]
+                                          : Colors.grey[100],
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius:
                                             BorderRadius.circular(15.0),
                                         borderSide: BorderSide(
-                                            color: Colors.grey[300]!,
+                                            color: isDarkMode
+                                                ? Colors.grey[600]!
+                                                : Colors.grey[300]!,
                                             width: 1.5),
                                       ),
                                       focusedBorder: OutlineInputBorder(
@@ -475,6 +537,11 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       ),
                                       contentPadding: EdgeInsets.symmetric(
                                           vertical: 10, horizontal: 10),
+                                    ),
+                                    style: TextStyle(
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
                                     ),
                                     onChanged: (value) {
                                       setState(() {
@@ -499,10 +566,15 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                               child: Container(
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: isDarkMode
+                                      ? Colors.grey[850]
+                                      : Colors.white,
                                   borderRadius: BorderRadius.circular(15.0),
                                   border: Border.all(
-                                      color: Colors.grey[300]!, width: 1.5),
+                                      color: isDarkMode
+                                          ? Colors.grey[700]!
+                                          : Colors.grey[300]!,
+                                      width: 1.5),
                                 ),
                                 padding: EdgeInsets.symmetric(horizontal: 10.0),
                                 child: DropdownButtonHideUnderline(
@@ -511,7 +583,9 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                       'Elige un plazo',
                                       style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey[700]),
+                                          color: isDarkMode
+                                              ? Colors.white70
+                                              : Colors.grey[700]),
                                     ),
                                     isExpanded: true,
                                     value: plazoSeleccionado,
@@ -528,13 +602,17 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                           '$value ${periodo == "Semanal" ? "semanas" : "meses"}',
                                           style: TextStyle(
                                               fontSize: 14.0,
-                                              color: Colors.black),
+                                              color: isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black),
                                         ),
                                       );
                                     }).toList(),
                                     icon: Icon(Icons.arrow_drop_down,
                                         color: Color(0xFF5162F6)),
-                                    dropdownColor: Colors.white,
+                                    dropdownColor: isDarkMode
+                                        ? Colors.grey[800]
+                                        : Colors.white,
                                   ),
                                 ),
                               ),
@@ -569,7 +647,10 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 DateFormat('EEEE, MMMM d, yyyy', 'es')
                                     .format(fechaSeleccionada!),
                                 style: TextStyle(
-                                    fontSize: 12.0, color: Colors.grey[700]),
+                                    fontSize: 12.0,
+                                    color: isDarkMode
+                                        ? Colors.white70
+                                        : Colors.grey[700]),
                               ),
                             Spacer(),
                             ElevatedButton(
@@ -595,8 +676,9 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                               },
                               style: ElevatedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                backgroundColor:
-                                    Colors.grey, // Botón de limpieza en gris
+                                backgroundColor: isDarkMode
+                                    ? Colors.grey[700]
+                                    : Colors.grey, // Adaptado para dark mode
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(15.0),
                                 ),
@@ -628,11 +710,15 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
+                              color: isDarkMode ? Colors.white : Colors.black,
                             ),
                           ),
                           Text(
                             'Monto a prestar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto)}',
-                            style: TextStyle(fontSize: 12.0),
+                            style: TextStyle(
+                              fontSize: 12.0,
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
                           ),
                           SizedBox(height: 10),
                           Row(
@@ -643,15 +729,30 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 children: [
                                   Text(
                                     'Capital ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((periodo == 'Quincenal') ? capitalQuincenal : monto / plazoSemanas)}',
-                                    style: TextStyle(fontSize: 12.0),
+                                    style: TextStyle(
+                                      fontSize: 12.0,
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
                                   ),
                                   Text(
                                     'Interés ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((periodo == 'Quincenal') ? interesQuincenal : (monto * (interesMensual / 100) / 4))}',
-                                    style: TextStyle(fontSize: 12.0),
+                                    style: TextStyle(
+                                      fontSize: 12.0,
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
                                   ),
                                   Text(
                                     'Pago ${periodo.toLowerCase()}: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((periodo == 'Quincenal') ? (capitalQuincenal + interesQuincenal) : ((monto / plazoSemanas) + (monto * (interesMensual / 100) / 4)))}',
-                                    style: TextStyle(fontSize: 12.0),
+                                    style: TextStyle(
+                                      fontSize: 12.0,
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -661,15 +762,30 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                                 children: [
                                   Text(
                                     'Intereses Totales: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(calculateInterest(monto, interesMensual, plazoSemanas))}',
-                                    style: TextStyle(fontSize: 12.0),
+                                    style: TextStyle(
+                                      fontSize: 12.0,
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
                                   ),
                                   Text(
                                     'Interés ${periodo.toLowerCase()}: ${(interesMensual / (periodo == 'Semanal' ? 4.0 : 2.0)).toStringAsFixed(2)}%',
-                                    style: TextStyle(fontSize: 12.0),
+                                    style: TextStyle(
+                                      fontSize: 12.0,
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
                                   ),
                                   Text(
                                     'Interés Global: ${((calculateInterest(monto, interesMensual, plazoSemanas) / monto) * 100).toStringAsFixed(2)}%',
-                                    style: TextStyle(fontSize: 12.0),
+                                    style: TextStyle(
+                                      fontSize: 12.0,
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -678,7 +794,10 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
                           SizedBox(height: 10),
                           Text(
                             'Total a recuperar: \$${NumberFormat.currency(locale: 'es', symbol: '', decimalDigits: 2).format(calculateTotal(monto, interesMensual, plazoSemanas))}',
-                            style: TextStyle(fontSize: 12.0),
+                            style: TextStyle(
+                              fontSize: 12.0,
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
                           ),
                           SizedBox(height: 10),
                           Row(
@@ -754,75 +873,128 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
               ),
             ),
           ),
-          Divider(),
+          Divider(color: isDarkMode ? Colors.grey[700] : Colors.grey[300]),
           SizedBox(height: 20),
           if (tablaAmortizacion.isNotEmpty) ...[
             Text(
               'Tabla de Amortización:',
               style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.bold), // Ajuste de tamaño
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode
+                      ? Colors.white
+                      : Colors.black), // Ajuste de color para tema oscuro
             ),
             SizedBox(height: 10),
             Expanded(
               child: Container(
                 width: double.infinity,
                 child: SingleChildScrollView(
-                  child: DataTable(
-                    dataRowHeight: 30,
-                    columns: [
-                      DataColumn(
-                          label: Text('No. $periodo',
-                              style: TextStyle(fontSize: 12.0))),
-                      DataColumn(
-                          label: Text('Fecha de Pago',
-                              style: TextStyle(fontSize: 12.0))),
-                      DataColumn(
-                          label: Text('Capital',
-                              style: TextStyle(fontSize: 12.0))),
-                      DataColumn(
-                          label: Text('Interés',
-                              style: TextStyle(fontSize: 12.0))),
-                      DataColumn(
-                          label: Text('Pago por Cuota',
-                              style: TextStyle(fontSize: 12.0))),
-                      DataColumn(
-                          label: Text('Pagado',
-                              style:
-                                  TextStyle(fontSize: 12.0))), // Nueva columna
-                      DataColumn(
-                          label: Text('Restante',
-                              style: TextStyle(fontSize: 12.0))),
-                    ],
-                    rows: tablaAmortizacion.map((item) {
-                      return DataRow(cells: [
-                        DataCell(Text(item.numero.toString(),
-                            style: TextStyle(fontSize: 12.0))),
-                        DataCell(Text(
-                            item.numero == 0
-                                ? ''
-                                : DateFormat('dd/MM/yyyy', 'es')
-                                    .format(item.fecha)
-                                    .replaceAll('.', ','),
-                            style: TextStyle(fontSize: 12.0))),
-                        DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.capitalSemanal)}',
-                            style: TextStyle(fontSize: 12.0))),
-                        DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.interesSemanal)}',
-                            style: TextStyle(fontSize: 12.0))),
-                        DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.pagoCuota)}',
-                            style: TextStyle(fontSize: 12.0))),
-                        DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.pagado)}',
-                            style: TextStyle(
-                                fontSize: 12.0))), // Muestra total pagado
-                        DataCell(Text(
-                            '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.restante)}',
-                            style: TextStyle(fontSize: 12.0))),
-                      ]);
-                    }).toList(),
+                  child: Theme(
+                    // Aplicar tema para la tabla de datos
+                    data: Theme.of(context).copyWith(
+                      dataTableTheme: DataTableThemeData(
+                        headingTextStyle: TextStyle(
+                          color: isDarkMode ? Colors.white : Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        dataTextStyle: TextStyle(
+                          color: isDarkMode ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                      dividerColor:
+                          isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                    ),
+                    child: DataTable(
+                      dataRowHeight: 30,
+                      columns: [
+                        DataColumn(
+                            label: Text('No. $periodo',
+                                style: TextStyle(fontSize: 12.0))),
+                        DataColumn(
+                            label: Text('Fecha de Pago',
+                                style: TextStyle(fontSize: 12.0))),
+                        DataColumn(
+                            label: Text('Capital',
+                                style: TextStyle(fontSize: 12.0))),
+                        DataColumn(
+                            label: Text('Interés',
+                                style: TextStyle(fontSize: 12.0))),
+                        DataColumn(
+                            label: Text('Pago por Cuota',
+                                style: TextStyle(fontSize: 12.0))),
+                        DataColumn(
+                            label: Text('Pagado',
+                                style: TextStyle(
+                                    fontSize: 12.0))), // Nueva columna
+                        DataColumn(
+                            label: Text('Restante',
+                                style: TextStyle(fontSize: 12.0))),
+                      ],
+                      rows: tablaAmortizacion.map((item) {
+                        return DataRow(cells: [
+                          DataCell(Text(item.numero.toString(),
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ))),
+                          DataCell(Text(
+                              item.numero == 0
+                                  ? ''
+                                  : DateFormat('dd/MM/yyyy', 'es')
+                                      .format(item.fecha)
+                                      .replaceAll('.', ','),
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ))),
+                          DataCell(Text(
+                              '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.capitalSemanal)}',
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ))),
+                          DataCell(Text(
+                              '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.interesSemanal)}',
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ))),
+                          DataCell(Text(
+                              '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.pagoCuota)}',
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ))),
+                          DataCell(Text(
+                              '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.pagado)}',
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ))), // Muestra total pagado
+                          DataCell(Text(
+                              '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(item.restante)}',
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ))),
+                        ]);
+                      }).toList(),
+                    ),
                   ),
                 ),
               ),

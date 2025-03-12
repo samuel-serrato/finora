@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -9,6 +10,7 @@ import 'dart:convert';
 
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class InfoGrupo extends StatefulWidget {
@@ -279,15 +281,32 @@ class _InfoGrupoState extends State<InfoGrupo> {
     }
   }
 
-  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+  void mostrarDialogoError(String mensaje,
+      {VoidCallback? onClose, bool isDarkMode = false}) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
-          title: const Text('Error'),
-          content: Text(mensaje),
+          backgroundColor: isDarkMode
+              ? Colors.grey[900]
+              : Colors.white, // Fondo oscuro o claro
+          title: Text(
+            'Error',
+            style: TextStyle(
+              color: isDarkMode
+                  ? Colors.white
+                  : Colors.black, // Texto oscuro o claro
+            ),
+          ),
+          content: Text(
+            mensaje,
+            style: TextStyle(
+              color: isDarkMode
+                  ? Colors.white
+                  : Colors.black, // Texto oscuro o claro
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -295,7 +314,14 @@ class _InfoGrupoState extends State<InfoGrupo> {
                 onClose?.call();
                 dialogShown = false;
               },
-              child: const Text('OK'),
+              child: Text(
+                'OK',
+                style: TextStyle(
+                  color: isDarkMode
+                      ? Colors.white
+                      : Colors.black, // Texto oscuro o claro
+                ),
+              ),
             ),
           ],
         );
@@ -415,11 +441,17 @@ class _InfoGrupoState extends State<InfoGrupo> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     final width = MediaQuery.of(context).size.width * 0.8;
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
-      backgroundColor: Color(0xFFF7F8FA),
+      backgroundColor: isDarkMode
+          ? Colors.grey[900]
+          : Color(0xFFF7F8FA), // Fondo oscuro o claro
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: EdgeInsets.all(16),
       child: Container(
@@ -427,7 +459,13 @@ class _InfoGrupoState extends State<InfoGrupo> {
         width: width,
         height: height,
         child: isLoading
-            ? Center(child: CircularProgressIndicator())
+            ? Center(
+                child: CircularProgressIndicator(
+                  color: isDarkMode
+                      ? Colors.white
+                      : Color(0xFF5162F6), // Color del indicador de carga
+                ),
+              )
             : grupoData != null
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,36 +475,34 @@ class _InfoGrupoState extends State<InfoGrupo> {
                         flex: 25,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Color(0xFF5162F6),
+                            color: Color(0xFF5162F6), // Mantén el color azul
                             borderRadius: BorderRadius.all(Radius.circular(20)),
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               CircleAvatar(
-                                radius: 70, // Tamaño del avatar
+                                radius: 70,
                                 backgroundColor: Colors.white,
                                 child: Icon(
                                   Icons.groups,
                                   size: 100,
-                                  color: Color(
-                                      0xFF5162F6), // Color que combine con el fondo
+                                  color: Color(0xFF5162F6),
                                 ),
                               ),
                               SizedBox(height: 16),
-                              const Padding(
+                              Padding(
                                 padding: EdgeInsets.symmetric(vertical: 8.0),
                                 child: Text(
                                   'Información del Grupo',
                                   style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white),
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                              SizedBox(
-                                  height:
-                                      8), // Espacio entre el título y los detalles
+                              SizedBox(height: 8),
                               _buildDetailRowIG('ID:', grupoData!.idgrupos),
                               _buildDetailRowIG(
                                   'Nombre:', grupoData!.nombreGrupo),
@@ -474,7 +510,6 @@ class _InfoGrupoState extends State<InfoGrupo> {
                               _buildDetailRowIG(
                                   'Detalles:', grupoData!.detalles),
                               _buildDetailRowIG('Estado:', grupoData!.estado),
-
                               _buildDetailRowIG('Folio del Crédito:',
                                   grupoData!.folio ?? 'No asignado'),
                               SizedBox(height: 30),
@@ -487,8 +522,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                   backgroundColor: Colors.white,
                                   foregroundColor: Color(0xFF5162F6),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
+                                      borderRadius: BorderRadius.circular(20)),
                                   padding: EdgeInsets.symmetric(
                                       horizontal: 32, vertical: 16),
                                 ),
@@ -503,7 +537,6 @@ class _InfoGrupoState extends State<InfoGrupo> {
                           ),
                         ),
                       ),
-
                       SizedBox(width: 16),
                       // Columna derecha deslizable
                       Expanded(
@@ -514,8 +547,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
                             Expanded(
                               flex: 5,
                               child: Container(
-                                constraints: BoxConstraints(
-                                    minHeight: 300), // Altura mínima
+                                constraints: BoxConstraints(minHeight: 300),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8.0),
@@ -523,12 +555,15 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      _buildSectionTitle('Integrantes'),
-                                      // Dentro del método build, en la sección donde se muestran los detalles de los clientes:
+                                      _buildSectionTitle(
+                                          'Integrantes', isDarkMode),
                                       if (grupoData!.clientes.isNotEmpty) ...[
                                         for (var cliente in grupoData!.clientes)
                                           Card(
-                                            color: Colors.white,
+                                            color: isDarkMode
+                                                ? Colors.grey[800]
+                                                : Colors
+                                                    .white, // Fondo oscuro o claro
                                             margin: EdgeInsets.symmetric(
                                                 vertical: 8),
                                             elevation: 4,
@@ -551,20 +586,40 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                           CrossAxisAlignment
                                                               .start,
                                                       children: [
-                                                        Text(cliente.nombres,
-                                                            style: TextStyle(
-                                                                fontSize: 14)),
+                                                        Text(
+                                                          cliente.nombres,
+                                                          style: TextStyle(
+                                                            fontSize: 14,
+                                                            color: isDarkMode
+                                                                ? Colors.white
+                                                                : Colors
+                                                                    .black, // Texto oscuro o claro
+                                                          ),
+                                                        ),
                                                         Row(
                                                           children: [
-                                                            Text('Cargo:',
-                                                                style: TextStyle(
-                                                                    fontSize:
-                                                                        12)),
+                                                            Text(
+                                                              'Cargo:',
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: isDarkMode
+                                                                    ? Colors
+                                                                        .white
+                                                                    : Colors
+                                                                        .black, // Texto oscuro o claro
+                                                              ),
+                                                            ),
                                                             SizedBox(width: 4),
                                                             Text(
                                                               cliente.cargo!,
                                                               style: TextStyle(
-                                                                  fontSize: 12),
+                                                                fontSize: 12,
+                                                                color: isDarkMode
+                                                                    ? Colors
+                                                                        .white
+                                                                    : Colors
+                                                                        .black, // Texto oscuro o claro
+                                                              ),
                                                             ),
                                                           ],
                                                         ),
@@ -589,21 +644,29 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                           'Banco:',
                                                           cliente.cuenta!
                                                               .nombreBanco,
+                                                          isDarkMode:
+                                                              isDarkMode,
                                                         ),
                                                         _buildDetailRow(
                                                           'Número de Cuenta:',
                                                           cliente.cuenta!
                                                               .numCuenta,
+                                                          isDarkMode:
+                                                              isDarkMode,
                                                         ),
                                                         _buildDetailRow(
                                                           'Número de Tarjeta:',
                                                           cliente.cuenta!
                                                               .numTarjeta,
+                                                          isDarkMode:
+                                                              isDarkMode,
                                                         ),
                                                         _buildDetailRow(
                                                           'CLABE:',
                                                           cliente.cuenta!
                                                               .clbIntBanc,
+                                                          isDarkMode:
+                                                              isDarkMode,
                                                         ),
                                                       ],
                                                     ),
@@ -617,11 +680,15 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                     child: Text(
                                                       'No hay información de cuenta bancaria.',
                                                       style: TextStyle(
-                                                          fontSize: 12,
-                                                          color: Colors.grey),
+                                                        fontSize: 12,
+                                                        color: isDarkMode
+                                                            ? Colors.white
+                                                            : Colors
+                                                                .grey, // Texto oscuro o claro
+                                                      ),
                                                     ),
                                                   ),
-                                                ]
+                                                ],
                                               ],
                                             ),
                                           ),
@@ -631,14 +698,13 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                 ),
                               ),
                             ),
-                            // Columna de Créditos
                             SizedBox(width: 20),
+                            // Columna de Créditos
                             Expanded(
                               flex: 6,
                               child: SingleChildScrollView(
                                 child: Container(
-                                  constraints: BoxConstraints(
-                                      minHeight: 600), // Altura mínima
+                                  constraints: BoxConstraints(minHeight: 600),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8.0),
@@ -647,7 +713,8 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         _buildSectionTitle(
-                                            'Historial de Créditos'),
+                                            'Historial de Créditos',
+                                            isDarkMode),
                                         if (historialData != null &&
                                             historialData.isNotEmpty)
                                           ListView.builder(
@@ -659,7 +726,10 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                               var historialItem =
                                                   historialData[index];
                                               return Card(
-                                                color: Colors.white,
+                                                color: isDarkMode
+                                                    ? Colors.grey[800]
+                                                    : Colors
+                                                        .white, // Fondo oscuro o claro
                                                 margin: EdgeInsets.symmetric(
                                                     vertical: 8),
                                                 elevation: 4,
@@ -681,18 +751,26 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                           Text(
                                                             'Grupo: ${historialItem['nombreGrupo']}',
                                                             style: TextStyle(
-                                                                fontSize: 14,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold),
+                                                              fontSize: 14,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black, // Texto oscuro o claro
+                                                            ),
                                                           ),
                                                           Text(
                                                             historialItem[
                                                                 'estado'],
                                                             style: TextStyle(
-                                                                fontSize: 12,
-                                                                color: Colors
-                                                                    .grey[800]),
+                                                              fontSize: 12,
+                                                              color: isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors.grey[
+                                                                      800], // Texto oscuro o claro
+                                                            ),
                                                           ),
                                                         ],
                                                       ),
@@ -709,28 +787,42 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                             children: [
                                                               Text(
                                                                 'Crédito: ',
-                                                                style: TextStyle(
-                                                                    fontSize:
-                                                                        12,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold),
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontSize: 12,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  color: isDarkMode
+                                                                      ? Colors
+                                                                          .white
+                                                                      : Colors
+                                                                          .black, // Texto oscuro o claro
+                                                                ),
                                                               ),
                                                               Text(
                                                                 '${historialItem['folio'] ?? 'No asignado'}',
                                                                 style:
                                                                     TextStyle(
                                                                   fontSize: 12,
+                                                                  color: isDarkMode
+                                                                      ? Colors
+                                                                          .white
+                                                                      : Colors
+                                                                          .black, // Texto oscuro o claro
                                                                 ),
-                                                              )
+                                                              ),
                                                             ],
                                                           ),
                                                           Text(
                                                             'Fecha: ${_formatDate(historialItem['fCreacion'])}',
                                                             style: TextStyle(
-                                                                fontSize: 12,
-                                                                color: Colors
-                                                                    .grey[800]),
+                                                              fontSize: 12,
+                                                              color: isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors.grey[
+                                                                      800], // Texto oscuro o claro
+                                                            ),
                                                           ),
                                                         ],
                                                       ),
@@ -743,12 +835,15 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                           Text(
                                                             'Detalles: ',
                                                             style: TextStyle(
-                                                                fontSize: 12,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                color: Colors
-                                                                    .grey[800]),
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors.grey[
+                                                                      800], // Texto oscuro o claro
+                                                            ),
                                                           ),
                                                           SizedBox(height: 4),
                                                           Text(
@@ -756,15 +851,21 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                                     'detalles'] ??
                                                                 'Sin descripción',
                                                             style: TextStyle(
-                                                                fontSize: 12),
+                                                              fontSize: 12,
+                                                              color: isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black, // Texto oscuro o claro
+                                                            ),
                                                           ),
                                                         ],
-                                                      )
+                                                      ),
                                                     ],
                                                   ),
                                                   children: [
                                                     _buildGrupoYClientes(
-                                                        historialItem),
+                                                        historialItem,
+                                                        isDarkMode),
                                                   ],
                                                 ),
                                               );
@@ -773,7 +874,14 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                         else
                                           Center(
                                             child: Text(
-                                                'No hay versiones disponibles'),
+                                              'No hay versiones disponibles',
+                                              style: TextStyle(
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors
+                                                        .black, // Texto oscuro o claro
+                                              ),
+                                            ),
                                           ),
                                       ],
                                     ),
@@ -783,23 +891,28 @@ class _InfoGrupoState extends State<InfoGrupo> {
                             ),
                           ],
                         ),
-                      )
+                      ),
                     ],
                   )
                 : Center(
                     child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                        Text('Error al cargar datos del grupo'),
-                        SizedBox(
-                            height: 20), // Espaciado entre el texto y el botón
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Error al cargar datos del grupo',
+                          style: TextStyle(
+                            color: isDarkMode
+                                ? Colors.white
+                                : Colors.black, // Texto oscuro o claro
+                          ),
+                        ),
+                        SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: () {
                             setState(() {
-                              isLoading =
-                                  true; // Indica que la recarga ha comenzado
+                              isLoading = true;
                             });
-                            fetchGrupoData(); // Llama a la función para recargar los datos
+                            fetchGrupoData();
                           },
                           child: Text('Recargar'),
                           style: ButtonStyle(
@@ -815,7 +928,9 @@ class _InfoGrupoState extends State<InfoGrupo> {
                             ),
                           ),
                         ),
-                      ])),
+                      ],
+                    ),
+                  ),
       ),
     );
   }
@@ -841,29 +956,40 @@ class _InfoGrupoState extends State<InfoGrupo> {
     }
   }
 
-  Widget _buildGrupoYClientes(Map historialItem) {
+  Widget _buildGrupoYClientes(Map historialItem, bool isDarkMode) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tipo de Grupo: ${historialItem['tipoGrupo']}',
-              style: TextStyle(fontSize: 12)),
-
-          // Mostrar clientes
+          Text(
+            'Tipo de Grupo: ${historialItem['tipoGrupo']}',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode
+                  ? Colors.white
+                  : Colors.black, // Texto oscuro o claro
+            ),
+          ),
           SizedBox(height: 8),
-          Text('Integrantes:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          Text(
+            'Integrantes:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: isDarkMode
+                  ? Colors.white
+                  : Colors.black, // Texto oscuro o claro
+            ),
+          ),
           ...historialItem['clientes'].asMap().entries.map<Widget>((entry) {
-            int index = entry.key + 1; // Agregar índice (numeración)
+            int index = entry.key + 1;
             var cliente = entry.value;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 4.0),
               child: ListTile(
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 0), // Reducir espacio
-
+                contentPadding: EdgeInsets.symmetric(horizontal: 0),
                 leading: Icon(
                   Icons.account_circle,
                   size: 30,
@@ -871,11 +997,21 @@ class _InfoGrupoState extends State<InfoGrupo> {
                 ),
                 title: Text(
                   cliente['nombres'],
-                  style: TextStyle(fontSize: 12),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode
+                        ? Colors.white
+                        : Colors.black, // Texto oscuro o claro
+                  ),
                 ),
                 subtitle: Text(
                   'Cargo: ${cliente['cargo']} | Teléfono: ${cliente['telefono']}',
-                  style: TextStyle(fontSize: 12),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode
+                        ? Colors.white
+                        : Colors.black, // Texto oscuro o claro
+                  ),
                 ),
               ),
             );
@@ -885,16 +1021,30 @@ class _InfoGrupoState extends State<InfoGrupo> {
     );
   }
 
-  Widget _buildDetailRow(String label, String? value, {IconData? icon}) {
+  Widget _buildDetailRow(String label, String? value,
+      {bool isDarkMode = false}) {
     if (value?.isNotEmpty ?? false) {
       return Row(
         children: [
-          Text(label,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: isDarkMode
+                  ? Colors.white
+                  : Colors.black, // Texto oscuro o claro
+            ),
+          ),
           SizedBox(width: 4),
           SelectableText(
             value!,
-            style: TextStyle(fontSize: 12),
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode
+                  ? Colors.white
+                  : Colors.black, // Texto oscuro o claro
+            ),
           ),
         ],
       );
@@ -910,13 +1060,18 @@ class _InfoGrupoState extends State<InfoGrupo> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, bool isDarkMode) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Text(
         title,
         style: TextStyle(
-            fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: isDarkMode
+              ? Colors.white
+              : Colors.black87, // Texto oscuro o claro
+        ),
       ),
     );
   }

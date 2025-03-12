@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class InfoUsuario extends StatefulWidget {
@@ -81,7 +83,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
                 onClose: () {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) =>  LoginScreen()),
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
                   );
                 },
               );
@@ -142,25 +144,33 @@ class _InfoUsuarioState extends State<InfoUsuario> {
 
   void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
     if (mounted) {
+      final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+      final isDarkMode = themeProvider.isDarkMode;
+
+      // Colores adaptados según el tema
+      final backgroundColor = isDarkMode ? Color(0xFF2A2A2A) : Colors.white;
+      final textColor = isDarkMode ? Colors.white : Colors.black;
+      final primaryColor =
+          Color(0xFF5162F6); // Mantener color primario consistente
+
       showDialog(
         barrierDismissible: false,
         context: context,
         builder: (context) {
           return AlertDialog(
+            backgroundColor: backgroundColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
             ),
-            title: const Text('Error', 
-                style: TextStyle(color: Color(0xFF5162F6))),
-            content: Text(mensaje),
+            title: Text('Error', style: TextStyle(color: primaryColor)),
+            content: Text(mensaje, style: TextStyle(color: textColor)),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
                   if (onClose != null) onClose();
                 },
-                child: const Text('OK',
-                    style: TextStyle(color: Color(0xFF5162F6))),
+                child: Text('OK', style: TextStyle(color: primaryColor)),
               ),
             ],
           );
@@ -171,16 +181,25 @@ class _InfoUsuarioState extends State<InfoUsuario> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Colores adaptados según el tema
+    final cardColor = isDarkMode ? Color(0xFF1E1E1E) : Colors.white;
+    final shadowColor = isDarkMode ? Colors.black54 : Colors.black26;
+    final primaryColor =
+        Color(0xFF5162F6); // Mantener color primario consistente
+
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(25),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black26,
+              color: shadowColor,
               blurRadius: 15,
               offset: Offset(0, 5),
             )
@@ -192,17 +211,19 @@ class _InfoUsuarioState extends State<InfoUsuario> {
             maxHeight: MediaQuery.of(context).size.height * 0.8,
           ),
           child: isLoading
-              ? _buildLoadingIndicator()
+              ? _buildLoadingIndicator(isDarkMode)
               : userData != null
-                  ? _buildUserInfo()
-                  : _buildErrorState(),
+                  ? _buildUserInfo(isDarkMode)
+                  : _buildErrorState(isDarkMode),
         ),
       ),
     );
   }
 
-  Widget _buildLoadingIndicator() {
-    return const Padding(
+  Widget _buildLoadingIndicator(bool isDarkMode) {
+    final textColor = isDarkMode ? Color(0xFFAAAAAA) : Color(0xFF666666);
+
+    return Padding(
       padding: EdgeInsets.all(40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -211,18 +232,19 @@ class _InfoUsuarioState extends State<InfoUsuario> {
             valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5162F6)),
           ),
           SizedBox(height: 20),
-          Text('Cargando información...',
-              style: TextStyle(color: Color(0xFF666666))),
+          Text('Cargando información...', style: TextStyle(color: textColor)),
         ],
       ),
     );
   }
 
-  Widget _buildUserInfo() {
+  Widget _buildUserInfo(bool isDarkMode) {
+    final dividerColor = isDarkMode ? Colors.grey[800] : Colors.grey[200];
+
     return Column(
       children: [
-        _buildHeader(),
-        Divider(height: 0, color: Colors.grey[200], thickness: 1.5),
+        _buildHeader(isDarkMode),
+        Divider(height: 0, color: dividerColor, thickness: 1.5),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(25),
@@ -231,21 +253,25 @@ class _InfoUsuarioState extends State<InfoUsuario> {
                 _buildInfoSection(
                   title: 'Información Personal',
                   icon: Icons.person_outline,
+                  isDarkMode: isDarkMode,
                   children: [
-                    _buildInfoItem('Usuario', userData!['usuario']),
-                    _buildInfoItem('Nombre', userData!['nombreCompleto']),
-                    _buildInfoItem('Email', userData!['email']),
+                    _buildInfoItem('Usuario', userData!['usuario'], isDarkMode),
+                    _buildInfoItem(
+                        'Nombre', userData!['nombreCompleto'], isDarkMode),
+                    _buildInfoItem('Email', userData!['email'], isDarkMode),
                   ],
                 ),
                 const SizedBox(height: 25),
                 _buildInfoSection(
                   title: 'Detalles de la Cuenta',
                   icon: Icons.assignment_ind_outlined,
+                  isDarkMode: isDarkMode,
                   children: [
-                    _buildInfoItem('ID', userData!['idusuarios']),
-                    _buildInfoItem('Tipo de Usuario', userData!['tipoUsuario']),
-                    _buildInfoItem('Fecha de Creación', 
-                        _formatDate(userData!['fCreacion'])),
+                    _buildInfoItem('ID', userData!['idusuarios'], isDarkMode),
+                    _buildInfoItem('Tipo de Usuario', userData!['tipoUsuario'],
+                        isDarkMode),
+                    _buildInfoItem('Fecha de Creación',
+                        _formatDate(userData!['fCreacion']), isDarkMode),
                   ],
                 ),
               ],
@@ -256,95 +282,91 @@ class _InfoUsuarioState extends State<InfoUsuario> {
     );
   }
 
-  Widget _buildHeader() {
-  return Container(
-    padding: const EdgeInsets.symmetric(vertical: 25, horizontal: 20),
-    decoration: BoxDecoration(
-      color: const Color(0xFF5162F6).withOpacity(0.95),
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-     /*  gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          const Color(0xFF5162F6).withOpacity(0.9),
-          const Color(0xFFC2185B),
-        ],
-      ), */
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center, // Centrar horizontalmente
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Avatar
-        CircleAvatar(
-          radius: 40,
-          backgroundColor: Colors.black.withOpacity(0.2),
-          child: Icon(
-            Icons.person_rounded,
-            size: 50,
-            color: Colors.white.withOpacity(0.9),
+  Widget _buildHeader(bool isDarkMode) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 25, horizontal: 20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF5162F6).withOpacity(0.95),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Avatar
+          CircleAvatar(
+            radius: 40,
+            backgroundColor: Colors.black.withOpacity(0.2),
+            child: Icon(
+              Icons.person_rounded,
+              size: 50,
+              color: Colors.white.withOpacity(0.9),
+            ),
           ),
-        ),
-        const SizedBox(width: 20),
+          const SizedBox(width: 20),
 
-        // Columna con nombre y tipo de usuario
-        Flexible(  // Cambiar de Expanded a Flexible para mejor manejo de espacio
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center, // Centrar texto
-            mainAxisSize: MainAxisSize.min, // Evitar expansión vertical innecesaria
-            children: [
-              Text(
-                userData!['nombreCompleto'] ?? '',
-                textAlign: TextAlign.center, // Alinear texto al centro
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  userData!['tipoUsuario'] ?? '',
-                  textAlign: TextAlign.center, // Alinear texto al centro
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.3,
+          // Columna con nombre y tipo de usuario
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  userData!['nombreCompleto'] ?? '',
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    userData!['tipoUsuario'] ?? '',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
+        ],
+      ),
+    );
+  }
 
   Widget _buildInfoSection({
     required String title,
     required IconData icon,
     required List<Widget> children,
+    required bool isDarkMode,
   }) {
+    final sectionBgColor = isDarkMode ? Color(0xFF252525) : Colors.grey[50];
+    final shadowColor = isDarkMode ? Colors.black38 : Colors.black12;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: sectionBgColor,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: shadowColor,
             blurRadius: 6,
             offset: Offset(0, 3),
           )
@@ -357,7 +379,8 @@ class _InfoUsuarioState extends State<InfoUsuario> {
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
               color: const Color(0xFF5162F6).withOpacity(0.95),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(15)),
             ),
             child: Row(
               children: [
@@ -380,7 +403,10 @@ class _InfoUsuarioState extends State<InfoUsuario> {
     );
   }
 
-  Widget _buildInfoItem(String label, String value) {
+  Widget _buildInfoItem(String label, String value, bool isDarkMode) {
+    final labelColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
+    final valueColor = isDarkMode ? Colors.grey[200] : Colors.grey[800];
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -388,48 +414,49 @@ class _InfoUsuarioState extends State<InfoUsuario> {
         children: [
           Expanded(
             child: Text(label,
-                style: TextStyle(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500)),
+                style:
+                    TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
           ),
           const SizedBox(width: 15),
           Expanded(
             child: Text(value,
                 textAlign: TextAlign.end,
-                style: TextStyle(
-                    color: Colors.grey[800],
-                    fontWeight: FontWeight.w600)),
+                style:
+                    TextStyle(color: valueColor, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(bool isDarkMode) {
+    final headingColor = isDarkMode ? Colors.grey[300] : Colors.grey[800];
+    final textColor = isDarkMode ? Colors.grey[400] : Colors.grey;
+    final iconColor = isDarkMode ? Colors.red[300] : Colors.red[400];
+    final primaryColor = Color(0xFF5162F6);
+
     return Padding(
       padding: const EdgeInsets.all(30),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline_rounded,
-              size: 50, color: Colors.red[400]),
+          Icon(Icons.error_outline_rounded, size: 50, color: iconColor),
           const SizedBox(height: 20),
           Text('Error al cargar datos',
               style: TextStyle(
-                  color: Colors.grey[800],
+                  color: headingColor,
                   fontSize: 16,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 15),
-          const Text('No se pudo obtener la información del usuario',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey)),
+          Text('No se pudo obtener la información del usuario',
+              textAlign: TextAlign.center, style: TextStyle(color: textColor)),
           const SizedBox(height: 25),
           ElevatedButton.icon(
             icon: const Icon(Icons.refresh_rounded, size: 20),
             label: const Text('Intentar nuevamente'),
             onPressed: fetchUserData,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5162F6),
+              backgroundColor: primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
               shape: RoundedRectangleBorder(

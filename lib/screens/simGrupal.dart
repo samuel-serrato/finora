@@ -1,8 +1,10 @@
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:finora/formateador.dart';
+import 'package:provider/provider.dart';
 
 class simuladorGrupal extends StatefulWidget {
   @override
@@ -77,656 +79,704 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
+    // Colores adaptados según el tema
+    final backgroundColor = isDarkMode ? Colors.grey[850] : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final borderColor = isDarkMode ? Colors.grey[700] : Colors.grey[300];
+    final labelColor = isDarkMode ? Colors.grey[400] : Colors.grey[700];
+    final primaryColor = Color(0xFF5162F6); // Este color primario se mantiene
+    final cardColor = isDarkMode ? Colors.grey[800] : Colors.white;
+    final dividerColor = isDarkMode ? Colors.grey[700] : Colors.grey[300];
+
     List<String> fechasDePago =
         generarFechasDePago(fechaSeleccionada ?? DateTime.now(), plazoSemanas);
 
     return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Row para el formulario y el recuadro verde
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Row(
-                children: [
-                  // Formulario con flex 6
-                  Expanded(
-                    flex: 6,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Monto Total y Tasa de Interés en columnas
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    height: 35, // Ajustar altura
-                                    child: TextField(
-                                      controller: montoController,
-                                      decoration: InputDecoration(
-                                        labelText: 'Monto Total',
-                                        labelStyle: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[700]),
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15.0),
-                                          borderSide: BorderSide(
-                                              color: Colors.grey[300]!,
-                                              width: 2.0),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15.0),
-                                          borderSide: BorderSide(
-                                              color: Color(0xFF5162F6),
-                                              width: 2.0),
-                                        ),
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 5.0, horizontal: 10.0),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Row para el formulario y el recuadro verde
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(
+              children: [
+                // Formulario con flex 6
+                Expanded(
+                  flex: 6,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Monto Total y Tasa de Interés en columnas
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  height: 35, // Ajustar altura
+                                  child: TextField(
+                                    controller: montoController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Monto Total',
+                                      labelStyle: TextStyle(
+                                        fontSize: 12,
+                                        color: labelColor,
                                       ),
-                                      keyboardType: TextInputType.number,
-                                      style: TextStyle(fontSize: 12.0),
-                                      onChanged: (value) {
-                                        // Llama a la función de formateo directamente aquí
-                                        String formatted = formatMonto(value);
-                                        montoController.value =
-                                            TextEditingValue(
-                                          text: formatted,
-                                          selection: TextSelection.collapsed(
-                                              offset: formatted.length),
-                                        );
+                                      filled: true,
+                                      fillColor: backgroundColor,
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(15.0),
+                                        borderSide: BorderSide(
+                                          color: borderColor!,
+                                          width: 2.0,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(15.0),
+                                        borderSide: BorderSide(
+                                          color: primaryColor,
+                                          width: 2.0,
+                                        ),
+                                      ),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 5.0,
+                                        horizontal: 10.0,
+                                      ),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    style: TextStyle(
+                                      fontSize: 12.0,
+                                      color: textColor,
+                                    ),
+                                    onChanged: (value) {
+                                      // Llama a la función de formateo directamente aquí
+                                      String formatted = formatMonto(value);
+                                      montoController.value = TextEditingValue(
+                                        text: formatted,
+                                        selection: TextSelection.collapsed(
+                                            offset: formatted.length),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                SizedBox(height: 20),
+                                Container(
+                                  height: 35,
+                                  decoration: BoxDecoration(
+                                    color: backgroundColor,
+                                    borderRadius: BorderRadius.circular(15.0),
+                                    border: Border.all(
+                                      color: borderColor!,
+                                      width: 2.0,
+                                    ),
+                                  ),
+                                  padding:
+                                      EdgeInsets.symmetric(horizontal: 10.0),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<double>(
+                                      hint: Text(
+                                        'Elige una tasa de interés',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: labelColor,
+                                        ),
+                                      ),
+                                      isExpanded: true,
+                                      value: tasaInteresMensualSeleccionada,
+                                      onChanged: (double? newValue) {
+                                        setState(() {
+                                          tasaInteresMensualSeleccionada =
+                                              newValue!;
+                                        });
                                       },
-                                    ),
-                                  ),
-                                  SizedBox(height: 20),
-                                  Container(
-                                    height: 35,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(15.0),
-                                      border: Border.all(
-                                          color: Colors.grey[300]!, width: 2.0),
-                                    ),
-                                    padding: EdgeInsets.symmetric(
-                                        horizontal: 10.0), // Ajustar altura
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<double>(
-                                        hint: Text(
-                                          'Elige una tasa de interés',
-                                          style: TextStyle(fontSize: 12),
-                                        ), // Se mostrará hasta que se seleccione algo
-                                        isExpanded: true,
-                                        value: tasaInteresMensualSeleccionada,
-                                        onChanged: (double? newValue) {
-                                          setState(() {
-                                            tasaInteresMensualSeleccionada =
-                                                newValue!;
-                                          });
-                                        },
-                                        items: <double>[
-                                          8.00,
-                                          8.12,
-                                          8.20,
-                                          8.52,
-                                          8.60,
-                                          8.80,
-                                          9.00,
-                                          9.28
-                                        ].map<DropdownMenuItem<double>>(
-                                            (double value) {
-                                          return DropdownMenuItem<double>(
-                                            value: value,
-                                            child: Text(
-                                              '$value %',
-                                              style: TextStyle(
-                                                  fontSize: 12.0,
-                                                  color: Colors.black),
-                                            ),
-                                          );
-                                        }).toList(),
-                                        icon: Icon(Icons.arrow_drop_down,
-                                            color: Color(0xFF5162F6)),
-                                        dropdownColor: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(width: 20),
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Container(
-                                          height: 35,
-                                          padding: EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 0),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            border: Border.all(
-                                                color: Colors.grey[300]!,
-                                                width: 2.0),
-                                            borderRadius:
-                                                BorderRadius.circular(15.0),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.grey
-                                                    .withOpacity(0.1),
-                                                blurRadius: 5,
-                                                offset: Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: DropdownButtonHideUnderline(
-                                            child: DropdownButton<String>(
-                                              isExpanded: true,
-                                              value: frecuenciaPrestamo,
-                                              onChanged: (String? newValue) {
-                                                setState(() {
-                                                  frecuenciaPrestamo =
-                                                      newValue!;
-                                                });
-                                              },
-                                              items: <String>[
-                                                'Semanal',
-                                              ].map<DropdownMenuItem<String>>(
-                                                  (String value) {
-                                                return DropdownMenuItem<String>(
-                                                  value: value,
-                                                  child: Text(value,
-                                                      style: TextStyle(
-                                                          fontSize: 12.0,
-                                                          color: Colors.black)),
-                                                );
-                                              }).toList(),
-                                              icon: Icon(Icons.arrow_drop_down,
-                                                  color: Color(0xFF5162F6)),
-                                              dropdownColor: Colors.white,
+                                      items: <double>[
+                                        8.00,
+                                        8.12,
+                                        8.20,
+                                        8.52,
+                                        8.60,
+                                        8.80,
+                                        9.00,
+                                        9.28
+                                      ].map<DropdownMenuItem<double>>(
+                                          (double value) {
+                                        return DropdownMenuItem<double>(
+                                          value: value,
+                                          child: Text(
+                                            '$value %',
+                                            style: TextStyle(
+                                              fontSize: 12.0,
+                                              color: textColor,
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 20),
-                                  Container(
-                                    height: 35,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(15.0),
-                                      border: Border.all(
-                                        color: Colors.grey[300]!,
-                                        width: 2.0,
-                                      ),
-                                    ),
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 10.0),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<int>(
-                                        hint: Text(
-                                          'Elige un plazo',
-                                          style: TextStyle(fontSize: 12),
-                                        ), // Se mostrará hasta que se seleccione algo
-                                        isExpanded: true,
-                                        value: plazoSeleccionado,
-                                        onChanged: (int? newValue) {
-                                          setState(() {
-                                            plazoSeleccionado = newValue;
-                                          });
-                                        },
-                                        items: <int>[12, 14, 16]
-                                            .map<DropdownMenuItem<int>>(
-                                                (int value) {
-                                          return DropdownMenuItem<int>(
-                                            value: value,
-                                            child: Text(
-                                              '$value semanas',
-                                              style: TextStyle(
-                                                  fontSize: 12.0,
-                                                  color: Colors.black),
-                                            ),
-                                          );
-                                        }).toList(),
-                                        icon: Icon(
-                                          Icons.arrow_drop_down,
-                                          color: Color(0xFF5162F6),
-                                        ),
-                                        dropdownColor: Colors.white,
-                                      ),
+                                        );
+                                      }).toList(),
+                                      icon: Icon(Icons.arrow_drop_down,
+                                          color: primaryColor),
+                                      dropdownColor: backgroundColor,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 10),
-
-                        // Cantidad de usuarios y montos por usuario
-                        // Tu Row con los TextFields formateados
-                        Row(
-                          children: [
-                            Text('Cantidad de usuarios:',
-                                style: TextStyle(fontSize: 12)),
-                            SizedBox(width: 10),
-                            DropdownButton<int>(
-                              value: numeroUsuarios,
-                              onChanged: (int? newValue) {
-                                if (newValue != null) {
-                                  _actualizarNumeroUsuarios(newValue);
-                                }
-                              },
-                              items: List<DropdownMenuItem<int>>.generate(
-                                12,
-                                (index) => DropdownMenuItem<int>(
-                                  value: index + 1,
-                                  child: Text('${index + 1}',
-                                      style: TextStyle(fontSize: 12)),
                                 ),
-                              ),
+                              ],
                             ),
-                            SizedBox(width: 20),
-                            Expanded(
-                              child: Listener(
-                                onPointerSignal: (pointerSignal) {
-                                  if (pointerSignal is PointerScrollEvent) {
-                                    _scrollController.jumpTo(
-                                      _scrollController.offset +
-                                          pointerSignal.scrollDelta.dy,
-                                    );
-                                  }
-                                },
-                                child: SizedBox(
-                                  width: 100,
-                                  child: Scrollbar(
-                                    controller: _scrollController,
-                                    thumbVisibility: true,
-                                    thickness: 8.0,
-                                    radius: Radius.circular(10),
-                                    child: SingleChildScrollView(
-                                      controller: _scrollController,
-                                      scrollDirection: Axis.horizontal,
-                                      physics: ClampingScrollPhysics(),
-                                      child: Row(
-                                        children: List.generate(numeroUsuarios,
-                                            (index) {
-                                          return Container(
-                                            height: 55,
-                                            width: 150,
-                                            margin: EdgeInsets.symmetric(
-                                                horizontal: 5),
-                                            padding: EdgeInsets.symmetric(
-                                                vertical: 10),
-                                            child: TextField(
-                                              controller:
-                                                  montoPorUsuarioControllers[
-                                                      index],
-                                              textAlignVertical:
-                                                  TextAlignVertical.center,
-                                              decoration: InputDecoration(
-                                                labelText:
-                                                    'Usuario ${index + 1}',
-                                                labelStyle: TextStyle(
+                          ),
+                          SizedBox(width: 20),
+                          Expanded(
+                            flex: 1,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        height: 35,
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 0),
+                                        decoration: BoxDecoration(
+                                          color: backgroundColor,
+                                          border: Border.all(
+                                            color: borderColor!,
+                                            width: 2.0,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(15.0),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: isDarkMode
+                                                  ? Colors.black
+                                                      .withOpacity(0.2)
+                                                  : Colors.grey
+                                                      .withOpacity(0.1),
+                                              blurRadius: 5,
+                                              offset: Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: DropdownButtonHideUnderline(
+                                          child: DropdownButton<String>(
+                                            isExpanded: true,
+                                            value: frecuenciaPrestamo,
+                                            onChanged: (String? newValue) {
+                                              setState(() {
+                                                frecuenciaPrestamo = newValue!;
+                                              });
+                                            },
+                                            items: <String>['Semanal']
+                                                .map<DropdownMenuItem<String>>(
+                                                    (String value) {
+                                              return DropdownMenuItem<String>(
+                                                value: value,
+                                                child: Text(
+                                                  value,
+                                                  style: TextStyle(
                                                     fontSize: 12.0,
-                                                    color: Colors.grey[700]),
-                                                filled: true,
-                                                fillColor: Colors.white,
-                                                enabledBorder:
-                                                    OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          15.0),
-                                                  borderSide: BorderSide(
-                                                      color: Colors.grey[300]!,
-                                                      width: 2.0),
+                                                    color: textColor,
+                                                  ),
                                                 ),
-                                                focusedBorder:
-                                                    OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          15.0),
-                                                  borderSide: BorderSide(
-                                                      color: Color(0xFF5162F6),
-                                                      width: 2.0),
-                                                ),
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                        vertical: 15.0,
-                                                        horizontal: 10.0),
-                                              ),
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              style: TextStyle(fontSize: 12.0),
-                                              onChanged: (value) {
-                                                // Aplica el formateo directamente aquí
-                                                String formatted =
-                                                    formatMonto(value);
-                                                montoPorUsuarioControllers[
-                                                        index]
-                                                    .value = TextEditingValue(
-                                                  text: formatted,
-                                                  selection:
-                                                      TextSelection.collapsed(
-                                                          offset:
-                                                              formatted.length),
-                                                );
-                                              },
-                                            ),
-                                          );
-                                        }),
+                                              );
+                                            }).toList(),
+                                            icon: Icon(Icons.arrow_drop_down,
+                                                color: primaryColor),
+                                            dropdownColor: backgroundColor,
+                                          ),
+                                        ),
                                       ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 20),
+                                Container(
+                                  height: 35,
+                                  decoration: BoxDecoration(
+                                    color: backgroundColor,
+                                    borderRadius: BorderRadius.circular(15.0),
+                                    border: Border.all(
+                                      color: borderColor!,
+                                      width: 2.0,
+                                    ),
+                                  ),
+                                  padding:
+                                      EdgeInsets.symmetric(horizontal: 10.0),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<int>(
+                                      hint: Text(
+                                        'Elige un plazo',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: labelColor,
+                                        ),
+                                      ),
+                                      isExpanded: true,
+                                      value: plazoSeleccionado,
+                                      onChanged: (int? newValue) {
+                                        setState(() {
+                                          plazoSeleccionado = newValue;
+                                        });
+                                      },
+                                      items: <int>[
+                                        12,
+                                        14,
+                                        16
+                                      ].map<DropdownMenuItem<int>>((int value) {
+                                        return DropdownMenuItem<int>(
+                                          value: value,
+                                          child: Text(
+                                            '$value semanas',
+                                            style: TextStyle(
+                                              fontSize: 12.0,
+                                              color: textColor,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                      icon: Icon(Icons.arrow_drop_down,
+                                          color: primaryColor),
+                                      dropdownColor: backgroundColor,
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                        SizedBox(height: 10),
-                        Row(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () => selectDate(context),
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor: Color(0xFF5162F6),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15.0),
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Text(
-                                  fechaSeleccionada == null
-                                      ? 'Seleccionar Fecha de Inicio'
-                                      : 'Fecha de Inicio: ${DateFormat('dd/MM/yyyy', 'es').format(fechaSeleccionada!)}',
-                                  style: TextStyle(fontSize: 12.0),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            if (fechaSeleccionada != null)
-                              Text(
-                                DateFormat('EEEE, MMMM d, yyyy', 'es')
-                                    .format(fechaSeleccionada!),
-                                style: TextStyle(
-                                    fontSize: 12.0, color: Colors.grey[700]),
-                              ),
-                            Spacer(),
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  // Limpiar los campos del formulario
-                                  montoController.clear();
-                                  plazoController.clear();
-                                  interesController.clear();
-
-                                  // Limpiar los controladores de los montos individuales
-                                  for (var controller
-                                      in montoPorUsuarioControllers) {
-                                    controller.clear();
-                                  }
-
-                                  // Restablecer las variables clave
-                                  monto = 0.0;
-                                  tasaInteresMensualSeleccionada =
-                                      null; // O el valor predeterminado
-                                  plazoSeleccionado =
-                                      null; // O el valor predeterminado
-                                  listaUsuarios
-                                      .clear(); // Limpiar la tabla de usuarios
-                                  fechaSeleccionada =
-                                      null; // Limpiar la fecha seleccionada
-
-                                  // Si tienes otras listas o tablas, también las puedes limpiar aquí
-                                });
-                              },
-                              style: ElevatedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                backgroundColor:
-                                    Colors.grey, // Botón de limpieza en gris
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15.0),
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 0),
-                                child: Text(
-                                  'Limpiar Campos',
-                                  style: TextStyle(fontSize: 12.0),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Recuadro verde a la derecha con flex 4
-                  SizedBox(width: 20),
-                  // Recuadro verde a la derecha con flex 4
-                  Expanded(
-                    flex: 4,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        //color: Colors.green,
-                        borderRadius: BorderRadius.circular(15.0),
+                          ),
+                        ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                      SizedBox(height: 10),
+
+                      // Cantidad de usuarios y montos por usuario
+                      Row(
                         children: [
                           Text(
-                            'Resumen:',
+                            'Cantidad de usuarios:',
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
+                              color: textColor,
                             ),
                           ),
-                          Text(
-                            'Monto a prestar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto)}',
-                            style:
-                                TextStyle(fontSize: 12.0, color: Colors.black),
-                          ),
-                          SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // Columna izquierda
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Capital Semanal
-                                  Text(
-                                    'Capital Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto / plazoSemanas)}',
-                                    style: TextStyle(
-                                        fontSize: 12.0, color: Colors.black),
-                                  ),
-                                  // Interés Semanal
-                                  Text(
-                                    'Interés Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto * (tasaInteresMensual / 4 / 100))}', // Asegúrate de dividir la tasa por 100
-                                    style: TextStyle(
-                                        fontSize: 12.0, color: Colors.black),
-                                  ),
-                                  // Pago Semanal
-                                  Text(
-                                    'Pago Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((monto / plazoSemanas) + (monto * (tasaInteresMensual / 4 / 100)))}',
-                                    style: TextStyle(
-                                        fontSize: 12.0, color: Colors.black),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(width: 20), // Espacio entre las columnas
-                              // Columna derecha
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Interés Total
-                                  Text(
-                                    'Interés Total: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto * (tasaInteresMensual / 4 / 100) * plazoSemanas)}',
-                                    style: TextStyle(
-                                        fontSize: 12.0, color: Colors.black),
-                                  ),
-                                  // Interés Semanal (%)
-                                  Text(
-                                    'Interés Semanal: ${(tasaInteresMensual / 4).toStringAsFixed(2)}%',
-                                    style: TextStyle(
-                                        fontSize: 12.0, color: Colors.black),
-                                  ),
-                                  // Interés Global (%)
-                                  Text(
-                                    'Interés Global: ${(tasaInteresMensual / 4 * plazoSemanas).toStringAsFixed(2)}%',
-                                    style: TextStyle(
-                                        fontSize: 12.0, color: Colors.black),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Text(
-                              'Total a Recuperar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto + (monto * (tasaInteresMensual / 4 / 100) * plazoSemanas))}',
-                              style: TextStyle(
-                                  fontSize: 12.0, color: Colors.black),
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              setState(() {
-                                // Primero actualizamos las variables clave que afectan los cálculos
-                                recalcular();
-
-                                // Bandera para determinar si hay errores
-                                bool hayErrores = false;
-
-                                // Verificar si el plazo no ha sido seleccionado
-                                if (plazoSemanas == 0) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Error: Debes seleccionar el plazo de semanas.'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                  hayErrores =
-                                      true; // Marcamos que hay un error
-                                }
-
-                                // Verificar si la tasa de interés no ha sido seleccionada
-                                if (tasaInteresMensual == 0) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Error: Debes seleccionar una tasa de interés.'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                  hayErrores =
-                                      true; // Marcamos que hay un error
-                                }
-
-                                // Si hay errores, salimos de la ejecución sin calcular la tabla
-                                if (hayErrores) return;
-
-                                // Función para limpiar las comas y convertir a número
-                                double parseAmountWithoutCommas(String text) {
-                                  // Elimina las comas y convierte el texto a double
-                                  String cleanText = text.replaceAll(',', '');
-                                  return double.tryParse(cleanText) ?? 0.0;
-                                }
-
-                                // Calculamos el total del préstamo ingresado por cada usuario
-                                double totalPrestamo =
-                                    montoPorUsuarioControllers.fold(
-                                  0.0,
-                                  (sum, controller) =>
-                                      sum +
-                                      parseAmountWithoutCommas(controller
-                                          .text), // Limpiamos las comas
-                                );
-
-                                // Obtenemos el monto total ingresado por el usuario
-                                double montoTotal = parseAmountWithoutCommas(
-                                    montoController
-                                        .text); // Limpiamos las comas
-
-                                // Imprimir cada monto ingresado por los usuarios en consola
-                                for (int i = 0;
-                                    i < montoPorUsuarioControllers.length;
-                                    i++) {
-                                  double montoUsuario =
-                                      parseAmountWithoutCommas(
-                                          montoPorUsuarioControllers[i].text);
-                                  print(
-                                      'Monto del Usuario ${i + 1}: \$${montoUsuario.toStringAsFixed(2)}');
-                                }
-
-                                // Verificamos si la suma coincide con el monto total
-                                if (totalPrestamo != montoTotal) {
-                                  // Mostrar un SnackBar con un mensaje de error
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Error: La suma de los montos individuales (\$$totalPrestamo) no coincide con el monto total (\$$montoTotal).'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                } else {
-                                  // Si coinciden, calculamos la tabla
-                                  listaUsuarios = calcularTabla();
-
-                                  // Mostrar un SnackBar con el total del préstamo
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Total del préstamo grupal: \$${totalPrestamo.toStringAsFixed(2)}'),
-                                    ),
-                                  );
-                                }
-                              });
+                          SizedBox(width: 10),
+                          DropdownButton<int>(
+                            value: numeroUsuarios,
+                            onChanged: (int? newValue) {
+                              if (newValue != null) {
+                                _actualizarNumeroUsuarios(newValue);
+                              }
                             },
+                            items: List<DropdownMenuItem<int>>.generate(
+                              12,
+                              (index) => DropdownMenuItem<int>(
+                                value: index + 1,
+                                child: Text(
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            dropdownColor: backgroundColor,
+                          ),
+                          SizedBox(width: 20),
+                          Expanded(
+                            child: Listener(
+                              onPointerSignal: (pointerSignal) {
+                                if (pointerSignal is PointerScrollEvent) {
+                                  _scrollController.jumpTo(
+                                    _scrollController.offset +
+                                        pointerSignal.scrollDelta.dy,
+                                  );
+                                }
+                              },
+                              child: SizedBox(
+                                width: 100,
+                                child: Scrollbar(
+                                  controller: _scrollController,
+                                  thumbVisibility: true,
+                                  thickness: 8.0,
+                                  radius: Radius.circular(10),
+                                  child: SingleChildScrollView(
+                                    controller: _scrollController,
+                                    scrollDirection: Axis.horizontal,
+                                    physics: ClampingScrollPhysics(),
+                                    child: Row(
+                                      children: List.generate(numeroUsuarios,
+                                          (index) {
+                                        return Container(
+                                          height: 55,
+                                          width: 150,
+                                          margin: EdgeInsets.symmetric(
+                                              horizontal: 5),
+                                          padding: EdgeInsets.symmetric(
+                                              vertical: 10),
+                                          child: TextField(
+                                            controller:
+                                                montoPorUsuarioControllers[
+                                                    index],
+                                            textAlignVertical:
+                                                TextAlignVertical.center,
+                                            decoration: InputDecoration(
+                                              labelText: 'Usuario ${index + 1}',
+                                              labelStyle: TextStyle(
+                                                fontSize: 12.0,
+                                                color: labelColor,
+                                              ),
+                                              filled: true,
+                                              fillColor: backgroundColor,
+                                              enabledBorder: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(15.0),
+                                                borderSide: BorderSide(
+                                                  color: borderColor!,
+                                                  width: 2.0,
+                                                ),
+                                              ),
+                                              focusedBorder: OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(15.0),
+                                                borderSide: BorderSide(
+                                                  color: primaryColor,
+                                                  width: 2.0,
+                                                ),
+                                              ),
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                vertical: 15.0,
+                                                horizontal: 10.0,
+                                              ),
+                                            ),
+                                            keyboardType: TextInputType.number,
+                                            style: TextStyle(
+                                              fontSize: 12.0,
+                                              color: textColor,
+                                            ),
+                                            onChanged: (value) {
+                                              // Aplica el formateo directamente aquí
+                                              String formatted =
+                                                  formatMonto(value);
+                                              montoPorUsuarioControllers[index]
+                                                  .value = TextEditingValue(
+                                                text: formatted,
+                                                selection:
+                                                    TextSelection.collapsed(
+                                                        offset:
+                                                            formatted.length),
+                                              );
+                                            },
+                                          ),
+                                        );
+                                      }),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      Row(
+                        children: [
+                          ElevatedButton(
+                            onPressed: () => selectDate(context),
                             style: ElevatedButton.styleFrom(
                               foregroundColor: Colors.white,
-                              backgroundColor: Color(0xFF5162F6),
+                              backgroundColor: primaryColor,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(15.0),
                               ),
                             ),
                             child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text('Calcular',
-                                  style: TextStyle(fontSize: 12.0)),
+                              padding: const EdgeInsets.all(8),
+                              child: Text(
+                                fechaSeleccionada == null
+                                    ? 'Seleccionar Fecha de Inicio'
+                                    : 'Fecha de Inicio: ${DateFormat('dd/MM/yyyy', 'es').format(fechaSeleccionada!)}',
+                                style: TextStyle(fontSize: 12.0),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          if (fechaSeleccionada != null)
+                            Text(
+                              DateFormat('EEEE, MMMM d, yyyy', 'es')
+                                  .format(fechaSeleccionada!),
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                color: labelColor,
+                              ),
+                            ),
+                          Spacer(),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                // Limpiar los campos del formulario
+                                montoController.clear();
+                                plazoController.clear();
+                                interesController.clear();
+
+                                // Limpiar los controladores de los montos individuales
+                                for (var controller
+                                    in montoPorUsuarioControllers) {
+                                  controller.clear();
+                                }
+
+                                // Restablecer las variables clave
+                                monto = 0.0;
+                                tasaInteresMensualSeleccionada =
+                                    null; // O el valor predeterminado
+                                plazoSeleccionado =
+                                    null; // O el valor predeterminado
+                                listaUsuarios
+                                    .clear(); // Limpiar la tabla de usuarios
+                                fechaSeleccionada =
+                                    null; // Limpiar la fecha seleccionada
+
+                                // Si tienes otras listas o tablas, también las puedes limpiar aquí
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              backgroundColor: isDarkMode
+                                  ? Colors.grey[700]
+                                  : Colors.grey, // Adaptado para dark mode
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15.0),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 0),
+                              child: Text(
+                                'Limpiar Campos',
+                                style: TextStyle(fontSize: 12.0),
+                              ),
                             ),
                           ),
                         ],
                       ),
+                    ],
+                  ),
+                ),
+                // Recuadro verde a la derecha con flex 4
+                SizedBox(width: 20),
+                // Recuadro verde a la derecha con flex 4
+                Expanded(
+                  flex: 4,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15.0),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Resumen:',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                        Text(
+                          'Monto a prestar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto)}',
+                          style: TextStyle(
+                            fontSize: 12.0,
+                            color: textColor,
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Columna izquierda
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Capital Semanal
+                                Text(
+                                  'Capital Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto / plazoSemanas)}',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: textColor,
+                                  ),
+                                ),
+                                // Interés Semanal
+                                Text(
+                                  'Interés Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto * (tasaInteresMensual / 4 / 100))}',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: textColor,
+                                  ),
+                                ),
+                                // Pago Semanal
+                                Text(
+                                  'Pago Semanal: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format((monto / plazoSemanas) + (monto * (tasaInteresMensual / 4 / 100)))}',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(width: 20), // Espacio entre las columnas
+                            // Columna derecha
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Interés Total
+                                Text(
+                                  'Interés Total: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto * (tasaInteresMensual / 4 / 100) * plazoSemanas)}',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: textColor,
+                                  ),
+                                ),
+                                // Interés Semanal (%)
+                                Text(
+                                  'Interés Semanal: ${(tasaInteresMensual / 4).toStringAsFixed(2)}%',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: textColor,
+                                  ),
+                                ),
+                                // Interés Global (%)
+                                Text(
+                                  'Interés Global: ${(tasaInteresMensual / 4 * plazoSemanas).toStringAsFixed(2)}%',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            'Total a Recuperar: \$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(monto + (monto * (tasaInteresMensual / 4 / 100) * plazoSemanas))}',
+                            style: TextStyle(
+                              fontSize: 12.0,
+                              color: textColor,
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              // Primero actualizamos las variables clave que afectan los cálculos
+                              recalcular();
+
+                              // Bandera para determinar si hay errores
+                              bool hayErrores = false;
+
+                              // Verificar si el plazo no ha sido seleccionado
+                              if (plazoSemanas == 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Error: Debes seleccionar el plazo de semanas.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                hayErrores = true; // Marcamos que hay un error
+                              }
+
+                              // Verificar si la tasa de interés no ha sido seleccionada
+                              if (tasaInteresMensual == 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Error: Debes seleccionar una tasa de interés.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                hayErrores = true; // Marcamos que hay un error
+                              }
+
+                              // Si hay errores, salimos de la ejecución sin calcular la tabla
+                              if (hayErrores) return;
+
+                              // Función para limpiar las comas y convertir a número
+                              double parseAmountWithoutCommas(String text) {
+                                // Elimina las comas y convierte el texto a double
+                                String cleanText = text.replaceAll(',', '');
+                                return double.tryParse(cleanText) ?? 0.0;
+                              }
+
+                              // Calculamos el total del préstamo ingresado por cada usuario
+                              double totalPrestamo =
+                                  montoPorUsuarioControllers.fold(
+                                0.0,
+                                (sum, controller) =>
+                                    sum +
+                                    parseAmountWithoutCommas(controller.text),
+                              );
+
+                              // Obtenemos el monto total ingresado por el usuario
+                              double montoTotal = parseAmountWithoutCommas(
+                                  montoController.text);
+
+                              // Verificamos si la suma coincide con el monto total
+                              if (totalPrestamo != montoTotal) {
+                                // Mostrar un SnackBar con un mensaje de error
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Error: La suma de los montos individuales (\$$totalPrestamo) no coincide con el monto total (\$$montoTotal).'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } else {
+                                // Si coinciden, calculamos la tabla
+                                listaUsuarios = calcularTabla();
+
+                                // Mostrar un SnackBar con el total del préstamo
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Total del préstamo grupal: \$${totalPrestamo.toStringAsFixed(2)}'),
+                                  ),
+                                );
+                              }
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: primaryColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15.0),
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text('Calcular',
+                                style: TextStyle(fontSize: 12.0)),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            // Divider
-            Divider(thickness: 2, color: Colors.grey[300]),
-            // Mostrar la tabla de resultados si hay datos
-            if (listaUsuarios.isNotEmpty)
-              Expanded(
-                  child: Row(
+          ),
+          // Divider
+          Divider(thickness: 2, color: dividerColor),
+          // Mostrar la tabla de resultados si hay datos
+          if (listaUsuarios.isNotEmpty)
+            Expanded(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Tabla de resultados
@@ -734,21 +784,31 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                     flex: 3, // Define cuánto espacio ocupará la tabla
                     child: SingleChildScrollView(
                       scrollDirection: Axis.vertical, // Desplazamiento vertical
-                      child: TablaResultados(listaUsuarios: listaUsuarios),
+                      child: TablaResultados(
+                        listaUsuarios: listaUsuarios,
+                      ),
                     ),
                   ),
                   // Relleno para mantener espacio entre tabla y recuadro verde
                   SizedBox(width: 20),
                   // Recuadro verde a la derecha
                   CustomTable(
-                      title: 'Fechas de Pago', fechasDePago: fechasDePago),
+                    title: 'Fechas de Pago',
+                    fechasDePago: fechasDePago,
+                  ),
                 ],
-              )),
-          ],
-        ));
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
+// También modifica el método selectDate para que use el tema adecuado
   void selectDate(BuildContext context) async {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: fechaSeleccionada ?? DateTime.now(),
@@ -757,14 +817,20 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
       locale: Locale('es', 'ES'),
       builder: (BuildContext context, Widget? child) {
         return Theme(
-          data: ThemeData.light().copyWith(
-            primaryColor:
-                Colors.white, // Cambia el color de los elementos destacados
-
-            colorScheme: ColorScheme.fromSwatch().copyWith(
-              primary: Color(0xFF5162F6),
-            ),
-          ),
+          data: isDarkMode
+              ? ThemeData.dark().copyWith(
+                  colorScheme: ColorScheme.dark().copyWith(
+                    primary: Color(0xFF5162F6),
+                    surface: Colors.grey[850],
+                    onSurface: Colors.white,
+                  ),
+                )
+              : ThemeData.light().copyWith(
+                  primaryColor: Colors.white,
+                  colorScheme: ColorScheme.fromSwatch().copyWith(
+                    primary: Color(0xFF5162F6),
+                  ),
+                ),
           child: child!,
         );
       },

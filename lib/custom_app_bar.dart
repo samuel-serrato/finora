@@ -1,7 +1,9 @@
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:finora/constants/routes.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
@@ -39,15 +41,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       );
 
       if (response.statusCode == 200) {
-        // Eliminar el token
         await prefs.remove('tokenauth');
-
-        // Mostrar SnackBar indicando que la sesión se ha cerrado correctamente
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Sesión cerrada correctamente')),
         );
-
-        // Navegar a la pantalla de login
         Navigator.pushNamedAndRemoveUntil(
           context,
           AppRoutes.login,
@@ -67,37 +64,42 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Column(children: [
       Container(
           padding: const EdgeInsets.only(
               left: 16.0, right: 16.0, top: 10, bottom: 15),
-          decoration: BoxDecoration(color: Colors.white),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? Theme.of(context).colorScheme.surface
+                : Colors.white, // Color dinámico
+          ),
           child:
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             // Row for the image and title
             Row(
               children: [
-                // Image on the left
-
-                // Title text
                 Text(
                   title,
                   style: TextStyle(
-                    color: Colors.grey[900],
+                    color: isDarkMode
+                        ? Colors.white
+                        : Colors.grey[900], // Color dinámico
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            // The rest of your row remains unchanged
             Row(
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: GestureDetector(
                     onTap: () {
-                      toggleDarkMode(!isDarkMode);
+                      themeProvider.toggleDarkMode(!isDarkMode);
                     },
                     child: Container(
                       width: 50,
@@ -105,7 +107,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       decoration: BoxDecoration(
                         color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
                         borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: Colors.white, width: 1),
+                        border: Border.all(
+                            color:
+                                isDarkMode ? Colors.grey[600]! : Colors.white,
+                            width: 1),
                         boxShadow: [
                           BoxShadow(
                             color:
@@ -150,9 +155,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDarkMode
+                          ? Theme.of(context).colorScheme.surface
+                          : Colors.white, // Color dinámico
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey, width: 0.8),
+                      border: Border.all(
+                          color: isDarkMode ? Colors.grey[600]! : Colors.grey,
+                          width: 0.8),
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
@@ -167,7 +176,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           child: Center(
                             child: Icon(
                               Icons.notifications,
-                              color: Colors.grey[800],
+                              color: isDarkMode
+                                  ? Colors.white
+                                  : Colors.grey[800], // Color dinámico
                               size: 22,
                             ),
                           ),
@@ -182,7 +193,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isDarkMode
+                        ? Colors.grey[900]
+                        : Colors.white, // Color dinámico
                     borderRadius: BorderRadius.circular(50),
                     boxShadow: [
                       BoxShadow(
@@ -196,8 +209,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   child: Row(
                     children: [
                       Image.asset(
-                        'assets/mf_logo_hzt.png', // Replace with your image path
-                        width: 120, // Adjust size as needed
+                        isDarkMode
+                            ? 'assets/logo_mf_n_hzt_blanco.png' // Logo blanco en modo oscuro
+                            : 'assets/logo_mf_n_hzt.png', // Logo normal en modo claro
+                        width: 120,
                         height: 40,
                       ),
                     ],
@@ -213,7 +228,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      color: Colors.white,
+                      color: isDarkMode
+                          ? Colors.grey[800]
+                          : Colors.white, // Color dinámico
                       elevation: 10,
                       onSelected: (value) async {
                         if (value == 'logout') {
@@ -221,7 +238,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                 context: context,
                                 builder: (context) => Theme(
                                   data: Theme.of(context).copyWith(
-                                    dialogBackgroundColor: Colors.white,
+                                    dialogBackgroundColor: isDarkMode
+                                        ? Colors.grey[800]
+                                        : Colors.white, // Color dinámico
                                     textButtonTheme: TextButtonThemeData(
                                       style: TextButton.styleFrom(
                                         foregroundColor: Color(0xFF5162F6),
@@ -247,7 +266,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                           style: TextStyle(
                                             fontSize: 22,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.black87,
+                                            color: isDarkMode
+                                                ? Colors.white
+                                                : Colors
+                                                    .black87, // Color dinámico
                                           ),
                                         ),
                                       ],
@@ -260,7 +282,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           fontSize: 16,
-                                          color: Colors.grey[700],
+                                          color: isDarkMode
+                                              ? Colors.grey[300]
+                                              : Colors
+                                                  .grey[700], // Color dinámico
                                           height: 1.4,
                                         ),
                                       ),
@@ -279,10 +304,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                                   Navigator.pop(context, false),
                                               child: Text('Cancelar'),
                                               style: OutlinedButton.styleFrom(
-                                                foregroundColor:
-                                                    Colors.grey[700],
+                                                foregroundColor: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.grey[
+                                                        700], // Color dinámico
                                                 side: BorderSide(
-                                                    color: Colors.grey[400]!),
+                                                    color: isDarkMode
+                                                        ? Colors.grey[600]!
+                                                        : Colors.grey[400]!),
                                                 padding: EdgeInsets.symmetric(
                                                     vertical: 14),
                                                 shape: RoundedRectangleBorder(
@@ -317,11 +346,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   ),
                                 ),
                               ) ??
-                              false; // Si el diálogo se cierra sin valor, asigna false
+                              false;
 
                           if (confirm) await _logoutUser(context);
                         } else if (value == 'acerca_de') {
-                          _showAboutDialog(context); // Llamada a la función
+                          _showAboutDialog(context);
                         }
                       },
                       itemBuilder: (context) => [
@@ -329,12 +358,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           value: 'configuracion',
                           child: Row(
                             children: [
-                              Icon(Icons.settings, color: Colors.black),
+                              Icon(Icons.settings,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black),
                               const SizedBox(width: 12),
                               Text(
                                 'Configuración',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey[800]),
+                                    fontSize: 12,
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.grey[800]),
                               ),
                             ],
                           ),
@@ -343,12 +377,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           value: 'acerca_de',
                           child: Row(
                             children: [
-                              Icon(Icons.info_outline, color: Colors.blue),
+                              Icon(Icons.info_outline,
+                                  color: isDarkMode
+                                      ? Colors.blue[200]
+                                      : Colors.blue),
                               const SizedBox(width: 12),
                               Text(
                                 'Acerca de',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey[800]),
+                                    fontSize: 12,
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.grey[800]),
                               ),
                             ],
                           ),
@@ -357,12 +397,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           value: 'logout',
                           child: Row(
                             children: [
-                              Icon(Icons.exit_to_app, color: Colors.redAccent),
+                              Icon(Icons.exit_to_app,
+                                  color: isDarkMode
+                                      ? Colors.redAccent[200]
+                                      : Colors.redAccent),
                               const SizedBox(width: 12),
                               Text(
                                 'Cerrar sesión',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey[800]),
+                                    fontSize: 12,
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.grey[800]),
                               ),
                             ],
                           ),
@@ -373,7 +419,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDarkMode
+                              ? Colors.grey[900]
+                              : Colors.white, // Color dinámico
                           borderRadius: BorderRadius.circular(50),
                           boxShadow: [
                             BoxShadow(
@@ -399,7 +447,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                 Text(
                                   nombre,
                                   style: TextStyle(
-                                    color: Colors.black,
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.black, // Color dinámico
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -407,14 +457,20 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                 Text(
                                   tipoUsuario,
                                   style: TextStyle(
-                                    color: Colors.grey.shade900,
+                                    color: isDarkMode
+                                        ? Colors.grey[300]
+                                        : Colors
+                                            .grey.shade900, // Color dinámico
                                     fontSize: 10,
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(width: 8),
-                            Icon(Icons.arrow_drop_down, color: Colors.black),
+                            Icon(Icons.arrow_drop_down,
+                                color: isDarkMode
+                                    ? Colors.white
+                                    : Colors.black), // Color dinámico
                           ],
                         ),
                       ),
@@ -427,7 +483,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ])),
       Container(
         height: 1,
-        color: Colors.grey[300],
+        color:
+            isDarkMode ? Colors.grey[700] : Colors.grey[300], // Color dinámico
       ),
     ]);
   }
@@ -435,6 +492,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   void _showAboutDialog(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.30;
     final height = MediaQuery.of(context).size.height * 0.32;
+    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
 
     showDialog(
       context: context,
@@ -442,61 +500,55 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         padding: const EdgeInsets.symmetric(vertical: 50),
         child: Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16), // Bordes redondeados
+            borderRadius: BorderRadius.circular(16),
           ),
           elevation: 8,
           child: Container(
             width: width,
             height: height,
-            padding: EdgeInsets.all(16), // Padding general
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.white, // Color dinámico
               borderRadius: BorderRadius.circular(16),
             ),
             alignment: Alignment.center,
             child: Column(
-              mainAxisSize: MainAxisSize.max, // Ocupa todo el espacio vertical
-              mainAxisAlignment:
-                  MainAxisAlignment.center, // Centra verticalmente los
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo del software
                 Image.asset(
-                  'assets/finora_hzt.png', // Ruta de la imagen
-                  width: 150, // Ancho de la imagen
-                  height: 50, // Alto de la imagen
+                  'assets/finora_hzt.png',
+                  width: 150,
+                  height: 50,
                 ),
-                SizedBox(height: 8), // Espacio reducido
-                /* Text(
-                  'Acerca de Finora',
-                  style: TextStyle(
-                    fontSize: 18, // Título más pequeño
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF5162F6),
-                  ),
-                ), */
-
-                // Contenido compacto
+                SizedBox(height: 8),
                 Padding(
-                  padding: EdgeInsets.symmetric(vertical: 2), // Menos espacio
+                  padding: EdgeInsets.symmetric(vertical: 2),
                   child: Column(
                     children: [
                       Text(
-                        'Desarrollado por CODX', // Texto combinado
+                        'Desarrollado por CODX',
                         style: TextStyle(
-                          fontSize: 14, // Texto más pequeño
-                          color: Colors.grey[700],
+                          fontSize: 14,
+                          color: isDarkMode
+                              ? Colors.white
+                              : Colors.grey[700], // Color dinámico
                         ),
                       ),
                       SizedBox(height: 18),
                       Divider(
-                        color: Colors.grey[300],
-                        height: 1, // Divider más fino
+                        color: isDarkMode
+                            ? Colors.grey[600]
+                            : Colors.grey[300], // Color dinámico
+                        height: 1,
                       ),
                       SizedBox(height: 12),
                       Text(
-                        'Versión 1.0.0', // Texto combinado
+                        'Versión 1.0.0',
                         style: TextStyle(
-                            fontSize: 16, // Tamaño reducido
+                            fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF5162F6)),
                       ),
@@ -504,20 +556,20 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ),
                 SizedBox(height: 12),
-                // Botón minimalista
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8), // Botón más pequeño
-                    minimumSize: Size(0, 0), // Eliminar tamaño mínimo
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    minimumSize: Size(0, 0),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: Text(
                     'Cerrar',
                     style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 14, // Texto más pequeño
+                      color: isDarkMode
+                          ? Colors.white
+                          : Colors.grey[700], // Color dinámico
+                      fontSize: 14,
                     ),
                   ),
                 ),

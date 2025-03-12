@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -10,6 +11,7 @@ import 'package:finora/dialogs/usuario/infoUsuario.dart';
 import 'package:finora/dialogs/usuario/nUsuario.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GestionUsuariosScreen extends StatefulWidget {
@@ -286,14 +288,6 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
-  bool _isDarkMode = false;
-
-  void _toggleDarkMode(bool value) {
-    setState(() {
-      _isDarkMode = value;
-    });
-  }
-
   // Función para eliminar usuario
   Future<void> eliminarUsuario(String idUsuario) async {
     try {
@@ -359,11 +353,19 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Scaffold(
-      backgroundColor: Color(0xFFF7F8FA),
+      backgroundColor: isDarkMode
+          ? Colors.grey[900]
+          : const Color(0xFFF7F8FA), // Fondo dinámico
       appBar: CustomAppBar(
-        isDarkMode: _isDarkMode,
-        toggleDarkMode: _toggleDarkMode,
+        isDarkMode: isDarkMode,
+        toggleDarkMode: (value) {
+          themeProvider.toggleDarkMode(value); // Cambia el tema
+        },
         title: 'Gestión de Usuarios',
         nombre: widget.username,
         tipoUsuario: widget.tipoUsuario,
@@ -378,6 +380,10 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   }
 
   Widget _buildTableContainer() {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     if (isLoading) {
       return Center(
         child: CircularProgressIndicator(
@@ -391,7 +397,8 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
           children: [
             Text(
               'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(
+                  fontSize: 16, color: isDarkMode ? Colors.white : Colors.grey),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
@@ -422,7 +429,9 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
           ? Center(
               child: Text(
                 'No hay usuarios para mostrar.',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(
+                    fontSize: 16,
+                    color: isDarkMode ? Colors.white : Colors.grey),
               ),
             )
           : filaTabla(context);
@@ -430,6 +439,10 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   }
 
   Widget filaBuscarYAgregar(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
     return Padding(
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
@@ -440,7 +453,9 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
             height: 40,
             constraints: BoxConstraints(maxWidth: maxWidth),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.white, // Fondo dinámico
               borderRadius: BorderRadius.circular(20.0),
               boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
             ),
@@ -454,19 +469,27 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                   borderSide:
                       BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
                 ),
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(Icons.search,
+                    color: isDarkMode ? Colors.white : Colors.grey),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear),
+                        icon: Icon(Icons.clear,
+                            color: isDarkMode ? Colors.white : Colors.grey),
                         onPressed: () {
                           _searchController.clear();
+                          // Si se borra el texto, se vuelve a cargar la lista completa
                           obtenerUsuarios();
                         },
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: isDarkMode
+                    ? Colors.grey[800]
+                    : Colors.white, // Fondo dinámico
                 hintText: 'Buscar...',
+                hintStyle:
+                    TextStyle(color: isDarkMode ? Colors.white70 : Colors.grey),
+
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
                   borderSide: BorderSide.none,
@@ -499,186 +522,192 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   }
 
   Widget filaTabla(BuildContext context) {
-  return Expanded(
-    child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
+    return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15.0),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              spreadRadius: 0.5,
-              blurRadius: 5,
-            ),
-          ],
-        ),
-        // ClipRRect para que el contenido respete los bordes redondeados
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15.0),
-          child: listaUsuarios.isEmpty
-              ? Center(
-                  child: Text(
-                    'No hay usuarios para mostrar.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                )
-              : LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          // Si el contenido no ocupa todo el ancho, se centra
-                          maxWidth: constraints.maxWidth,
-                        ),
-                        child: DataTable(
-                          showCheckboxColumn: false,
-                          headingRowColor: MaterialStateProperty.resolveWith(
-                              (states) => const Color(0xFF5162F6)),
-                          dataRowHeight: 50,
-                          columnSpacing: 30,
-                          horizontalMargin: 50,
-                          // Texto del encabezado centrado y en blanco
-                          headingTextStyle: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontSize: textHeaderTableSize,
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        child: Container(
+          padding: const EdgeInsets.all(0),
+          decoration: BoxDecoration(
+            color:
+                isDarkMode ? Colors.grey[800] : Colors.white, // Fondo dinámico
+            borderRadius: BorderRadius.circular(15.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                spreadRadius: 0.5,
+                blurRadius: 5,
+              ),
+            ],
+          ),
+          // ClipRRect para que el contenido respete los bordes redondeados
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15.0),
+            child: listaUsuarios.isEmpty
+                ? Center(
+                    child: Text(
+                      'No hay usuarios para mostrar.',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  )
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            // Si el contenido no ocupa todo el ancho, se centra
+                            maxWidth: constraints.maxWidth,
                           ),
-                          columns: [
-                            DataColumn(
-                                label: Text(
-                              'Tipo',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            )),
-                            DataColumn(
-                                label: Text(
-                              'Usuario',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            )),
-                            DataColumn(
-                                label: Text(
-                              'Nombre Completo',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            )),
-                            DataColumn(
-                                label: Text(
-                              'Email',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            )),
-                            DataColumn(
-                                label: Text(
-                              'Fecha Creación',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: textHeaderTableSize),
-                            )),
-                            DataColumn(
-                              label: Text(
-                                'Acciones',
+                          child: DataTable(
+                            showCheckboxColumn: false,
+                            headingRowColor: MaterialStateProperty.resolveWith(
+                                (states) => const Color(0xFF5162F6)),
+                            dataRowHeight: 50,
+                            columnSpacing: 30,
+                            horizontalMargin: 50,
+                            // Texto del encabezado centrado y en blanco
+                            headingTextStyle: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: textHeaderTableSize,
+                            ),
+                            columns: [
+                              DataColumn(
+                                  label: Text(
+                                'Tipo',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(fontSize: textHeaderTableSize),
-                              ),
-                            ),
-                          ],
-                          rows: listaUsuarios.map((usuario) {
-                            return DataRow(
-                              cells: [
-                                DataCell(Text(
-                                  usuario.tipoUsuario,
+                              )),
+                              DataColumn(
+                                  label: Text(
+                                'Usuario',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              )),
+                              DataColumn(
+                                  label: Text(
+                                'Nombre Completo',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              )),
+                              DataColumn(
+                                  label: Text(
+                                'Email',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              )),
+                              DataColumn(
+                                  label: Text(
+                                'Fecha Creación',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: textHeaderTableSize),
+                              )),
+                              DataColumn(
+                                label: Text(
+                                  'Acciones',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: textTableSize),
-                                )),
-                                DataCell(Text(
-                                  usuario.usuario,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: textTableSize),
-                                )),
-                                DataCell(Text(
-                                  usuario.nombreCompleto,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: textTableSize),
-                                )),
-                                DataCell(Text(
-                                  usuario.email,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: textTableSize),
-                                )),
-                                DataCell(Text(
-                                  formatDate(usuario.fCreacion),
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: textTableSize),
-                                )),
-                                DataCell(
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit_outlined,
-                                            color: Colors.grey),
-                                        onPressed: () {
-                                          mostrarDialogoEditarUsuario(
-                                              usuario.idusuarios);
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline,
-                                            color: Colors.grey),
-                                        onPressed: () async {
-                                          bool confirmado =
-                                              await mostrarDialogoConfirmacion(
-                                                  context);
-                                          if (confirmado) {
-                                            await eliminarUsuario(
-                                                usuario.idusuarios);
-                                          }
-                                        },
-                                      ),
-                                    ],
-                                  ),
+                                  style:
+                                      TextStyle(fontSize: textHeaderTableSize),
                                 ),
-                              ],
-                              onSelectChanged: (isSelected) async {
-                                if (isSelected!) {
-                                  final resultado = await showDialog<bool>(
-                                    context: context,
-                                    builder: (context) => InfoUsuario(
-                                      idUsuario: usuario.idusuarios,
+                              ),
+                            ],
+                            rows: listaUsuarios.map((usuario) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(
+                                    usuario.tipoUsuario,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: textTableSize),
+                                  )),
+                                  DataCell(Text(
+                                    usuario.usuario,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: textTableSize),
+                                  )),
+                                  DataCell(Text(
+                                    usuario.nombreCompleto,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: textTableSize),
+                                  )),
+                                  DataCell(Text(
+                                    usuario.email,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: textTableSize),
+                                  )),
+                                  DataCell(Text(
+                                    formatDate(usuario.fCreacion),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: textTableSize),
+                                  )),
+                                  DataCell(
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined,
+                                              color: Colors.grey),
+                                          onPressed: () {
+                                            mostrarDialogoEditarUsuario(
+                                                usuario.idusuarios);
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline,
+                                              color: Colors.grey),
+                                          onPressed: () async {
+                                            bool confirmado =
+                                                await mostrarDialogoConfirmacion(
+                                                    context);
+                                            if (confirmado) {
+                                              await eliminarUsuario(
+                                                  usuario.idusuarios);
+                                            }
+                                          },
+                                        ),
+                                      ],
                                     ),
-                                  );
-                                  if (resultado == true) {
-                                    obtenerUsuarios();
+                                  ),
+                                ],
+                                onSelectChanged: (isSelected) async {
+                                  if (isSelected!) {
+                                    final resultado = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => InfoUsuario(
+                                        idUsuario: usuario.idusuarios,
+                                      ),
+                                    );
+                                    if (resultado == true) {
+                                      obtenerUsuarios();
+                                    }
                                   }
-                                }
-                              },
-                              color: MaterialStateColor.resolveWith((states) {
-                                if (states.contains(MaterialState.selected)) {
-                                  return Colors.blue.withOpacity(0.1);
-                                } else if (states.contains(MaterialState.hovered)) {
-                                  return Colors.blue.withOpacity(0.2);
-                                }
-                                return Colors.transparent;
-                              }),
-                            );
-                          }).toList(),
+                                },
+                                color: MaterialStateColor.resolveWith((states) {
+                                  if (states.contains(MaterialState.selected)) {
+                                    return Colors.blue.withOpacity(0.1);
+                                  } else if (states
+                                      .contains(MaterialState.hovered)) {
+                                    return Colors.blue.withOpacity(0.2);
+                                  }
+                                  return Colors.transparent;
+                                }),
+                              );
+                            }).toList(),
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+          ),
         ),
       ),
-    ),
-  );
-}
-
-
+    );
+  }
 
   void mostrarDialogAgregarUsuario() {
     showDialog(

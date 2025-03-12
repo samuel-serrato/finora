@@ -1,6 +1,8 @@
 import 'package:finora/models/reporte_contable.dart';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 class ReporteContableWidget extends StatelessWidget {
   final ReporteContableData reporteData;
@@ -20,7 +22,11 @@ class ReporteContableWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: Container(
         padding:
             const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
@@ -35,20 +41,13 @@ class ReporteContableWidget extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDarkMode ? Colors.grey[850] : Colors.white,
                   borderRadius: BorderRadius.circular(15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      spreadRadius: 2,
-                    ),
-                  ],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(15),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(8),
                     child: Column(
                       children: [
                         // Contenido principal
@@ -72,6 +71,9 @@ class ReporteContableWidget extends StatelessWidget {
 
   // SECCIÓN: CABECERA CON TÍTULO Y FECHAS
   Widget _buildHeader(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -92,14 +94,15 @@ class ReporteContableWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                     ),
                   ),
                   Text(
                     reporteData.fechaSemana,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 11,
+                      color: isDarkMode ? Colors.grey[300] : Colors.black,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -108,14 +111,15 @@ class ReporteContableWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                     ),
                   ),
                   Text(
                     reporteData.fechaActual,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w500,
                       fontSize: 11,
+                      color: isDarkMode ? Colors.grey[300] : Colors.black,
                     ),
                   ),
                 ],
@@ -127,25 +131,27 @@ class ReporteContableWidget extends StatelessWidget {
     );
   }
 
-  // SECCIÓN: TARJETA DE TOTALES (renombrado de _buildSummaryCard)
+  // SECCIÓN: TARJETA DE TOTALES
   Widget _buildTotalesCard(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return SizedBox(
-      width: double.infinity, // Ocupa todo el ancho disponible
+      width: double.infinity,
       child: Card(
         elevation: 1,
-        color: Colors.white,
+        color: isDarkMode ? Colors.grey[800] : Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(6),
           side: BorderSide(
-            color: Colors.grey[400]!,
+            color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
             width: 1,
           ),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment
-                .spaceBetween, // Separa el texto "Totales" y los elementos de resumen
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Texto "Totales" a la izquierda
               const Text(
@@ -165,34 +171,34 @@ class ReporteContableWidget extends StatelessWidget {
                     Container(
                       height: 24,
                       width: 1,
-                      color: Colors.white30,
+                      color: isDarkMode ? Colors.grey[700] : Colors.white30,
                       margin: const EdgeInsets.only(right: 16),
                     ),
                     // Todos los elementos de resumen en una fila
-                    _buildSummaryItem('Capital Total', reporteData.totalCapital,
-                        isWhiteText: true),
-                    const SizedBox(width: 24),
-                    _buildSummaryItem('Interés Total', reporteData.totalInteres,
-                        isWhiteText: true),
-                    const SizedBox(width: 24),
-                    _buildSummaryItem('Monto Fichas', reporteData.totalFicha,
-                        isWhiteText: true),
-                    const SizedBox(width: 24),
-                    _buildSummaryItem('Pago Fichas', reporteData.totalPagoficha,
-                        isWhiteText: true),
+                    _buildSummaryItem(
+                        context, 'Capital Total', reporteData.totalCapital),
                     const SizedBox(width: 24),
                     _buildSummaryItem(
-                        'Saldo Favor', reporteData.totalSaldoFavor,
-                        isWhiteText: true),
+                        context, 'Interés Total', reporteData.totalInteres),
                     const SizedBox(width: 24),
-                    _buildSummaryItem('Moratorios', reporteData.saldoMoratorio,
-                        isWhiteText: true),
+                    _buildSummaryItem(
+                        context, 'Monto Fichas', reporteData.totalFicha),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem(
+                        context, 'Pago Fichas', reporteData.totalPagoficha),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem(
+                        context, 'Saldo Favor', reporteData.totalSaldoFavor),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem(
+                        context, 'Moratorios', reporteData.saldoMoratorio),
 
                     const SizedBox(width: 100),
                     _buildSummaryItem(
+                      context,
                       'Total Ideal',
                       reporteData.totalTotal,
-                      isWhiteText: true,
+                      isPrimary: true,
                     ),
                     const SizedBox(width: 10),
                     Tooltip(
@@ -211,23 +217,22 @@ class ReporteContableWidget extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                       padding: const EdgeInsets.all(12),
-                      preferBelow:
-                          false, // Evita que el tooltip se oculte debajo
-                      child: const MouseRegion(
+                      preferBelow: false,
+                      child: MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: Icon(
                           Icons.info_outline,
-                          color: Colors.black38,
-                          size:
-                              18, // Tamaño ligeramente mayor para mejor visibilidad
+                          color: isDarkMode ? Colors.grey[400] : Colors.black38,
+                          size: 18,
                         ),
                       ),
                     ),
                     const SizedBox(width: 24),
                     _buildSummaryItem(
+                      context,
                       'Diferencia',
                       reporteData.restante,
-                      isWhiteText: true,
+                      isPrimary: true,
                     ),
                     const SizedBox(width: 10),
                     Tooltip(
@@ -245,11 +250,11 @@ class ReporteContableWidget extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.all(12),
                       preferBelow: false,
-                      child: const MouseRegion(
+                      child: MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: Icon(
                           Icons.info_outline,
-                          color: Colors.black38,
+                          color: isDarkMode ? Colors.grey[400] : Colors.black38,
                           size: 18,
                         ),
                       ),
@@ -264,9 +269,12 @@ class ReporteContableWidget extends StatelessWidget {
     );
   }
 
-  // The _buildSummaryItem method remains the same
-  Widget _buildSummaryItem(String label, double value,
-      {bool isPrimary = false, bool isWhiteText = false}) {
+  // Modified _buildSummaryItem to include dark mode support
+  Widget _buildSummaryItem(BuildContext context, String label, double value,
+      {bool isPrimary = false}) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -274,7 +282,9 @@ class ReporteContableWidget extends StatelessWidget {
           width: 4,
           height: 20,
           decoration: BoxDecoration(
-            color: isPrimary ? primaryColor : Colors.grey[300],
+            color: isPrimary
+                ? primaryColor
+                : (isDarkMode ? Colors.grey[600] : Colors.grey[300]),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -286,7 +296,7 @@ class ReporteContableWidget extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: Colors.grey[600],
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
               ),
             ),
             Text(
@@ -294,7 +304,9 @@ class ReporteContableWidget extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 11,
-                color: isPrimary ? primaryColor : Colors.grey[800],
+                color: isPrimary
+                    ? primaryColor
+                    : (isDarkMode ? Colors.grey[300] : Colors.grey[800]),
               ),
             ),
           ],
@@ -311,23 +323,26 @@ class ReporteContableWidget extends StatelessWidget {
       itemBuilder: (context, index) {
         final grupo = reporteData.listaGrupos[index];
         return Container(
-            margin: EdgeInsets.symmetric(horizontal: 4),
-            child: _buildGrupoCard(context, grupo));
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          child: _buildGrupoCard(context, grupo),
+        );
       },
     );
   }
 
-  Widget _buildGrupoCard(context, ReporteContableGrupo grupo) {
+  Widget _buildGrupoCard(BuildContext context, ReporteContableGrupo grupo) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final isActivo = grupo.estado.toLowerCase() == 'activo';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
-      color: Colors.white,
+      color: isDarkMode ? Colors.grey[800] : Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(6),
         side: BorderSide(
-          color: Colors.grey[400]!,
+          color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
           width: 1,
         ),
       ),
@@ -361,7 +376,9 @@ class ReporteContableWidget extends StatelessWidget {
                                   '(Folio: ${grupo.folio})',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Colors.grey[600],
+                                    color: isDarkMode
+                                        ? Colors.grey[400]
+                                        : Colors.grey[600],
                                   ),
                                 ),
                               ],
@@ -370,10 +387,10 @@ class ReporteContableWidget extends StatelessWidget {
                           Wrap(
                             spacing: 12,
                             children: [
-                              //_buildInfoText('Tasa: ${grupo.tazaInteres}%'),
-                              _buildInfoText('Pago: ${grupo.tipopago}'),
-                              _buildInfoText('Plazo: ${grupo.plazo}'),
                               _buildInfoText(
+                                  context, 'Pago: ${grupo.tipopago}'),
+                              _buildInfoText(context, 'Plazo: ${grupo.plazo}'),
+                              _buildInfoText(context,
                                   'Periodo Pago: ${grupo.pagoPeriodo}'),
                             ],
                           ),
@@ -386,7 +403,11 @@ class ReporteContableWidget extends StatelessWidget {
               ],
             ),
 
-            const Divider(height: 16, thickness: 0.5),
+            Divider(
+              height: 16,
+              thickness: 0.5,
+              color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+            ),
 
             // Nueva disposición: Row con 3 columnas
             Row(
@@ -394,15 +415,14 @@ class ReporteContableWidget extends StatelessWidget {
               children: [
                 // COLUMNA 1: Tabla de clientes (lado izquierdo) - EXPANSIBLE
                 Expanded(
-                  child: _buildClientesSection(grupo),
+                  child: _buildClientesSection(grupo, context),
                 ),
 
                 // Separador (mínimo)
                 const SizedBox(width: 20),
 
                 // COLUMNA 2: Información financiera - ANCHO FIJO
-                // Actualización de la COLUMNA 2: Información financiera
-                Container(
+                SizedBox(
                   width: 300, // Ancho fijo reducido
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,7 +430,7 @@ class ReporteContableWidget extends StatelessWidget {
                       // Título de sección financiera
                       Row(
                         children: [
-                          Icon(Icons.attach_money,
+                          const Icon(Icons.attach_money,
                               size: 14, color: primaryColor),
                           const SizedBox(width: 6),
                           const Text(
@@ -430,9 +450,12 @@ class ReporteContableWidget extends StatelessWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDarkMode ? Colors.grey[850] : Colors.white,
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.grey[200]!),
+                          border: Border.all(
+                              color: isDarkMode
+                                  ? Colors.grey[700]!
+                                  : Colors.grey[200]!),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -442,12 +465,12 @@ class ReporteContableWidget extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: _buildFinancialInfoText(
-                                      'Garantía', grupo.garantia),
+                                      context, 'Garantía', grupo.garantia),
                                 ),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: _buildFinancialInfoCompact(
-                                      'Tasa', grupo.tazaInteres,
+                                      context, 'Tasa', grupo.tazaInteres,
                                       isPercentage: true),
                                 ),
                               ],
@@ -458,12 +481,14 @@ class ReporteContableWidget extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: _buildFinancialInfoCompact(
+                                      context,
                                       'Monto Solicitado',
                                       grupo.montoSolicitado),
                                 ),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: _buildFinancialInfoCompact(
+                                      context,
                                       'Monto Desembolsado',
                                       grupo.montoDesembolsado),
                                 ),
@@ -474,12 +499,13 @@ class ReporteContableWidget extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Expanded(
-                                  child: _buildFinancialInfoCompact(
+                                  child: _buildFinancialInfoCompact(context,
                                       'Interés Total', grupo.interesCredito),
                                 ),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: _buildFinancialInfoCompact(
+                                      context,
                                       'Monto a Recuperar',
                                       grupo.montoARecuperar),
                                 ),
@@ -497,6 +523,7 @@ class ReporteContableWidget extends StatelessWidget {
                           // Capital (Semanal/Quincenal según tipopago)
                           Expanded(
                             child: _buildFinancialInfo(
+                                context,
                                 '${grupo.tipopago == "SEMANAL" ? "Capital Semanal" : "Capital Quincenal"}',
                                 grupo.capitalsemanal),
                           ),
@@ -504,6 +531,7 @@ class ReporteContableWidget extends StatelessWidget {
                           // Interés (Semanal/Quincenal según tipopago)
                           Expanded(
                             child: _buildFinancialInfo(
+                                context,
                                 '${grupo.tipopago == "SEMANAL" ? "Interés Semanal" : "Interés Quincenal"}',
                                 grupo.interessemanal),
                           ),
@@ -511,7 +539,7 @@ class ReporteContableWidget extends StatelessWidget {
                           // Monto Ficha (no cambia)
                           Expanded(
                             child: _buildFinancialInfo(
-                                'Monto Ficha', grupo.montoficha),
+                                context, 'Monto Ficha', grupo.montoficha),
                           ),
                         ],
                       ),
@@ -524,10 +552,10 @@ class ReporteContableWidget extends StatelessWidget {
                 const SizedBox(width: 20),
 
                 // COLUMNA 3: Información de depósitos - ANCHO FIJO
-                Container(
+                SizedBox(
                   width: 300, // Ancho fijo reducido
                   child: _buildDepositosSection(
-                      grupo.pagoficha, grupo.restanteFicha, grupo),
+                      context, grupo.pagoficha, grupo.restanteFicha, grupo),
                 ),
               ],
             ),
@@ -537,9 +565,13 @@ class ReporteContableWidget extends StatelessWidget {
     );
   }
 
-  // Método para mostrar información financiera de manera compacta
-  Widget _buildFinancialInfoCompact(String label, double value,
+// Método para mostrar información financiera de manera compacta
+  Widget _buildFinancialInfoCompact(
+      BuildContext context, String label, double value,
       {bool isPercentage = false}) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -550,15 +582,15 @@ class ReporteContableWidget extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: Colors.grey[600],
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
               ),
             ),
             Text(
               '${currencyFormat.format(value)}${isPercentage ? '%' : ''}', // Agrega % si es necesario
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w500,
                 fontSize: 11,
-                color: Colors.black87,
+                color: isDarkMode ? Colors.grey[300] : Colors.black87,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -569,7 +601,11 @@ class ReporteContableWidget extends StatelessWidget {
   }
 
 // Método nuevo para valores de texto (String)
-  Widget _buildFinancialInfoText(String label, String value) {
+  Widget _buildFinancialInfoText(
+      BuildContext context, String label, String value) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -580,15 +616,15 @@ class ReporteContableWidget extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: Colors.grey[600],
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
               ),
             ),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w500,
                 fontSize: 11,
-                color: Colors.black87,
+                color: isDarkMode ? Colors.grey[300] : Colors.black87,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -599,13 +635,23 @@ class ReporteContableWidget extends StatelessWidget {
   }
 
 // Método para mostrar etiquetas tipo "pill"
-  Widget _buildInfoPill(String label, String value, Color color) {
+  Widget _buildInfoPill(
+      BuildContext context, String label, String value, Color color) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Ajustar el color para modo oscuro si es necesario
+    final pillColor =
+        isDarkMode ? color.withOpacity(0.2) : color.withOpacity(0.1);
+    final borderColor =
+        isDarkMode ? color.withOpacity(0.4) : color.withOpacity(0.3);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: pillColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -631,25 +677,32 @@ class ReporteContableWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoText(String text) {
+  Widget _buildInfoText(BuildContext context, String text) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Text(
       text,
       style: TextStyle(
         fontSize: 11,
-        color: Colors.grey[900],
+        color: isDarkMode ? Colors.grey[300] : Colors.grey[900],
         fontWeight: FontWeight.w500,
       ),
     );
   }
 
-  // Versión para usar en Row (horizontal)
-  Widget _buildFinancialInfo(String label, double value) {
+// Versión para usar en Row (horizontal)
+  Widget _buildFinancialInfo(BuildContext context, String label, double value) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDarkMode ? Colors.grey[850] : Colors.white,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(
+            color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -658,7 +711,7 @@ class ReporteContableWidget extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.grey[600],
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
             ),
           ),
           Text(
@@ -666,7 +719,8 @@ class ReporteContableWidget extends StatelessWidget {
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 11,
-              color: primaryColor,
+              color:
+                  primaryColor, // Keeping this color the same for both themes
             ),
             overflow: TextOverflow.ellipsis,
           ),
@@ -676,7 +730,11 @@ class ReporteContableWidget extends StatelessWidget {
   }
 
   // SECCIÓN: CLIENTES
-  Widget _buildClientesSection(ReporteContableGrupo grupo) {
+  Widget _buildClientesSection(ReporteContableGrupo grupo, context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     // Calcular totales
     double totalCapital = 0;
     double totalInteres = 0;
@@ -729,7 +787,7 @@ class ReporteContableWidget extends StatelessWidget {
               // Encabezado
               TableRow(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDarkMode ? Colors.grey[800] : Colors.white70,
                   border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
                 ),
                 children: const [
@@ -790,9 +848,9 @@ class ReporteContableWidget extends StatelessWidget {
                             horizontal: 12, vertical: 8),
                         child: Text(
                           cliente.nombreCompleto,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Colors.black87,
+                            color: isDarkMode ? Colors.white : Colors.black,
                           ),
                         ),
                       ),
@@ -802,9 +860,9 @@ class ReporteContableWidget extends StatelessWidget {
                         child: Text(
                           currencyFormat.format(cliente.periodoCapital),
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Colors.black87,
+                            color: isDarkMode ? Colors.white : Colors.black,
                           ),
                         ),
                       ),
@@ -814,9 +872,9 @@ class ReporteContableWidget extends StatelessWidget {
                         child: Text(
                           currencyFormat.format(cliente.periodoInteres),
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Colors.black87,
+                            color: isDarkMode ? Colors.white : Colors.black,
                           ),
                         ),
                       ),
@@ -826,9 +884,9 @@ class ReporteContableWidget extends StatelessWidget {
                         child: Text(
                           currencyFormat.format(cliente.capitalMasInteres),
                           textAlign: TextAlign.right,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Colors.black87,
+                            color: isDarkMode ? Colors.white : Colors.black,
                           ),
                         ),
                       ),
@@ -898,8 +956,12 @@ class ReporteContableWidget extends StatelessWidget {
 
   // SECCIÓN: DEPÓSITOS
   // SECCIÓN: DEPÓSITOS
-  Widget _buildDepositosSection(
-      Pagoficha pagoficha, double restanteFicha, ReporteContableGrupo grupo) {
+  Widget _buildDepositosSection(BuildContext context, Pagoficha pagoficha,
+      double restanteFicha, ReporteContableGrupo grupo) {
+    // Get theme provider
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -924,7 +986,7 @@ class ReporteContableWidget extends StatelessWidget {
               'Fecha programada: ${_formatDateSafe(pagoficha.fechasPago)}',
               style: TextStyle(
                 fontSize: 10,
-                color: Colors.grey[600],
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -933,8 +995,7 @@ class ReporteContableWidget extends StatelessWidget {
         const SizedBox(height: 6),
 
         Container(
-          constraints: const BoxConstraints(
-              maxHeight: 220), // Reducido para acomodar el nuevo elemento
+          constraints: const BoxConstraints(maxHeight: 220),
           child: ListView.builder(
             shrinkWrap: true,
             itemCount: pagoficha.depositos.length,
@@ -943,9 +1004,11 @@ class ReporteContableWidget extends StatelessWidget {
               return Container(
                 margin: const EdgeInsets.only(bottom: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDarkMode ? Colors.grey[850] : Colors.white,
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(
+                      color:
+                          isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
                 ),
                 child: Column(
                   children: [
@@ -955,21 +1018,19 @@ class ReporteContableWidget extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Color(0xFF5162F6)
-                            .withOpacity(0.2), // Fondo azul claro
+                        color: Color(0xFF5162F6).withOpacity(0.2),
                         borderRadius: const BorderRadius.only(
                           topLeft: Radius.circular(4),
                           topRight: Radius.circular(4),
-                        ), // Bordes redondeados solo arriba
+                        ),
                       ),
                       child: Align(
-                        alignment:
-                            Alignment.center, // Alinea la fecha a la derecha
+                        alignment: Alignment.center,
                         child: Text(
                           'Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Colors.black, // Texto azul oscuro
+                            color: isDarkMode ? Colors.grey[200] : Colors.black,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -985,16 +1046,19 @@ class ReporteContableWidget extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               _buildDepositoDetail(
+                                context,
                                 'Depósito',
                                 deposito.deposito,
                                 Icons.arrow_downward,
                               ),
                               _buildDepositoDetail(
+                                context,
                                 'Saldo a Favor',
                                 deposito.saldofavor,
                                 Icons.account_balance_wallet,
                               ),
                               _buildDepositoDetail(
+                                context,
                                 'Moratorio',
                                 deposito.pagoMoratorio,
                                 Icons.warning,
@@ -1032,8 +1096,8 @@ class ReporteContableWidget extends StatelessWidget {
             },
           ),
         ),
+
         // Mostrar suma total de depósitos
-        // Mostrar suma total de depósitos - Ya existe pero mejoraremos su visualización
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(8),
@@ -1051,7 +1115,7 @@ class ReporteContableWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: const Color.fromARGB(255, 39, 48, 135),
+                  color: const Color.fromARGB(255, 153, 161, 231),
                 ),
               ),
               Text(
@@ -1059,7 +1123,7 @@ class ReporteContableWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: primaryColor,
+                  color: Color.fromARGB(255, 153, 161, 231),
                 ),
               ),
             ],
@@ -1071,9 +1135,12 @@ class ReporteContableWidget extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.orange[50],
+            color: isDarkMode
+                ? Colors.orange[900]!.withOpacity(0.2)
+                : Colors.orange[50],
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.orange[200]!),
+            border: Border.all(
+                color: isDarkMode ? Colors.orange[800]! : Colors.orange[200]!),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1083,7 +1150,7 @@ class ReporteContableWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: Colors.orange[900],
+                  color: isDarkMode ? Colors.orange[300] : Colors.orange[900],
                 ),
               ),
               Text(
@@ -1091,7 +1158,7 @@ class ReporteContableWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Colors.orange[900],
+                  color: isDarkMode ? Colors.orange[300] : Colors.orange[900],
                 ),
               ),
             ],
@@ -1103,9 +1170,10 @@ class ReporteContableWidget extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDarkMode ? Colors.grey[850] : Colors.white,
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.grey[200]!),
+            border: Border.all(
+                color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1124,6 +1192,7 @@ class ReporteContableWidget extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _buildFinancialInfoCompact(
+                      context,
                       'Saldo Global',
                       grupo.saldoGlobal,
                     ),
@@ -1131,6 +1200,7 @@ class ReporteContableWidget extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: _buildFinancialInfoCompact(
+                      context,
                       'Restante Global',
                       grupo.restanteGlobal,
                     ),
@@ -1144,29 +1214,36 @@ class ReporteContableWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildDepositoDetail(String label, double value, IconData icon) {
+  Widget _buildDepositoDetail(
+      BuildContext context, String label, double value, IconData icon) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 10, color: Colors.grey[600]),
+            Icon(icon,
+                size: 10,
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600]),
             const SizedBox(width: 3),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10,
-                color: Colors.grey[600],
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
               ),
             ),
           ],
         ),
         Text(
           currencyFormat.format(value),
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w500,
             fontSize: 11,
+            color: isDarkMode ? Colors.grey[200] : Colors.black87,
           ),
         ),
       ],

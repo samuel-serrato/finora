@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -10,6 +11,7 @@ import 'dart:async';
 
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ClientesScreen extends StatefulWidget {
@@ -285,14 +287,6 @@ class _ClientesScreenState extends State<ClientesScreen> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
-  bool _isDarkMode = false; // Estado del modo oscuro
-
-  void _toggleDarkMode(bool value) {
-    setState(() {
-      _isDarkMode = value;
-    });
-  }
-
   // Función para eliminar el cliente
   Future<void> eliminarCliente(BuildContext context, String idCliente) async {
     // Muestra el diálogo de confirmación
@@ -388,11 +382,17 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
     return Scaffold(
-      backgroundColor: Color(0xFFF7F8FA),
+      backgroundColor:
+          isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
       appBar: CustomAppBar(
-        isDarkMode: _isDarkMode,
-        toggleDarkMode: _toggleDarkMode,
+        isDarkMode: isDarkMode,
+        toggleDarkMode: (value) {
+          themeProvider.toggleDarkMode(value); // Cambia el tema
+        },
         title: 'Clientes',
         nombre: widget.username,
         tipoUsuario: widget.tipoUsuario,
@@ -407,6 +407,10 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   Widget _buildTableContainer() {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     if (isLoading) {
       return Center(
         child: CircularProgressIndicator(
@@ -420,7 +424,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
           children: [
             Text(
               'No hay conexión o no se pudo cargar la información. Intenta más tarde.',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(
+                  fontSize: 16, color: isDarkMode ? Colors.white : Colors.grey),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
@@ -451,7 +456,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
           ? Center(
               child: Text(
                 'No hay clientes para mostrar.',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(
+                    fontSize: 16,
+                    color: isDarkMode ? Colors.white : Colors.grey),
               ),
             )
           : tablaClientes(context);
@@ -459,6 +466,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   Widget filaBuscarYAgregar(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
     return Padding(
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
@@ -469,7 +479,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
             height: 40,
             constraints: BoxConstraints(maxWidth: maxWidth),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDarkMode
+                  ? Colors.grey[800]
+                  : Colors.white, // Fondo dinámico
               borderRadius: BorderRadius.circular(20.0),
               boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
             ),
@@ -483,10 +495,12 @@ class _ClientesScreenState extends State<ClientesScreen> {
                   borderSide:
                       BorderSide(color: Color.fromARGB(255, 137, 192, 255)),
                 ),
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(Icons.search,
+                    color: isDarkMode ? Colors.white : Colors.grey),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: Icon(Icons.clear),
+                        icon: Icon(Icons.clear,
+                            color: isDarkMode ? Colors.white : Colors.grey),
                         onPressed: () {
                           _searchController.clear();
                           obtenerClientes();
@@ -494,8 +508,12 @@ class _ClientesScreenState extends State<ClientesScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: isDarkMode
+                    ? Colors.grey[800]
+                    : Colors.white, // Fondo dinámico
                 hintText: 'Buscar...',
+                hintStyle:
+                    TextStyle(color: isDarkMode ? Colors.white70 : Colors.grey),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
                   borderSide: BorderSide.none,
@@ -530,6 +548,10 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   Widget tablaClientes(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Expanded(
       child: Container(
         width: double.infinity,
@@ -537,7 +559,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
         child: Container(
           padding: const EdgeInsets.all(0),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color:
+                isDarkMode ? Colors.grey[800] : Colors.white, // Fondo dinámico
             borderRadius: BorderRadius.circular(15.0),
             boxShadow: [
               BoxShadow(
@@ -646,21 +669,23 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                       padding: EdgeInsets.symmetric(
                                           horizontal: 12, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: _getStatusColor(cliente.estado),
+                                        color: _getStatusColor(cliente.estado,
+                                            context), // Fondo dinámico
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
-                                          color: _getStatusColor(cliente.estado)
+                                          color: _getStatusColor(
+                                                  cliente.estado, context)
                                               .withOpacity(
-                                                  0.6), // Borde con el mismo color pero más fuerte
-                                          width: 1, // Grosor del borde
+                                                  0.6), // Borde dinámico
+                                          width: 1,
                                         ),
                                       ),
                                       child: Text(
                                         cliente.estado ?? 'N/A',
                                         style: TextStyle(
-                                          color: _getStatusColor(cliente.estado)
-                                              .withOpacity(
-                                                  0.8), // Color del texto más oscuro
+                                          color: _getStatusTextColor(
+                                              cliente.estado,
+                                              context), // Texto dinámico
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -724,16 +749,57 @@ class _ClientesScreenState extends State<ClientesScreen> {
     );
   }
 
-  Color _getStatusColor(String? estado) {
+  Color _getStatusColor(String? estado, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     switch (estado) {
       case 'En Credito':
-        return Color(0xFFA31D1D).withOpacity(0.1); // Color suave de fondo para "En Credito"
+        return isDarkMode
+            ? Color(0xFFA31D1D)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFFA31D1D).withOpacity(0.1); // Fondo claro para modo claro
       case 'En Grupo':
-        return Color(0xFF3674B5).withOpacity(0.1); // Color suave de fondo para "En Grupo"
+        return isDarkMode
+            ? Color(0xFF3674B5)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFF3674B5).withOpacity(0.1); // Fondo claro para modo claro
       case 'Disponible':
-        return Color(0xFF059212).withOpacity(0.1); // Color suave de fondo para "Disponible"
+        return isDarkMode
+            ? Color(0xFF059212)
+                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Color(0xFF059212).withOpacity(0.1); // Fondo claro para modo claro
       default:
-        return Colors.grey.withOpacity(0.1); // Color suave de fondo por defecto
+        return isDarkMode
+            ? Colors.grey.withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            : Colors.grey.withOpacity(0.1); // Fondo claro para modo claro
+    }
+  }
+
+  Color _getStatusTextColor(String? estado, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
+    if (isDarkMode) {
+      // En modo oscuro, el texto será blanco para contrastar con el fondo oscuro
+      return Colors.white;
+    } else {
+      // En modo claro, mantenemos el color original del texto
+      switch (estado) {
+        case 'En Credito':
+          return Color(0xFFA31D1D)
+              .withOpacity(0.8); // Color original para "En Credito"
+        case 'En Grupo':
+          return Color(0xFF3674B5)
+              .withOpacity(0.8); // Color original para "En Grupo"
+        case 'Disponible':
+          return Color(0xFF059212)
+              .withOpacity(0.8); // Color original para "Disponible"
+        default:
+          return Colors.grey.withOpacity(0.8); // Color original por defecto
+      }
     }
   }
 

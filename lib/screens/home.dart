@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:finora/custom_app_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -50,12 +52,12 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _toggleDarkMode(bool value) {
+  /*  void _toggleDarkMode(bool value) {
     setState(() {
       _isDarkMode = value;
     });
   }
-
+ */
   Future<void> _fetchHomeData() async {
     final Uri url = Uri.parse('http://$baseUrl/api/v1/home');
 
@@ -128,13 +130,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Scaffold(
-      backgroundColor: /* _isDarkMode ? Colors.grey[900] : */
-          const Color(0xFFF7F8FA),
+      backgroundColor: isDarkMode
+          ? Colors.grey[900]
+          : const Color(0xFFF7F8FA), // Fondo dinámico
       body: content(),
       appBar: CustomAppBar(
-        isDarkMode: _isDarkMode,
-        toggleDarkMode: _toggleDarkMode,
+        isDarkMode: isDarkMode,
+        toggleDarkMode: (value) {
+          themeProvider.toggleDarkMode(value); // Cambia el tema
+        },
         title: 'Home',
         nombre: widget.username,
         tipoUsuario: widget.tipoUsuario,
@@ -148,7 +157,6 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          //headerSection(),
           const SizedBox(height: 20),
           welcomeCard(),
           const SizedBox(height: 50),
@@ -159,8 +167,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Nuevo método para la tarjeta de bienvenida
   Widget welcomeCard() {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Card(
       elevation: 5,
       shape: RoundedRectangleBorder(
@@ -173,8 +184,8 @@ class _HomeScreenState extends State<HomeScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              /*     _isDarkMode ? Colors.blueGrey[800]! : */ Color(0xFF6A88F7),
-              /*   _isDarkMode ? Colors.blueGrey[900]! : */ Color(0xFF5162F6),
+              isDarkMode ? Colors.blueGrey[800]! : Color(0xFF6A88F7),
+              isDarkMode ? Colors.blueGrey[900]! : Color(0xFF5162F6),
             ],
           ),
         ),
@@ -213,12 +224,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   value: DateFormat('hh:mm a').format(DateTime.now()),
                 ),
                 SizedBox(height: 12),
-                /*  _buildWelcomeInfoRow(
-                icon: Icons.thermostat_rounded,
-                title: "Temperatura",
-                value: "25°C",
-                valueColor: Colors.amber[200],
-              ), */
               ],
             ),
             Positioned(
@@ -278,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
           formattedDate,
           style: TextStyle(
             fontSize: 16,
-            color: /* _isDarkMode ? Colors.white70 : */ Colors.grey[600],
+            color: _isDarkMode ? Colors.white70 : Colors.grey[600],
           ),
         ),
         Text(
@@ -286,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: /* _isDarkMode ? Colors.white : */ Colors.black,
+            color: _isDarkMode ? Colors.white : Colors.black,
           ),
         ),
       ],
@@ -294,6 +299,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget cardsList() {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -304,8 +313,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return GridView.count(
       padding: const EdgeInsets.symmetric(vertical: 10),
-      crossAxisCount: 5, // Cantidad de columnas
-      childAspectRatio: 1.3, // Relación ancho/alto (aumenta para más ancho)
+      crossAxisCount: 5,
+      childAspectRatio: 1.3,
       crossAxisSpacing: 15,
       mainAxisSpacing: 15,
       children: [
@@ -338,11 +347,10 @@ class _HomeScreenState extends State<HomeScreen> {
           value: NumberFormat.currency(
             symbol: '\$',
             decimalDigits: 2,
-            locale: 'en_US', // Fuerza formato americano
+            locale: 'en_US',
           ).format(double.tryParse(
                   (homeData!.sumaPagos.first.sumaDepositos ?? '0')
-                      .replaceAll(',', '.') // Asegura formato decimal correcto
-                  ) ??
+                      .replaceAll(',', '.')) ??
               0),
           icon: Icons.payments,
           color: const Color(0xFFFF6B6B),
@@ -357,14 +365,18 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required Color color,
   }) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15),
       ),
       child: Container(
-        width: double.infinity, // Ocupa todo el ancho disponible
-        height: double.infinity, // Ocupa todo el alto disponible
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
           gradient: LinearGradient(
@@ -389,17 +401,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   title,
                   style: TextStyle(
                     fontSize: 16,
-                    color: /* _isDarkMode ? Colors.white70 : */
-                        Colors.grey[600],
+                    color: isDarkMode ? Colors.white70 : Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 5), // Espacio adicional
+                const SizedBox(height: 5),
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: /* _isDarkMode ? Colors.white : */ Colors.black,
+                    color: isDarkMode ? Colors.white : Colors.black,
                   ),
                 ),
               ],
@@ -439,8 +450,8 @@ class HomeData {
 }
 
 class CreditosActFin {
-  final String? creditos_activos; // Cambiado a nullable
-  final String? creditos_finalizados; // Cambiado a nullable
+  final String? creditos_activos;
+  final String? creditos_finalizados;
 
   CreditosActFin({
     required this.creditos_activos,
@@ -449,8 +460,7 @@ class CreditosActFin {
 
   factory CreditosActFin.fromJson(Map<String, dynamic> json) {
     return CreditosActFin(
-      creditos_activos:
-          json['creditos_activos']?.toString() ?? '0', // Convierte null a '0'
+      creditos_activos: json['creditos_activos']?.toString() ?? '0',
       creditos_finalizados: json['creditos_finalizados']?.toString() ?? '0',
     );
   }
@@ -458,10 +468,10 @@ class CreditosActFin {
 
 class GruposIndGrupos {
   final int total_grupos;
-  final String? grupos_individuales; // Cambiado a nullable
-  final String? grupos_grupales; // Cambiado a nullable
-  final String? grupos_activos; // Cambiado a nullable
-  final String? grupos_finalizados; // Cambiado a nullable
+  final String? grupos_individuales;
+  final String? grupos_grupales;
+  final String? grupos_activos;
+  final String? grupos_finalizados;
 
   GruposIndGrupos({
     required this.total_grupos,
@@ -483,7 +493,7 @@ class GruposIndGrupos {
 }
 
 class SumaPagos {
-  final String? sumaDepositos; // Ya era nullable
+  final String? sumaDepositos;
 
   SumaPagos({
     required this.sumaDepositos,
@@ -491,7 +501,7 @@ class SumaPagos {
 
   factory SumaPagos.fromJson(Map<String, dynamic> json) {
     return SumaPagos(
-      sumaDepositos: json['sumaDepositos']?.toString() ?? '0', // Maneja null
+      sumaDepositos: json['sumaDepositos']?.toString() ?? '0',
     );
   }
 }

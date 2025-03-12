@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class nUsuarioDialog extends StatefulWidget {
@@ -155,6 +157,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
       barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
         title: Text(title,
             style: TextStyle(color: isSuccess ? Colors.green : Colors.red)),
         content: Text(message),
@@ -173,17 +176,31 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     final width = MediaQuery.of(context).size.width * 0.6;
     final height = MediaQuery.of(context).size.height * 0.8;
 
+    // Define theme colors based on dark mode state
+    final backgroundColor = isDarkMode ? Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final dividerColor = isDarkMode ? Colors.grey[700] : Colors.grey;
+    final primaryColor = Color(0xFF5162F6); // Brand color stays the same
+    final borderColor = isDarkMode ? Colors.grey[700] : Colors.grey[400];
+    final secondaryTextColor = isDarkMode ? Colors.grey[300] : Colors.grey[600];
+    final cancelButtonColor = isDarkMode ? Colors.grey[800] : Colors.grey[700];
+    final fieldBgColor = isDarkMode ? Color(0xFF2A2A2A) : Colors.white;
+
     return Dialog(
+      backgroundColor: backgroundColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: width,
         height: height,
         padding: EdgeInsets.all(20),
         child: _isLoading
-            ? Center(child: CircularProgressIndicator(color: Color(0xFF5162F6)))
+            ? Center(child: CircularProgressIndicator(color: primaryColor))
             : Form(
                 key: _formKey,
                 child: Column(
@@ -191,42 +208,44 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                     Container(
                       width: double.infinity,
                       padding: EdgeInsets.symmetric(vertical: 10),
-                     
                       child: Text(
                         "Agregar Usuario",
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.black,
+                          color: textColor,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    Divider(color: Colors.grey, thickness: 0.5),
+                    Divider(color: dividerColor, thickness: 0.5),
                     SizedBox(height: 10),
                     Expanded(
                       child: Row(
                         children: [
-                          
-                          // Panel lateral izquierdo (rojo)
+                          // Panel lateral izquierdo (color primario)
                           Container(
                             decoration: BoxDecoration(
-                                color: Color(0xFF5162F6),
-                                borderRadius: BorderRadius.all(Radius.circular(20))),
+                                color: primaryColor,
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(20))),
                             width: 250,
-                            padding:
-                                EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+                            padding: EdgeInsets.symmetric(
+                                vertical: 20, horizontal: 10),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 SizedBox(height: 40),
-                                Icon(Icons.person_add, size: 80, color: Colors.white),
+                                Icon(Icons.person_add,
+                                    size: 80, color: Colors.white),
                                 SizedBox(height: 20),
                                 Text(
                                   "Complete todos los campos requeridos para registrar un nuevo usuario",
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                      color: Colors.white, fontSize: 14, height: 1.4),
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      height: 1.4),
                                 ),
                               ],
                             ),
@@ -236,51 +255,71 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                           Expanded(
                             child: Column(
                               children: [
-                                 
                                 // Área scrollable
                                 Expanded(
                                   child: SingleChildScrollView(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                     
                                         SizedBox(height: 30),
-                      
+
                                         // Campos del formulario
                                         _buildTextField(
                                           controller: usuarioController,
                                           label: 'Nombre de usuario',
                                           icon: Icons.person_outline,
                                           maxLength: 20,
+                                          isDarkMode: isDarkMode,
+                                          textColor: textColor,
+                                          secondaryColor: secondaryTextColor,
+                                          primaryColor: primaryColor,
+                                          borderColor: borderColor,
+                                          fieldBgColor: fieldBgColor,
                                           validator: (value) {
-                                            if (value == null || value.isEmpty) {
+                                            if (value == null ||
+                                                value.isEmpty) {
                                               return 'Campo obligatorio';
                                             }
                                             return null;
                                           },
                                         ),
                                         SizedBox(height: 20),
-                      
+
                                         _buildTextField(
                                           controller: nombreCompletoController,
                                           label: 'Nombre completo',
                                           icon: Icons.badge_outlined,
+                                          isDarkMode: isDarkMode,
+                                          textColor: textColor,
+                                          secondaryColor: secondaryTextColor,
+                                          primaryColor: primaryColor,
+                                          borderColor: borderColor,
+                                          fieldBgColor: fieldBgColor,
                                           validator: (value) {
-                                            if (value == null || value.isEmpty) {
+                                            if (value == null ||
+                                                value.isEmpty) {
                                               return 'Campo obligatorio';
                                             }
                                             return null;
                                           },
                                         ),
                                         SizedBox(height: 20),
-                      
+
                                         _buildTextField(
                                           controller: emailController,
                                           label: 'Correo electrónico',
                                           icon: Icons.alternate_email,
-                                          keyboardType: TextInputType.emailAddress,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          isDarkMode: isDarkMode,
+                                          textColor: textColor,
+                                          secondaryColor: secondaryTextColor,
+                                          primaryColor: primaryColor,
+                                          borderColor: borderColor,
+                                          fieldBgColor: fieldBgColor,
                                           validator: (value) {
-                                            if (value == null || value.isEmpty) {
+                                            if (value == null ||
+                                                value.isEmpty) {
                                               return 'Campo obligatorio';
                                             }
                                             if (!RegExp(
@@ -292,14 +331,21 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                                           },
                                         ),
                                         SizedBox(height: 20),
-                      
+
                                         _buildTextField(
                                           controller: passwordController,
                                           label: 'Contraseña',
                                           icon: Icons.lock_outline,
                                           obscureText: true,
+                                          isDarkMode: isDarkMode,
+                                          textColor: textColor,
+                                          secondaryColor: secondaryTextColor,
+                                          primaryColor: primaryColor,
+                                          borderColor: borderColor,
+                                          fieldBgColor: fieldBgColor,
                                           validator: (value) {
-                                            if (value == null || value.isEmpty) {
+                                            if (value == null ||
+                                                value.isEmpty) {
                                               return 'Campo obligatorio';
                                             }
                                             if (value.length < 4) {
@@ -309,12 +355,18 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                                           },
                                         ),
                                         SizedBox(height: 20),
-                      
+
                                         _buildDropdown(
                                           value: selectedTipoUsuario,
                                           hint: 'Tipo de usuario',
                                           items: tiposUsuario,
                                           icon: Icons.group_work_outlined,
+                                          isDarkMode: isDarkMode,
+                                          textColor: textColor,
+                                          secondaryColor: secondaryTextColor,
+                                          primaryColor: primaryColor,
+                                          borderColor: borderColor,
+                                          fieldBgColor: fieldBgColor,
                                           onChanged: (value) {
                                             setState(() {
                                               selectedTipoUsuario = value;
@@ -332,44 +384,57 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                                     ),
                                   ),
                                 ),
-                      
+
                                 // Sección fija de botones
                                 Container(
                                   padding: EdgeInsets.only(top: 20),
                                   decoration: BoxDecoration(
                                     border: Border(
                                       top: BorderSide(
-                                          color: Colors.grey.shade300, width: 1.0),
+                                          color: isDarkMode
+                                              ? Colors.grey[800]!
+                                              : Colors.grey[300]!,
+                                          width: 1.0),
                                     ),
                                   ),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
                                       TextButton(
-                                        onPressed: () => Navigator.of(context).pop(),
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
                                         style: TextButton.styleFrom(
-                                          foregroundColor: Colors.grey[700],
+                                          foregroundColor: cancelButtonColor,
                                           padding: EdgeInsets.symmetric(
                                               horizontal: 25, vertical: 12),
-                                          side:
-                                              BorderSide(color: Colors.grey.shade400),
+                                          side: BorderSide(
+                                              color: isDarkMode
+                                                  ? Colors.grey[600]!
+                                                  : Colors.grey[400]!),
                                           shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(8)),
+                                              borderRadius:
+                                                  BorderRadius.circular(8)),
                                         ),
-                                        child: Text('CANCELAR'),
+                                        child: Text('CANCELAR',
+                                            style: TextStyle(
+                                                color: isDarkMode
+                                                    ? Colors.grey[300]
+                                                    : null)),
                                       ),
                                       SizedBox(width: 15),
                                       ElevatedButton(
                                         onPressed: _agregarUsuario,
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Color(0xFF5162F6),
+                                          backgroundColor: primaryColor,
                                           padding: EdgeInsets.symmetric(
                                               horizontal: 30, vertical: 12),
                                           shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(8)),
+                                              borderRadius:
+                                                  BorderRadius.circular(8)),
                                         ),
                                         child: Text('CREAR USUARIO',
-                                            style: TextStyle(color: Colors.white)),
+                                            style:
+                                                TextStyle(color: Colors.white)),
                                       ),
                                     ],
                                   ),
@@ -387,7 +452,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
     );
   }
 
-// Widgets reutilizables con el estilo original
+// Widgets reutilizables con soporte para dark mode
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -395,6 +460,12 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
     TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
     int? maxLength,
+    required bool isDarkMode,
+    required Color textColor,
+    required Color? secondaryColor,
+    required Color primaryColor,
+    required Color? borderColor,
+    required Color fieldBgColor,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
@@ -402,24 +473,31 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       maxLength: maxLength,
-      style: TextStyle(fontSize: 14),
+      style: TextStyle(fontSize: 12, color: textColor),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: Colors.grey[600]),
+        labelStyle: TextStyle(
+            fontSize: 12, color: secondaryColor), // Tamaño más pequeño
+        hintText:
+            label, // Opcional, si quieres un hint en lugar del label flotante
+        hintStyle: TextStyle(
+            fontSize: 12, color: Colors.grey), // También lo haces más pequeño
+        prefixIcon: Icon(icon, color: secondaryColor),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey[400]!),
+          borderSide: BorderSide(color: borderColor ?? Colors.grey),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Color(0xFF5162F6), width: 1.5),
+          borderSide: BorderSide(color: primaryColor, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: Colors.red),
         ),
         contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        labelStyle: TextStyle(color: Colors.grey[600]),
+        fillColor: fieldBgColor,
+        filled: true,
       ),
       validator: validator,
       autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -432,32 +510,41 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
     required List<String> items,
     required IconData icon,
     required void Function(String?) onChanged,
+    required bool isDarkMode,
+    required Color textColor,
+    required Color? secondaryColor,
+    required Color primaryColor,
+    required Color? borderColor,
+    required Color fieldBgColor,
     String? Function(String?)? validator,
   }) {
     return DropdownButtonFormField<String>(
       value: value,
-      hint: Text(hint, style: TextStyle(color: Colors.grey[600])),
+      hint: Text(hint, style: TextStyle(color: secondaryColor)),
       items: items.map((item) {
         return DropdownMenuItem(
           value: item,
-          child: Text(item, style: TextStyle(fontSize: 14)),
+          child: Text(item, style: TextStyle(fontSize: 14, color: textColor)),
         );
       }).toList(),
       onChanged: onChanged,
       validator: validator,
+      dropdownColor: fieldBgColor,
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.grey[600]),
+        prefixIcon: Icon(icon, color: secondaryColor),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey[400]!),
+          borderSide: BorderSide(color: borderColor ?? Colors.grey),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Color(0xFF5162F6), width: 1.5),
+          borderSide: BorderSide(color: primaryColor, width: 1.5),
         ),
         contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        fillColor: fieldBgColor,
+        filled: true,
       ),
-      style: TextStyle(color: Colors.black, fontSize: 14),
+      style: TextStyle(color: textColor, fontSize: 14),
       autovalidateMode: AutovalidateMode.onUserInteraction,
     );
   }

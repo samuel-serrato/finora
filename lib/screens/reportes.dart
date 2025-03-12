@@ -8,6 +8,7 @@ import 'package:finora/helpers/pdf_exporter_contable.dart';
 import 'package:finora/helpers/pdf_exporter_general.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/models/reporte_contable.dart';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/screens/login.dart';
 import 'package:finora/screens/reporteContable.dart';
 import 'package:finora/screens/reporteGeneral.dart';
@@ -15,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_file/open_file.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:finora/models/reporte_general.dart'; // Importación correcta de modelos
 
@@ -209,11 +211,18 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor:
+          isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
       appBar: CustomAppBar(
-        isDarkMode: false,
-        toggleDarkMode: (value) {},
+        isDarkMode: isDarkMode,
+        toggleDarkMode: (value) {
+          themeProvider.toggleDarkMode(value); // Cambia el tema
+        },
         title: 'Reportes Financieros',
         nombre: widget.username,
         tipoUsuario: widget.tipoUsuario,
@@ -224,9 +233,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
           Expanded(
             child: hasGenerated
                 ? isLoading
-                    ? const Center(
-                        child:
-                            CircularProgressIndicator(color: Color(0xFF5162F6)))
+                    ? Center(
+                        child: CircularProgressIndicator(
+                            color: isDarkMode
+                                ? Colors.white70
+                                : Color(0xFF5162F6)))
                     : hasError
                         ? _buildErrorDisplay()
                         : selectedReportType == 'Reporte Contable'
@@ -279,25 +290,56 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Widget _buildErrorDisplay() {
+    // Extract meaningful message from error JSON if possible
+    String displayMessage = errorMessage ?? 'Error desconocido';
+
+    // Try to parse JSON error message if it's in that format
+    if (displayMessage.contains('"Message"')) {
+      try {
+        final regexp = RegExp(r'"Message"\s*:\s*"([^"]+)"');
+        final match = regexp.firstMatch(displayMessage);
+        if (match != null && match.groupCount >= 1) {
+          displayMessage = match.group(1) ?? displayMessage;
+        }
+      } catch (e) {
+        // If parsing fails, keep the original message
+      }
+    }
+
     return Center(
       child: Container(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 40, color: Colors.red),
-            const SizedBox(height: 15),
-            Text(
-              errorMessage ?? 'Error desconocido',
-              style: const TextStyle(fontSize: 16),
-            ),
+            const Icon(Icons.error_outline, size: 50, color: Colors.red),
             const SizedBox(height: 20),
+            Text(
+              displayMessage,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 25),
             ElevatedButton(
               onPressed: () => setState(() {
                 hasError = false;
                 hasGenerated = false;
               }),
-              child: const Text('Reintentar'),
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                backgroundColor: const Color(0xFF5162F6),
+              ),
+              child: const Text(
+                'Reintentar',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
             )
           ],
         ),
@@ -306,6 +348,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Widget _buildFilterRow() {
+    final themeProvider =
+        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Row(
@@ -313,11 +359,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDarkMode ? Color(0xFF3A3D4E) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: isDarkMode
+                        ? Colors.black.withOpacity(0.4)
+                        : Colors.black.withOpacity(0.2),
                     blurRadius: 8,
                     spreadRadius: 2,
                     offset: const Offset(0, 3),
@@ -331,9 +379,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   items: reportTypes
                       .map((type) => DropdownMenuItem(
                             value: type,
-                            child: Text(type,
-                                style: TextStyle(
-                                    fontSize: 14)), // Ajusta tamaño de texto
+                            child: Text(
+                              type,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
+                            ),
                           ))
                       .toList(),
                   onChanged: (value) => setState(() {
@@ -349,11 +401,24 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: isDarkMode ? Color(0xFF3A3D4E) : Colors.white,
                   ),
-                  hint: Text('Selecciona tipo de reporte',
-                      style: TextStyle(fontSize: 14)),
-                  style: TextStyle(fontSize: 14, color: Colors.black),
+                  hint: Text(
+                    'Selecciona tipo de reporte',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDarkMode ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                  dropdownColor: isDarkMode ? Color(0xFF2A2D3E) : Colors.white,
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
+                  ),
                 ),
               ),
             ),
@@ -364,11 +429,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDarkMode ? Color(0xFF3A3D4E) : Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: isDarkMode
+                        ? Colors.black.withOpacity(0.4)
+                        : Colors.black.withOpacity(0.2),
                     blurRadius: 8,
                     spreadRadius: 2,
                     offset: const Offset(0, 3),
@@ -377,14 +444,22 @@ class _ReportesScreenState extends State<ReportesScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today, size: 18),
+                  Icon(
+                    Icons.calendar_today,
+                    size: 18,
+                    color: isDarkMode ? Colors.white70 : Colors.black87,
+                  ),
                   const SizedBox(width: 10),
                   Text(
-                      selectedDateRange != null
-                          ? '${DateFormat('dd/MM/yy').format(selectedDateRange!.start)} - '
-                              '${DateFormat('dd/MM/yy').format(selectedDateRange!.end)}'
-                          : 'Seleccionar fechas',
-                      style: const TextStyle(fontSize: 12)),
+                    selectedDateRange != null
+                        ? '${DateFormat('dd/MM/yy').format(selectedDateRange!.start)} - '
+                            '${DateFormat('dd/MM/yy').format(selectedDateRange!.end)}'
+                        : 'Seleccionar fechas',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -403,6 +478,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
                       : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF5162F6),
+                disabledBackgroundColor:
+                    isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                disabledForegroundColor:
+                    isDarkMode ? Colors.grey[500] : Colors.grey[600],
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                 shape: RoundedRectangleBorder(
@@ -465,11 +544,13 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Future<void> _selectDateRange() async {
-    // Implementación con los colores originales que definiste
+    final isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+    // Implementación con adaptación de colores para modo oscuro
     DateTimeRange? picked = await showDialog<DateTimeRange>(
       context: context,
       builder: (context) => Dialog(
-        backgroundColor: Color(0xFFf5fafb),
+        backgroundColor: isDarkMode ? Color(0xFF2A2D3E) : Color(0xFFf5fafb),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
@@ -481,47 +562,95 @@ class _ReportesScreenState extends State<ReportesScreen> {
             height: MediaQuery.of(context).size.height * 0.8,
             child: Theme(
               data: Theme.of(context).copyWith(
-                // 1. Color del contenedor principal del diálogo - EXACTAMENTE COMO TU CÓDIGO ORIGINAL
+                // 1. Color del contenedor principal del diálogo
                 dialogTheme: DialogTheme(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
-                // 2. Tema específico del DatePicker - EXACTAMENTE COMO TU CÓDIGO ORIGINAL
+                // 2. Tema específico del DatePicker
                 datePickerTheme: DatePickerThemeData(
-                  backgroundColor: Colors
-                      .white, // Fondo interno del calendario - color original
+                  backgroundColor:
+                      isDarkMode ? Color(0xFF3A3D4E) : Colors.white,
                   headerBackgroundColor:
-                      Colors.blue, // Color del encabezado - color original
-                  headerForegroundColor:
-                      Colors.white, // Color del texto en el encabezado
-
-                  // Añadimos solo mejoras para los campos de texto manteniendo tus colores originales
+                      isDarkMode ? Color(0xFF5162F6) : Colors.blue,
+                  headerForegroundColor: Colors.white,
+                  dayForegroundColor: MaterialStateProperty.resolveWith(
+                    (states) => states.contains(MaterialState.selected)
+                        ? Colors.white
+                        : isDarkMode
+                            ? Colors.white
+                            : null,
+                  ),
+                  yearForegroundColor: MaterialStateProperty.resolveWith(
+                    (states) => states.contains(MaterialState.selected)
+                        ? Colors.white
+                        : isDarkMode
+                            ? Colors.white
+                            : null,
+                  ),
+                  dayBackgroundColor: MaterialStateProperty.resolveWith(
+                    (states) => states.contains(MaterialState.selected)
+                        ? isDarkMode
+                            ? Color(0xFF5162F6)
+                            : Colors.blue
+                        : null,
+                  ),
+                  yearBackgroundColor: MaterialStateProperty.resolveWith(
+                    (states) => states.contains(MaterialState.selected)
+                        ? isDarkMode
+                            ? Color(0xFF5162F6)
+                            : Colors.blue
+                        : null,
+                  ),
+                  weekdayStyle: TextStyle(
+                    color: isDarkMode ? Colors.white70 : Colors.black87,
+                  ),
+                  // Colores para los campos de texto
                   inputDecorationTheme: InputDecorationTheme(
                     filled: true,
-                    fillColor: Colors
-                        .yellow.shade50, // Combinando con tu surface color
+                    fillColor:
+                        isDarkMode ? Color(0xFF2A2D3E) : Colors.yellow.shade50,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.blue),
+                      borderSide: BorderSide(
+                        color: isDarkMode ? Color(0xFF5162F6) : Colors.blue,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.blue),
+                      borderSide: BorderSide(
+                        color: isDarkMode ? Color(0xFF5162F6) : Colors.blue,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.blue, width: 2),
+                      borderSide: BorderSide(
+                        color: isDarkMode ? Color(0xFF5162F6) : Colors.blue,
+                        width: 2,
+                      ),
+                    ),
+                    labelStyle: TextStyle(
+                      color: isDarkMode ? Colors.white70 : Colors.black87,
+                    ),
+                    hintStyle: TextStyle(
+                      color: isDarkMode ? Colors.white54 : Colors.black54,
                     ),
                   ),
                 ),
-                // 3. Esquema de colores crítico - EXACTAMENTE COMO TU CÓDIGO ORIGINAL
-                colorScheme: ColorScheme.light(
-                  primary: Colors
-                      .blue, // Color principal de botones y selección - color original
+                // 3. Esquema de colores para el control
+                colorScheme: ColorScheme(
+                  brightness: isDarkMode ? Brightness.dark : Brightness.light,
+                  primary: isDarkMode ? Color(0xFF5162F6) : Colors.blue,
                   onPrimary: Colors.white,
-
-                  onSurface: Colors.black, // Color del texto - color original
+                  secondary: isDarkMode ? Color(0xFF5162F6) : Colors.blue,
+                  onSecondary: Colors.white,
+                  error: isDarkMode ? Colors.redAccent : Colors.red,
+                  onError: Colors.white,
+                  background: isDarkMode ? Color(0xFF2A2D3E) : Colors.white,
+                  onBackground: isDarkMode ? Colors.white : Colors.black,
+                  surface: isDarkMode ? Color(0xFF3A3D4E) : Colors.white,
+                  onSurface: isDarkMode ? Colors.white : Colors.black,
                 ),
               ),
               child: Builder(builder: (context) {
@@ -529,8 +658,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   initialDateRange: selectedDateRange,
                   firstDate: DateTime(2020),
                   lastDate: DateTime(2030),
-                  currentDate: DateTime
-                      .now(), // Esta es la línea que corrige el error original
+                  currentDate: DateTime.now(),
                   helpText: 'Selecciona rango de fechas',
                   cancelText: 'Cancelar',
                   confirmText: 'Confirmar',
@@ -569,24 +697,37 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Future<void> exportarReporte() async {
+    // Crea una variable para el estado de tema ANTES de que inicie la operación asíncrona
+    // Y usa listen: false para evitar reconstrucciones innecesarias
+    final isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+
     // Mostrar diálogo de carga
     showDialog(
       context: context,
-      barrierDismissible:
-          false, // El usuario no puede cerrar el diálogo tocando fuera
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: isDarkMode ? Color(0xFF2A2D3E) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 50),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const CircularProgressIndicator(
+                CircularProgressIndicator(
                   color: Color(0xFF5162F6),
                 ),
                 const SizedBox(height: 20),
-                const Text('Exportando reporte...'),
+                Text(
+                  'Exportando reporte...',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black87,
+                    fontSize: 16,
+                  ),
+                ),
               ],
             ),
           ),
@@ -595,7 +736,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
     );
 
     try {
-      // Agregar un pequeño delay para asegurar que el diálogo se muestre
+      // Resto del código igual...
       await Future.delayed(Duration(milliseconds: 500));
 
       if (selectedReportType == 'Reporte Contable') {
@@ -643,7 +784,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
       }
     } catch (e) {
       // Cerrar el diálogo de carga en caso de error
-      Navigator.pop(context);
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
       mostrarDialogoError('Error al exportar: ${e.toString()}');
     }
   }
