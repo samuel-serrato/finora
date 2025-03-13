@@ -3494,6 +3494,9 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   // El widget para el campo de fecha
   Widget _buildFechaNacimientoField() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -3506,12 +3509,22 @@ class _nClienteDialogState extends State<nClienteDialog>
             locale: const Locale('es', 'ES'),
             builder: (BuildContext context, Widget? child) {
               return Theme(
-                data: ThemeData.light().copyWith(
-                  primaryColor: Colors.white,
-                  colorScheme: ColorScheme.fromSwatch().copyWith(
-                    primary: const Color(0xFF5162F6),
-                  ),
-                ),
+                data: isDarkMode
+                    ? ThemeData.dark().copyWith(
+                        colorScheme: ColorScheme.dark().copyWith(
+                          primary: const Color(0xFF5162F6),
+                          surface: const Color(0xFF303030),
+                          onSurface: Colors.white,
+                        ),
+                        dialogBackgroundColor:
+                            const Color.fromARGB(255, 43, 43, 43),
+                      )
+                    : ThemeData.light().copyWith(
+                        primaryColor: Colors.white,
+                        colorScheme: ColorScheme.fromSwatch().copyWith(
+                          primary: const Color(0xFF5162F6),
+                        ),
+                      ),
                 child: child!,
               );
             },
@@ -3519,21 +3532,51 @@ class _nClienteDialogState extends State<nClienteDialog>
           if (pickedDate != null) {
             setState(() {
               selectedDate = pickedDate;
-              _fechaController.text = DateFormat('dd/MM/yyyy')
-                  .format(selectedDate!); // Formateado aquí
+              _fechaController.text =
+                  DateFormat('dd/MM/yyyy').format(selectedDate!);
             });
           }
         },
         child: AbsorbPointer(
           child: TextFormField(
             controller: _fechaController,
-            style: const TextStyle(fontSize: 12),
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.white : Colors.black87,
+            ),
             decoration: InputDecoration(
               labelText: 'Fecha de Nacimiento',
-              labelStyle: const TextStyle(fontSize: 12),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              labelStyle: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.white70 : Colors.black54,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDarkMode ? Colors.white54 : Colors.black45,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDarkMode ? Colors.white30 : Colors.black26,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: const Color(0xFF5162F6),
+                ),
+              ),
               hintText: 'Selecciona una fecha',
+              hintStyle: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.white38 : Colors.black38,
+              ),
+              fillColor: isDarkMode
+                  ? const Color.fromARGB(255, 48, 48, 48)
+                  : Colors.white,
+              filled: true,
             ),
             validator: (value) {
               if (selectedDate == null) {

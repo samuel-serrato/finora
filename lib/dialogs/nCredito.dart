@@ -918,7 +918,20 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                             'Fecha de Inicio: ${_formatearFecha(fechaInicio)}'),
                       ),
                       TextButton(
-                        child: Text('Cambiar'),
+                        child: Text(
+                          'Cambiar',
+                          style: TextStyle(
+                            color:
+                                isDarkMode ? Colors.white : Color(0xFF5162F6),
+                          ),
+                        ),
+                        style: ButtonStyle(
+                          overlayColor: MaterialStateProperty.all(
+                            isDarkMode
+                                ? Colors.white.withOpacity(0.1)
+                                : Color(0xFF5162F6).withOpacity(0.1),
+                          ),
+                        ),
                         onPressed: () async {
                           final nuevaFecha = await showDatePicker(
                             context: context,
@@ -928,15 +941,24 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                             locale: Locale('es', 'ES'),
                             builder: (BuildContext context, Widget? child) {
                               return Theme(
-                                data: ThemeData.light().copyWith(
-                                  primaryColor: Colors
-                                      .white, // Cambia el color de los elementos destacados
-
-                                  colorScheme:
-                                      ColorScheme.fromSwatch().copyWith(
-                                    primary: Color(0xFF5162F6),
-                                  ),
-                                ),
+                                data: isDarkMode
+                                    ? ThemeData.dark().copyWith(
+                                        colorScheme:
+                                            ColorScheme.dark().copyWith(
+                                          primary: Color(0xFF5162F6),
+                                          surface: Color(0xFF303030),
+                                          onSurface: Colors.white,
+                                        ),
+                                        dialogBackgroundColor:
+                                            Color(0xFF1F1F1F),
+                                      )
+                                    : ThemeData.light().copyWith(
+                                        primaryColor: Colors.white,
+                                        colorScheme:
+                                            ColorScheme.fromSwatch().copyWith(
+                                          primary: Color(0xFF5162F6),
+                                        ),
+                                      ),
                                 child: child!,
                               );
                             },
@@ -1469,7 +1491,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                     : frecuenciaPago == "Quincenal"
                                         ? 'Pago Quincenal: '
                                         : '',
-                                '\$${(pagoTotal)}'),
+                                '\$${formatearNumero(pagoTotal)}'),
                             _infoRow('Interés Total: ',
                                 '\$${formatearNumero(interesTotal)}'),
                           ],
