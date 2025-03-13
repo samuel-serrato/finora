@@ -848,17 +848,17 @@ class _InfoCreditoState extends State<InfoCredito> {
             if (isSending)
               Positioned.fill(
                 child: Container(
-                  color: Colors.black
-                      .withOpacity(0.3), // Semi-transparent background
+                  color: Colors.black.withOpacity(
+                      0.3), // Semi-transparent background works for both modes
                   child: Center(
                     child: Container(
                       padding: EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDarkMode ? Color(0xFF1E1E1E) : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black26,
+                            color: isDarkMode ? Colors.black54 : Colors.black26,
                             blurRadius: 8,
                             offset: Offset(0, 4),
                           ),
@@ -868,13 +868,17 @@ class _InfoCreditoState extends State<InfoCredito> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           CircularProgressIndicator(
-                            color: Color(0xFF5162F6),
+                            color: Color(
+                                0xFF5162F6), // Primary color stays the same
                           ),
                           SizedBox(height: 12),
                           Text(
                             'Guardando...',
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w500),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: isDarkMode ? Colors.white : Colors.black87,
+                            ),
                           ),
                         ],
                       ),
@@ -2180,9 +2184,11 @@ class _PaginaControlState extends State<PaginaControl> {
                                                 color: Colors.blueAccent,
                                                 borderRadius:
                                                     BorderRadius.circular(8),
-                                                boxShadow: const [
+                                                boxShadow: [
                                                   BoxShadow(
-                                                    color: Colors.black26,
+                                                    color: isDarkMode
+                                                        ? Colors.black54
+                                                        : Colors.black26,
                                                     blurRadius: 5,
                                                     offset: Offset(2, 2),
                                                   ),
@@ -2194,7 +2200,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                                 icon: const Icon(
                                                     Icons.visibility,
                                                     color: Colors.white),
-                                                color: Colors.white,
+                                                color: isDarkMode
+                                                    ? Colors.grey[850]
+                                                    : Colors.white,
                                                 offset: const Offset(0, 45),
                                                 onSelected: (item) {
                                                   // Aquí podrías manejar acciones según el item seleccionado (abono o moratorio)
@@ -2262,13 +2270,14 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                     Text(
                                                                       fecha,
                                                                       style:
-                                                                          const TextStyle(
+                                                                          TextStyle(
                                                                         fontSize:
                                                                             12,
                                                                         fontWeight:
                                                                             FontWeight.w500,
-                                                                        color: Colors
-                                                                            .black54,
+                                                                        color: isDarkMode
+                                                                            ? Colors.grey[300]
+                                                                            : Colors.black54,
                                                                       ),
                                                                     ),
                                                                     const SizedBox(
@@ -2282,13 +2291,14 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                         Text(
                                                                           "\$${formatearNumero(monto)}",
                                                                           style:
-                                                                              const TextStyle(
+                                                                              TextStyle(
                                                                             fontSize:
                                                                                 14,
                                                                             fontWeight:
                                                                                 FontWeight.bold,
-                                                                            color:
-                                                                                Colors.black87,
+                                                                            color: isDarkMode
+                                                                                ? Colors.white
+                                                                                : Colors.black87,
                                                                           ),
                                                                         ),
                                                                         if (esGarantia)
@@ -2297,7 +2307,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                                 const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                                             decoration:
                                                                                 BoxDecoration(
-                                                                              color: Color(0xFFE53888).withOpacity(0.2),
+                                                                              color: Color(0xFFE53888).withOpacity(isDarkMode ? 0.3 : 0.2),
                                                                               borderRadius: BorderRadius.circular(6),
                                                                             ),
                                                                             child:
@@ -2363,8 +2373,11 @@ class _PaginaControlState extends State<PaginaControl> {
                                                         mainAxisSize:
                                                             MainAxisSize.min,
                                                         children: [
-                                                          const Divider(
-                                                            color: Colors.grey,
+                                                          Divider(
+                                                            color: isDarkMode
+                                                                ? Colors
+                                                                    .grey[700]
+                                                                : Colors.grey,
                                                             thickness: 0.8,
                                                             height: 10,
                                                           ),
@@ -2384,9 +2397,11 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 Icon(
                                                                   Icons
                                                                       .calculate_rounded,
-                                                                  color: Colors
-                                                                          .blue[
-                                                                      700],
+                                                                  color: isDarkMode
+                                                                      ? Colors.blue[
+                                                                          400]
+                                                                      : Colors.blue[
+                                                                          700],
                                                                   size: 20,
                                                                 ),
                                                                 const SizedBox(
@@ -2405,8 +2420,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                               10,
                                                                           fontWeight:
                                                                               FontWeight.w600,
-                                                                          color:
-                                                                              Colors.grey[600],
+                                                                          color: isDarkMode
+                                                                              ? Colors.grey[400]
+                                                                              : Colors.grey[600],
                                                                           letterSpacing:
                                                                               0.5,
                                                                         ),
@@ -2424,7 +2440,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                                 TextStyle(
                                                                               fontSize: 16,
                                                                               fontWeight: FontWeight.bold,
-                                                                              color: Colors.blue[800],
+                                                                              color: isDarkMode ? Colors.blue[300] : Colors.blue[800],
                                                                             ),
                                                                           ),
                                                                           if (textoEstado !=
@@ -2432,10 +2448,10 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                             Container(
                                                                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                                                                               decoration: BoxDecoration(
-                                                                                color: Colors.blue[100],
+                                                                                color: isDarkMode ? Colors.blue[900] : Colors.blue[100],
                                                                                 borderRadius: BorderRadius.circular(8),
                                                                                 border: Border.all(
-                                                                                  color: Colors.blue[300]!,
+                                                                                  color: isDarkMode ? Colors.blue[700]! : Colors.blue[300]!,
                                                                                   width: 0.5,
                                                                                 ),
                                                                               ),
@@ -2444,7 +2460,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                                 style: TextStyle(
                                                                                   fontSize: 10,
                                                                                   fontWeight: FontWeight.bold,
-                                                                                  color: Colors.blue[800],
+                                                                                  color: isDarkMode ? Colors.blue[300] : Colors.blue[800],
                                                                                 ),
                                                                               ),
                                                                             ),
@@ -2494,12 +2510,18 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 .center,
                                                             style: TextStyle(
                                                               fontSize: 14,
-
                                                               color: _puedeEditarPago(
                                                                       pago)
-                                                                  ? Colors.black
-                                                                  : Colors.grey[
-                                                                      700], // Cambiar color de texto
+                                                                  ? isDarkMode
+                                                                      ? Colors
+                                                                          .white
+                                                                      : Colors
+                                                                          .black
+                                                                  : isDarkMode
+                                                                      ? Colors.grey[
+                                                                          300]
+                                                                      : Colors.grey[
+                                                                          700],
                                                             ),
                                                             keyboardType:
                                                                 TextInputType
@@ -2692,11 +2714,15 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 InputDecoration(
                                                               hintText:
                                                                   'Monto Parcial',
-                                                              hintStyle: TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: Colors
-                                                                          .grey[
-                                                                      700]),
+                                                              hintStyle:
+                                                                  TextStyle(
+                                                                fontSize: 12,
+                                                                color: isDarkMode
+                                                                    ? Colors.grey[
+                                                                        300]
+                                                                    : Colors.grey[
+                                                                        700],
+                                                              ),
                                                               prefixText:
                                                                   '\$', // Mostrar el símbolo "$" dentro del campo
                                                               prefixStyle:
@@ -2704,10 +2730,16 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 fontSize: 14,
                                                                 color: _puedeEditarPago(
                                                                         pago)
-                                                                    ? Colors
-                                                                        .black
-                                                                    : Colors.grey[
-                                                                        700],
+                                                                    ? isDarkMode
+                                                                        ? Colors
+                                                                            .white
+                                                                        : Colors
+                                                                            .black
+                                                                    : isDarkMode
+                                                                        ? Colors.grey[
+                                                                            300]
+                                                                        : Colors
+                                                                            .grey[700],
                                                               ),
                                                               enabledBorder:
                                                                   OutlineInputBorder(
@@ -2768,8 +2800,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                           TextStyle(
                                                                         fontSize:
                                                                             10,
-                                                                        color: Colors
-                                                                            .grey[600],
+                                                                        color: isDarkMode
+                                                                            ? Colors.grey[300]
+                                                                            : Colors.grey[600],
                                                                       ),
                                                                     ),
                                                                     SizedBox(
@@ -2921,7 +2954,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                                       "\$${formatearNumero(pago.deposito ?? 0.00)}",
                                                       style: TextStyle(
                                                           fontSize: 14,
-                                                          color: Colors.black),
+                                                          color: isDarkMode
+                                                              ? Colors.white
+                                                              : Colors.black),
                                                     ),
                                                     SizedBox(
                                                         height:
@@ -2940,9 +2975,13 @@ class _PaginaControlState extends State<PaginaControl> {
                                                             'Pagado: ${formatearFecha(abono["fechaDeposito"])}',
                                                             // Mostrar la fecha de depósito
                                                             style: TextStyle(
-                                                                fontSize: 10,
-                                                                color: Colors
-                                                                    .grey[600]),
+                                                              fontSize: 10,
+                                                              color: isDarkMode
+                                                                  ? Colors
+                                                                      .grey[300]
+                                                                  : Colors.grey[
+                                                                      700],
+                                                            ),
                                                           ),
                                                         );
                                                       }).toList(),
@@ -3474,10 +3513,13 @@ void imprimirPagos(List<Pago> pagos) {
 }
 
 class AbonosDialog extends StatefulWidget {
-  final double montoAPagar; // Se recibe el monto a pagar como parámetro
+  final double montoAPagar;
   final Function(List<Map<String, dynamic>>) onConfirm;
 
-  AbonosDialog({required this.montoAPagar, required this.onConfirm});
+  AbonosDialog({
+    required this.montoAPagar,
+    required this.onConfirm,
+  });
 
   @override
   _AbonosDialogState createState() => _AbonosDialogState();
@@ -3491,15 +3533,29 @@ class _AbonosDialogState extends State<AbonosDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
     final width = MediaQuery.of(context).size.width * 0.4;
     final height = MediaQuery.of(context).size.height * 0.52;
+
+    // Colores adaptados según el modo
+    final Color primaryColor = Color(0xFF5162F6);
+    final Color backgroundColor = isDarkMode ? Color(0xFF121212) : Colors.white;
+    final Color cardColor = isDarkMode ? Color(0xFF1E1E1E) : Colors.grey[50]!;
+    final Color textColor = isDarkMode ? Colors.white : Colors.grey[800]!;
+    final Color labelColor = isDarkMode ? Colors.grey[300]! : Colors.grey[700]!;
+    final Color inputBackground =
+        isDarkMode ? Color(0xFF2C2C2C) : Colors.grey[100]!;
+    final Color inputBorderColor =
+        isDarkMode ? Colors.grey[600]! : Colors.grey[300]!;
 
     double totalAbonos =
         abonos.fold(0.0, (sum, abono) => sum + abono['deposito']);
     double montoFaltante = widget.montoAPagar - totalAbonos;
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: backgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
@@ -3517,7 +3573,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                 style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF5162F6)),
+                    color: primaryColor),
               ),
               SizedBox(height: 20),
 
@@ -3536,7 +3592,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
+                            color: labelColor,
                           ),
                         ),
                         TextField(
@@ -3544,30 +3600,32 @@ class _AbonosDialogState extends State<AbonosDialog> {
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             labelStyle: TextStyle(
-                              color: Colors.deepPurple,
+                              color: primaryColor,
                               fontWeight: FontWeight.w500,
                             ),
                             hintText: "Ingresa el monto",
-                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            hintStyle: TextStyle(
+                                color: isDarkMode
+                                    ? Colors.grey[500]
+                                    : Colors.grey[400]),
                             filled: true,
-                            fillColor: Colors.grey[100],
+                            fillColor: inputBackground,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                  color: Colors.grey[300]!, width: 1.5),
+                                  color: inputBorderColor, width: 1.5),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                  color: Color(0xFF5162F6), width: 2),
+                              borderSide:
+                                  BorderSide(color: primaryColor, width: 2),
                             ),
-                            prefixIcon: Icon(Icons.attach_money,
-                                color: Color(0xFF5162F6)),
+                            prefixIcon:
+                                Icon(Icons.attach_money, color: primaryColor),
                             contentPadding: EdgeInsets.symmetric(
                                 vertical: 15, horizontal: 20),
                           ),
-                          style:
-                              TextStyle(fontSize: 14, color: Colors.grey[800]),
+                          style: TextStyle(fontSize: 14, color: textColor),
                           onChanged: (value) {
                             setState(() {
                               montoPorAbono = double.tryParse(value) ?? 0.0;
@@ -3590,7 +3648,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
+                            color: labelColor,
                           ),
                         ),
                         Row(
@@ -3604,6 +3662,26 @@ class _AbonosDialogState extends State<AbonosDialog> {
                                     initialDate: fechaPago,
                                     firstDate: DateTime(2000),
                                     lastDate: DateTime.now(),
+                                    builder: (context, child) {
+                                      return Theme(
+                                        data: Theme.of(context).copyWith(
+                                          colorScheme: ColorScheme.light(
+                                            primary: primaryColor,
+                                            onPrimary: Colors.white,
+                                            surface: isDarkMode
+                                                ? Color(0xFF2C2C2C)
+                                                : Colors.white,
+                                            onSurface: isDarkMode
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
+                                          dialogBackgroundColor: isDarkMode
+                                              ? Color(0xFF1E1E1E)
+                                              : Colors.white,
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
                                   );
                                   if (pickedDate != null &&
                                       pickedDate != fechaPago) {
@@ -3616,10 +3694,27 @@ class _AbonosDialogState extends State<AbonosDialog> {
                                   padding: EdgeInsets.symmetric(
                                       vertical: 12, horizontal: 20),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey[100],
+                                    color: inputBackground,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                        color: Colors.grey[600]!, width: 1.2),
+                                      // Color del borde mejorado para modo claro
+                                      color: isDarkMode
+                                          ? inputBorderColor
+                                          : Color(0xFFAAAAAA),
+                                      // Ancho del borde mayor en modo claro
+                                      width: isDarkMode ? 1.2 : 1.5,
+                                    ),
+                                    // Añadir sombra sutil en modo claro para mejor profundidad
+                                    boxShadow: isDarkMode
+                                        ? []
+                                        : [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withOpacity(0.05),
+                                              blurRadius: 2,
+                                              offset: Offset(0, 1),
+                                            )
+                                          ],
                                   ),
                                   child: Row(
                                     mainAxisAlignment:
@@ -3629,12 +3724,12 @@ class _AbonosDialogState extends State<AbonosDialog> {
                                         "${fechaPago.toLocal()}".split(' ')[0],
                                         style: TextStyle(
                                           fontSize: 14,
-                                          color: Colors.grey[800],
+                                          color: textColor,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
                                       Icon(Icons.calendar_today,
-                                          color: Color(0xFF5162F6)),
+                                          color: primaryColor),
                                     ],
                                   ),
                                 ),
@@ -3643,7 +3738,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                             SizedBox(width: 30),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Color(0xFF5162F6),
+                                backgroundColor: primaryColor,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -3661,8 +3756,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                                     abonos.add({
                                       'deposito': montoPorAbono,
                                       'fechaDeposito': "${fechaPago.toLocal()}"
-                                              .split(' ')[
-                                          0], // <-- Usar la fecha seleccionada
+                                          .split(' ')[0],
                                     });
                                     montoPorAbono = 0.0;
                                     montoController.clear();
@@ -3687,7 +3781,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
+                    color: labelColor,
                   ),
                 ),
                 SizedBox(height: 10),
@@ -3699,7 +3793,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                     itemBuilder: (context, index) {
                       return Card(
                         margin: EdgeInsets.symmetric(vertical: 5),
-                        color: Colors.grey[50],
+                        color: cardColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -3709,6 +3803,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
+                              color: textColor,
                             ),
                           ),
                         ),
@@ -3728,14 +3823,16 @@ class _AbonosDialogState extends State<AbonosDialog> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
+                      color: textColor,
                     ),
                   ),
                   SizedBox(width: 100),
-                  Text(
+                  /* Text(
                     "Monto a Pagar: \$${widget.montoAPagar.toStringAsFixed(2)}",
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
+                      color: textColor,
                     ),
                   ),
                   Text(
@@ -3743,8 +3840,9 @@ class _AbonosDialogState extends State<AbonosDialog> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
+                      color: textColor,
                     ),
-                  ),
+                  ), */
                 ],
               ),
               SizedBox(height: 20),
@@ -3755,7 +3853,8 @@ class _AbonosDialogState extends State<AbonosDialog> {
                 children: [
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF5162F6),
+                      backgroundColor:
+                          isDarkMode ? Color(0xFF444444) : Color(0xFF5162F6),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -3773,7 +3872,8 @@ class _AbonosDialogState extends State<AbonosDialog> {
                   SizedBox(width: 10),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor:
+                          isDarkMode ? Color(0xFF2E7D32) : Colors.green,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -3820,7 +3920,7 @@ class PaginaIntegrantes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-        final themeProvider = Provider.of<ThemeProvider>(context,
+    final themeProvider = Provider.of<ThemeProvider>(context,
         listen: false); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
 

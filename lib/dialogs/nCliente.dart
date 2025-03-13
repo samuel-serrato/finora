@@ -102,7 +102,8 @@ class _nClienteDialogState extends State<nClienteDialog>
     'Soltero',
     'Casado',
     'Divorciado',
-    'Viudo'
+    'Viudo',
+    'Unión Libre'
   ];
 
   final List<String> tiposClientes = [
@@ -1179,186 +1180,190 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   @override
-Widget build(BuildContext context) {
-  final themeProvider = Provider.of<ThemeProvider>(context,
-      listen: false); // Obtén el ThemeProvider
-  final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
 
-  final width = MediaQuery.of(context).size.width * 0.8;
-  final height = MediaQuery.of(context).size.height * 0.8;
+    final width = MediaQuery.of(context).size.width * 0.8;
+    final height = MediaQuery.of(context).size.height * 0.8;
 
-  return Dialog(
-    backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
-    surfaceTintColor: isDarkMode ? Colors.grey[850] : Colors.white,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    child: Container(
-      width: width,
-      height: height,
-      padding: EdgeInsets.all(20),
-      child: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(),
-            )
-          : Column(
-              children: [
-                Text(
-                  isEditing ? 'Editar Cliente' : 'Agregar Cliente',
-                  style: TextStyle(
-                    fontSize: 20, 
-                    fontWeight: FontWeight.bold,
-                    color: isDarkMode ? Colors.white : Colors.black,
+    return Dialog(
+      backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+      surfaceTintColor: isDarkMode ? Colors.grey[850] : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: width,
+        height: height,
+        padding: EdgeInsets.all(20),
+        child: _isLoading
+            ? Center(
+                child: CircularProgressIndicator(),
+              )
+            : Column(
+                children: [
+                  Text(
+                    isEditing ? 'Editar Cliente' : 'Agregar Cliente',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
                   ),
-                ),
-                SizedBox(height: 10),
-                Focus(
-                  canRequestFocus: false,
-                  descendantsAreFocusable: false,
-                  child: IgnorePointer(
-                    child: TabBar(
+                  SizedBox(height: 10),
+                  Focus(
+                    canRequestFocus: false,
+                    descendantsAreFocusable: false,
+                    child: IgnorePointer(
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: Color(0xFF5162F6),
+                        unselectedLabelColor:
+                            isDarkMode ? Colors.grey[400] : Colors.grey,
+                        indicatorColor: Color(0xFF5162F6),
+                        tabs: [
+                          Tab(text: 'Información Personal'),
+                          Tab(text: 'Cuenta Bancaria'),
+                          Tab(text: 'Ingresos y Egresos'),
+                          Tab(text: 'Referencias'),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: TabBarView(
                       controller: _tabController,
-                      labelColor: Color(0xFF5162F6),
-                      unselectedLabelColor: isDarkMode ? Colors.grey[400] : Colors.grey,
-                      indicatorColor: Color(0xFF5162F6),
-                      tabs: [
-                        Tab(text: 'Información Personal'),
-                        Tab(text: 'Cuenta Bancaria'),
-                        Tab(text: 'Ingresos y Egresos'),
-                        Tab(text: 'Referencias'),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              right: 30, top: 10, bottom: 10, left: 0),
+                          child: _paginaInfoPersonal(),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              right: 30, top: 10, bottom: 10, left: 0),
+                          child: _paginaCuentaBancaria(),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              right: 30, top: 10, bottom: 10, left: 0),
+                          child: _paginaIngresosEgresos(),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              right: 30, top: 10, bottom: 10, left: 0),
+                          child: _paginaReferencias(),
+                        ),
                       ],
                     ),
                   ),
-                ),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(
-                            right: 30, top: 10, bottom: 10, left: 0),
-                        child: _paginaInfoPersonal(),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              isDarkMode ? Colors.grey[300] : Colors.grey,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text('Cancelar'),
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(
-                            right: 30, top: 10, bottom: 10, left: 0),
-                        child: _paginaCuentaBancaria(),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(
-                            right: 30, top: 10, bottom: 10, left: 0),
-                        child: _paginaIngresosEgresos(),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(
-                            right: 30, top: 10, bottom: 10, left: 0),
-                        child: _paginaReferencias(),
+                      Row(
+                        children: [
+                          if (_currentIndex > 0)
+                            TextButton(
+                              onPressed: () {
+                                _tabController.animateTo(_currentIndex - 1);
+                              },
+                              child: Text(
+                                'Atrás',
+                                style: TextStyle(
+                                  color: isDarkMode ? Colors.blue[300] : null,
+                                ),
+                              ),
+                            ),
+                          if (_currentIndex <= 3)
+                            ElevatedButton(
+                              onPressed: () {
+                                if (_currentIndex < 3) {
+                                  if (_currentIndex == 2 &&
+                                      ingresosEgresos.isEmpty) {
+                                    _showErrorDialog(
+                                      "No se puede avanzar",
+                                      "Por favor, agregue al menos un ingreso o egreso.",
+                                    );
+                                    return;
+                                  }
+
+                                  if (_validarFormularioActual()) {
+                                    _tabController.animateTo(_currentIndex + 1);
+                                  } else {
+                                    print(
+                                        "Validación fallida en la pestaña $_currentIndex");
+                                  }
+                                } else if (_currentIndex == 3) {
+                                  if (referencias.isEmpty) {
+                                    _showErrorDialog(
+                                      "No se puede agregar el cliente",
+                                      "Por favor, agregue al menos una referencia.",
+                                    );
+                                    return;
+                                  }
+
+                                  if (ingresosEgresos.isEmpty) {
+                                    _showErrorDialog(
+                                      "No se puede avanzar",
+                                      "Por favor, agregue al menos un ingreso o egreso.",
+                                    );
+                                    return;
+                                  }
+
+                                  if (_validarFormularioActual()) {
+                                    if (isEditing) {
+                                      print('Se va a editar');
+                                      compareAndPrintEditedEndpointFields();
+                                      sendEditedData(
+                                          context,
+                                          widget.idCliente!,
+                                          idcuantabank!,
+                                          iddomicilios!,
+                                          idingegrList,
+                                          idreferenciasList,
+                                          iddomiciliosRef!);
+                                    } else {
+                                      _agregarCliente();
+                                    }
+                                  } else {
+                                    _showErrorDialog(
+                                      "No se puede agregar el cliente",
+                                      "Por favor, complete todos los campos requeridos.",
+                                    );
+                                  }
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isDarkMode
+                                    ? Color(0xFF3A4AD1)
+                                    : Color(0xFF5162F6),
+                                foregroundColor: Colors.white,
+                              ),
+                              child: Text(
+                                  _currentIndex == 3 ? 'Guardar' : 'Siguiente'),
+                            ),
+                        ],
                       ),
                     ],
                   ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDarkMode ? Colors.grey[300] : Colors.grey,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text('Cancelar'),
-                    ),
-                    Row(
-                      children: [
-                        if (_currentIndex > 0)
-                          TextButton(
-                            onPressed: () {
-                              _tabController.animateTo(_currentIndex - 1);
-                            },
-                            child: Text(
-                              'Atrás',
-                              style: TextStyle(
-                                color: isDarkMode ? Colors.blue[300] : null,
-                              ),
-                            ),
-                          ),
-                        if (_currentIndex <= 3)
-                          ElevatedButton(
-                            onPressed: () {
-                              if (_currentIndex < 3) {
-                                if (_currentIndex == 2 &&
-                                    ingresosEgresos.isEmpty) {
-                                  _showErrorDialog(
-                                    "No se puede avanzar",
-                                    "Por favor, agregue al menos un ingreso o egreso.",
-                                  );
-                                  return;
-                                }
-
-                                if (_validarFormularioActual()) {
-                                  _tabController.animateTo(_currentIndex + 1);
-                                } else {
-                                  print(
-                                      "Validación fallida en la pestaña $_currentIndex");
-                                }
-                              } else if (_currentIndex == 3) {
-                                if (referencias.isEmpty) {
-                                  _showErrorDialog(
-                                    "No se puede agregar el cliente",
-                                    "Por favor, agregue al menos una referencia.",
-                                  );
-                                  return;
-                                }
-
-                                if (ingresosEgresos.isEmpty) {
-                                  _showErrorDialog(
-                                    "No se puede avanzar",
-                                    "Por favor, agregue al menos un ingreso o egreso.",
-                                  );
-                                  return;
-                                }
-
-                                if (_validarFormularioActual()) {
-                                  if (isEditing) {
-                                    print('Se va a editar');
-                                    compareAndPrintEditedEndpointFields();
-                                    sendEditedData(
-                                        context,
-                                        widget.idCliente!,
-                                        idcuantabank!,
-                                        iddomicilios!,
-                                        idingegrList,
-                                        idreferenciasList,
-                                        iddomiciliosRef!);
-                                  } else {
-                                    _agregarCliente();
-                                  }
-                                } else {
-                                  _showErrorDialog(
-                                    "No se puede agregar el cliente",
-                                    "Por favor, complete todos los campos requeridos.",
-                                  );
-                                }
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isDarkMode ? Color(0xFF3A4AD1) : Color(0xFF5162F6),
-                              foregroundColor: Colors.white,
-                            ),
-                            child: Text(
-                                _currentIndex == 3 ? 'Guardar' : 'Siguiente'),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-    ),
-  );
-}
+                ],
+              ),
+      ),
+    );
+  }
 
   void _showErrorDialog(String title, String message) {
     showDialog(
@@ -1739,8 +1744,8 @@ Widget build(BuildContext context) {
                         ],
                       ),
                       SizedBox(height: verticalSpacing),
-                      if (selectedECivil ==
-                          'Casado') // Condición para mostrar la fila solo si el estado civil es 'Casado'
+                      if (selectedECivil == 'Casado' ||
+                          selectedECivil == 'Unión Libre')
                         Row(
                           children: [
                             Expanded(
@@ -2683,8 +2688,8 @@ Widget build(BuildContext context) {
 
   void _mostrarDialogReferencia({int? index, Map<String, dynamic>? item}) {
     // Obtener estado del tema
-  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-  final isDarkMode = themeProvider.isDarkMode;
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
 
     final GlobalKey<FormState> dialogAddReferenciasFormKey =
         GlobalKey<FormState>();
@@ -2752,7 +2757,10 @@ Widget build(BuildContext context) {
         title: Center(
           child: Text(
             index == null ? 'Nueva Referencia' : 'Editar Referencia',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black),
+            style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: isDarkMode ? Colors.white : Colors.black),
           ),
         ),
         content: StatefulBuilder(
@@ -2902,7 +2910,10 @@ Widget build(BuildContext context) {
                             Text(
                               'Los datos de domicilio de la referencia son opcionales',
                               style: TextStyle(
-                                  fontSize: 12, color: isDarkMode? Colors.white : Colors.grey[700]),
+                                  fontSize: 12,
+                                  color: isDarkMode
+                                      ? Colors.white
+                                      : Colors.grey[700]),
                             ),
                             SizedBox(height: 10),
                             Row(
@@ -3193,180 +3204,181 @@ Widget build(BuildContext context) {
   }
 
   void _mostrarDialogIngresoEgreso({int? index, Map<String, dynamic>? item}) {
-  // Ajustar el valor seleccionado
-  String? selectedTipo = item?['tipo_info'];
+    // Ajustar el valor seleccionado
+    String? selectedTipo = item?['tipo_info'];
 
-  // Imprimir el valor original de selectedTipo
-  print("Valor original de selectedTipo: $selectedTipo");
+    // Imprimir el valor original de selectedTipo
+    print("Valor original de selectedTipo: $selectedTipo");
 
-  // Si el valor es 'No asignado', asignamos null para no mostrarlo en el dropdown
-  if (selectedTipo == 'No asignado') {
-    selectedTipo = null;
-  }
+    // Si el valor es 'No asignado', asignamos null para no mostrarlo en el dropdown
+    if (selectedTipo == 'No asignado') {
+      selectedTipo = null;
+    }
 
-  // Imprimir el valor de selectedTipo después de la comprobación
-  print(
-      "Valor de selectedTipo después de comprobar 'No asignado': $selectedTipo");
+    // Imprimir el valor de selectedTipo después de la comprobación
+    print(
+        "Valor de selectedTipo después de comprobar 'No asignado': $selectedTipo");
 
-  final descripcionController =
-      TextEditingController(text: item?['descripcion'] ?? '');
-  final montoController =
-      TextEditingController(text: item?['monto_semanal']?.toString() ?? '');
+    final descripcionController =
+        TextEditingController(text: item?['descripcion'] ?? '');
+    final montoController =
+        TextEditingController(text: item?['monto_semanal']?.toString() ?? '');
 
-  final anosenActividadController =
-      TextEditingController(text: item?['años_actividad']?.toString() ?? '');
+    final anosenActividadController =
+        TextEditingController(text: item?['años_actividad']?.toString() ?? '');
 
-  // Crea un nuevo GlobalKey para el formulario del diálogo
-  final GlobalKey<FormState> dialogAddIngresosEgresosFormKey =
-      GlobalKey<FormState>();
+    // Crea un nuevo GlobalKey para el formulario del diálogo
+    final GlobalKey<FormState> dialogAddIngresosEgresosFormKey =
+        GlobalKey<FormState>();
 
-  final width = MediaQuery.of(context).size.width * 0.4;
-  final height = MediaQuery.of(context).size.height * 0.5;
-  
-  // Obtener estado del tema
-  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-  final isDarkMode = themeProvider.isDarkMode;
+    final width = MediaQuery.of(context).size.width * 0.4;
+    final height = MediaQuery.of(context).size.height * 0.5;
 
-  // Imprimir la lista original de tipos de ingreso/egreso
-  print("Lista original de tiposIngresoEgreso: $tiposIngresoEgreso");
+    // Obtener estado del tema
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
 
-  showDialog(
-    barrierDismissible: false,
-    context: context,
-    builder: (_) => AlertDialog(
-      backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
-      title: Text(
-        index == null ? 'Nuevo Ingreso/Egreso' : 'Editar Ingreso/Egreso',
-        style: TextStyle(
-          color: isDarkMode ? Colors.white : Colors.black,
+    // Imprimir la lista original de tipos de ingreso/egreso
+    print("Lista original de tiposIngresoEgreso: $tiposIngresoEgreso");
+
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+        title: Text(
+          index == null ? 'Nuevo Ingreso/Egreso' : 'Editar Ingreso/Egreso',
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
         ),
-      ),
-      content: StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          // Filtrar 'No asignado' de la lista
-          List<String> tiposFiltrados = tiposIngresoEgreso
-              .where((item) => item != 'No asignado')
-              .toList();
+        content: StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            // Filtrar 'No asignado' de la lista
+            List<String> tiposFiltrados = tiposIngresoEgreso
+                .where((item) => item != 'No asignado')
+                .toList();
 
-          // Imprimir la lista filtrada
-          print("Lista filtrada de tiposIngresoEgreso: $tiposFiltrados");
+            // Imprimir la lista filtrada
+            print("Lista filtrada de tiposIngresoEgreso: $tiposFiltrados");
 
-          return Container(
-            width: width,
-            height: height,
-            child: Form(
-              key: dialogAddIngresosEgresosFormKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildDropdown(
-                    value: selectedTipo,
-                    hint: 'Tipo',
-                    items: tiposFiltrados, // Usamos la lista filtrada
-                    onChanged: (value) {
-                      setState(() {
-                        selectedTipo = value;
-                      });
-                    },
-                    fontSize: 14.0,
-                    validator: (value) {
-                      if (value == null) {
-                        return 'Por favor, seleccione el tipo';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 10),
-                  _buildTextField(
-                    controller: descripcionController,
-                    label: 'Descripción',
-                    icon: Icons.description,
-                    fontSize: 14.0,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, ingrese una descripción';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 10),
-                  _buildTextField(
-                    controller: montoController,
-                    label: 'Monto',
-                    icon: Icons.attach_money,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    fontSize: 14.0,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, ingrese el monto';
-                      }
-                      if (double.tryParse(value) == null ||
-                          double.parse(value) <= 0) {
-                        return 'Ingrese un monto válido';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 10),
-                  _buildTextField(
-                    controller: anosenActividadController,
-                    label: 'Años en Actividad',
-                    icon: Icons.timelapse,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    fontSize: 14.0,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, ingrese un dato';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
+            return Container(
+              width: width,
+              height: height,
+              child: Form(
+                key: dialogAddIngresosEgresosFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDropdown(
+                      value: selectedTipo,
+                      hint: 'Tipo',
+                      items: tiposFiltrados, // Usamos la lista filtrada
+                      onChanged: (value) {
+                        setState(() {
+                          selectedTipo = value;
+                        });
+                      },
+                      fontSize: 14.0,
+                      validator: (value) {
+                        if (value == null) {
+                          return 'Por favor, seleccione el tipo';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 10),
+                    _buildTextField(
+                      controller: descripcionController,
+                      label: 'Descripción',
+                      icon: Icons.description,
+                      fontSize: 14.0,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese una descripción';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 10),
+                    _buildTextField(
+                      controller: montoController,
+                      label: 'Monto',
+                      icon: Icons.attach_money,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      fontSize: 14.0,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese el monto';
+                        }
+                        if (double.tryParse(value) == null ||
+                            double.parse(value) <= 0) {
+                          return 'Ingrese un monto válido';
+                        }
+                        return null;
+                      },
+                    ),
+                    SizedBox(height: 10),
+                    _buildTextField(
+                      controller: anosenActividadController,
+                      label: 'Años en Actividad',
+                      icon: Icons.timelapse,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      fontSize: 14.0,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingrese un dato';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          style: TextButton.styleFrom(
-            foregroundColor: isDarkMode ? Colors.grey[300] : Colors.grey,
-          ),
-          child: Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            if (dialogAddIngresosEgresosFormKey.currentState!.validate() &&
-                selectedTipo != null) {
-              final nuevoItem = {
-                'tipo_info': selectedTipo,
-                'descripcion': descripcionController.text,
-                'monto_semanal': montoController.text,
-                'años_actividad': anosenActividadController.text,
-              };
-              setState(() {
-                if (index == null) {
-                  ingresosEgresos.add(nuevoItem);
-                } else {
-                  ingresosEgresos[index] = nuevoItem;
-                }
-              });
-              Navigator.pop(context);
-            }
+            );
           },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isDarkMode ? Color(0xFF3A4AD1) : Color(0xFF5162F6),
-            foregroundColor: Colors.white,
-          ),
-          child: Text(index == null ? 'Añadir' : 'Guardar'),
         ),
-      ],
-    ),
-  );
-}
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: isDarkMode ? Colors.grey[300] : Colors.grey,
+            ),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (dialogAddIngresosEgresosFormKey.currentState!.validate() &&
+                  selectedTipo != null) {
+                final nuevoItem = {
+                  'tipo_info': selectedTipo,
+                  'descripcion': descripcionController.text,
+                  'monto_semanal': montoController.text,
+                  'años_actividad': anosenActividadController.text,
+                };
+                setState(() {
+                  if (index == null) {
+                    ingresosEgresos.add(nuevoItem);
+                  } else {
+                    ingresosEgresos[index] = nuevoItem;
+                  }
+                });
+                Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+                  isDarkMode ? Color(0xFF3A4AD1) : Color(0xFF5162F6),
+              foregroundColor: Colors.white,
+            ),
+            child: Text(index == null ? 'Añadir' : 'Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _mostrarAlerta(String mensaje) {
     showDialog(
@@ -3419,62 +3431,66 @@ Widget build(BuildContext context) {
   }
 
   Widget _buildDropdown({
-  required String? value,
-  required String hint,
-  required List<String> items,
-  required void Function(String?) onChanged,
-  double fontSize = 12.0,
-  String? Function(String?)? validator,
-}) {
-  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-  final isDarkMode = themeProvider.isDarkMode;
-  
-  final textColor = isDarkMode ? Colors.white : Colors.black;
-  final borderColor = isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
-  final focusedBorderColor = isDarkMode ? Color(0xFF5162F6) : Colors.black;
-  
-  return DropdownButtonFormField<String>(
-    value: value,
-    hint: value == null
-        ? Text(
-            hint,
-            style: TextStyle(fontSize: fontSize, color: isDarkMode ? Colors.grey[300] : Colors.black),
-          )
-        : null,
-    items: items.map((item) {
-      return DropdownMenuItem(
-        value: item,
-        child: Text(
-          item,
-          style: TextStyle(fontSize: fontSize, color: textColor),
+    required String? value,
+    required String hint,
+    required List<String> items,
+    required void Function(String?) onChanged,
+    double fontSize = 12.0,
+    String? Function(String?)? validator,
+  }) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final borderColor =
+        isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
+    final focusedBorderColor = isDarkMode ? Color(0xFF5162F6) : Colors.black;
+
+    return DropdownButtonFormField<String>(
+      value: value,
+      hint: value == null
+          ? Text(
+              hint,
+              style: TextStyle(
+                  fontSize: fontSize,
+                  color: isDarkMode ? Colors.grey[300] : Colors.black),
+            )
+          : null,
+      items: items.map((item) {
+        return DropdownMenuItem(
+          value: item,
+          child: Text(
+            item,
+            style: TextStyle(fontSize: fontSize, color: textColor),
+          ),
+        );
+      }).toList(),
+      onChanged: onChanged,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: value != null ? hint : null,
+        labelStyle: TextStyle(color: isDarkMode ? Colors.grey[300] : null),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: borderColor),
         ),
-      );
-    }).toList(),
-    onChanged: onChanged,
-    validator: validator,
-    decoration: InputDecoration(
-      labelText: value != null ? hint : null,
-      labelStyle: TextStyle(color: isDarkMode ? Colors.grey[300] : null),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: borderColor),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: borderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: focusedBorderColor),
+        ),
+        fillColor: isDarkMode ? Color(0xFF303030) : Colors.white,
+        filled: true,
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: borderColor),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: focusedBorderColor),
-      ),
-      fillColor: isDarkMode ? Color(0xFF303030) : Colors.white,
-      filled: true,
-    ),
-    style: TextStyle(fontSize: fontSize, color: textColor),
-    dropdownColor: isDarkMode ? Colors.grey[800] : Colors.white,
-    icon: Icon(Icons.arrow_drop_down, color: isDarkMode ? Colors.grey[300] : Colors.black),
-  );
-}
+      style: TextStyle(fontSize: fontSize, color: textColor),
+      dropdownColor: isDarkMode ? Colors.grey[800] : Colors.white,
+      icon: Icon(Icons.arrow_drop_down,
+          color: isDarkMode ? Colors.grey[300] : Colors.black),
+    );
+  }
 
   // El widget para el campo de fecha
   Widget _buildFechaNacimientoField() {

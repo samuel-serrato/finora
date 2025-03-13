@@ -615,23 +615,22 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 ),
               )),
               DataCell(Center(
-                  child: Text('\$${credito.montoTotal.toStringAsFixed(2)}',
+                  child: Text('\$${formatearNumero(credito.montoTotal)}',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
-                  child: Text(
-                      '\$${credito.montoDesembolsado.toStringAsFixed(2)}',
+                  child: Text('\$${formatearNumero(credito.montoDesembolsado)}',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.ti_mensual}%',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
-                  child: Text('\$${credito.montoMasInteres.toStringAsFixed(2)}',
+                  child: Text('\$${formatearNumero(credito.montoMasInteres)}',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.diaPago}',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
-                  child: Text('${credito.pagoCuota}',
+                  child: Text('\$${formatearNumero(credito.pagoCuota)}',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
                   child: Text('${credito.numPago}',
@@ -864,6 +863,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       ),
     );
   }
+}
+
+// Función para formatear números
+String formatearNumero(double numero) {
+  final formatter = NumberFormat("#,##0.00", "en_US");
+  return formatter.format(numero);
 }
 
 class Credito {

@@ -134,32 +134,39 @@ class _LoginScreenState extends State<LoginScreen> {
       'title': 'Historial Completo\nde Transacciones',
       //'subtitle': 'Accede al registro de pagos,\nabonos y ajustes',
       //'image':
-        //  'assets/transaction_history.png', // Ej: Tabla con fechas y montos
+      //  'assets/transaction_history.png', // Ej: Tabla con fechas y montos
       'color': const Color(0xFF9C27B0), // Morado para datos históricos
     },
     {
       'title': 'Reportes Detallados\ny en Tiempo Real',
-     // 'image': 'assets/reports.png',
+      // 'image': 'assets/reports.png',
       'color': const Color(0xFF3F51B5), // Azul corporativo
     },
   ];
 
   @override
   Widget build(BuildContext context) {
-       final themeProvider = Provider.of<ThemeProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
-    
+
     return Scaffold(
       body: Stack(children: [
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
-              colors: [
-                Color(0xFFF0EFFF),
-                Colors.white,
-              ],
+              colors: isDarkMode
+                  ? [
+                      // Colores para modo oscuro
+                      const Color(0xFF1A1A2E), // Azul muy oscuro
+                      const Color(0xFF121212), // Casi negro
+                    ]
+                  : [
+                      // Colores para modo claro (los originales)
+                      const Color(0xFFF0EFFF),
+                      Colors.white,
+                    ],
             ),
           ),
           child: Row(
@@ -364,60 +371,50 @@ class _LoginFormState extends State<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    var isDarkMode = themeProvider.isDarkMode;
+    // Usar colores del tema actual
+    //final theme = Theme.of(context);
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Column(
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 500,
-                  height: 100,
-                  child:
-                      Image.asset('assets/finora_hzt.png', fit: BoxFit.contain),
-                ),
-              ],
+            SizedBox(
+              width: 500,
+              height: 100,
+              // Considera usar diferentes imágenes para modo claro/oscuro
+              child: Image.asset(
+                  isDarkMode
+                      ? 'assets/finora_blanco.png'
+                      : 'assets/finora_hzt.png',
+                  fit: BoxFit.contain),
             ),
-            /*  const SizedBox(height: 20),
-            Text(
-              'Iniciar Sesión',
-              style: TextStyle(
-                fontSize: 24.0,
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w600,
-              ),
-            ), */
           ],
         ),
         const SizedBox(height: 50.0),
         _buildTextField(
+          context: context,
           label: 'Usuario',
           icon: Icons.person_outline,
           controller: widget.usernameController,
+          isDarkMode: isDarkMode,
         ),
         const SizedBox(height: 30.0),
         _buildTextField(
+          context: context,
           label: 'Contraseña',
           icon: Icons.lock_outline,
           isPassword: true,
           controller: widget.passwordController,
-          onFieldSubmitted: widget.onLogin, // Disparar login
+          onFieldSubmitted: widget.onLogin,
           textInputAction: TextInputAction.go,
+          isDarkMode: isDarkMode,
         ),
         const SizedBox(height: 20),
-        /*  Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: () {},
-            child: const Text(
-              '¿Olvidaste tu contraseña?',
-              style: TextStyle(color: Color(0xFF5162F6)),
-            ),
-          ),
-        ), */
         const SizedBox(height: 40.0),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -440,35 +437,36 @@ class _LoginFormState extends State<LoginForm> {
           ),
         ),
         const SizedBox(height: 30),
-        /*  Row(
+        // Botón para cambiar a modo oscuro
+        Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('¿No tienes cuenta? ',
-                style: TextStyle(color: Colors.grey[700])),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                'Regístrate',
-                style: TextStyle(
-                  color: Color(0xFF5162F6),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            IconButton(
+              icon: Icon(isDarkMode ? Icons.dark_mode : Icons.dark_mode,
+                  color: isDarkMode ? Colors.white : Color(0xFF5162F6)),
+              onPressed: () {
+                themeProvider.toggleDarkMode(!isDarkMode);
+              },
             ),
           ],
-        ), */
+        ),
       ],
     );
   }
 
   Widget _buildTextField({
+    required BuildContext context,
     required String label,
     required IconData icon,
     required TextEditingController controller,
+    required bool isDarkMode,
     bool isPassword = false,
-    VoidCallback? onFieldSubmitted, // Nuevo parámetro
-    TextInputAction? textInputAction, // Nuevo parámetro
+    VoidCallback? onFieldSubmitted,
+    TextInputAction? textInputAction,
   }) {
+    // Usar colores del tema
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -476,7 +474,8 @@ class _LoginFormState extends State<LoginForm> {
           label,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
+            // Usar el color de texto del tema actual
+            color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
             fontSize: 15,
           ),
         ),
@@ -484,12 +483,17 @@ class _LoginFormState extends State<LoginForm> {
         TextFormField(
           controller: controller,
           obscureText: isPassword ? _obscurePassword : false,
-          style: TextStyle(color: Colors.grey[800]),
-          onFieldSubmitted: (value) =>
-              onFieldSubmitted?.call(), // Manejar Enter
+          // Usar el color de texto del tema
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.grey[800],
+          ),
+          onFieldSubmitted: (value) => onFieldSubmitted?.call(),
           textInputAction: textInputAction,
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: Colors.grey[500]),
+            prefixIcon: Icon(
+              icon,
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+            ),
             suffixIcon: isPassword
                 ? Padding(
                     padding: const EdgeInsets.only(right: 10),
@@ -498,7 +502,7 @@ class _LoginFormState extends State<LoginForm> {
                         _obscurePassword
                             ? Icons.visibility_off
                             : Icons.visibility,
-                        color: Colors.grey[500],
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
                       ),
                       onPressed: () {
                         setState(() {
@@ -509,19 +513,25 @@ class _LoginFormState extends State<LoginForm> {
                   )
                 : null,
             filled: true,
-            fillColor: Colors.white,
+            // Color de fondo según el modo
+            fillColor: isDarkMode ? Colors.grey[800] : Colors.white,
             contentPadding:
                 const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: BorderSide(color: Colors.grey[300]!, width: 1.5),
+              borderSide: BorderSide(
+                color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                width: 1.5,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
               borderSide: const BorderSide(color: Color(0xFF5162F6), width: 2),
             ),
             hintText: 'Ingrese su ${label.toLowerCase()}',
-            hintStyle: TextStyle(color: Colors.grey[400]),
+            hintStyle: TextStyle(
+              color: isDarkMode ? Colors.grey[500] : Colors.grey[400],
+            ),
           ),
         ),
       ],
