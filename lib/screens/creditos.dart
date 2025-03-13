@@ -731,12 +731,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       case 'Activo':
         return isDarkMode
             ? Color(0xFF3674B5)
-                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+                .withOpacity(0.4) // Fondo más oscuro para modo oscuro
             : Color(0xFF3674B5).withOpacity(0.1); // Fondo claro para modo claro
       case 'Finalizado':
         return isDarkMode
             ? Color(0xFFA31D1D)
-                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+                .withOpacity(0.4) // Fondo más oscuro para modo oscuro
             : Color(0xFFA31D1D).withOpacity(0.1); // Fondo claro para modo claro
       default:
         return isDarkMode

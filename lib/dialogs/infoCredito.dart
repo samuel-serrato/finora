@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -495,11 +496,16 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     final width = MediaQuery.of(context).size.width * 0.97;
     final height = MediaQuery.of(context).size.height * 0.93;
 
     return Dialog(
-        backgroundColor: Color(0xFFF7F8FA),
+        backgroundColor:
+            isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         insetPadding: EdgeInsets.all(16),
         child: Stack(
@@ -1313,6 +1319,12 @@ class _PaginaControlState extends State<PaginaControl> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
+    final Color textColor = isDarkMode ? Colors.white : Colors.black;
+
     return FutureBuilder<List<Pago>>(
       future: _pagosFuture,
       builder: (context, snapshot) {
@@ -1567,11 +1579,17 @@ class _PaginaControlState extends State<PaginaControl> {
                           color: _puedeEditarPago(pago)
                               ? Colors
                                   .transparent // Fondo transparente si es editable
-                              : Colors.blueGrey
-                                  .shade50, // Fondo gris para pagos no editables
+                              : isDarkMode
+                                  ? Colors.blueGrey
+                                      .shade900 // Fondo oscuro para pagos no editables en dark mode
+                                  : Colors.blueGrey
+                                      .shade50, // Fondo claro para pagos no editables en light mode
                           border: Border(
-                            bottom:
-                                BorderSide(color: Color(0xFFEEEEEE), width: 1),
+                            bottom: BorderSide(
+                                color: isDarkMode
+                                    ? Colors.grey.shade700
+                                    : Color(0xFFEEEEEE),
+                                width: 1),
                           ),
                         ),
                         child: Padding(
@@ -1603,7 +1621,12 @@ class _PaginaControlState extends State<PaginaControl> {
                                               pago.tipoPago.isEmpty
                                                   ? "Seleccionar Pago"
                                                   : "",
-                                              style: TextStyle(fontSize: 12),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDarkMode
+                                                    ? Colors.white70
+                                                    : Colors.black87,
+                                              ),
                                             ),
                                             items: <String>[
                                               'Completo',
@@ -1619,9 +1642,13 @@ class _PaginaControlState extends State<PaginaControl> {
                                                   value,
                                                   style: TextStyle(
                                                     fontSize: 12,
-                                                    color:
-                                                        _puedeEditarPago(pago)
-                                                            ? Colors.black
+                                                    color: _puedeEditarPago(
+                                                            pago)
+                                                        ? isDarkMode
+                                                            ? Colors.white
+                                                            : Colors.black
+                                                        : isDarkMode
+                                                            ? Colors.grey[400]
                                                             : Colors.grey[700],
                                                   ),
                                                 ),
@@ -1772,8 +1799,13 @@ class _PaginaControlState extends State<PaginaControl> {
                                               Icons.arrow_drop_down,
                                               color: _puedeEditarPago(pago)
                                                   ? Color(0xFF5162F6)
-                                                  : Colors.grey[400],
+                                                  : isDarkMode
+                                                      ? Colors.grey[600]
+                                                      : Colors.grey[400],
                                             ),
+                                            dropdownColor: isDarkMode
+                                                ? Colors.grey[800]
+                                                : Colors.white,
                                           ),
                                           // Fila para seleccionar la fecha (se muestra tanto en "Completo" como en "Monto Parcial")
                                           // Selector de fecha
@@ -1840,7 +1872,11 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                 ? Color(0xFF5162F6)
                                                                     .withOpacity(
                                                                         0.3)
-                                                                : Colors.grey
+                                                                : (isDarkMode
+                                                                        ? Colors.grey[
+                                                                            600]!
+                                                                        : Colors.grey[
+                                                                            400]!)
                                                                     .withOpacity(
                                                                         0.3),
                                                             width: 0.8,
@@ -1852,9 +1888,11 @@ class _PaginaControlState extends State<PaginaControl> {
                                                       Icons
                                                           .calendar_month_outlined,
                                                       size: 18,
-                                                      color:
-                                                          _puedeEditarPago(pago)
-                                                              ? Colors.white
+                                                      color: _puedeEditarPago(
+                                                              pago)
+                                                          ? Colors.white
+                                                          : isDarkMode
+                                                              ? Colors.grey[500]
                                                               : Colors
                                                                   .grey[400],
                                                     ),
@@ -1869,7 +1907,9 @@ class _PaginaControlState extends State<PaginaControl> {
                                                             .fechaPagoCompleto),
                                                     style: TextStyle(
                                                       fontSize: 12,
-                                                      color: Colors.grey[600],
+                                                      color: isDarkMode
+                                                          ? Colors.grey[400]
+                                                          : Colors.grey[600],
                                                       fontStyle: pago
                                                               .fechaPago.isEmpty
                                                           ? FontStyle.italic
@@ -1905,7 +1945,10 @@ class _PaginaControlState extends State<PaginaControl> {
                                                             BoxDecoration(
                                                           color: Color(
                                                                   0xFFE53888)
-                                                              .withOpacity(0.2),
+                                                              .withOpacity(
+                                                                  isDarkMode
+                                                                      ? 0.3
+                                                                      : 0.2),
                                                           borderRadius:
                                                               BorderRadius
                                                                   .circular(6),
@@ -3228,7 +3271,14 @@ class _PaginaControlState extends State<PaginaControl> {
   }
 
   Widget _buildTableCell(dynamic content,
-      {bool isHeader = false, Color textColor = Colors.black, int flex = 1}) {
+      {bool isHeader = false, Color? textColor, int flex = 1}) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Si no se proporciona un color de texto específico, usar el color basado en el tema
+    final Color actualTextColor =
+        textColor ?? (isDarkMode ? Colors.white : Colors.black);
+
     return Flexible(
       flex: flex,
       child: Padding(
@@ -3241,7 +3291,7 @@ class _PaginaControlState extends State<PaginaControl> {
                   content.toString(),
                   style: TextStyle(
                     fontSize: 14,
-                    color: textColor,
+                    color: actualTextColor,
                     fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
@@ -3770,6 +3820,10 @@ class PaginaIntegrantes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+        final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     // Variables para el estilo del texto
     const headerTextStyle = TextStyle(
       color: Colors.white,
@@ -3777,9 +3831,9 @@ class PaginaIntegrantes extends StatelessWidget {
       fontSize: 13, // Tamaño de fuente del encabezado
     );
 
-    const contentTextStyle = TextStyle(
+    final contentTextStyle = TextStyle(
       fontSize: 12, // Tamaño de fuente del contenido
-      color: Colors.black87,
+      color: isDarkMode ? Colors.white : Colors.black87,
     );
 
     // Estilo para la fila de totales

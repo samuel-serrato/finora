@@ -1,3 +1,4 @@
+import 'package:finora/dialogs/configuracion.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:finora/constants/routes.dart';
@@ -64,7 +65,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+
     final isDarkMode = themeProvider.isDarkMode;
 
     return Column(children: [
@@ -248,6 +250,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                     ),
                                   ),
                                   child: AlertDialog(
+                                    backgroundColor: isDarkMode
+                                        ? Colors.grey[800]
+                                        : Colors.white, // Color dinámico
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20.0),
                                     ),
@@ -351,6 +356,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           if (confirm) await _logoutUser(context);
                         } else if (value == 'acerca_de') {
                           _showAboutDialog(context);
+                        }
+                        if (value == 'configuracion') {
+                          showDialog(
+                            context: context,
+                            barrierColor:
+                                Colors.black38, // Fondo semi-transparente
+                            builder: (context) => ConfiguracionDialog(),
+                          );
                         }
                       },
                       itemBuilder: (context) => [
@@ -492,7 +505,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   void _showAboutDialog(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.30;
     final height = MediaQuery.of(context).size.height * 0.32;
-    final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
+    final isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
     showDialog(
       context: context,
@@ -519,7 +533,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Image.asset(
-                  'assets/finora_hzt.png',
+                  isDarkMode
+                      ? 'assets/finora_blanco.png'
+                      : 'assets/finora_hzt.png',
                   width: 150,
                   height: 50,
                 ),

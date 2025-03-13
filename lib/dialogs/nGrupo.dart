@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class nGrupoDialog extends StatefulWidget {
@@ -173,252 +175,252 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   void _agregarGrupo() async {
-  // Verificación para grupo individual con múltiples miembros
-  if (selectedTipo == 'Individual' && _selectedPersons.length > 1) {
-    bool? cambiarAGrupal = await showDialog<bool>(
-      context: context,
-      builder: (context) => Theme(
-        data: Theme.of(context).copyWith(
-          dialogBackgroundColor: Colors.white,
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: Color(0xFF5162F6),
-            ),
-          ),
-        ),
-        child: AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.0),
-          ),
-          contentPadding: EdgeInsets.only(top: 20, bottom: 20),
-          title: Column(
-            children: [
-              Icon(
-                Icons.group_add,
-                size: 60,
-                color: Color(0xFF5162F6),
-              ),
-              SizedBox(height: 15),
-              Text(
-                'Varios Integrantes',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          content: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'Has seleccionado ${_selectedPersons.length} integrantes, pero el tipo de grupo es "Individual".\n\n'
-              '¿Desea cambiar el tipo a "Grupal" para continuar?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
-                height: 1.4,
+    // Verificación para grupo individual con múltiples miembros
+    if (selectedTipo == 'Individual' && _selectedPersons.length > 1) {
+      bool? cambiarAGrupal = await showDialog<bool>(
+        context: context,
+        builder: (context) => Theme(
+          data: Theme.of(context).copyWith(
+            dialogBackgroundColor: Colors.white,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Color(0xFF5162F6),
               ),
             ),
           ),
-          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.0),
+            ),
+            contentPadding: EdgeInsets.only(top: 20, bottom: 20),
+            title: Column(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey[700],
-                      side: BorderSide(color: Colors.grey[400]!),
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text('Cancelar'),
-                  ),
+                Icon(
+                  Icons.group_add,
+                  size: 60,
+                  color: Color(0xFF5162F6),
                 ),
-                SizedBox(width: 15),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF5162F6),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text('Cambiar Tipo'),
+                SizedBox(height: 15),
+                Text(
+                  'Varios Integrantes',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-
-    if (cambiarAGrupal == true) {
-      setState(() => selectedTipo = 'Grupal');
-    } else {
-      return;
-    }
-  }
-
-  // Verificación para grupo grupal con un solo miembro
-  if (selectedTipo == 'Grupal' && _selectedPersons.length == 1) {
-    bool? cambiarAIndividual = await showDialog<bool>(
-      context: context,
-      builder: (context) => Theme(
-        data: Theme.of(context).copyWith(
-          dialogBackgroundColor: Colors.white,
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: Color(0xFF5162F6),
-            ),
-          ),
-        ),
-        child: AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.0),
-          ),
-          contentPadding: EdgeInsets.only(top: 20, bottom: 20),
-          title: Column(
-            children: [
-              Icon(
-                Icons.group_remove,
-                size: 60,
-                color: Color(0xFF5162F6),
-              ),
-              SizedBox(height: 15),
-              Text(
-                'Grupo Incompleto',
+            content: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Has seleccionado ${_selectedPersons.length} integrantes, pero el tipo de grupo es "Individual".\n\n'
+                '¿Desea cambiar el tipo a "Grupal" para continuar?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  fontSize: 16,
+                  color: Colors.grey[700],
+                  height: 1.4,
                 ),
+              ),
+            ),
+            actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey[700],
+                        side: BorderSide(color: Colors.grey[400]!),
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                      child: Text('Cancelar'),
+                    ),
+                  ),
+                  SizedBox(width: 15),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF5162F6),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text('Cambiar Tipo'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          content: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'Los grupos de tipo "Grupal" requieren mínimo 2 integrantes.\n\n'
-              '¿Desea cambiar el tipo a "Individual" para continuar?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
-                height: 1.4,
-              ),
-            ),
-          ),
-          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey[700],
-                      side: BorderSide(color: Colors.grey[400]!),
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text('Cancelar'),
-                  ),
-                ),
-                SizedBox(width: 15),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF5162F6),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text('Cambiar Tipo'),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
-      ),
-    );
-
-    if (cambiarAIndividual == true) {
-      setState(() => selectedTipo = 'Individual');
-    } else {
-      return;
-    }
-  }
-
-  if (!mounted) return;
-
-  setState(() {
-    _isLoading = true;
-    _errorDeConexion = false;
-    _dialogShown = false;
-  });
-
-  _timer = Timer(Duration(seconds: 10), () {
-    if (mounted && !_dialogShown) {
-      setState(() {
-        _isLoading = false;
-        _errorDeConexion = true;
-      });
-      _mostrarDialogo(
-        title: 'Error',
-        message: 'Tiempo de espera agotado. Verifica tu conexión.',
-        isSuccess: false,
       );
-    }
-  });
 
-  try {
-    final grupoResponse = await _enviarGrupo();
-    if (!mounted) return;
-
-    if (grupoResponse != null) {
-      final idGrupo = grupoResponse["idgrupos"];
-      if (idGrupo != null) {
-        final miembrosAgregados = await _enviarMiembros(idGrupo);
-        if (!mounted) return;
-
-        if (miembrosAgregados) {
-          widget.onGrupoAgregado();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              backgroundColor: Colors.green,
-              content: Text('Grupo agregado correctamente')));
-          Navigator.of(context).pop();
-        }
+      if (cambiarAGrupal == true) {
+        setState(() => selectedTipo = 'Grupal');
+      } else {
+        return;
       }
     }
-  } finally {
-    _timer?.cancel();
-    if (mounted) {
-      setState(() => _isLoading = false);
+
+    // Verificación para grupo grupal con un solo miembro
+    if (selectedTipo == 'Grupal' && _selectedPersons.length == 1) {
+      bool? cambiarAIndividual = await showDialog<bool>(
+        context: context,
+        builder: (context) => Theme(
+          data: Theme.of(context).copyWith(
+            dialogBackgroundColor: Colors.white,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Color(0xFF5162F6),
+              ),
+            ),
+          ),
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.0),
+            ),
+            contentPadding: EdgeInsets.only(top: 20, bottom: 20),
+            title: Column(
+              children: [
+                Icon(
+                  Icons.group_remove,
+                  size: 60,
+                  color: Color(0xFF5162F6),
+                ),
+                SizedBox(height: 15),
+                Text(
+                  'Grupo Incompleto',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            content: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Los grupos de tipo "Grupal" requieren mínimo 2 integrantes.\n\n'
+                '¿Desea cambiar el tipo a "Individual" para continuar?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[700],
+                  height: 1.4,
+                ),
+              ),
+            ),
+            actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey[700],
+                        side: BorderSide(color: Colors.grey[400]!),
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                      child: Text('Cancelar'),
+                    ),
+                  ),
+                  SizedBox(width: 15),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF5162F6),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text('Cambiar Tipo'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (cambiarAIndividual == true) {
+        setState(() => selectedTipo = 'Individual');
+      } else {
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorDeConexion = false;
+      _dialogShown = false;
+    });
+
+    _timer = Timer(Duration(seconds: 10), () {
+      if (mounted && !_dialogShown) {
+        setState(() {
+          _isLoading = false;
+          _errorDeConexion = true;
+        });
+        _mostrarDialogo(
+          title: 'Error',
+          message: 'Tiempo de espera agotado. Verifica tu conexión.',
+          isSuccess: false,
+        );
+      }
+    });
+
+    try {
+      final grupoResponse = await _enviarGrupo();
+      if (!mounted) return;
+
+      if (grupoResponse != null) {
+        final idGrupo = grupoResponse["idgrupos"];
+        if (idGrupo != null) {
+          final miembrosAgregados = await _enviarMiembros(idGrupo);
+          if (!mounted) return;
+
+          if (miembrosAgregados) {
+            widget.onGrupoAgregado();
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                backgroundColor: Colors.green,
+                content: Text('Grupo agregado correctamente')));
+            Navigator.of(context).pop();
+          }
+        }
+      }
+    } finally {
+      _timer?.cancel();
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
 
   Future<Map<String, dynamic>?> _enviarGrupo() async {
     try {
@@ -550,12 +552,17 @@ class _nGrupoDialogState extends State<nGrupoDialog>
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     final width = MediaQuery.of(context).size.width * 0.8;
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor:
+          isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
+      //surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: width,
@@ -777,6 +784,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                     SizedBox(
                         height: verticalSpacing), // Espacio debajo del ícono
                     _buildTextField(
+                      context: context,
                       controller: nombreGrupoController,
                       label: 'Nombre del grupo',
                       icon: Icons.person,
@@ -789,6 +797,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                     ),
                     SizedBox(height: verticalSpacing),
                     _buildDropdown(
+                      context: context,
                       value: selectedTipo,
                       hint: 'Tipo',
                       items: tiposGrupo,
@@ -807,6 +816,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
 
                     SizedBox(height: verticalSpacing),
                     _buildTextField(
+                      context: context,
                       controller: descripcionController,
                       label: 'Descripción',
                       icon: Icons.description,
@@ -819,6 +829,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                     ),
                     SizedBox(height: verticalSpacing),
                     _buildUsuarioDropdown(
+                      context: context,
                       value: _selectedUsuario,
                       hint: 'Seleccionar Asesor',
                       usuarios: _usuarios,
@@ -859,176 +870,204 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   Widget _paginaMiembros() {
-    int pasoActual = 2; // Paso actual que queremos marcar como activo
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+  
+  // Colores adaptados al tema
+  final Color textColor = isDarkMode ? Colors.white : Colors.black;
+  final Color subtitleColor = isDarkMode ? Colors.white70 : Colors.grey[700]!;
+  final Color backgroundMenuColor = Color(0xFF5162F6);
+  final Color cardBackgroundColor = isDarkMode ? Colors.grey.shade800 : Colors.white;
+  final Color inputBorderColor = isDarkMode ? Colors.grey.shade400 : Colors.black;
+  
+  int pasoActual = 2; // Paso actual que queremos marcar como activo
 
-    return Form(
-      key: _miembrosGrupoFormKey,
-      child: Row(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-                color: Color(0xFF5162F6),
-                borderRadius: BorderRadius.all(Radius.circular(20))),
-            width: 250,
-            height: 500,
-            padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                // Paso 1
-                _buildPasoItem(1, "Informacion del grupo", pasoActual == 1),
-                SizedBox(height: 20),
+  return Form(
+    key: _miembrosGrupoFormKey,
+    child: Row(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+              color: backgroundMenuColor,
+              borderRadius: BorderRadius.all(Radius.circular(20))),
+          width: 250,
+          height: 500,
+          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              // Paso 1
+              _buildPasoItem(1, "Informacion del grupo", pasoActual == 1),
+              SizedBox(height: 20),
 
-                // Paso 2
-                _buildPasoItem(2, "Integrantes del grupo", pasoActual == 2),
-                SizedBox(height: 20),
-              ],
-            ),
+              // Paso 2
+              _buildPasoItem(2, "Integrantes del grupo", pasoActual == 2),
+              SizedBox(height: 20),
+            ],
           ),
-          SizedBox(width: 50), // Espacio entre la columna y el formulario
-          Expanded(
-            child: Column(
-              children: [
-                SizedBox(height: 20),
-                TypeAheadField<Map<String, dynamic>>(
-                  builder: (context, controller, focusNode) => TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    autofocus: true,
-                    style: TextStyle(),
-                    decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      hintText: 'Escribe para buscar',
+        ),
+        SizedBox(width: 50), // Espacio entre la columna y el formulario
+        Expanded(
+          child: Column(
+            children: [
+              SizedBox(height: 20),
+              TypeAheadField<Map<String, dynamic>>(
+                builder: (context, controller, focusNode) => TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  autofocus: true,
+                  style: TextStyle(color: textColor),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: inputBorderColor),
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: isDarkMode ? Colors.blue : Color(0xFF5162F6)),
+                    ),
+                    hintText: 'Escribe para buscar',
+                    hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
                   ),
-                  decorationBuilder: (context, child) => Material(
-                    type: MaterialType.card,
-                    elevation: 4,
-                    borderRadius: BorderRadius.circular(10),
-                    child: child,
-                  ),
-                  suggestionsCallback: (search) async {
-                    if (search.isEmpty) {
-                      return [];
-                    }
-                    return await findPersons(search);
-                  },
-                  itemBuilder: (context, person) {
+                ),
+                decorationBuilder: (context, child) => Material(
+                  type: MaterialType.card,
+                  color: cardBackgroundColor,
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(10),
+                  child: child,
+                ),
+                suggestionsCallback: (search) async {
+                  if (search.isEmpty) {
+                    return [];
+                  }
+                  return await findPersons(search);
+                },
+                itemBuilder: (context, person) {
+                  return ListTile(
+                    title: Row(
+                      children: [
+                        Text(
+                          '${person['nombres'] ?? ''} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: textColor,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        SizedBox(width: 10),
+                        Text('-  F. Nacimiento: ${person['fechaNac'] ?? ''}',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: subtitleColor)),
+                        SizedBox(width: 10),
+                        Text('-  Teléfono: ${person['telefono'] ?? ''}',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: subtitleColor)),
+                        Expanded(
+                            child:
+                                SizedBox()), // Esto empuja el estado hacia la derecha
+                        // Container para el estado
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(person['estado']),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _getStatusColor(person['estado'])
+                                  .withOpacity(
+                                      0.6), // Borde con el mismo color pero más fuerte
+                              width: 1, // Grosor del borde
+                            ),
+                          ),
+                          child: Text(
+                            person['estado'] ?? 'N/A',
+                            style: TextStyle(
+                              color: _getStatusColor(person['estado'])
+                                  .withOpacity(
+                                      0.8), // Color del texto más oscuro
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                onSelected: (person) {
+                  // Verificar si la persona ya está en la lista usando el campo `idclientes`
+                  bool personaYaAgregada = _selectedPersons
+                      .any((p) => p['idclientes'] == person['idclientes']);
+
+                  if (!personaYaAgregada) {
+                    setState(() {
+                      _selectedPersons.add(person);
+                      _rolesSeleccionados[person['idclientes']] =
+                          roles[0]; // Rol predeterminado
+                    });
+                    _controller.clear();
+                  } else {
+                    // Opcional: Mostrar un mensaje indicando que la persona ya fue agregada
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(
+                            'La persona ya ha sido agregada a la lista')));
+                  }
+                },
+                controller: _controller,
+                loadingBuilder: (context) => Text('Cargando...', style: TextStyle(color: textColor)),
+                errorBuilder: (context, error) =>
+                    Text('Error al cargar los datos!', style: TextStyle(color: isDarkMode ? Colors.red.shade300 : Colors.red)),
+                emptyBuilder: (context) =>
+                    Text('No hay coincidencias!', style: TextStyle(color: textColor)),
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _selectedPersons.length,
+                  itemBuilder: (context, index) {
+                    final person = _selectedPersons[index];
+                    final nombre = person['nombres'] ?? '';
+                    final idCliente = person['idclientes'];
+
                     return ListTile(
                       title: Row(
                         children: [
                           Text(
-                            '${person['nombres'] ?? ''} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                            '${index + 1}. ',
                             style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.black,
-                                fontWeight: FontWeight.w600),
-                          ),
-                          SizedBox(width: 10),
-                          Text('-  F. Nacimiento: ${person['fechaNac'] ?? ''}',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700])),
-                          SizedBox(width: 10),
-                          Text('-  Teléfono: ${person['telefono'] ?? ''}',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700])),
-                          Expanded(
-                              child:
-                                  SizedBox()), // Esto empuja el estado hacia la derecha
-                          // Container para el estado
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(person['estado']),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: _getStatusColor(person['estado'])
-                                    .withOpacity(
-                                        0.6), // Borde con el mismo color pero más fuerte
-                                width: 1, // Grosor del borde
-                              ),
-                            ),
-                            child: Text(
-                              person['estado'] ?? 'N/A',
-                              style: TextStyle(
-                                color: _getStatusColor(person['estado'])
-                                    .withOpacity(
-                                        0.8), // Color del texto más oscuro
-                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                              ),
+                                fontSize: 16,
+                                color: textColor),
+                          ),
+                          Text(
+                            '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
                             ),
                           ),
                         ],
                       ),
-                    );
-                  },
-                  onSelected: (person) {
-                    // Verificar si la persona ya está en la lista usando el campo `idclientes`
-                    bool personaYaAgregada = _selectedPersons
-                        .any((p) => p['idclientes'] == person['idclientes']);
-
-                    if (!personaYaAgregada) {
-                      setState(() {
-                        _selectedPersons.add(person);
-                        _rolesSeleccionados[person['idclientes']] =
-                            roles[0]; // Rol predeterminado
-                      });
-                      _controller.clear();
-                    } else {
-                      // Opcional: Mostrar un mensaje indicando que la persona ya fue agregada
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(
-                              'La persona ya ha sido agregada a la lista')));
-                    }
-                  },
-                  controller: _controller,
-                  loadingBuilder: (context) => const Text('Cargando...'),
-                  errorBuilder: (context, error) =>
-                      const Text('Error al cargar los datos!'),
-                  emptyBuilder: (context) =>
-                      const Text('No hay coincidencias!'),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _selectedPersons.length,
-                    itemBuilder: (context, index) {
-                      final person = _selectedPersons[index];
-                      final nombre = person['nombres'] ?? '';
-                      final idCliente = person['idclientes'];
-
-                      return ListTile(
-                        title: Row(
-                          children: [
-                            Text(
-                              '${index + 1}. ',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.black),
-                            ),
-                            Text(
-                              '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                        subtitle: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Teléfono: ${person['telefono'] ?? ''}'),
-                            SizedBox(width: 10),
-                            Text(
-                                'F. Nacimiento: ${person['fechaNac'] ?? ''}'),
-                            SizedBox(width: 10),
-                            // Aquí añadimos el estado al lado derecho
-                           Container(
+                      subtitle: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Teléfono: ${person['telefono'] ?? ''}',
+                            style: TextStyle(color: subtitleColor),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'F. Nacimiento: ${person['fechaNac'] ?? ''}',
+                            style: TextStyle(color: subtitleColor),
+                          ),
+                          SizedBox(width: 10),
+                          // Aquí añadimos el estado al lado derecho
+                          Container(
                             padding: EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 0),
                             decoration: BoxDecoration(
@@ -1052,51 +1091,55 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                               ),
                             ),
                           ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            DropdownButton<String>(
-                              value: _rolesSeleccionados[idCliente],
-                              onChanged: (nuevoRol) {
-                                setState(() {
-                                  _rolesSeleccionados[idCliente] = nuevoRol!;
-                                });
-                              },
-                              items: roles
-                                  .map<DropdownMenuItem<String>>(
-                                    (rol) => DropdownMenuItem<String>(
-                                      value: rol,
-                                      child: Text(rol),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          DropdownButton<String>(
+                            value: _rolesSeleccionados[idCliente],
+                            dropdownColor: cardBackgroundColor,
+                            onChanged: (nuevoRol) {
+                              setState(() {
+                                _rolesSeleccionados[idCliente] = nuevoRol!;
+                              });
+                            },
+                            items: roles
+                                .map<DropdownMenuItem<String>>(
+                                  (rol) => DropdownMenuItem<String>(
+                                    value: rol,
+                                    child: Text(
+                                      rol,
+                                      style: TextStyle(color: textColor),
                                     ),
-                                  )
-                                  .toList(),
-                            ),
-                            SizedBox(width: 10),
-                            IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
-                              onPressed: () {
-                                setState(() {
-                                  // Eliminar de la lista y del mapa de roles
-                                  _selectedPersons.removeAt(index);
-                                  _rolesSeleccionados.remove(idCliente);
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                          SizedBox(width: 10),
+                          IconButton(
+                            icon: Icon(Icons.delete, color: isDarkMode ? Colors.red.shade300 : Colors.red),
+                            onPressed: () {
+                              setState(() {
+                                // Eliminar de la lista y del mapa de roles
+                                _selectedPersons.removeAt(index);
+                                _rolesSeleccionados.remove(idCliente);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Color _getStatusColor(String? estado) {
     switch (estado) {
@@ -1119,27 +1162,89 @@ Widget _buildTextField({
   required TextEditingController controller,
   required String label,
   required IconData icon,
+  required BuildContext context, // Añadido el parámetro BuildContext
   TextInputType keyboardType = TextInputType.text,
   String? Function(String?)? validator,
-  double fontSize = 12.0, // Tamaño de fuente por defecto
-  int? maxLength, // Longitud máxima opcional
+  double fontSize = 12.0,
+  int? maxLength,
+  bool enabled = true,
 }) {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+
+  // Colores para modo claro
+  final lightTextColor = enabled ? Colors.black : Colors.grey;
+  final lightIconColor = enabled ? Colors.black : Colors.grey;
+  final lightLabelColor = enabled ? Colors.black : Colors.grey;
+  final lightEnabledBorderColor = Colors.grey.shade700;
+  final lightDisabledBorderColor = Colors.grey;
+  final lightFillColor = Colors.white;
+
+  // Colores para modo oscuro
+  final darkTextColor = enabled ? Colors.white : Colors.grey.shade600;
+  final darkIconColor = enabled ? Colors.grey.shade300 : Colors.grey.shade600;
+  final darkLabelColor = enabled ? Colors.grey.shade300 : Colors.grey.shade600;
+  final darkEnabledBorderColor = Colors.grey.shade500;
+  final darkDisabledBorderColor = Colors.grey.shade700;
+  final darkFillColor = enabled ? Color.fromARGB(255, 35, 35, 35) : Colors.grey.shade900;
+
+  // Colores finales según el modo
+  final textColor = isDarkMode ? darkTextColor : lightTextColor;
+  final iconColor = isDarkMode ? darkIconColor : lightIconColor;
+  final labelColor = isDarkMode ? darkLabelColor : lightLabelColor;
+  final enabledBorderColor =
+      isDarkMode ? darkEnabledBorderColor : lightEnabledBorderColor;
+  final disabledBorderColor =
+      isDarkMode ? darkDisabledBorderColor : lightDisabledBorderColor;
+  final fillColor = isDarkMode ? darkFillColor : lightFillColor;
+  final focusedBorderColor = isDarkMode ? Color(0xFF5162F6) : Colors.black;
+
   return TextFormField(
     controller: controller,
     keyboardType: keyboardType,
-    style: TextStyle(fontSize: fontSize),
+    style: TextStyle(
+      fontSize: fontSize,
+      color: textColor,
+    ),
     decoration: InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-      labelStyle: TextStyle(fontSize: fontSize),
+      prefixIcon: Icon(
+        icon,
+        color: iconColor,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      labelStyle: TextStyle(
+        fontSize: fontSize,
+        color: labelColor,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: enabledBorderColor,
+        ),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: disabledBorderColor,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: focusedBorderColor,
+          width: 1.5,
+        ),
+      ),
+      fillColor: fillColor,
+      filled: true,
     ),
-    validator: validator, // Asignar el validador
-    inputFormatters: maxLength != null
-        ? [
-            LengthLimitingTextInputFormatter(maxLength)
-          ] // Limita a la longitud especificada
-        : [], // Sin limitación si maxLength es null
+    validator: validator,
+    inputFormatters:
+        maxLength != null ? [LengthLimitingTextInputFormatter(maxLength)] : [],
+    enabled: enabled,
   );
 }
 
@@ -1147,22 +1252,32 @@ Widget _buildUsuarioDropdown({
   required Usuario? value,
   required String hint,
   required List<Usuario> usuarios,
+  required BuildContext context,
   required void Function(Usuario?) onChanged,
   double fontSize = 12.0,
   String? Function(Usuario?)? validator,
 }) {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+  
+  // Colores adaptados según el tema
+  final Color textColor = isDarkMode ? Colors.white : Colors.black;
+  final Color borderColor = isDarkMode ? Colors.grey.shade400 : Colors.black;
+  final Color enabledBorderColor = isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
+  final Color iconColor = isDarkMode ? Colors.white70 : Colors.black87;
+  
   return DropdownButtonFormField<Usuario>(
     value: value,
     hint: Text(
       hint,
-      style: TextStyle(fontSize: fontSize, color: Colors.black),
+      style: TextStyle(fontSize: fontSize, color: textColor),
     ),
     items: usuarios.map((usuario) {
       return DropdownMenuItem<Usuario>(
         value: usuario,
         child: Text(
           usuario.nombreCompleto,
-          style: TextStyle(fontSize: fontSize, color: Colors.black),
+          style: TextStyle(fontSize: fontSize, color: textColor),
         ),
       );
     }).toList(),
@@ -1170,21 +1285,24 @@ Widget _buildUsuarioDropdown({
     validator: validator,
     decoration: InputDecoration(
       labelText: value != null ? hint : null,
+      labelStyle: TextStyle(color: textColor),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
+        borderSide: BorderSide(color: borderColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade700),
+        borderSide: BorderSide(color: enabledBorderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
+        borderSide: BorderSide(color: borderColor),
       ),
-      prefixIcon: Icon(Icons.person), // Icono agregado
+      prefixIcon: Icon(Icons.person, color: iconColor),
     ),
-    style: TextStyle(fontSize: fontSize, color: Colors.black),
+    style: TextStyle(fontSize: fontSize, color: textColor),
+    dropdownColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
+    icon: Icon(Icons.arrow_drop_down, color: iconColor),
   );
 }
 
@@ -1192,16 +1310,26 @@ Widget _buildDropdown({
   required String? value,
   required String hint,
   required List<String> items,
+  required BuildContext context,
   required void Function(String?) onChanged,
   double fontSize = 12.0,
   String? Function(String?)? validator,
 }) {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+  
+  // Colores adaptados según el tema
+  final Color textColor = isDarkMode ? Colors.white : Colors.black;
+  final Color borderColor = isDarkMode ? Colors.grey.shade400 : Colors.black;
+  final Color enabledBorderColor = isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
+  final Color iconColor = isDarkMode ? Colors.white70 : Colors.black87;
+  
   return DropdownButtonFormField<String>(
     value: value,
     hint: value == null
         ? Text(
             hint,
-            style: TextStyle(fontSize: fontSize, color: Colors.black),
+            style: TextStyle(fontSize: fontSize, color: textColor),
           )
         : null,
     items: items.map((item) {
@@ -1209,7 +1337,7 @@ Widget _buildDropdown({
         value: item,
         child: Text(
           item,
-          style: TextStyle(fontSize: fontSize, color: Colors.black),
+          style: TextStyle(fontSize: fontSize, color: textColor),
         ),
       );
     }).toList(),
@@ -1217,20 +1345,23 @@ Widget _buildDropdown({
     validator: validator,
     decoration: InputDecoration(
       labelText: value != null ? hint : null,
+      labelStyle: TextStyle(color: textColor),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
+        borderSide: BorderSide(color: borderColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade700),
+        borderSide: BorderSide(color: enabledBorderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
+        borderSide: BorderSide(color: borderColor),
       ),
     ),
-    style: TextStyle(fontSize: fontSize, color: Colors.black),
+    style: TextStyle(fontSize: fontSize, color: textColor),
+    dropdownColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
+    icon: Icon(Icons.arrow_drop_down, color: iconColor),
   );
 }
 

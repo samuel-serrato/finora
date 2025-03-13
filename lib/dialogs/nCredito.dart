@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:finora/formateador.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class nCreditoDialog extends StatefulWidget {
@@ -459,12 +461,16 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     final width = MediaQuery.of(context).size.width * 0.8;
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor: isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA),
+      //surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Stack(children: [
         Container(
@@ -588,6 +594,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   }
 
   Widget _paginaDatosGenerales() {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     int pasoActual = 1; // Paso actual que queremos marcar como activo
     const double verticalSpacing = 20.0; // Espaciado vertical constante
 
@@ -614,6 +624,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                 child: CircularProgressIndicator(),
                               ) // Indicador de carga
                             : _buildDropdown(
+                                context: context,
                                 value: selectedGrupo,
                                 hint: 'Seleccionar Grupo',
                                 items: listaGrupos
@@ -689,56 +700,92 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         flex: 1,
                         child: Container(
                           height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(15.0),
-                            border: Border.all(
-                              color: Colors.grey[400]!,
-                              width: 1.5,
-                            ),
-                          ),
-                          padding: EdgeInsets.symmetric(horizontal: 10.0),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<double>(
-                              hint: Text(
-                                'Elige una tasa de interés',
-                                style: TextStyle(
-                                    fontSize: 12, color: Colors.grey[700]),
+                          child: DropdownButtonFormField<double>(
+                            value: tasaInteresMensualSeleccionada,
+                            hint: Text(
+                              'Elige una tasa de interés',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDarkMode ? Colors.white : Colors.black,
                               ),
-                              isExpanded: true,
-                              value: tasaInteresMensualSeleccionada,
-                              onChanged: (double? newValue) {
-                                print(
-                                    "Seleccionado: $newValue"); // Ver el valor seleccionado
-                                setState(() {
-                                  tasaInteresMensualSeleccionada = newValue;
-                                  if (newValue != 0.0) {
-                                    otroValor = null; // Limpiar si no es "Otro"
-                                    _otroValorController
-                                        .clear(); // Limpiar el TextField
-                                  }
-                                });
-                              },
-                              items: tasas.map<DropdownMenuItem<double>>(
-                                (double value) {
-                                  return DropdownMenuItem<double>(
-                                    value: value,
-                                    child: Text(
-                                      value == 0.0 ? 'Otro' : '$value %',
-                                      style: TextStyle(
-                                          fontSize: 14.0, color: Colors.black),
-                                    ),
-                                  );
-                                },
-                              ).toList(),
-                              icon: Icon(Icons.arrow_drop_down,
-                                  color: Color(0xFF5162F6)),
-                              dropdownColor: Colors.white,
                             ),
+                            items: tasas.map<DropdownMenuItem<double>>(
+                              (double value) {
+                                return DropdownMenuItem<double>(
+                                  value: value,
+                                  child: Text(
+                                    value == 0.0 ? 'Otro' : '$value %',
+                                    style: TextStyle(
+                                      fontSize: 14.0,
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ).toList(),
+                            onChanged: (double? newValue) {
+                              print("Seleccionado: $newValue");
+                              setState(() {
+                                tasaInteresMensualSeleccionada = newValue;
+                                if (newValue != 0.0) {
+                                  otroValor = null;
+                                  _otroValorController.clear();
+                                }
+                              });
+                            },
+                            icon: Icon(Icons.arrow_drop_down,
+                                color: Color(0xFF5162F6)),
+                            dropdownColor: isDarkMode
+                                ? Colors.grey.shade800
+                                : Colors.white,
+                            decoration: InputDecoration(
+                              labelText: tasaInteresMensualSeleccionada != null
+                                  ? 'Elige una tasa de interés'
+                                  : null,
+                              labelStyle: TextStyle(
+                                  color: isDarkMode
+                                      ? Colors.grey.shade300
+                                      : Colors.black),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide(
+                                    color: isDarkMode
+                                        ? Colors.grey.shade500
+                                        : Colors.black,
+                                    width: 1.5),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide(
+                                    color: isDarkMode
+                                        ? Colors.grey.shade600
+                                        : Colors.grey.shade400,
+                                    width: 1.5),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide(
+                                    color: isDarkMode
+                                        ? Colors.grey.shade500
+                                        : Colors.black,
+                                    width: 1.5),
+                              ),
+                              filled: isDarkMode,
+                              fillColor:
+                                  isDarkMode ? Colors.grey.shade900 : null,
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 10.0, vertical: 0),
+                            ),
+                            style: TextStyle(
+                                fontSize: 14.0,
+                                color:
+                                    isDarkMode ? Colors.white : Colors.black),
+                            isExpanded: true,
                           ),
                         ),
                       ),
-
                       // Mostrar el TextField solo si se selecciona "Otro"
                       if (tasaInteresMensualSeleccionada == 0.0) ...[
                         SizedBox(width: 10), // Espaciado entre widgets
@@ -789,6 +836,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         child: Container(
                           height: 50,
                           child: _buildDropdown(
+                            context: context,
                             value: garantia,
                             hint: 'Garantía',
                             items: ["5%", "10%"],
@@ -805,6 +853,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                     children: [
                       Expanded(
                         child: _buildDropdown(
+                          context: context,
                           value: frecuenciaPago,
                           hint: 'Frecuencia de Pago',
                           items: ["Semanal", "Quincenal"],
@@ -824,6 +873,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                               null, // Bloquea la interacción si no hay grupo
                           child: frecuenciaPago == "Semanal"
                               ? _buildDropdown(
+                                  context: context,
                                   value: plazoController.text.isEmpty
                                       ? null
                                       : plazoController.text,
@@ -840,6 +890,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                       : null,
                                 )
                               : _buildDropdown(
+                                  context: context,
                                   value: plazoController.text.isEmpty
                                       ? null
                                       : plazoController.text,
@@ -1064,6 +1115,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   }
 
   Widget _paginaResumen() {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     int pasoActual = 3; // Paso actual para esta página
 
     const double fontSize = 12.0;
@@ -1296,7 +1351,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                     margin: EdgeInsets.symmetric(vertical: 10),
                     padding: EdgeInsets.all(15),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black26,
@@ -1370,8 +1425,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _infoRow('Monto Garantía: ', '\$${formatearNumero(montoGarantia)}'),
-
+                            _infoRow('Monto Garantía: ',
+                                '\$${formatearNumero(montoGarantia)}'),
                             _infoRow('Plazo: ', plazoNumerico.toString()),
                           ],
                         ),
@@ -1438,7 +1493,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                     margin: EdgeInsets.symmetric(vertical: 10),
                     padding: EdgeInsets.all(15),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black26,
@@ -1592,7 +1647,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                     margin: EdgeInsets.symmetric(vertical: 10),
                     padding: EdgeInsets.all(15),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black26,
@@ -2115,17 +2170,30 @@ Widget _buildDropdown({
   required String? value,
   required String hint,
   required List<String> items,
+  required BuildContext context,
   required void Function(String?) onChanged,
   double fontSize = 12.0,
   String? Function(String?)? validator,
-  double borderThickness = 1.5, // Nuevo parámetro para el grosor del borde
+  double borderThickness = 1.5, // Parámetro para el grosor del borde
 }) {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+
+  // Colores adaptados según el tema
+  final Color textColor = isDarkMode ? Colors.white : Colors.black;
+  final Color labelColor = isDarkMode ? Colors.grey.shade300 : Colors.black;
+  final Color borderColor = isDarkMode ? Colors.grey.shade500 : Colors.black;
+  final Color enabledBorderColor =
+      isDarkMode ? Colors.grey.shade600 : Colors.grey.shade400;
+  final Color iconColor = isDarkMode ? Color(0xFF5162F6) : Color(0xFF5162F6);
+  final Color dropdownColor = isDarkMode ? Colors.grey.shade800 : Colors.white;
+
   return DropdownButtonFormField<String>(
     value: value,
     hint: value == null
         ? Text(
             hint,
-            style: TextStyle(fontSize: fontSize, color: Colors.black),
+            style: TextStyle(fontSize: fontSize, color: textColor),
           )
         : null,
     items: items.map((item) {
@@ -2133,31 +2201,35 @@ Widget _buildDropdown({
         value: item,
         child: Text(
           item,
-          style: TextStyle(fontSize: fontSize, color: Colors.black),
+          style: TextStyle(fontSize: fontSize, color: textColor),
         ),
       );
     }).toList(),
-    icon: Icon(Icons.arrow_drop_down, color: Color(0xFF5162F6)),
-    dropdownColor: Colors.white,
+    icon: Icon(Icons.arrow_drop_down, color: iconColor),
+    dropdownColor: dropdownColor,
     onChanged: onChanged,
     validator: validator,
     decoration: InputDecoration(
       labelText: value != null ? hint : null,
+      labelStyle: TextStyle(color: labelColor),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide(color: Colors.black, width: borderThickness),
+        borderSide: BorderSide(color: borderColor, width: borderThickness),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
         borderSide:
-            BorderSide(color: Colors.grey.shade400, width: borderThickness),
+            BorderSide(color: enabledBorderColor, width: borderThickness),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide(color: Colors.black, width: borderThickness),
+        borderSide: BorderSide(color: borderColor, width: borderThickness),
       ),
+      // Añadido para modo oscuro
+      filled: isDarkMode,
+      fillColor: isDarkMode ? Colors.grey.shade900 : null,
     ),
-    style: TextStyle(fontSize: fontSize, color: Colors.black),
+    style: TextStyle(fontSize: fontSize, color: textColor),
   );
 }
 

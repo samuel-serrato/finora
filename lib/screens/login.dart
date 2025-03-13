@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/constants/routes.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/navigation_rail.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -144,6 +146,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+       final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    
     return Scaffold(
       body: Stack(children: [
         Container(

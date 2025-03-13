@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class nClienteDialog extends StatefulWidget {
@@ -1177,169 +1179,186 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width * 0.8;
-    final height = MediaQuery.of(context).size.height * 0.8;
+Widget build(BuildContext context) {
+  final themeProvider = Provider.of<ThemeProvider>(context,
+      listen: false); // Obtén el ThemeProvider
+  final isDarkMode = themeProvider.isDarkMode; // Estado del tema
 
-    return Dialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        width: width,
-        height: height,
-        padding: EdgeInsets.all(20),
-        child: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(),
-              )
-            : Column(
-                children: [
-                  Text(
-                    isEditing ? 'Editar Cliente' : 'Agregar Cliente',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+  final width = MediaQuery.of(context).size.width * 0.8;
+  final height = MediaQuery.of(context).size.height * 0.8;
+
+  return Dialog(
+    backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+    surfaceTintColor: isDarkMode ? Colors.grey[850] : Colors.white,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    child: Container(
+      width: width,
+      height: height,
+      padding: EdgeInsets.all(20),
+      child: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(),
+            )
+          : Column(
+              children: [
+                Text(
+                  isEditing ? 'Editar Cliente' : 'Agregar Cliente',
+                  style: TextStyle(
+                    fontSize: 20, 
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? Colors.white : Colors.black,
                   ),
-                  SizedBox(height: 10),
-                  Focus(
-                    canRequestFocus: false,
-                    descendantsAreFocusable: false,
-                    child: IgnorePointer(
-                      child: TabBar(
-                        controller: _tabController,
-                        labelColor: Color(0xFF5162F6),
-                        unselectedLabelColor: Colors.grey,
-                        indicatorColor: Color(0xFF5162F6),
-                        tabs: [
-                          Tab(text: 'Información Personal'),
-                          Tab(text: 'Cuenta Bancaria'),
-                          Tab(text: 'Ingresos y Egresos'),
-                          Tab(text: 'Referencias'),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: TabBarView(
+                ),
+                SizedBox(height: 10),
+                Focus(
+                  canRequestFocus: false,
+                  descendantsAreFocusable: false,
+                  child: IgnorePointer(
+                    child: TabBar(
                       controller: _tabController,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              right: 30, top: 10, bottom: 10, left: 0),
-                          child: _paginaInfoPersonal(),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              right: 30, top: 10, bottom: 10, left: 0),
-                          child: _paginaCuentaBancaria(),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              right: 30, top: 10, bottom: 10, left: 0),
-                          child: _paginaIngresosEgresos(),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              right: 30, top: 10, bottom: 10, left: 0),
-                          child: _paginaReferencias(),
-                        ),
+                      labelColor: Color(0xFF5162F6),
+                      unselectedLabelColor: isDarkMode ? Colors.grey[400] : Colors.grey,
+                      indicatorColor: Color(0xFF5162F6),
+                      tabs: [
+                        Tab(text: 'Información Personal'),
+                        Tab(text: 'Cuenta Bancaria'),
+                        Tab(text: 'Ingresos y Egresos'),
+                        Tab(text: 'Referencias'),
                       ],
                     ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
                     children: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.grey,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text('Cancelar'),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            right: 30, top: 10, bottom: 10, left: 0),
+                        child: _paginaInfoPersonal(),
                       ),
-                      Row(
-                        children: [
-                          if (_currentIndex > 0)
-                            TextButton(
-                              onPressed: () {
-                                _tabController.animateTo(_currentIndex - 1);
-                              },
-                              child: Text('Atrás'),
-                            ),
-                          if (_currentIndex <= 3)
-                            ElevatedButton(
-                              onPressed: () {
-                                if (_currentIndex < 3) {
-                                  if (_currentIndex == 2 &&
-                                      ingresosEgresos.isEmpty) {
-                                    _showErrorDialog(
-                                      "No se puede avanzar",
-                                      "Por favor, agregue al menos un ingreso o egreso.",
-                                    );
-                                    return;
-                                  }
-
-                                  if (_validarFormularioActual()) {
-                                    _tabController.animateTo(_currentIndex + 1);
-                                  } else {
-                                    print(
-                                        "Validación fallida en la pestaña $_currentIndex");
-                                  }
-                                } else if (_currentIndex == 3) {
-                                  if (referencias.isEmpty) {
-                                    _showErrorDialog(
-                                      "No se puede agregar el cliente",
-                                      "Por favor, agregue al menos una referencia.",
-                                    );
-                                    return;
-                                  }
-
-                                  if (ingresosEgresos.isEmpty) {
-                                    _showErrorDialog(
-                                      "No se puede avanzar",
-                                      "Por favor, agregue al menos un ingreso o egreso.",
-                                    );
-                                    return;
-                                  }
-
-                                  if (_validarFormularioActual()) {
-                                    if (isEditing) {
-                                      print('Se va a editar');
-                                      compareAndPrintEditedEndpointFields();
-                                      sendEditedData(
-                                          context,
-                                          widget.idCliente!,
-                                          idcuantabank!,
-                                          iddomicilios!,
-                                          idingegrList,
-                                          idreferenciasList,
-                                          iddomiciliosRef!);
-                                    } else {
-                                      _agregarCliente();
-                                    }
-                                  } else {
-                                    _showErrorDialog(
-                                      "No se puede agregar el cliente",
-                                      "Por favor, complete todos los campos requeridos.",
-                                    );
-                                  }
-                                }
-                              },
-                              child: Text(
-                                  _currentIndex == 3 ? 'Guardar' : 'Siguiente'),
-                            ),
-                        ],
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            right: 30, top: 10, bottom: 10, left: 0),
+                        child: _paginaCuentaBancaria(),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            right: 30, top: 10, bottom: 10, left: 0),
+                        child: _paginaIngresosEgresos(),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            right: 30, top: 10, bottom: 10, left: 0),
+                        child: _paginaReferencias(),
                       ),
                     ],
                   ),
-                ],
-              ),
-      ),
-    );
-  }
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: isDarkMode ? Colors.grey[300] : Colors.grey,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text('Cancelar'),
+                    ),
+                    Row(
+                      children: [
+                        if (_currentIndex > 0)
+                          TextButton(
+                            onPressed: () {
+                              _tabController.animateTo(_currentIndex - 1);
+                            },
+                            child: Text(
+                              'Atrás',
+                              style: TextStyle(
+                                color: isDarkMode ? Colors.blue[300] : null,
+                              ),
+                            ),
+                          ),
+                        if (_currentIndex <= 3)
+                          ElevatedButton(
+                            onPressed: () {
+                              if (_currentIndex < 3) {
+                                if (_currentIndex == 2 &&
+                                    ingresosEgresos.isEmpty) {
+                                  _showErrorDialog(
+                                    "No se puede avanzar",
+                                    "Por favor, agregue al menos un ingreso o egreso.",
+                                  );
+                                  return;
+                                }
+
+                                if (_validarFormularioActual()) {
+                                  _tabController.animateTo(_currentIndex + 1);
+                                } else {
+                                  print(
+                                      "Validación fallida en la pestaña $_currentIndex");
+                                }
+                              } else if (_currentIndex == 3) {
+                                if (referencias.isEmpty) {
+                                  _showErrorDialog(
+                                    "No se puede agregar el cliente",
+                                    "Por favor, agregue al menos una referencia.",
+                                  );
+                                  return;
+                                }
+
+                                if (ingresosEgresos.isEmpty) {
+                                  _showErrorDialog(
+                                    "No se puede avanzar",
+                                    "Por favor, agregue al menos un ingreso o egreso.",
+                                  );
+                                  return;
+                                }
+
+                                if (_validarFormularioActual()) {
+                                  if (isEditing) {
+                                    print('Se va a editar');
+                                    compareAndPrintEditedEndpointFields();
+                                    sendEditedData(
+                                        context,
+                                        widget.idCliente!,
+                                        idcuantabank!,
+                                        iddomicilios!,
+                                        idingegrList,
+                                        idreferenciasList,
+                                        iddomiciliosRef!);
+                                  } else {
+                                    _agregarCliente();
+                                  }
+                                } else {
+                                  _showErrorDialog(
+                                    "No se puede agregar el cliente",
+                                    "Por favor, complete todos los campos requeridos.",
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDarkMode ? Color(0xFF3A4AD1) : Color(0xFF5162F6),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: Text(
+                                _currentIndex == 3 ? 'Guardar' : 'Siguiente'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+    ),
+  );
+}
 
   void _showErrorDialog(String title, String message) {
     showDialog(
@@ -1444,20 +1463,8 @@ class _nClienteDialogState extends State<nClienteDialog>
 
   Widget _paginaInfoPersonal() {
     const double verticalSpacing = 20.0; // Variable para el espaciado vertical
-    //const double fontSize = 12.0; // Tamaño de fuente más pequeño
     int pasoActual = 1; // Paso actual que queremos marcar como activo
 
-    // Asigna valores a los controladores, convirtiendo "null" en cadena vacía
-    /* nombreConyugeController.text = clienteData['nombreConyuge'] == "null"
-        ? ''
-        : clienteData['nombreConyuge'];
-    telefonoConyugeController.text = clienteData['telefonoConyuge'] == "null"
-        ? ''
-        : clienteData['telefonoConyuge'];
-    ocupacionConyugeController.text = clienteData['ocupacionConyuge'] == "null"
-        ? ''
-        : clienteData['ocupacionConyuge'];
- */
     return Form(
       key: _personalFormKey, // Asignar la clave al formulario
       child: Row(
@@ -1674,24 +1681,26 @@ class _nClienteDialogState extends State<nClienteDialog>
                       ),
                       SizedBox(width: 10),
                       Expanded(
-  child: _buildTextField(
-    controller: emailClientecontroller,
-    label: 'Correo electrónico',
-    icon: Icons.email,
-    keyboardType: TextInputType.emailAddress, // <- Aquí se especifica
-    validator: (value) {
-      if (value == null || value.isEmpty) {
-        return 'Por favor, ingrese el correo electrónico';
-      }
-      // Expresión regular para validar el formato de un correo electrónico
-      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-      if (!emailRegex.hasMatch(value)) {
-        return 'Por favor, ingrese un correo electrónico válido';
-      }
-      return null;
-    },
-  ),
-),
+                        child: _buildTextField(
+                          controller: emailClientecontroller,
+                          label: 'Correo electrónico',
+                          icon: Icons.email,
+                          keyboardType: TextInputType
+                              .emailAddress, // <- Aquí se especifica
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Por favor, ingrese el correo electrónico';
+                            }
+                            // Expresión regular para validar el formato de un correo electrónico
+                            final emailRegex =
+                                RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                            if (!emailRegex.hasMatch(value)) {
+                              return 'Por favor, ingrese un correo electrónico válido';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
                     ],
                   ),
                   SizedBox(height: verticalSpacing),
@@ -2673,6 +2682,10 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogReferencia({int? index, Map<String, dynamic>? item}) {
+    // Obtener estado del tema
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+
     final GlobalKey<FormState> dialogAddReferenciasFormKey =
         GlobalKey<FormState>();
 
@@ -2734,12 +2747,12 @@ class _nClienteDialogState extends State<nClienteDialog>
       barrierDismissible: false,
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
         contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         title: Center(
           child: Text(
             index == null ? 'Nueva Referencia' : 'Editar Referencia',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.white : Colors.black),
           ),
         ),
         content: StatefulBuilder(
@@ -2889,7 +2902,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                             Text(
                               'Los datos de domicilio de la referencia son opcionales',
                               style: TextStyle(
-                                  fontSize: 12, color: Colors.grey[700]),
+                                  fontSize: 12, color: isDarkMode? Colors.white : Colors.grey[700]),
                             ),
                             SizedBox(height: 10),
                             Row(
@@ -3180,165 +3193,180 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogIngresoEgreso({int? index, Map<String, dynamic>? item}) {
-    // Ajustar el valor seleccionado
-    String? selectedTipo = item?['tipo_info'];
+  // Ajustar el valor seleccionado
+  String? selectedTipo = item?['tipo_info'];
 
-    // Imprimir el valor original de selectedTipo
-    print("Valor original de selectedTipo: $selectedTipo");
+  // Imprimir el valor original de selectedTipo
+  print("Valor original de selectedTipo: $selectedTipo");
 
-    // Si el valor es 'No asignado', asignamos null para no mostrarlo en el dropdown
-    if (selectedTipo == 'No asignado') {
-      selectedTipo = null;
-    }
-
-    // Imprimir el valor de selectedTipo después de la comprobación
-    print(
-        "Valor de selectedTipo después de comprobar 'No asignado': $selectedTipo");
-
-    final descripcionController =
-        TextEditingController(text: item?['descripcion'] ?? '');
-    final montoController =
-        TextEditingController(text: item?['monto_semanal']?.toString() ?? '');
-
-    final anosenActividadController =
-        TextEditingController(text: item?['años_actividad']?.toString() ?? '');
-
-    // Crea un nuevo GlobalKey para el formulario del diálogo
-    final GlobalKey<FormState> dialogAddIngresosEgresosFormKey =
-        GlobalKey<FormState>();
-
-    final width = MediaQuery.of(context).size.width * 0.4;
-    final height = MediaQuery.of(context).size.height * 0.5;
-
-    // Imprimir la lista original de tipos de ingreso/egreso
-    print("Lista original de tiposIngresoEgreso: $tiposIngresoEgreso");
-
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text(
-            index == null ? 'Nuevo Ingreso/Egreso' : 'Editar Ingreso/Egreso'),
-        content: StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            // Filtrar 'No asignado' de la lista
-            List<String> tiposFiltrados = tiposIngresoEgreso
-                .where((item) => item != 'No asignado')
-                .toList();
-
-            // Imprimir la lista filtrada
-            print("Lista filtrada de tiposIngresoEgreso: $tiposFiltrados");
-
-            return Container(
-              width: width,
-              height: height,
-              child: Form(
-                key: dialogAddIngresosEgresosFormKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildDropdown(
-                      value: selectedTipo,
-                      hint: 'Tipo',
-                      items: tiposFiltrados, // Usamos la lista filtrada
-                      onChanged: (value) {
-                        setState(() {
-                          selectedTipo = value;
-                        });
-                      },
-                      fontSize: 14.0,
-                      validator: (value) {
-                        if (value == null) {
-                          return 'Por favor, seleccione el tipo';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    _buildTextField(
-                      controller: descripcionController,
-                      label: 'Descripción',
-                      icon: Icons.description,
-                      fontSize: 14.0,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, ingrese una descripción';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    _buildTextField(
-                      controller: montoController,
-                      label: 'Monto',
-                      icon: Icons.attach_money,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      fontSize: 14.0,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, ingrese el monto';
-                        }
-                        if (double.tryParse(value) == null ||
-                            double.parse(value) <= 0) {
-                          return 'Ingrese un monto válido';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    _buildTextField(
-                      controller: anosenActividadController,
-                      label: 'Años en Actividad',
-                      icon: Icons.timelapse,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      fontSize: 14.0,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, ingrese un dato';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (dialogAddIngresosEgresosFormKey.currentState!.validate() &&
-                  selectedTipo != null) {
-                final nuevoItem = {
-                  'tipo_info': selectedTipo,
-                  'descripcion': descripcionController.text,
-                  'monto_semanal': montoController.text,
-                  'años_actividad': anosenActividadController.text,
-                };
-                setState(() {
-                  if (index == null) {
-                    ingresosEgresos.add(nuevoItem);
-                  } else {
-                    ingresosEgresos[index] = nuevoItem;
-                  }
-                });
-                Navigator.pop(context);
-              }
-            },
-            child: Text(index == null ? 'Añadir' : 'Guardar'),
-          ),
-        ],
-      ),
-    );
+  // Si el valor es 'No asignado', asignamos null para no mostrarlo en el dropdown
+  if (selectedTipo == 'No asignado') {
+    selectedTipo = null;
   }
+
+  // Imprimir el valor de selectedTipo después de la comprobación
+  print(
+      "Valor de selectedTipo después de comprobar 'No asignado': $selectedTipo");
+
+  final descripcionController =
+      TextEditingController(text: item?['descripcion'] ?? '');
+  final montoController =
+      TextEditingController(text: item?['monto_semanal']?.toString() ?? '');
+
+  final anosenActividadController =
+      TextEditingController(text: item?['años_actividad']?.toString() ?? '');
+
+  // Crea un nuevo GlobalKey para el formulario del diálogo
+  final GlobalKey<FormState> dialogAddIngresosEgresosFormKey =
+      GlobalKey<FormState>();
+
+  final width = MediaQuery.of(context).size.width * 0.4;
+  final height = MediaQuery.of(context).size.height * 0.5;
+  
+  // Obtener estado del tema
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+
+  // Imprimir la lista original de tipos de ingreso/egreso
+  print("Lista original de tiposIngresoEgreso: $tiposIngresoEgreso");
+
+  showDialog(
+    barrierDismissible: false,
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+      title: Text(
+        index == null ? 'Nuevo Ingreso/Egreso' : 'Editar Ingreso/Egreso',
+        style: TextStyle(
+          color: isDarkMode ? Colors.white : Colors.black,
+        ),
+      ),
+      content: StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          // Filtrar 'No asignado' de la lista
+          List<String> tiposFiltrados = tiposIngresoEgreso
+              .where((item) => item != 'No asignado')
+              .toList();
+
+          // Imprimir la lista filtrada
+          print("Lista filtrada de tiposIngresoEgreso: $tiposFiltrados");
+
+          return Container(
+            width: width,
+            height: height,
+            child: Form(
+              key: dialogAddIngresosEgresosFormKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDropdown(
+                    value: selectedTipo,
+                    hint: 'Tipo',
+                    items: tiposFiltrados, // Usamos la lista filtrada
+                    onChanged: (value) {
+                      setState(() {
+                        selectedTipo = value;
+                      });
+                    },
+                    fontSize: 14.0,
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Por favor, seleccione el tipo';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  _buildTextField(
+                    controller: descripcionController,
+                    label: 'Descripción',
+                    icon: Icons.description,
+                    fontSize: 14.0,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingrese una descripción';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  _buildTextField(
+                    controller: montoController,
+                    label: 'Monto',
+                    icon: Icons.attach_money,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    fontSize: 14.0,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingrese el monto';
+                      }
+                      if (double.tryParse(value) == null ||
+                          double.parse(value) <= 0) {
+                        return 'Ingrese un monto válido';
+                      }
+                      return null;
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  _buildTextField(
+                    controller: anosenActividadController,
+                    label: 'Años en Actividad',
+                    icon: Icons.timelapse,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    fontSize: 14.0,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, ingrese un dato';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          style: TextButton.styleFrom(
+            foregroundColor: isDarkMode ? Colors.grey[300] : Colors.grey,
+          ),
+          child: Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (dialogAddIngresosEgresosFormKey.currentState!.validate() &&
+                selectedTipo != null) {
+              final nuevoItem = {
+                'tipo_info': selectedTipo,
+                'descripcion': descripcionController.text,
+                'monto_semanal': montoController.text,
+                'años_actividad': anosenActividadController.text,
+              };
+              setState(() {
+                if (index == null) {
+                  ingresosEgresos.add(nuevoItem);
+                } else {
+                  ingresosEgresos[index] = nuevoItem;
+                }
+              });
+              Navigator.pop(context);
+            }
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isDarkMode ? Color(0xFF3A4AD1) : Color(0xFF5162F6),
+            foregroundColor: Colors.white,
+          ),
+          child: Text(index == null ? 'Añadir' : 'Guardar'),
+        ),
+      ],
+    ),
+  );
+}
 
   void _mostrarAlerta(String mensaje) {
     showDialog(
@@ -3391,103 +3419,117 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   Widget _buildDropdown({
-    required String? value,
-    required String hint,
-    required List<String> items,
-    required void Function(String?) onChanged,
-    double fontSize = 12.0,
-    String? Function(String?)? validator,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      hint: value == null
-          ? Text(
-              hint,
-              style: TextStyle(fontSize: fontSize, color: Colors.black),
-            )
-          : null,
-      items: items.map((item) {
-        return DropdownMenuItem(
-          value: item,
-          child: Text(
-            item,
-            style: TextStyle(fontSize: fontSize, color: Colors.black),
-          ),
-        );
-      }).toList(),
-      onChanged: onChanged,
-      validator: validator, // Validación para el Dropdown
-      decoration: InputDecoration(
-        labelText: value != null ? hint : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.black),
+  required String? value,
+  required String hint,
+  required List<String> items,
+  required void Function(String?) onChanged,
+  double fontSize = 12.0,
+  String? Function(String?)? validator,
+}) {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+  
+  final textColor = isDarkMode ? Colors.white : Colors.black;
+  final borderColor = isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
+  final focusedBorderColor = isDarkMode ? Color(0xFF5162F6) : Colors.black;
+  
+  return DropdownButtonFormField<String>(
+    value: value,
+    hint: value == null
+        ? Text(
+            hint,
+            style: TextStyle(fontSize: fontSize, color: isDarkMode ? Colors.grey[300] : Colors.black),
+          )
+        : null,
+    items: items.map((item) {
+      return DropdownMenuItem(
+        value: item,
+        child: Text(
+          item,
+          style: TextStyle(fontSize: fontSize, color: textColor),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade700),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.black),
-        ),
+      );
+    }).toList(),
+    onChanged: onChanged,
+    validator: validator,
+    decoration: InputDecoration(
+      labelText: value != null ? hint : null,
+      labelStyle: TextStyle(color: isDarkMode ? Colors.grey[300] : null),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: borderColor),
       ),
-      style: TextStyle(fontSize: fontSize, color: Colors.black),
-    );
-  }
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: focusedBorderColor),
+      ),
+      fillColor: isDarkMode ? Color(0xFF303030) : Colors.white,
+      filled: true,
+    ),
+    style: TextStyle(fontSize: fontSize, color: textColor),
+    dropdownColor: isDarkMode ? Colors.grey[800] : Colors.white,
+    icon: Icon(Icons.arrow_drop_down, color: isDarkMode ? Colors.grey[300] : Colors.black),
+  );
+}
 
   // El widget para el campo de fecha
   Widget _buildFechaNacimientoField() {
-  return MouseRegion(
-    cursor: SystemMouseCursors.click,
-    child: GestureDetector(
-      onTap: () async {
-        DateTime? pickedDate = await showDatePicker(
-          context: context,
-          initialDate: selectedDate ?? DateTime.now(),
-          firstDate: DateTime(1900),
-          lastDate: DateTime.now(),
-          locale: const Locale('es', 'ES'),
-          builder: (BuildContext context, Widget? child) {
-            return Theme(
-              data: ThemeData.light().copyWith(
-                primaryColor: Colors.white,
-                colorScheme: ColorScheme.fromSwatch().copyWith(
-                  primary: const Color(0xFF5162F6),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () async {
+          DateTime? pickedDate = await showDatePicker(
+            context: context,
+            initialDate: selectedDate ?? DateTime.now(),
+            firstDate: DateTime(1900),
+            lastDate: DateTime.now(),
+            locale: const Locale('es', 'ES'),
+            builder: (BuildContext context, Widget? child) {
+              return Theme(
+                data: ThemeData.light().copyWith(
+                  primaryColor: Colors.white,
+                  colorScheme: ColorScheme.fromSwatch().copyWith(
+                    primary: const Color(0xFF5162F6),
+                  ),
                 ),
-              ),
-              child: child!,
-            );
-          },
-        );
-        if (pickedDate != null) {
-          setState(() {
-            selectedDate = pickedDate;
-            _fechaController.text = DateFormat('dd/MM/yyyy').format(selectedDate!); // Formateado aquí
-          });
-        }
-      },
-      child: AbsorbPointer(
-        child: TextFormField(
-          controller: _fechaController,
-          style: const TextStyle(fontSize: 12),
-          decoration: InputDecoration(
-            labelText: 'Fecha de Nacimiento',
-            labelStyle: const TextStyle(fontSize: 12),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            hintText: 'Selecciona una fecha',
+                child: child!,
+              );
+            },
+          );
+          if (pickedDate != null) {
+            setState(() {
+              selectedDate = pickedDate;
+              _fechaController.text = DateFormat('dd/MM/yyyy')
+                  .format(selectedDate!); // Formateado aquí
+            });
+          }
+        },
+        child: AbsorbPointer(
+          child: TextFormField(
+            controller: _fechaController,
+            style: const TextStyle(fontSize: 12),
+            decoration: InputDecoration(
+              labelText: 'Fecha de Nacimiento',
+              labelStyle: const TextStyle(fontSize: 12),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              hintText: 'Selecciona una fecha',
+            ),
+            validator: (value) {
+              if (selectedDate == null) {
+                return 'Por favor, selecciona una fecha de nacimiento';
+              }
+              return null;
+            },
           ),
-          validator: (value) {
-            if (selectedDate == null) {
-              return 'Por favor, selecciona una fecha de nacimiento';
-            }
-            return null;
-          },
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   void _agregarCliente() async {
     setState(() {

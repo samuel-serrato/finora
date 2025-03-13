@@ -758,21 +758,21 @@ class _ClientesScreenState extends State<ClientesScreen> {
       case 'En Credito':
         return isDarkMode
             ? Color(0xFFA31D1D)
-                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+                .withOpacity(0.4) // Fondo más oscuro para modo oscuro
             : Color(0xFFA31D1D).withOpacity(0.1); // Fondo claro para modo claro
       case 'En Grupo':
         return isDarkMode
             ? Color(0xFF3674B5)
-                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+                .withOpacity(0.4) // Fondo más oscuro para modo oscuro
             : Color(0xFF3674B5).withOpacity(0.1); // Fondo claro para modo claro
       case 'Disponible':
         return isDarkMode
             ? Color(0xFF059212)
-                .withOpacity(0.2) // Fondo más oscuro para modo oscuro
+                .withOpacity(0.4) // Fondo más oscuro para modo oscuro
             : Color(0xFF059212).withOpacity(0.1); // Fondo claro para modo claro
       default:
         return isDarkMode
-            ? Colors.grey.withOpacity(0.2) // Fondo más oscuro para modo oscuro
+            ? Colors.grey.withOpacity(0.4) // Fondo más oscuro para modo oscuro
             : Colors.grey.withOpacity(0.1); // Fondo claro para modo claro
     }
   }

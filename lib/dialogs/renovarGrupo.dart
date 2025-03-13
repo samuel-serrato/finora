@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class renovarGrupoDialog extends StatefulWidget {
@@ -349,12 +351,16 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     final width = MediaQuery.of(context).size.width * 0.8;
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor: isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA),
+      //surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: width,
@@ -578,6 +584,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                   ),
                   SizedBox(height: verticalSpacing), // Espacio debajo del ícono
                   _buildTextField(
+                    context: context,
                     enabled: false,
                     controller: nombreGrupoController,
                     label: 'Nombres del grupo',
@@ -609,6 +616,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                   ),
                   SizedBox(height: verticalSpacing),
                   _buildTextField(
+                    context: context,
                     controller: descripcionController,
                     label: 'Descripción',
                     icon: Icons.description,
@@ -630,14 +638,17 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
 
   Widget _paginaMiembros() {
     int pasoActual = 2; // Paso actual que queremos marcar como activo
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
 
     return Form(
       child: Row(
         children: [
           Container(
             decoration: BoxDecoration(
-                color: Color(0xFF5162F6),
-                borderRadius: BorderRadius.all(Radius.circular(20))),
+              color: Color(0xFF5162F6), // El color principal se mantiene
+              borderRadius: BorderRadius.all(Radius.circular(20)),
+            ),
             width: 250,
             height: 500,
             padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
@@ -667,10 +678,31 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                     decoration: InputDecoration(
                       border: const OutlineInputBorder(),
                       hintText: 'Escribe para buscar',
+                      hintStyle: TextStyle(
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                      fillColor: isDarkMode ? Colors.grey[800] : Colors.white,
+                      filled: true,
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: isDarkMode
+                              ? Colors.grey[600]!
+                              : Colors.grey[400]!,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Color(0xFF5162F6),
+                        ),
+                      ),
+                    ),
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
                     ),
                   ),
                   decorationBuilder: (context, child) => Material(
                     type: MaterialType.card,
+                    color: isDarkMode ? Colors.grey[850] : Colors.white,
                     elevation: 4,
                     borderRadius: BorderRadius.circular(10),
                     child: child,
@@ -688,22 +720,61 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                           Text(
                             '${person['nombres'] ?? ''} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
                             style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.black,
-                                fontWeight: FontWeight.w600),
+                              fontSize: 14,
+                              color: isDarkMode ? Colors.white : Colors.black,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           SizedBox(width: 10),
-                          Text('-  F. Nacimiento: ${person['fechaNac'] ?? ''}',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700])),
+                          Text(
+                            '-  F. Nacimiento: ${person['fechaNac'] ?? ''}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[700],
+                            ),
+                          ),
                           SizedBox(width: 10),
-                          Text('-  Teléfono: ${person['telefono'] ?? ''}',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700])),
+                          Text(
+                            '-  Teléfono: ${person['telefono'] ?? ''}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[700],
+                            ),
+                          ),
+                          Expanded(
+                              child:
+                                  SizedBox()), // Esto empuja el estado hacia la derecha
+                          // Container para el estado
+                          Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(person['estado']),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _getStatusColor(person['estado'])
+                                  .withOpacity(
+                                      0.6), // Borde con el mismo color pero más fuerte
+                              width: 1, // Grosor del borde
+                            ),
+                          ),
+                          child: Text(
+                            person['estado'] ?? 'N/A',
+                            style: TextStyle(
+                              color: _getStatusColor(person['estado'])
+                                  .withOpacity(
+                                      0.8), // Color del texto más oscuro
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                         ],
                       ),
                     );
@@ -723,16 +794,31 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                     } else {
                       // Mostrar mensaje indicando que la persona ya fue agregada
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(
-                              'La persona ya ha sido agregada a la lista')));
+                        content:
+                            Text('La persona ya ha sido agregada a la lista'),
+                        backgroundColor: isDarkMode ? Colors.grey[800] : null,
+                      ));
                     }
                   },
                   controller: _controller,
-                  loadingBuilder: (context) => const Text('Cargando...'),
-                  errorBuilder: (context, error) =>
-                      const Text('Error al cargar los datos!'),
-                  emptyBuilder: (context) =>
-                      const Text('No hay coincidencias!'),
+                  loadingBuilder: (context) => Text(
+                    'Cargando...',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
+                  ),
+                  errorBuilder: (context, error) => Text(
+                    'Error al cargar los datos!',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.red[300] : Colors.red,
+                    ),
+                  ),
+                  emptyBuilder: (context) => Text(
+                    'No hay coincidencias!',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 Expanded(
@@ -753,15 +839,20 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                             Text(
                               '${index + 1}. ', // Numeración
                               style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.black),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: isDarkMode ? Colors.white : Colors.black,
+                              ),
                             ),
                             // Nombre completo
                             Expanded(
                               child: Text(
                                 '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-                                style: TextStyle(fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
                               ),
                             ),
                           ],
@@ -775,42 +866,98 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w400,
-                                color: Colors.grey[700],
+                                color: isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[700],
                               ),
                             ),
                             // Fecha de nacimiento
                             SizedBox(width: 30),
                             Text(
-                              'Fecha de Nacimiento: $fechaNac',
+                              'F. de Nacimiento: $fechaNac',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w400,
-                                color: Colors.grey[700],
+                                color: isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[700],
                               ),
                             ),
+                           SizedBox(width: 10),
+                            // Container para el estado
+                            Container(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 0),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(person['estado']),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _getStatusColor(person['estado'])
+                                    .withOpacity(
+                                        0.6), // Borde con el mismo color pero más fuerte
+                                width: 1, // Grosor del borde
+                              ),
+                            ),
+                            child: Text(
+                              person['estado'] ?? 'N/A',
+                              style: TextStyle(
+                                color: _getStatusColor(person['estado'])
+                                    .withOpacity(
+                                        0.8), // Color del texto más oscuro
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                           ],
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // Dropdown para seleccionar cargo
-                            DropdownButton<String>(
-                              value:
-                                  _cargosSeleccionados[person['idclientes']] ??
-                                      'Miembro',
-                              onChanged: (nuevoCargo) {
-                                setState(() {
-                                  _cargosSeleccionados[person['idclientes']] =
-                                      nuevoCargo!;
-                                });
-                              },
-                              items:
-                                  cargos.map<DropdownMenuItem<String>>((cargo) {
-                                return DropdownMenuItem<String>(
-                                  value: cargo,
-                                  child: Text(cargo),
-                                );
-                              }).toList(),
+                            Theme(
+                              data: Theme.of(context).copyWith(
+                                canvasColor: isDarkMode
+                                    ? Colors.grey[850]
+                                    : Colors.white,
+                              ),
+                              child: DropdownButton<String>(
+                                value: _cargosSeleccionados[
+                                        person['idclientes']] ??
+                                    'Miembro',
+                                onChanged: (nuevoCargo) {
+                                  setState(() {
+                                    _cargosSeleccionados[person['idclientes']] =
+                                        nuevoCargo!;
+                                  });
+                                },
+                                items: cargos
+                                    .map<DropdownMenuItem<String>>((cargo) {
+                                  return DropdownMenuItem<String>(
+                                    value: cargo,
+                                    child: Text(
+                                      cargo,
+                                      style: TextStyle(
+                                        color: isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                                dropdownColor: isDarkMode
+                                    ? Colors.grey[850]
+                                    : Colors.white,
+                                style: TextStyle(
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
+                                icon: Icon(
+                                  Icons.arrow_drop_down,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
+                                ),
+                              ),
                             ),
                             SizedBox(
                                 width:
@@ -821,19 +968,49 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                                 final confirmDelete = await showDialog<bool>(
                                   context: context,
                                   builder: (context) => AlertDialog(
-                                    title: Text('Confirmar eliminación'),
+                                    backgroundColor: isDarkMode
+                                        ? Colors.grey[850]
+                                        : Colors.white,
+                                    title: Text(
+                                      'Confirmar eliminación',
+                                      style: TextStyle(
+                                        color: isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                      ),
+                                    ),
                                     content: Text(
-                                        '¿Estás seguro de que quieres eliminar a ${nombre} ${person['apellidoP'] ?? ''}?'),
+                                      '¿Estás seguro de que quieres eliminar a ${nombre} ${person['apellidoP'] ?? ''}?',
+                                      style: TextStyle(
+                                        color: isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                      ),
+                                    ),
                                     actions: [
                                       TextButton(
                                         onPressed: () =>
                                             Navigator.of(context).pop(false),
-                                        child: Text('Cancelar'),
+                                        child: Text(
+                                          'Cancelar',
+                                          style: TextStyle(
+                                            color: isDarkMode
+                                                ? Colors.grey[300]
+                                                : Colors.grey[700],
+                                          ),
+                                        ),
                                       ),
                                       TextButton(
                                         onPressed: () =>
                                             Navigator.of(context).pop(true),
-                                        child: Text('Eliminar'),
+                                        child: Text(
+                                          'Eliminar',
+                                          style: TextStyle(
+                                            color: isDarkMode
+                                                ? Colors.red[300]
+                                                : Colors.red,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -861,119 +1038,177 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       ),
     );
   }
-}
 
-Widget _buildTextField({
-  required TextEditingController controller,
-  required String label,
-  required IconData icon,
-  TextInputType keyboardType = TextInputType.text,
-  String? Function(String?)? validator,
-  double fontSize = 12.0, // Tamaño de fuente por defecto
-  int? maxLength, // Longitud máxima opcional
-  bool enabled = true, // Campo habilitado por defecto
-}) {
-  return TextFormField(
-    controller: controller,
-    keyboardType: keyboardType,
-    style: TextStyle(
-      fontSize: fontSize,
-      color: enabled ? Colors.black : Colors.grey, // Color del texto
-    ),
-    decoration: InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(
-        icon,
-        color: enabled ? Colors.black : Colors.grey, // Color del ícono
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      labelStyle: TextStyle(
-        fontSize: fontSize,
-        color: enabled ? Colors.black : Colors.grey, // Color del label
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(
-          color: Colors.grey.shade700, // Borde cuando está habilitado
-        ),
-      ),
-      disabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(
-          color: Colors.grey, // Borde cuando está deshabilitado
-        ),
-      ),
-    ),
-    validator: validator,
-    inputFormatters:
-        maxLength != null ? [LengthLimitingTextInputFormatter(maxLength)] : [],
-    enabled: enabled, // Controla si el campo está habilitado o deshabilitado
-  );
-}
+ Color _getStatusColor(String? estado) {
+    switch (estado) {
+      case 'En Credito':
+        return Color(0xFFA31D1D)
+            .withOpacity(0.1); // Color suave de fondo para "En Credito"
+      case 'En Grupo':
+        return Color(0xFF3674B5)
+            .withOpacity(0.1); // Color suave de fondo para "En Grupo"
+      case 'Disponible':
+        return Color(0xFF059212)
+            .withOpacity(0.1); // Color suave de fondo para "Disponible"
+      default:
+        return Colors.grey.withOpacity(0.1); // Color suave de fondo por defecto
+    }
+  }
 
-Widget _buildDropdown({
-  required String? value,
-  required String hint,
-  required List<String> items,
-  required void Function(String?) onChanged,
-  double fontSize = 12.0,
-  String? Function(String?)? validator,
-  bool enabled = true, // Habilitado por defecto
-}) {
-  return InputDecorator(
-    decoration: InputDecoration(
-      labelText: hint,
-      labelStyle: TextStyle(
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required BuildContext context, // Añadido el parámetro BuildContext
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+    double fontSize = 12.0,
+    int? maxLength,
+    bool enabled = true,
+  }) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Colores para modo claro
+    final lightTextColor = enabled ? Colors.black : Colors.grey;
+    final lightIconColor = enabled ? Colors.black : Colors.grey;
+    final lightLabelColor = enabled ? Colors.black : Colors.grey;
+    final lightEnabledBorderColor = Colors.grey.shade700;
+    final lightDisabledBorderColor = Colors.grey;
+    final lightFillColor = Colors.white;
+
+    // Colores para modo oscuro
+    final darkTextColor = enabled ? Colors.white : Colors.grey.shade600;
+    final darkIconColor = enabled ? Colors.grey.shade300 : Colors.grey.shade600;
+    final darkLabelColor =
+        enabled ? Colors.grey.shade300 : Colors.grey.shade600;
+    final darkEnabledBorderColor = Colors.grey.shade500;
+    final darkDisabledBorderColor = Colors.grey.shade700;
+    final darkFillColor = enabled ? Colors.grey.shade800 : Colors.grey.shade900;
+
+    // Colores finales según el modo
+    final textColor = isDarkMode ? darkTextColor : lightTextColor;
+    final iconColor = isDarkMode ? darkIconColor : lightIconColor;
+    final labelColor = isDarkMode ? darkLabelColor : lightLabelColor;
+    final enabledBorderColor =
+        isDarkMode ? darkEnabledBorderColor : lightEnabledBorderColor;
+    final disabledBorderColor =
+        isDarkMode ? darkDisabledBorderColor : lightDisabledBorderColor;
+    final fillColor = isDarkMode ? darkFillColor : lightFillColor;
+    final focusedBorderColor = isDarkMode ? Color(0xFF5162F6) : Colors.black;
+
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: TextStyle(
         fontSize: fontSize,
-        color: enabled ? Colors.black : Colors.grey, // Cambiar color del hint
+        color: textColor,
       ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide:
-            BorderSide(color: enabled ? Colors.grey.shade700 : Colors.grey),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
-      ),
-    ),
-    isEmpty: value == null || value.isEmpty,
-    child: enabled
-        ? DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              hint: Text(
-                hint,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  color: Colors.grey, // Cambiar color del hint
-                ),
-              ),
-              items: items.map((item) {
-                return DropdownMenuItem(
-                  value: item,
-                  child: Text(
-                    item,
-                    style: TextStyle(fontSize: fontSize, color: Colors.black),
-                  ),
-                );
-              }).toList(),
-              onChanged: onChanged,
-              style: TextStyle(fontSize: fontSize, color: Colors.black),
-            ),
-          )
-        : Text(
-            value ?? hint,
-            style: TextStyle(
-              fontSize: fontSize,
-              color: Colors.grey, // Color del texto deshabilitado
-            ),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(
+          icon,
+          color: iconColor,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        labelStyle: TextStyle(
+          fontSize: fontSize,
+          color: labelColor,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+            color: enabledBorderColor,
           ),
-  );
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+            color: disabledBorderColor,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(
+            color: focusedBorderColor,
+            width: 1.5,
+          ),
+        ),
+        fillColor: fillColor,
+        filled: true,
+      ),
+      validator: validator,
+      inputFormatters: maxLength != null
+          ? [LengthLimitingTextInputFormatter(maxLength)]
+          : [],
+      enabled: enabled,
+    );
+  }
+
+  Widget _buildDropdown({
+    required String? value,
+    required String hint,
+    required List<String> items,
+    required void Function(String?) onChanged,
+    double fontSize = 12.0,
+    String? Function(String?)? validator,
+    bool enabled = true, // Habilitado por defecto
+  }) {
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: hint,
+        labelStyle: TextStyle(
+          fontSize: fontSize,
+          color: enabled ? Colors.black : Colors.grey, // Cambiar color del hint
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.black),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide:
+              BorderSide(color: enabled ? Colors.grey.shade700 : Colors.grey),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.black),
+        ),
+      ),
+      isEmpty: value == null || value.isEmpty,
+      child: enabled
+          ? DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: value,
+                hint: Text(
+                  hint,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    color: Colors.grey, // Cambiar color del hint
+                  ),
+                ),
+                items: items.map((item) {
+                  return DropdownMenuItem(
+                    value: item,
+                    child: Text(
+                      item,
+                      style: TextStyle(fontSize: fontSize, color: Colors.black),
+                    ),
+                  );
+                }).toList(),
+                onChanged: onChanged,
+                style: TextStyle(fontSize: fontSize, color: Colors.black),
+              ),
+            )
+          : Text(
+              value ?? hint,
+              style: TextStyle(
+                fontSize: fontSize,
+                color: Colors.grey, // Color del texto deshabilitado
+              ),
+            ),
+    );
+  }
 }
