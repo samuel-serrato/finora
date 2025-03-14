@@ -1,6 +1,6 @@
 import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Importamos para eventos de teclado
+import 'package:flutter/services.dart';
 import 'package:finora/navigation_rail.dart';
 import 'package:finora/providers/pagos_provider.dart';
 import 'package:finora/screens/login.dart';
@@ -8,20 +8,35 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:window_manager/window_manager.dart'; // Para manejar la ventana
+import 'package:window_manager/window_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Añadido SharedPreferences
 import 'constants/routes.dart';
 
 // Provider para gestionar el factor de escala dinámicamente
 class ScaleProvider extends ChangeNotifier {
   double _scaleFactor;
+  static const String _scaleFactorKey =
+      'scale_factor'; // Clave para SharedPreferences
 
   ScaleProvider(this._scaleFactor);
 
   double get scaleFactor => _scaleFactor;
 
-  void setScaleFactor(double newScale) {
+  // Método para cargar el factor de escala guardado
+  Future<void> loadSavedScale() async {
+    final prefs = await SharedPreferences.getInstance();
+    _scaleFactor = prefs.getDouble(_scaleFactorKey) ?? _scaleFactor;
+    notifyListeners();
+  }
+
+  // Método modificado para guardar el factor cada vez que cambia
+  void setScaleFactor(double newScale) async {
     _scaleFactor = newScale;
     notifyListeners();
+
+    // Guardar en SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_scaleFactorKey, newScale);
   }
 }
 
@@ -38,23 +53,34 @@ void main() async {
   // Obtener la escala del sistema
   double systemScale = await windowManager.getDevicePixelRatio();
 
-  double targetScale = 1.4; // Queremos que la app se vea como 125%
-  double scaleFactor = systemScale < 1.4 ? targetScale / systemScale : 1.0;
-  // Solo ajustamos si la escala es menor a 125%
+  // Verificar si hay una escala guardada previamente
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  double savedScale = prefs.getDouble('scale_factor') ?? 0.0;
+
+  // Si no hay escala guardada, calcular el factor inicial
+  double initialScale;
+  if (savedScale > 0.0) {
+    // Usar la escala guardada
+    initialScale = savedScale;
+  } else {
+    // Calcular una escala predeterminada basada en la configuración del sistema
+    double targetScale = 1.4; // Escala predeterminada deseada
+    initialScale = systemScale < 1.4 ? targetScale / systemScale : 1.0;
+  }
 
   // Si hay que escalar, ajustamos la ventana
-  if (scaleFactor > 1.0) {
+  if (initialScale > 1.0) {
     Size screenSize = await windowManager.getSize();
-    await windowManager.setSize(
-        Size(screenSize.width * scaleFactor, screenSize.height * scaleFactor));
+    await windowManager.setSize(Size(
+        screenSize.width * initialScale, screenSize.height * initialScale));
   }
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => PagosProvider()),
-        ChangeNotifierProvider(create: (_) => ScaleProvider(scaleFactor)),
-        ChangeNotifierProvider(create: (_) => ThemeProvider()), // Añade esto
+        ChangeNotifierProvider(create: (_) => ScaleProvider(initialScale)),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const MyApp(),
     ),
@@ -66,17 +92,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Obtener el provider de escala
     final scaleProvider = Provider.of<ScaleProvider>(context);
-    final themeProvider =
-        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return RawKeyboardListener(
       focusNode: FocusNode(),
       autofocus: true,
       onKey: (event) {
         if (event is RawKeyDownEvent) {
-          // Verificar si Control está presionado
           final bool isControlPressed = event.isControlPressed;
 
           if (isControlPressed) {
@@ -88,14 +111,12 @@ class MyApp extends StatelessWidget {
               // Control + Plus: Aumentar zoom
               double newScale = currentScale + 0.1;
               if (newScale <= 2.5) {
-                // Límite superior
                 scaleProvider.setScaleFactor(newScale);
               }
             } else if (event.logicalKey == LogicalKeyboardKey.minus) {
               // Control + Minus: Disminuir zoom
               double newScale = currentScale - 0.1;
               if (newScale >= 0.5) {
-                // Límite inferior
                 scaleProvider.setScaleFactor(newScale);
               }
             } else if (event.logicalKey == LogicalKeyboardKey.digit0) {
@@ -161,9 +182,8 @@ class MyApp extends StatelessWidget {
             return _errorRoute();
           },
           debugShowCheckedModeBanner: false,
-          theme: themeProvider.isDarkMode
-              ? ThemeData.dark()
-              : ThemeData.light(), // Cambia el tema dinámicamente
+          theme:
+              themeProvider.isDarkMode ? ThemeData.dark() : ThemeData.light(),
         ),
       ),
     );
