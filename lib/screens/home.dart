@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/screens/login.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:finora/custom_app_bar.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -59,15 +61,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
  */
   Future<void> _fetchHomeData() async {
-    final Uri url = Uri.parse('http://$baseUrl/api/v1/home');
+    setState(() {
+      isLoading = true;
+      errorMessage = '';
+    });
 
-    print('🔄 Iniciando solicitud a: ${url.toString()}');
+    bool dialogShown = false;
 
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      // Get the token from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      // Create request with token in headers
+      final Uri url = Uri.parse('http://$baseUrl/api/v1/home');
+
+      print('🔄 Iniciando solicitud a: ${url.toString()}');
+      print(
+          '🔑 Usando token: ${token.isNotEmpty ? 'Disponible' : 'No disponible'}');
+
+      final response = await http.get(
+        url,
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
 
       print('✅ Respuesta recibida - Código: ${response.statusCode}');
-      print('📄 Cuerpo de la respuesta: ${response.body}');
 
       if (response.statusCode == 200) {
         try {
@@ -85,7 +106,6 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() {
             homeData = parsedData;
             isLoading = false;
-            errorMessage = '';
           });
         } catch (e) {
           print('❌ Error parseando respuesta: $e');
@@ -94,38 +114,93 @@ class _HomeScreenState extends State<HomeScreen> {
             isLoading = false;
           });
         }
+      } else if (response.statusCode == 404) {
+        final errorData = json.decode(response.body);
+        if (errorData["Error"]["Message"] == "jwt expired") {
+          setState(() => isLoading = false);
+
+          // Clear the expired token
+          await prefs.remove('tokenauth');
+
+          // Show error dialog and redirect to login
+          if (mounted) {
+            mostrarDialogoError(
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            });
+          }
+        } else {
+          setErrorState('Error: ${response.statusCode}', dialogShown);
+        }
       } else {
         print('⚠️ Respuesta no exitosa - Código: ${response.statusCode}');
-        setState(() {
-          errorMessage = 'Error del servidor: ${response.statusCode}';
-          isLoading = false;
-        });
+        setErrorState(
+            'Error del servidor: ${response.statusCode}', dialogShown);
       }
     } on http.ClientException catch (e) {
       print('❌ Error de conexión: $e');
-      setState(() {
-        errorMessage = 'Error de conexión: ${e.message}';
-        isLoading = false;
-      });
+      setErrorState('Error de conexión: ${e.message}', dialogShown);
     } on TimeoutException {
       print('⌛ Tiempo de espera agotado');
-      setState(() {
-        errorMessage = 'Tiempo de espera agotado';
-        isLoading = false;
-      });
+      setErrorState('Tiempo de espera agotado', dialogShown);
     } catch (e) {
       print('❌ Error inesperado: $e');
-      setState(() {
-        errorMessage = 'Error inesperado: ${e.toString()}';
-        isLoading = false;
-      });
+      setErrorState('Error inesperado: ${e.toString()}', dialogShown);
     }
 
-    if (errorMessage.isNotEmpty) {
-      print('❗ Estado final - Error: $errorMessage');
-    } else {
-      print('🎉 Datos cargados exitosamente!');
+    // Set a timeout for the API call
+    Timer(Duration(seconds: 10), () {
+      if (mounted && !dialogShown && isLoading) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'No se pudo conectar al servidor';
+        });
+        dialogShown = true;
+        mostrarDialogoError(
+            'No se pudo conectar al servidor. Verifica tu red.');
+      }
+    });
+  }
+
+// Helper method to set error state
+  void setErrorState(String message, bool dialogShown) {
+    setState(() {
+      errorMessage = message;
+      isLoading = false;
+    });
+
+    if (!dialogShown) {
+      mostrarDialogoError('Error: $message');
     }
+  }
+
+// Dialog to show errors
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(mensaje),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Aceptar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (onClose != null) {
+                  onClose();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
