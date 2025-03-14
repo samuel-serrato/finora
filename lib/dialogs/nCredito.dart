@@ -201,6 +201,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     try {
       final datosParaServidor = generarDatosParaServidor();
       await enviarCredito(datosParaServidor);
+      print('Datos a enviar: ${jsonEncode(datosParaServidor)}');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1173,7 +1174,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     double pagoTotal = 0.0;
     interesTotal = 0.0;
     interesGlobal =
-        (tasaInteresMensualCalculada / 4) * plazoNumerico; // Interés anualizado
+        _redondearDecimales((tasaInteresMensualCalculada / 4) * plazoNumerico);
 
     print('interesGlobal print: $interesGlobal');
 
@@ -1186,21 +1187,23 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
     if (frecuenciaPago == "Semanal") {
       int pagosTotales = plazoNumerico;
-      capitalPago = monto / pagosTotales;
-      interesPago = monto * (tasaInteresMensualCalculada / 4 / 100);
-      interesPorcentaje = tasaInteresMensualCalculada / 4;
-      interesTotal = interesPago * pagosTotales;
-      pagoTotal = capitalPago + interesPago;
+      capitalPago = _redondearDecimales(monto / pagosTotales);
+      interesPago =
+          _redondearDecimales(monto * (tasaInteresMensualCalculada / 4 / 100));
+      interesPorcentaje = _redondearDecimales(tasaInteresMensualCalculada / 4);
+      interesTotal = _redondearDecimales(interesPago * pagosTotales);
+      pagoTotal = _redondearDecimales(capitalPago + interesPago);
     } else if (frecuenciaPago == "Quincenal") {
       int pagosTotales = plazoNumerico * 2;
-      capitalPago = monto / pagosTotales;
-      interesPago = monto * (tasaInteresMensualCalculada / 2 / 100);
-      interesPorcentaje = tasaInteresMensualCalculada / 2;
-      interesTotal = interesPago * pagosTotales;
-      pagoTotal = capitalPago + interesPago;
+      capitalPago = _redondearDecimales(monto / pagosTotales);
+      interesPago =
+          _redondearDecimales(monto * (tasaInteresMensualCalculada / 2 / 100));
+      interesPorcentaje = _redondearDecimales(tasaInteresMensualCalculada / 2);
+      interesTotal = _redondearDecimales(interesPago * pagosTotales);
+      pagoTotal = _redondearDecimales(capitalPago + interesPago);
     }
 
-    totalARecuperar = monto + interesTotal;
+    totalARecuperar = _redondearDecimales(monto + interesTotal);
 
     print('capitalL: $capitalPago');
     print('interesPAGOo: $interesPago');
@@ -1605,21 +1608,24 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                               : plazoNumerico * 2;
 
                                       final capitalSemanal =
-                                          montoIndividual / pagosTotales;
-                                      final interesSemanal = montoIndividual *
-                                          (tasaInteresMensualCalculada /
-                                              (frecuenciaPago == "Semanal"
-                                                  ? 4
-                                                  : 2) /
-                                              100);
-                                      final pagoSemanal =
-                                          capitalSemanal + interesSemanal;
-                                      final totalCapital =
-                                          capitalSemanal * pagosTotales;
+                                          _redondearDecimales(
+                                              montoIndividual / pagosTotales);
+                                      final interesSemanal =
+                                          _redondearDecimales(montoIndividual *
+                                              (tasaInteresMensualCalculada /
+                                                  (frecuenciaPago == "Semanal"
+                                                      ? 4
+                                                      : 2) /
+                                                  100));
+                                      final pagoSemanal = _redondearDecimales(
+                                          capitalSemanal + interesSemanal);
+                                      final totalCapital = _redondearDecimales(
+                                          capitalSemanal * pagosTotales);
                                       final totalIntereses =
-                                          interesSemanal * pagosTotales;
-                                      final pagoTotal =
-                                          totalCapital + totalIntereses;
+                                          _redondearDecimales(
+                                              interesSemanal * pagosTotales);
+                                      final pagoTotal = _redondearDecimales(
+                                          totalCapital + totalIntereses);
 
                                       return DataRow(cells: [
                                         DataCell(Text(
@@ -1768,7 +1774,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                             ? plazoNumerico
                                             : plazoNumerico * 2;
 
-                                    double capitalGrupal =
+                                    double capitalGrupal = _redondearDecimales(
                                         integrantes.fold<double>(
                                       0.0,
                                       (suma, integrante) {
@@ -1779,9 +1785,9 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                         return suma +
                                             (montoIndividual / pagosTotales);
                                       },
-                                    );
+                                    ));
 
-                                    double interesGrupal =
+                                    double interesGrupal = _redondearDecimales(
                                         integrantes.fold<double>(
                                       0.0,
                                       (suma, integrante) {
@@ -1797,14 +1803,14 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                                         : 2) /
                                                     100));
                                       },
-                                    );
+                                    ));
 
-                                    final pagoGrupal =
-                                        capitalGrupal + interesGrupal;
-                                    double totalPagado =
-                                        pagoGrupal * (index + 1);
-                                    double totalRestante =
-                                        totalARecuperar - totalPagado;
+                                    final pagoGrupal = _redondearDecimales(
+                                        capitalGrupal + interesGrupal);
+                                    double totalPagado = _redondearDecimales(
+                                        pagoGrupal * (index + 1));
+                                    double totalRestante = _redondearDecimales(
+                                        totalARecuperar - totalPagado);
                                     //IMPRIMIR EN CONSOLA
                                     imprimirDatosGenerales();
                                     imprimirIntegrantesYMontosEnJSON();
@@ -1852,6 +1858,29 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     );
   }
 
+  // Añade esta función auxiliar en tu clase
+  dynamic _redondearDecimales(dynamic valor) {
+    if (valor is double) {
+      // Verificar si el valor es un entero (con una pequeña tolerancia)
+      if ((valor - valor.truncateToDouble()).abs() < 0.000001) {
+        return valor
+            .truncateToDouble(); // Mantener si es entero (ej: 176.0 → 176.0)
+      } else {
+        return valor
+            .ceilToDouble(); // Redondear si tiene decimales (ej: 176.4 → 177.0)
+      }
+    } else if (valor is int) {
+      return valor.toDouble(); // Convertir enteros a double para consistencia
+    } else if (valor is List) {
+      return valor.map((e) => _redondearDecimales(e)).toList();
+    } else if (valor is Map) {
+      return valor.map<String, dynamic>(
+        (key, value) => MapEntry(key, _redondearDecimales(value)),
+      );
+    }
+    return valor;
+  }
+
   Map<String, dynamic> generarDatosParaServidor() {
     // Obtener el grupo seleccionado y su id
     String idGrupoSeleccionado = listaGrupos
@@ -1865,11 +1894,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       "plazo": plazoNumerico,
       "frecuenciaPago": frecuenciaPagoTexto,
       "garantia": garantiaTexto,
-      "interesGlobal": interesGlobal,
-      "montoTotal":
-          obtenerMontoReal(montoController.text), // Convertir a double
-      "interesTotal": interesTotal,
-      "montoMasInteres": totalARecuperar,
+      "interesGlobal": _redondearDecimales(interesGlobal), // <- Aplicado aquí
+      "montoTotal": _redondearDecimales(obtenerMontoReal(montoController.text)),
+      "interesTotal": _redondearDecimales(interesTotal),
+      "montoMasInteres": _redondearDecimales(totalARecuperar),
       "diaPago": diaPago,
       "fechasPago": [], // Este arreglo se llenará con las fechas
       "clientesMontosInd":
@@ -1893,42 +1921,38 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     }
 
     // Generar los montos individuales
+    // Generar los montos individuales CON REDONDEO
     for (var integrante in integrantes) {
       String idDetalleGrupo = integrante.iddetallegrupos;
       double capitalIndividual =
           montosIndividuales[integrante.idclientes] ?? 0.0;
-      double periodoCapital = capitalIndividual / pagosTotales;
 
-      // Quitar el símbolo '%' de la tasa de interés y convertirla a double
+      double periodoCapital =
+          (capitalIndividual / pagosTotales); // <- Sin redondear aquí
       double tasaInteresNumerica =
           double.tryParse(tasaInteres!.replaceAll('%', '')) ?? 0.0;
-
       double periodoInteres = capitalIndividual *
           (tasaInteresMensualCalculada /
-              (frecuenciaPago == "Semanal" ? 4 : 2)) /
-          100;
-      double capitalMasInteres = periodoCapital + periodoInteres;
+              (frecuenciaPago == "Semanal" ? 4 : 2) /
+              100);
 
-      // Cálculo de los totales
-      double totalCapital = periodoCapital * pagosTotales;
-      double totalIntereses = periodoInteres * pagosTotales;
-      double pagoTotal = totalCapital + totalIntereses;
-
+      // Aplica redondeo solo al final
       datosParaServidor["clientesMontosInd"].add({
         "iddetallegrupos": idDetalleGrupo,
-        "capitalIndividual": capitalIndividual,
-        "periodoCapital": periodoCapital,
-        "periodoInteres": periodoInteres,
-        "periodoInteresPorcentaje":
-            tasaInteresNumerica, // Aquí se usa la tasa sin '%'
-        "totalCapital": totalCapital, // Total del capital
-        "totalIntereses": totalIntereses, // Total de intereses
-        "capitalMasInteres": capitalMasInteres,
-        "pagoTotal": pagoTotal // Total a pagar
+        "capitalIndividual": _redondearDecimales(capitalIndividual),
+        "periodoCapital": _redondearDecimales(periodoCapital),
+        "periodoInteres": _redondearDecimales(periodoInteres),
+        "periodoInteresPorcentaje": _redondearDecimales(tasaInteresNumerica),
+        "totalCapital": _redondearDecimales(periodoCapital * pagosTotales),
+        "totalIntereses": _redondearDecimales(periodoInteres * pagosTotales),
+        "capitalMasInteres":
+            _redondearDecimales(periodoCapital + periodoInteres),
+        "pagoTotal": _redondearDecimales(
+            (periodoCapital * pagosTotales) + (periodoInteres * pagosTotales)),
       });
     }
 
-    return datosParaServidor;
+    return _redondearDecimales(datosParaServidor);
   }
 
   // Función para calcular las fechas de pago semanal con las condiciones corregidas

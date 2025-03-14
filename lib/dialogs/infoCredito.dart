@@ -1175,34 +1175,40 @@ class _PaginaControlState extends State<PaginaControl> {
         List<Pago> pagos = data.map((pago) => Pago.fromJson(pago)).toList();
 
         // Dentro de _fetchPagos:
+        // Dentro de _fetchPagos después de obtener la lista de pagos:
         for (var pago in pagos) {
           double totalDeuda = (pago.capitalMasInteres ?? 0.0) +
               (pago.moratorios?.moratorios ?? 0.0);
-          double montoPagado = pago.sumaDepositoMoratorisos ?? 0.0;
 
-          // Nueva verificación de garantía
+          // Verificar si hay garantía
           bool tieneGarantia =
               pago.abonos.any((abono) => abono['garantia'] == 'Si');
 
-          // Si hay garantía, usar solo el capital como monto pagado
-          if (tieneGarantia) {
-            montoPagado = pago.capitalMasInteres ?? 0.0;
+          // Calcular el monto total pagado, incluyendo garantía y abonos adicionales
+          double montoPagado = 0.0;
+
+          // Sumar todos los abonos, incluyendo los marcados como garantía
+          for (var abono in pago.abonos) {
+            montoPagado += double.tryParse(abono['abono'].toString()) ?? 0.0;
           }
 
-          bool sinActividad = pago.abonos.isEmpty && montoPagado == 0.0;
+          // Verificar si hay actividad en el pago
+          bool sinActividad = pago.abonos.isEmpty;
 
           if (sinActividad) {
             pago.saldoEnContra = 0.0;
             pago.saldoFavor = 0.0;
           } else {
-            if (montoPagado < totalDeuda) {
-              pago.saldoEnContra = totalDeuda - montoPagado;
-              pago.saldoFavor = 0.0;
-            } else {
-              // Si hay garantía, forzar saldo a favor a 0
+            // Verificar si el pago está liquidado
+            bool estaPagado = montoPagado >= totalDeuda;
+
+            if (estaPagado) {
+              pago.saldoEnContra = 0.0;
               pago.saldoFavor =
                   tieneGarantia ? 0.0 : (montoPagado - totalDeuda);
-              pago.saldoEnContra = 0.0;
+            } else {
+              pago.saldoEnContra = totalDeuda - montoPagado;
+              pago.saldoFavor = 0.0;
             }
           }
         }
@@ -1403,14 +1409,16 @@ class _PaginaControlState extends State<PaginaControl> {
             bool tieneGarantia =
                 pago.abonos.any((abono) => abono['garantia'] == 'Si');
 
-            // Código corregido (suma solo los abonos con garantía):
+// Corregir el cálculo cuando hay garantía
             if (tieneGarantia) {
-              // Sumar solo los abonos marcados como garantía
-              montoPagado = pago.abonos
-                  .where((abono) => abono['garantia'] == 'Si')
-                  .fold(0.0, (sum, abono) => sum + (abono['deposito'] ?? 0.0));
+              // Sumar TODOS los abonos, tanto garantía como pagos adicionales
+              montoPagado = pago.abonos.fold(
+                0.0,
+                (sum, abono) =>
+                    sum +
+                    (double.tryParse(abono['deposito'].toString()) ?? 0.0),
+              );
             }
-
             // Acumular el pago actual
             totalPagoActual += montoPagado;
 
