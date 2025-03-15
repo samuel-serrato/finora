@@ -94,45 +94,72 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               errorDeConexion = false;
             });
             _timer?.cancel();
-          } else if (response.statusCode == 404) {
-            final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] == "jwt expired") {
-              if (mounted) {
-                setState(() => isLoading = false);
-                // Limpiar token y redirigir
+          } else {
+            // Intentamos decodificar la respuesta para verificar mensajes específicos de error
+            try {
+              final errorData = json.decode(response.body);
+
+              // Verificar si es el mensaje específico de sesión cambiada
+              if (errorData["Error"] != null &&
+                  errorData["Error"]["Message"] ==
+                      "La sesión ha cambiado. Cerrando sesión...") {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('tokenauth');
                 _timer?.cancel(); // Cancela el temporizador antes de navegar
 
-                mostrarDialogoError(
-                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                    onClose: () {
-                  Navigator.push(
+                // Mostrar diálogo y redirigir al login
+                mostrarDialogoCierreSesion(
+                    'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                  Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (context) => LoginScreen()),
+                    (route) => false, // Elimina todas las rutas anteriores
                   );
                 });
+                return;
               }
-              return;
-            } else {
+              // Manejar error JWT expirado
+              else if (response.statusCode == 404 &&
+                  errorData["Error"] != null &&
+                  errorData["Error"]["Message"] == "jwt expired") {
+                if (mounted) {
+                  setState(() => isLoading = false);
+                  // Limpiar token y redirigir
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('tokenauth');
+                  _timer?.cancel(); // Cancela el temporizador antes de navegar
+
+                  mostrarDialogoError(
+                      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                      onClose: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  });
+                }
+                return;
+              }
+              // Verificar mensaje específico de no hay créditos registrados
+              else if (response.statusCode == 400 &&
+                  errorData["Error"]["Message"] ==
+                      "No hay ningun credito registrado") {
+                setState(() {
+                  listaCreditos = [];
+                  isLoading = false;
+                  noCreditsFound = true;
+                });
+                _timer
+                    ?.cancel(); // Detener intentos de reconexión si no hay créditos
+              }
+              // Otros errores
+              else {
+                setErrorState(dialogShown);
+              }
+            } catch (parseError) {
+              // Si no podemos parsear la respuesta, delegamos al manejador de errores existente
               setErrorState(dialogShown);
             }
-          } else if (response.statusCode == 400) {
-            final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] ==
-                "No hay ningun credito registrado") {
-              setState(() {
-                listaCreditos = [];
-                isLoading = false;
-                noCreditsFound = true;
-              });
-              _timer
-                  ?.cancel(); // Detener intentos de reconexión si no hay créditos
-            } else {
-              setErrorState(dialogShown);
-            }
-          } else {
-            setErrorState(dialogShown);
           }
         }
       } catch (e) {
@@ -182,7 +209,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       // Agregar timeout a la petición
       final response = await http.get(
         Uri.parse('http://$baseUrl/api/v1/creditos/$query'),
-        headers: {'tokenauth': token},
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
       ).timeout(Duration(seconds: 10)); // Limitar tiempo de espera
 
       // Delay para mostrar el loading (500ms)
@@ -191,6 +221,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       if (!mounted) return;
 
       print('Status code (search): ${response.statusCode}');
+      print('Response body (search): ${response.body}');
 
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
@@ -198,14 +229,73 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           listaCreditos = data.map((item) => Credito.fromJson(item)).toList();
           isLoading = false;
         });
-      } else if (response.statusCode == 401) {
-        // Manejar token expirado
-        _handleTokenExpiration();
       } else {
-        setState(() {
-          isLoading = false;
-          errorDeConexion = true; // Activar estado de error
-        });
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+
+            // Mostrar diálogo y redirigir al login
+            mostrarDialogoCierreSesion(
+                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false, // Elimina todas las rutas anteriores
+              );
+            });
+            return;
+          }
+          // Manejar error JWT expirado
+          else if ((response.statusCode == 401 || response.statusCode == 404) &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+
+            setState(() => isLoading = false);
+
+            mostrarDialogoError(
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            });
+            return;
+          }
+          // Verificar si es el mensaje de no hay créditos
+          else if (response.statusCode == 400 &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "No hay ningun credito registrado") {
+            setState(() {
+              listaCreditos = [];
+              isLoading = false;
+              noCreditsFound = true;
+            });
+            return;
+          }
+          // Otros errores
+          else {
+            setState(() {
+              isLoading = false;
+              errorDeConexion = true; // Activar estado de error
+            });
+          }
+        } catch (parseError) {
+          // Si no podemos parsear la respuesta, activamos el estado de error
+          setState(() {
+            isLoading = false;
+            errorDeConexion = true;
+          });
+        }
       }
     } on SocketException catch (e) {
       // Capturar error de conexión
@@ -234,6 +324,82 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         });
       }
     }
+  }
+
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _handleTokenExpiration() async {
@@ -595,7 +761,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 showDialog(
                   barrierDismissible: false,
                   context: context,
-                  builder: (context) => InfoCredito(folio: credito.folio),
+                  builder: (context) => InfoCredito(
+                    folio: credito.folio,
+                    tipoUsuario: widget.tipoUsuario,
+                  ),
                 );
               }
             },
@@ -817,17 +986,66 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             duration: const Duration(seconds: 3),
           ),
         );
-      } else if (response.statusCode == 401) {
-        _handleTokenExpiration();
       } else {
-        final errorData = json.decode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('Error al eliminar: ${errorData['Error']['Message']}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        // Intentamos decodificar la respuesta para verificar mensajes específicos de error
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+
+            // Mostrar diálogo y redirigir al login
+            mostrarDialogoCierreSesion(
+                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false, // Elimina todas las rutas anteriores
+              );
+            });
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            // Limpiar token y redirigir
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+
+            mostrarDialogoError(
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            });
+            return;
+          } else if (response.statusCode == 401) {
+            _handleTokenExpiration();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content:
+                    Text('Error al eliminar: ${errorData['Error']['Message']}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } catch (parseError) {
+          // Si no podemos parsear la respuesta, mostramos un error genérico
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al procesar la respuesta del servidor'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } on SocketException {
       if (!mounted) return;

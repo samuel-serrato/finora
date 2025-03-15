@@ -35,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   HomeData? homeData;
   bool isLoading = true;
   String errorMessage = '';
+  bool dialogShown = false; // Controlar diálogos mostrados
 
   @override
   void initState() {
@@ -69,11 +70,21 @@ class _HomeScreenState extends State<HomeScreen> {
     bool dialogShown = false;
 
     try {
-      // Get the token from SharedPreferences
+      // Obtener el token de SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
-      // Create request with token in headers
+      // Verificar si el token está disponible
+      if (token.isEmpty) {
+        setState(() => isLoading = false);
+        _handleError(
+          dialogShown,
+          'Token de autenticación no encontrado. Por favor, inicia sesión.',
+          redirectToLogin: true,
+        );
+        return;
+      }
+
       final Uri url = Uri.parse('http://$baseUrl/api/v1/home');
 
       print('🔄 Iniciando solicitud a: ${url.toString()}');
@@ -89,6 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ).timeout(const Duration(seconds: 10));
 
       print('✅ Respuesta recibida - Código: ${response.statusCode}');
+
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         try {
@@ -114,29 +127,48 @@ class _HomeScreenState extends State<HomeScreen> {
             isLoading = false;
           });
         }
-      } else if (response.statusCode == 404) {
-        final errorData = json.decode(response.body);
-        if (errorData["Error"]["Message"] == "jwt expired") {
-          setState(() => isLoading = false);
-
-          // Clear the expired token
-          await prefs.remove('tokenauth');
-
-          // Show error dialog and redirect to login
-          if (mounted) {
-            mostrarDialogoError(
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                onClose: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
-            });
-          }
-        } else {
-          setErrorState('Error: ${response.statusCode}', dialogShown);
-        }
       } else {
+        try {
+          final errorData = json.decode(response.body);
+
+          if (errorData["Error"] != null) {
+            final mensajeError = errorData["Error"]["Message"];
+
+            if (mensajeError == "La sesión ha cambiado. Cerrando sesión...") {
+              await prefs.remove('tokenauth');
+
+              if (!dialogShown) {
+                dialogShown = true;
+                mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...',
+                  onClose: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (route) => false,
+                    );
+                  },
+                );
+              }
+              return;
+            } else if (mensajeError == "jwt expired") {
+              await prefs.remove('tokenauth');
+
+              if (!dialogShown) {
+                dialogShown = true;
+                _handleError(
+                  dialogShown,
+                  'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+                  redirectToLogin: true,
+                );
+              }
+              return;
+            }
+          }
+        } catch (e) {
+          print('Error al procesar la respuesta: $e');
+        }
+
         print('⚠️ Respuesta no exitosa - Código: ${response.statusCode}');
         setErrorState(
             'Error del servidor: ${response.statusCode}', dialogShown);
@@ -150,9 +182,13 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       print('❌ Error inesperado: $e');
       setErrorState('Error inesperado: ${e.toString()}', dialogShown);
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
 
-    // Set a timeout for the API call
+    // Manejar timeout si la carga sigue activa después de 10 segundos
     Timer(Duration(seconds: 10), () {
       if (mounted && !dialogShown && isLoading) {
         setState(() {
@@ -164,6 +200,123 @@ class _HomeScreenState extends State<HomeScreen> {
             'No se pudo conectar al servidor. Verifica tu red.');
       }
     });
+  }
+
+  void _handleError(bool dialogShown, String message,
+      {bool redirectToLogin = false}) {
+    if (!dialogShown) {
+      dialogShown = true;
+      _mostrarDialogoError(
+        message,
+        onClose: redirectToLogin
+            ? () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              }
+            : null,
+      );
+    }
+  }
+
+  void _mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    if (!mounted || dialogShown) return; // Evitar múltiples diálogos
+
+    dialogShown = true;
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Error', style: TextStyle(color: Colors.red)),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              onClose?.call();
+            },
+            child: Text('Aceptar'),
+          ),
+        ],
+      ),
+    ).then((_) => dialogShown = false);
+  }
+
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
 // Helper method to set error state

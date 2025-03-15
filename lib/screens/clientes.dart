@@ -80,49 +80,77 @@ class _ClientesScreenState extends State<ClientesScreen> {
             setState(() {
               listaClientes =
                   data.map((item) => Cliente.fromJson(item)).toList();
-              listaClientes.sort((a, b) =>
-                  b.fCreacion.compareTo(a.fCreacion)); // <-- Agrega esta línea
+              listaClientes.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
 
               isLoading = false;
               errorDeConexion = false;
             });
             _timer?.cancel();
-          } else if (response.statusCode == 404) {
-            final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] == "jwt expired") {
-              if (mounted) {
-                setState(() => isLoading = false);
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.remove('tokenauth');
-                _timer?.cancel();
-                mostrarDialogoError(
-                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                    onClose: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginScreen()),
-                  );
-                });
-              }
-              return;
-            } else {
-              setErrorState(dialogShown);
-            }
-          } else if (response.statusCode == 400) {
-            final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] ==
-                "No hay ningun cliente registrado") {
-              setState(() {
-                listaClientes = [];
-                isLoading = false;
-                noClientsFound = true;
-              });
-              _timer?.cancel();
-            } else {
-              setErrorState(dialogShown);
-            }
           } else {
-            setErrorState(dialogShown);
+            // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
+            try {
+              final errorData = json.decode(response.body);
+
+              // Verificar si es el mensaje específico de sesión cambiada
+              if (errorData["Error"] != null &&
+                  errorData["Error"]["Message"] ==
+                      "La sesión ha cambiado. Cerrando sesión...") {
+                if (mounted) {
+                  setState(() => isLoading = false);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('tokenauth');
+                  _timer?.cancel();
+
+                  // Mostrar diálogo y redirigir al login
+                  mostrarDialogoCierreSesion(
+                      'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (route) => false, // Elimina todas las rutas anteriores
+                    );
+                  });
+                }
+                return;
+              }
+              // Manejar error JWT expirado
+              else if (response.statusCode == 404 &&
+                  errorData["Error"]["Message"] == "jwt expired") {
+                if (mounted) {
+                  setState(() => isLoading = false);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('tokenauth');
+                  _timer?.cancel();
+                  mostrarDialogoError(
+                      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                      onClose: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  });
+                }
+                return;
+              }
+              // Manejar error de no hay clientes
+              else if (response.statusCode == 400 &&
+                  errorData["Error"]["Message"] ==
+                      "No hay ningun cliente registrado") {
+                setState(() {
+                  listaClientes = [];
+                  isLoading = false;
+                  noClientsFound = true;
+                });
+                _timer?.cancel();
+              }
+              // Otros errores
+              else {
+                setErrorState(dialogShown);
+              }
+            } catch (parseError) {
+              // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
+              setErrorState(dialogShown);
+            }
           }
         }
       } catch (e) {
@@ -149,6 +177,82 @@ class _ClientesScreenState extends State<ClientesScreen> {
     }
   }
 
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> searchClientes(String query) async {
     if (query.trim().isEmpty) {
       obtenerClientes();
@@ -169,7 +273,10 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
       final response = await http.get(
         Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
-        headers: {'tokenauth': token},
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
       ).timeout(Duration(seconds: 10));
 
       await Future.delayed(Duration(milliseconds: 500));
@@ -184,20 +291,89 @@ class _ClientesScreenState extends State<ClientesScreen> {
           listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
           isLoading = false;
         });
-      } else if (response.statusCode == 401) {
-        _handleTokenExpiration();
-      } else if (response.statusCode == 400) {
-        // Aquí manejamos cuando no hay resultados en la búsqueda
-        setState(() {
-          listaClientes = [];
-          isLoading = false;
-          noClientsFound = true;
-        });
       } else {
-        setState(() {
-          isLoading = false;
-          errorDeConexion = true;
-        });
+        // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              setState(() => isLoading = false);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              setState(() => isLoading = false);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return;
+          }
+          // Manejar 401 para token expirado
+          else if (response.statusCode == 401) {
+            _handleTokenExpiration();
+          }
+          // Manejar error de no hay clientes
+          else if (response.statusCode == 400) {
+            // Si el mensaje específicamente dice que no hay resultados
+            if (errorData["Error"] != null &&
+                errorData["Error"]["Message"] ==
+                    "No hay ningun cliente registrado") {
+              setState(() {
+                listaClientes = [];
+                isLoading = false;
+                noClientsFound = true;
+              });
+            } else {
+              // Otros errores 400
+              setState(() {
+                listaClientes = [];
+                isLoading = false;
+                noClientsFound = true;
+              });
+            }
+          }
+          // Otros errores
+          else {
+            setState(() {
+              isLoading = false;
+              errorDeConexion = true;
+            });
+          }
+        } catch (parseError) {
+          // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
+          setState(() {
+            isLoading = false;
+            errorDeConexion = true;
+          });
+        }
       }
     } on SocketException catch (e) {
       print('SocketException: $e');
@@ -313,6 +489,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
           },
         );
 
+        // Siempre cerramos el diálogo de carga antes de mostrar cualquier otro diálogo
+        Navigator.pop(context); // Cierra el CircularProgressIndicator
+
         if (response.statusCode == 200) {
           print('Cliente eliminado con éxito. ID: $idCliente');
           mostrarSnackBar(context, 'Cliente eliminado correctamente');
@@ -321,13 +500,50 @@ class _ClientesScreenState extends State<ClientesScreen> {
           // Intenta decodificar la respuesta del servidor
           try {
             final Map<String, dynamic> errorData = json.decode(response.body);
-            final errorMessage =
-                errorData["Error"]["Message"] ?? "Error desconocido";
 
-            print('Error al eliminar el cliente: ${response.statusCode}');
-            print('Respuesta del servidor: ${response.body}');
+            // Verificar si es el mensaje específico de sesión cambiada
+            if (errorData["Error"] != null &&
+                errorData["Error"]["Message"] ==
+                    "La sesión ha cambiado. Cerrando sesión...") {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
 
-            mostrarMensajeError(context, errorMessage);
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+              return;
+            }
+            // Manejar error JWT expirado
+            else if (response.statusCode == 404 &&
+                errorData["Error"] != null &&
+                errorData["Error"]["Message"] == "jwt expired") {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+              return;
+            }
+            // Para otros errores, mostramos el mensaje del error
+            else {
+              final errorMessage =
+                  errorData["Error"]["Message"] ?? "Error desconocido";
+              print('Error al eliminar el cliente: ${response.statusCode}');
+              print('Respuesta del servidor: ${response.body}');
+              mostrarMensajeError(context, errorMessage);
+            }
           } catch (e) {
             // Si no se puede decodificar el JSON, muestra un mensaje genérico
             print('Error al decodificar la respuesta del servidor: $e');
@@ -336,10 +552,11 @@ class _ClientesScreenState extends State<ClientesScreen> {
           }
         }
       } catch (e) {
+        // Cerramos el diálogo de carga si hay una excepción
+        Navigator.pop(context);
+
         print('Error de conexión al eliminar el cliente: $e');
         mostrarMensajeError(context, 'Error de conexión');
-      } finally {
-        Navigator.pop(context); // Cierra el CircularProgressIndicator
       }
     }
   }

@@ -111,11 +111,59 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         setState(() {
           _usuarios = data.map((item) => Usuario.fromJson(item)).toList();
         });
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return;
+          }
+        } catch (parseError) {
+          print('Error parseando respuesta: $parseError');
+        }
       }
     } catch (e) {
       print('Error obteniendo usuarios: $e');
     } finally {
-      setState(() => _isLoadingUsuarios = false);
+      if (mounted) {
+        setState(() => _isLoadingUsuarios = false);
+      }
     }
   }
 
@@ -137,13 +185,62 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
         return List<Map<String, dynamic>>.from(data);
-      } else if (response.statusCode == 404) {
-        final errorData = json.decode(response.body);
-        if (errorData["Error"]["Message"] == "jwt expired") {
-          _handleTokenExpiration();
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+            }
+            return [];
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return [];
+          }
+        } catch (parseError) {
+          print('Error parseando respuesta: $parseError');
         }
+
+        if (mounted && !_dialogShown) {
+          _mostrarDialogo(
+            title: 'Error',
+            message: 'Error al buscar personas. Por favor intenta nuevamente.',
+            isSuccess: false,
+          );
+        }
+        return [];
       }
-      return [];
     } catch (e) {
       if (mounted && !_dialogShown) {
         _mostrarDialogo(
@@ -155,6 +252,104 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       }
       return [];
     }
+  }
+
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    showDialog(
+      barrierDismissible: false, // Impide cerrar tocando fuera
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(mensaje),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                if (onClose != null) onClose();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _handleTokenExpiration() async {
@@ -446,7 +641,53 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       if (response.statusCode == 201) {
         return jsonDecode(response.body);
       } else {
-        _handleResponseError(response);
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+            }
+            return null;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return null;
+          } else {
+            _handleResponseError(response);
+          }
+        } catch (parseError) {
+          _handleResponseError(response);
+        }
       }
     } catch (e) {
       if (mounted && !_dialogShown) {
@@ -506,7 +747,54 @@ class _nGrupoDialogState extends State<nGrupoDialog>
 
       if (response.statusCode == 201) return true;
 
-      _handleResponseError(response);
+      try {
+        final errorData = json.decode(response.body);
+
+        // Verificar si es el mensaje específico de sesión cambiada
+        if (errorData["Error"] != null &&
+            errorData["Error"]["Message"] ==
+                "La sesión ha cambiado. Cerrando sesión...") {
+          if (mounted) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+            _timer?.cancel();
+
+            // Mostrar diálogo y redirigir al login
+            mostrarDialogoCierreSesion(
+                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false, // Elimina todas las rutas anteriores
+              );
+            });
+          }
+          return false;
+        }
+        // Manejar error JWT expirado
+        else if (response.statusCode == 404 &&
+            errorData["Error"]["Message"] == "jwt expired") {
+          if (mounted) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+            _timer?.cancel();
+            mostrarDialogoError(
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            });
+          }
+          return false;
+        } else {
+          _handleResponseError(response);
+        }
+      } catch (parseError) {
+        _handleResponseError(response);
+      }
+
       return false;
     } catch (e) {
       if (mounted && !_dialogShown) {

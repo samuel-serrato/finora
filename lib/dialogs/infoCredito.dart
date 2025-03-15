@@ -21,8 +21,9 @@ import 'package:open_file/open_file.dart';
 
 class InfoCredito extends StatefulWidget {
   final String folio;
+  final String tipoUsuario;
 
-  InfoCredito({required this.folio});
+  InfoCredito({required this.folio, required this.tipoUsuario});
 
   @override
   _InfoCreditoState createState() => _InfoCreditoState();
@@ -38,11 +39,13 @@ class _InfoCreditoState extends State<InfoCredito> {
   String idCredito = '';
   final GlobalKey<_PaginaControlState> paginaControlKey = GlobalKey();
   bool isSending = false; // Nuevo estado para controlar la carga
+  late String tipoUsuario; // Declaración sin inicialización directa
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    tipoUsuario = widget.tipoUsuario; // Inicialización dentro de initState
     _fetchCreditoData();
   }
 
@@ -97,23 +100,161 @@ class _InfoCreditoState extends State<InfoCredito> {
           _handleError(dialogShown, 'Error en la carga de datos...');
         }
         idCredito = creditoData!.idcredito;
-      } else if (response.statusCode == 404) {
-        final errorData = json.decode(response.body);
-        if (errorData["Error"]["Message"] == "jwt expired") {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('tokenauth');
-          _handleError(dialogShown,
-              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-              redirectToLogin: true);
-        } else {
-          _handleError(dialogShown, 'Error: ${response.statusCode}');
-        }
       } else {
-        print('Respuesta:${response.body}');
-        _handleError(dialogShown, 'Error: ${response.statusCode}');
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+            _timer?.cancel(); // Cancela el temporizador antes de navegar
+
+            // Mostrar diálogo y redirigir al login
+            mostrarDialogoCierreSesion(
+                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false, // Elimina todas las rutas anteriores
+              );
+            });
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+            _timer?.cancel(); // Cancela el temporizador antes de navegar
+
+            mostrarDialogoError(
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            });
+            return;
+          }
+          // Otros errores
+          else {
+            print('Respuesta:${response.body}');
+            _handleError(dialogShown, 'Error: ${response.statusCode}');
+          }
+        } catch (parseError) {
+          // Si no podemos parsear la respuesta, delegamos al manejador de errores existente
+          _handleError(
+              dialogShown, 'Error al procesar la respuesta del servidor');
+        }
       }
     } catch (e) {
       _handleError(dialogShown, 'Error: $e');
+    }
+  }
+
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Función para mostrar el diálogo de error
+  void mostrarDialogoError(String mensaje, {VoidCallback? onClose}) {
+    if (mounted) {
+      showDialog(
+        barrierDismissible: false,
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Error'),
+            content: Text(mensaje),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  if (onClose != null) onClose();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
     }
   }
 
@@ -391,10 +532,10 @@ class _InfoCreditoState extends State<InfoCredito> {
       final response = await http.post(
         url,
         headers: {
-          'Content-Type': 'application/json', // Asegúrate de enviar como JSON
-          'tokenauth': token, // Agregar el token al header
+          'Content-Type': 'application/json',
+          'tokenauth': token,
         },
-        body: json.encode(pagosJson), // Convertir los datos a formato JSON
+        body: json.encode(pagosJson),
       );
 
       // Verificar la respuesta del servidor
@@ -402,31 +543,64 @@ class _InfoCreditoState extends State<InfoCredito> {
         print('Datos enviados exitosamente');
         mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
       } else {
-        // Verificar si la sesión ha expirado
-        if (response.statusCode == 401) {
-          // Código para sesión expirada
-          _handleError(false,
-              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-              redirectToLogin: true);
-          return;
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+
+            // Mostrar diálogo y redirigir al login
+            mostrarDialogoCierreSesion(
+                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false, // Elimina todas las rutas anteriores
+              );
+            });
+            return;
+          }
+          // Manejar error JWT expirado
+          else if ((response.statusCode == 404 || response.statusCode == 401) &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+            _handleError(false,
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                redirectToLogin: true);
+            return;
+          } else {
+            // Imprimir detalles del error si la respuesta no es 201
+            print('Error al enviar datos: ${response.statusCode}');
+            print('Respuesta del servidor: ${response.body}');
+
+            // Parsear la respuesta del servidor
+            final int codigoError = errorData['Error']['Code'];
+            final String mensajeError = errorData['Error']['Message'];
+
+            // Mostrar el error usando la misma función
+            mostrarDialogo(
+              context,
+              'Error $codigoError',
+              mensajeError,
+              esError: true,
+            );
+          }
+        } catch (parseError) {
+          // Si no podemos parsear la respuesta JSON correctamente
+          print('Error al procesar la respuesta: $parseError');
+          mostrarDialogo(
+            context,
+            'Error de servidor',
+            'No se pudo procesar la respuesta del servidor.',
+            esError: true,
+          );
         }
-
-        // Imprimir detalles del error si la respuesta no es 201
-        print('Error al enviar datos: ${response.statusCode}');
-        print('Respuesta del servidor: ${response.body}');
-
-        // Parsear la respuesta del servidor
-        final Map<String, dynamic> respuesta = json.decode(response.body);
-        final int codigoError = respuesta['Error']['Code'];
-        final String mensajeError = respuesta['Error']['Message'];
-
-        // Mostrar el error usando la misma función
-        mostrarDialogo(
-          context,
-          'Error $codigoError',
-          mensajeError,
-          esError: true,
-        );
       }
     } catch (e) {
       print('Error al hacer la solicitud: $e');
@@ -711,6 +885,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                         montoGarantia: creditoData!
                                                                 .montoGarantia ??
                                                             0.0,
+                                                        tipoUsuario:
+                                                            tipoUsuario,
                                                       ),
                                                     ],
                                                   ),
@@ -1119,9 +1295,13 @@ class Credito {
 class PaginaControl extends StatefulWidget {
   final String idCredito;
   final double montoGarantia;
+  final String tipoUsuario;
 
   PaginaControl(
-      {Key? key, required this.idCredito, required this.montoGarantia})
+      {Key? key,
+      required this.idCredito,
+      required this.montoGarantia,
+      required this.tipoUsuario})
       : super(key: key);
 
   @override
@@ -1135,11 +1315,13 @@ class _PaginaControlState extends State<PaginaControl> {
   bool isLoading = true;
   Timer? _debounce;
   bool dialogShown = false;
+  late String tipoUsuario; // Declaración sin inicialización directa
 
   @override
   void initState() {
     super.initState();
     _pagosFuture = _fetchPagos();
+    tipoUsuario = widget.tipoUsuario; // Inicialización dentro de initState
   }
 
   Future<void> recargarPagos() async {
@@ -1173,6 +1355,18 @@ class _PaginaControlState extends State<PaginaControl> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
+      // Verificar que el token esté disponible
+      if (token.isEmpty) {
+        _mostrarDialogoError(
+            'Token de autenticación no encontrado. Por favor, inicia sesión.');
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false, // Elimina todas las rutas anteriores
+        );
+        return [];
+      }
+
       final response = await http.get(
         Uri.parse(
             'http://$baseUrl/api/v1/creditos/calendario/${widget.idCredito}'),
@@ -1183,46 +1377,31 @@ class _PaginaControlState extends State<PaginaControl> {
         List<dynamic> data = json.decode(response.body);
         List<Pago> pagos = data.map((pago) => Pago.fromJson(pago)).toList();
 
-        // Dentro de _fetchPagos:
-        // Dentro de _fetchPagos después de obtener la lista de pagos:
         for (var pago in pagos) {
           double totalDeuda = (pago.capitalMasInteres ?? 0.0) +
               (pago.moratorios?.moratorios ?? 0.0);
 
-          // Verificar si hay garantía
           bool tieneGarantia =
               pago.abonos.any((abono) => abono['garantia'] == 'Si');
 
-          // Calcular el monto total pagado, incluyendo garantía y abonos adicionales
-          double montoPagado = 0.0;
+          double montoPagado = pago.abonos.fold(
+              0.0,
+              (total, abono) =>
+                  total + (double.tryParse(abono['abono'].toString()) ?? 0.0));
 
-          // Sumar todos los abonos, incluyendo los marcados como garantía
-          for (var abono in pago.abonos) {
-            montoPagado += double.tryParse(abono['abono'].toString()) ?? 0.0;
-          }
-
-          // Verificar si hay actividad en el pago
           bool sinActividad = pago.abonos.isEmpty;
 
           if (sinActividad) {
             pago.saldoEnContra = 0.0;
             pago.saldoFavor = 0.0;
           } else {
-            // Verificar si el pago está liquidado
             bool estaPagado = montoPagado >= totalDeuda;
-
-            if (estaPagado) {
-              pago.saldoEnContra = 0.0;
-              pago.saldoFavor =
-                  tieneGarantia ? 0.0 : (montoPagado - totalDeuda);
-            } else {
-              pago.saldoEnContra = totalDeuda - montoPagado;
-              pago.saldoFavor = 0.0;
-            }
+            pago.saldoEnContra = estaPagado ? 0.0 : totalDeuda - montoPagado;
+            pago.saldoFavor =
+                estaPagado && !tieneGarantia ? montoPagado - totalDeuda : 0.0;
           }
         }
 
-        // Cargar los pagos en el provider
         _actualizarProviderConPagos(pagos);
 
         if (mounted) {
@@ -1233,6 +1412,39 @@ class _PaginaControlState extends State<PaginaControl> {
 
         return pagos;
       } else {
+        try {
+          final errorData = json.decode(response.body);
+
+          if (errorData["Error"] != null) {
+            final mensajeError = errorData["Error"]["Message"];
+
+            if (mensajeError == "La sesión ha cambiado. Cerrando sesión...") {
+              await prefs.remove('tokenauth');
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false,
+                );
+              });
+              return [];
+            } else if (mensajeError == "jwt expired") {
+              await prefs.remove('tokenauth');
+              _mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false,
+              );
+              return [];
+            }
+          }
+        } catch (e) {
+          print('Error al procesar la respuesta: $e');
+        }
+
         print('Respuesta:${response.body}');
         throw Exception('Error: ${response.statusCode}');
       }
@@ -1270,6 +1482,82 @@ class _PaginaControlState extends State<PaginaControl> {
             : "",
       );
     });
+  }
+
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _mostrarDialogoError(String mensaje) {
@@ -3219,6 +3507,49 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                           .grey[
                                                                       800]),
                                                             ),
+
+                                                          // Mostrar la opción de deshabilitar moratorios solo si el usuario es 'Admin'
+                                                          if (tipoUsuario ==
+                                                              'Admin')
+                                                            StatefulBuilder(
+                                                              builder: (BuildContext
+                                                                      context,
+                                                                  StateSetter
+                                                                      setState) {
+                                                                bool
+                                                                    deshabilitarMoratorios =
+                                                                    false; // Estado inicial
+                                                                return CheckboxListTile(
+                                                                  title: Text(
+                                                                    "Deshabilitar moratorios",
+                                                                    style: TextStyle(
+                                                                        fontSize:
+                                                                            12,
+                                                                        color: Colors
+                                                                            .grey[800]),
+                                                                  ),
+                                                                  value:
+                                                                      deshabilitarMoratorios,
+                                                                  onChanged:
+                                                                      (bool?
+                                                                          value) {
+                                                                    setState(
+                                                                        () {
+                                                                      deshabilitarMoratorios =
+                                                                          value ??
+                                                                              false;
+                                                                    });
+                                                                    // Aquí puedes agregar la lógica para deshabilitar moratorios
+                                                                  },
+                                                                  controlAffinity:
+                                                                      ListTileControlAffinity
+                                                                          .leading,
+                                                                  contentPadding:
+                                                                      EdgeInsets
+                                                                          .zero,
+                                                                );
+                                                              },
+                                                            ),
                                                         ],
                                                       ),
                                                     ),
@@ -4142,6 +4473,16 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
+      // Verificar si el token está disponible
+      if (token.isEmpty) {
+        _handleError(
+          dialogShown,
+          'Token de autenticación no encontrado. Por favor, inicia sesión.',
+          redirectToLogin: true,
+        );
+        return;
+      }
+
       final response = await http.get(
         Uri.parse(
           'http://$baseUrl/api/v1/formato/'
@@ -4173,23 +4514,48 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
           if (!mounted) return;
           await _abrirArchivoGuardado(savePath);
         }
-      } else if (response.statusCode == 404) {
-        final errorData = json.decode(response.body);
-        if (errorData["Error"]["Message"] == "jwt expired") {
-          await prefs.remove('tokenauth');
-
-          if (!dialogShown) {
-            dialogShown = true;
-            _handleError(
-              dialogShown,
-              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-              redirectToLogin: true,
-            );
-          }
-        } else {
-          _handleError(dialogShown, 'Error 404: Documento no encontrado.');
-        }
       } else {
+        try {
+          final errorData = json.decode(response.body);
+
+          if (errorData["Error"] != null) {
+            final mensajeError = errorData["Error"]["Message"];
+
+            if (mensajeError == "La sesión ha cambiado. Cerrando sesión...") {
+              await prefs.remove('tokenauth');
+
+              if (!dialogShown) {
+                dialogShown = true;
+                mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...',
+                  onClose: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (route) => false,
+                    );
+                  },
+                );
+              }
+              return;
+            } else if (mensajeError == "jwt expired") {
+              await prefs.remove('tokenauth');
+
+              if (!dialogShown) {
+                dialogShown = true;
+                _handleError(
+                  dialogShown,
+                  'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+                  redirectToLogin: true,
+                );
+              }
+              return;
+            }
+          }
+        } catch (e) {
+          print('Error al procesar la respuesta: $e');
+        }
+
         _handleError(dialogShown, 'Error de servidor: ${response.statusCode}');
       }
     } catch (e) {
@@ -4199,6 +4565,82 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
         setState(() => _documentoDescargando = null);
       }
     }
+  }
+
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _handleError(bool dialogShown, String message,

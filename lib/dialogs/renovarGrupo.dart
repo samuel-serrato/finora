@@ -102,7 +102,10 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
       final response = await http.get(
         Uri.parse(url),
-        headers: {'tokenauth': token},
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
       );
 
       if (!mounted) return;
@@ -143,7 +146,54 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
         clientesActuales.forEach((cliente) => print(
             'id: ${cliente['idclientes']}, Nombre: ${cliente['nombres']}'));
       } else {
-        _handleApiError(response, 'Error cargando grupo');
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return;
+          } else {
+            _handleApiError(response, 'Error cargando grupo');
+          }
+        } catch (parseError) {
+          // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
+          _handleApiError(response, 'Error cargando grupo');
+        }
       }
     } catch (e) {
       _handleNetworkError(e);
@@ -152,6 +202,82 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Función para mostrar el diálogo de error
@@ -215,6 +341,16 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
 
     setState(() => _isLoading = true);
 
+    _timer = Timer(const Duration(seconds: 10), () {
+      if (mounted && _isLoading && !_dialogShown) {
+        setState(() => _isLoading = false);
+        mostrarDialogoError(
+          'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
+        );
+        _dialogShown = true;
+      }
+    });
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
@@ -238,6 +374,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       );
 
       if (!mounted) return;
+      _timer?.cancel();
 
       if (response.statusCode == 201) {
         final responseBody = jsonDecode(response.body);
@@ -257,12 +394,60 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
           );
         }
       } else {
-        _handleApiError(response, 'Error renovando grupo');
+        // Intentamos decodificar la respuesta para verificar mensajes específicos de error
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+
+            // Mostrar diálogo y redirigir al login
+            mostrarDialogoCierreSesion(
+                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false, // Elimina todas las rutas anteriores
+              );
+            });
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+
+            mostrarDialogoError(
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            });
+            return;
+          }
+          // Otros errores
+          else {
+            _handleApiError(response, 'Error renovando grupo');
+          }
+        } catch (parseError) {
+          // Si no podemos parsear la respuesta, delegamos al manejador de errores existente
+          _handleApiError(response, 'Error renovando grupo');
+        }
       }
     } catch (e) {
       _handleNetworkError(e);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -279,7 +464,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       final requestBody = {
         'idgrupos': idGrupo,
         'clientes': miembros,
-        'idusuarios': grupoData['idusuario'], // Aquí el cambio
+        'idusuarios': grupoData['idusuario'],
       };
 
       print('Sending members: $requestBody'); // Debugging
@@ -290,15 +475,57 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
           'Content-Type': 'application/json',
           'tokenauth': token,
         },
-        body: json.encode({
-          'idgrupos': idGrupo,
-          'clientes': miembros,
-          'idusuarios': grupoData['idusuario'], // Aquí el cambio
-        }),
+        body: json.encode(requestBody),
       );
 
+      // Manejar respuestas de error específicas
       if (response.statusCode != 201) {
-        _handleApiError(response, 'Error agregando miembros');
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+
+            // Mostrar diálogo y redirigir al login
+            mostrarDialogoCierreSesion(
+                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false, // Elimina todas las rutas anteriores
+              );
+            });
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+
+            mostrarDialogoError(
+                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            });
+            return;
+          }
+          // Otros errores
+          else {
+            _handleApiError(response, 'Error agregando miembros');
+          }
+        } catch (parseError) {
+          // Si no podemos parsear la respuesta, delegamos al manejador de errores existente
+          _handleApiError(response, 'Error agregando miembros');
+        }
       }
     } catch (e) {
       _handleNetworkError(e);
@@ -752,29 +979,29 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                                   SizedBox()), // Esto empuja el estado hacia la derecha
                           // Container para el estado
                           Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(person['estado']),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _getStatusColor(person['estado'])
-                                  .withOpacity(
-                                      0.6), // Borde con el mismo color pero más fuerte
-                              width: 1, // Grosor del borde
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(person['estado']),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: _getStatusColor(person['estado'])
+                                    .withOpacity(
+                                        0.6), // Borde con el mismo color pero más fuerte
+                                width: 1, // Grosor del borde
+                              ),
+                            ),
+                            child: Text(
+                              person['estado'] ?? 'N/A',
+                              style: TextStyle(
+                                color: _getStatusColor(person['estado'])
+                                    .withOpacity(
+                                        0.8), // Color del texto más oscuro
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          child: Text(
-                            person['estado'] ?? 'N/A',
-                            style: TextStyle(
-                              color: _getStatusColor(person['estado'])
-                                  .withOpacity(
-                                      0.8), // Color del texto más oscuro
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
                         ],
                       ),
                     );
@@ -883,32 +1110,32 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                                     : Colors.grey[700],
                               ),
                             ),
-                           SizedBox(width: 10),
+                            SizedBox(width: 10),
                             // Container para el estado
                             Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 0),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(person['estado']),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: _getStatusColor(person['estado'])
-                                    .withOpacity(
-                                        0.6), // Borde con el mismo color pero más fuerte
-                                width: 1, // Grosor del borde
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 0),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(person['estado']),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _getStatusColor(person['estado'])
+                                      .withOpacity(
+                                          0.6), // Borde con el mismo color pero más fuerte
+                                  width: 1, // Grosor del borde
+                                ),
+                              ),
+                              child: Text(
+                                person['estado'] ?? 'N/A',
+                                style: TextStyle(
+                                  color: _getStatusColor(person['estado'])
+                                      .withOpacity(
+                                          0.8), // Color del texto más oscuro
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              person['estado'] ?? 'N/A',
-                              style: TextStyle(
-                                color: _getStatusColor(person['estado'])
-                                    .withOpacity(
-                                        0.8), // Color del texto más oscuro
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
                           ],
                         ),
                         trailing: Row(
@@ -1039,7 +1266,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
     );
   }
 
- Color _getStatusColor(String? estado) {
+  Color _getStatusColor(String? estado) {
     switch (estado) {
       case 'En Credito':
         return Color(0xFFA31D1D)

@@ -80,49 +80,76 @@ class _GruposScreenState extends State<GruposScreen> {
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
-              listaGrupos.sort((a, b) =>
-                  b.fCreacion.compareTo(a.fCreacion)); // <-- Agrega esta línea
+              listaGrupos.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
 
               isLoading = false;
               errorDeConexion = false;
             });
             _timer?.cancel();
-          } else if (response.statusCode == 404) {
-            final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] == "jwt expired") {
-              if (mounted) {
-                setState(() => isLoading = false);
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.remove('tokenauth');
-                _timer?.cancel();
-                mostrarDialogoError(
-                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                    onClose: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginScreen()),
-                  );
-                });
-              }
-              return;
-            } else {
-              setErrorState(dialogShown);
-            }
-          } else if (response.statusCode == 400) {
-            final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] ==
-                "No hay detalle de grupos registrados") {
-              setState(() {
-                listaGrupos = [];
-                isLoading = false;
-                noGroupsFound = true;
-              });
-              _timer?.cancel();
-            } else {
-              setErrorState(dialogShown);
-            }
           } else {
-            setErrorState(dialogShown);
+            try {
+              final errorData = json.decode(response.body);
+
+              // Verificar si es el mensaje específico de sesión cambiada
+              if (errorData["Error"] != null &&
+                  errorData["Error"]["Message"] ==
+                      "La sesión ha cambiado. Cerrando sesión...") {
+                if (mounted) {
+                  setState(() => isLoading = false);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('tokenauth');
+                  _timer?.cancel();
+
+                  // Mostrar diálogo y redirigir al login
+                  mostrarDialogoCierreSesion(
+                      'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (route) => false, // Elimina todas las rutas anteriores
+                    );
+                  });
+                }
+                return;
+              }
+              // Manejar error JWT expirado
+              else if (response.statusCode == 404 &&
+                  errorData["Error"]["Message"] == "jwt expired") {
+                if (mounted) {
+                  setState(() => isLoading = false);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('tokenauth');
+                  _timer?.cancel();
+                  mostrarDialogoError(
+                      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                      onClose: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  });
+                }
+                return;
+              }
+              // Manejar error de no hay grupos
+              else if (response.statusCode == 400 &&
+                  errorData["Error"]["Message"] ==
+                      "No hay detalle de grupos registrados") {
+                setState(() {
+                  listaGrupos = [];
+                  isLoading = false;
+                  noGroupsFound = true;
+                });
+                _timer?.cancel();
+              }
+              // Otros errores
+              else {
+                setErrorState(dialogShown);
+              }
+            } catch (parseError) {
+              // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
+              setErrorState(dialogShown);
+            }
           }
         }
       } catch (e) {
@@ -169,7 +196,10 @@ class _GruposScreenState extends State<GruposScreen> {
 
       final response = await http.get(
         Uri.parse('http://$baseUrl/api/v1/grupodetalles/$query'),
-        headers: {'tokenauth': token},
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
       ).timeout(Duration(seconds: 10));
 
       await Future.delayed(Duration(milliseconds: 500));
@@ -184,22 +214,78 @@ class _GruposScreenState extends State<GruposScreen> {
         setState(() {
           listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
           isLoading = false;
-          noGroupsFound = listaGrupos.isEmpty; // Se actualiza correctamente
-        });
-      } else if (response.statusCode == 401) {
-        _handleTokenExpiration();
-      } else if (response.statusCode == 400) {
-        // Aquí manejamos cuando no hay resultados en la búsqueda
-        setState(() {
-          listaGrupos = [];
-          isLoading = false;
-          noGroupsFound = true;
+          noGroupsFound = listaGrupos.isEmpty;
         });
       } else {
-        setState(() {
-          isLoading = false;
-          errorDeConexion = true;
-        });
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              setState(() => isLoading = false);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              setState(() => isLoading = false);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error de no hay grupos
+          else if (response.statusCode == 400 &&
+              errorData["Error"]["Message"] ==
+                  "No hay detalle de grupos registrados") {
+            setState(() {
+              listaGrupos = [];
+              isLoading = false;
+              noGroupsFound = true;
+            });
+            return;
+          }
+          // Otros errores
+          else {
+            setState(() {
+              isLoading = false;
+              errorDeConexion = true;
+            });
+          }
+        } catch (parseError) {
+          // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
+          setState(() {
+            isLoading = false;
+            errorDeConexion = true;
+          });
+        }
       }
     } on SocketException catch (e) {
       print('SocketException: $e');
@@ -226,6 +312,82 @@ class _GruposScreenState extends State<GruposScreen> {
         });
       }
     }
+  }
+
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _handleTokenExpiration() async {
@@ -772,7 +934,10 @@ class _GruposScreenState extends State<GruposScreen> {
 
       final responseClientes = await http.get(
         Uri.parse(urlClientes),
-        headers: {'tokenauth': token},
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
       );
 
       print(
@@ -800,7 +965,10 @@ class _GruposScreenState extends State<GruposScreen> {
 
             final responseEliminarCliente = await http.delete(
               Uri.parse(urlEliminarCliente),
-              headers: {'tokenauth': token},
+              headers: {
+                'tokenauth': token,
+                'Content-Type': 'application/json',
+              },
             );
 
             print(
@@ -808,12 +976,66 @@ class _GruposScreenState extends State<GruposScreen> {
             print(
                 '[ELIMINAR GRUPO] Respuesta eliminar cliente $idCliente - Body: ${responseEliminarCliente.body}');
 
+            // Verificar si hay error de sesión en la respuesta de eliminar cliente
             if (responseEliminarCliente.statusCode != 200) {
-              print('[ELIMINAR GRUPO] Error al eliminar cliente $idCliente');
-              final errorData = json.decode(responseEliminarCliente.body);
-              print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
-              mostrarDialogoError('Error al eliminar cliente $idCliente');
-              return;
+              try {
+                final errorData = json.decode(responseEliminarCliente.body);
+
+                // Verificar si es el mensaje específico de sesión cambiada
+                if (errorData["Error"] != null &&
+                    errorData["Error"]["Message"] ==
+                        "La sesión ha cambiado. Cerrando sesión...") {
+                  print('[ELIMINAR GRUPO] Sesión cambiada detectada');
+                  if (mounted) {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.remove('tokenauth');
+                    _timer?.cancel();
+
+                    // Mostrar diálogo y redirigir al login
+                    mostrarDialogoCierreSesion(
+                        'La sesión ha cambiado. Cerrando sesión...',
+                        onClose: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (context) => LoginScreen()),
+                        (route) => false, // Elimina todas las rutas anteriores
+                      );
+                    });
+                  }
+                  return;
+                }
+                // Manejar error JWT expirado
+                else if (responseEliminarCliente.statusCode == 404 &&
+                    errorData["Error"]["Message"] == "jwt expired") {
+                  print('[ELIMINAR GRUPO] JWT expirado detectado');
+                  if (mounted) {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.remove('tokenauth');
+                    _timer?.cancel();
+                    mostrarDialogoError(
+                        'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                        onClose: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => LoginScreen()),
+                      );
+                    });
+                  }
+                  return;
+                } else {
+                  print(
+                      '[ELIMINAR GRUPO] Error al eliminar cliente $idCliente');
+                  print(
+                      '[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
+                  mostrarDialogoError('Error al eliminar cliente $idCliente');
+                  return;
+                }
+              } catch (parseError) {
+                print(
+                    '[ELIMINAR GRUPO] Error al parsear respuesta: $parseError');
+                mostrarDialogoError('Error al eliminar cliente $idCliente');
+                return;
+              }
             }
           }
         }
@@ -824,7 +1046,10 @@ class _GruposScreenState extends State<GruposScreen> {
 
         final responseEliminarGrupo = await http.delete(
           Uri.parse(urlEliminarGrupo),
-          headers: {'tokenauth': token},
+          headers: {
+            'tokenauth': token,
+            'Content-Type': 'application/json',
+          },
         );
 
         print(
@@ -843,18 +1068,114 @@ class _GruposScreenState extends State<GruposScreen> {
             ),
           );
         } else {
-          print('[ELIMINAR GRUPO] Error al eliminar grupo');
-          final errorData = json.decode(responseEliminarGrupo.body);
-          print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
-          mostrarDialogoError(
-              errorData['Error']['Message'] ?? 'Error al eliminar el grupo');
+          try {
+            final errorData = json.decode(responseEliminarGrupo.body);
+
+            // Verificar si es el mensaje específico de sesión cambiada
+            if (errorData["Error"] != null &&
+                errorData["Error"]["Message"] ==
+                    "La sesión ha cambiado. Cerrando sesión...") {
+              print('[ELIMINAR GRUPO] Sesión cambiada detectada');
+              if (mounted) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('tokenauth');
+                _timer?.cancel();
+
+                // Mostrar diálogo y redirigir al login
+                mostrarDialogoCierreSesion(
+                    'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                    (route) => false, // Elimina todas las rutas anteriores
+                  );
+                });
+              }
+              return;
+            }
+            // Manejar error JWT expirado
+            else if (responseEliminarGrupo.statusCode == 404 &&
+                errorData["Error"]["Message"] == "jwt expired") {
+              print('[ELIMINAR GRUPO] JWT expirado detectado');
+              if (mounted) {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('tokenauth');
+                _timer?.cancel();
+                mostrarDialogoError(
+                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                    onClose: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                });
+              }
+              return;
+            } else {
+              print('[ELIMINAR GRUPO] Error al eliminar grupo');
+              print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
+              mostrarDialogoError(errorData['Error']['Message'] ??
+                  'Error al eliminar el grupo');
+            }
+          } catch (parseError) {
+            print('[ELIMINAR GRUPO] Error al parsear respuesta: $parseError');
+            mostrarDialogoError('Error al eliminar el grupo');
+          }
         }
       } else {
-        print('[ELIMINAR GRUPO] Error al obtener clientes del grupo');
-        final errorData = json.decode(responseClientes.body);
-        print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
-        mostrarDialogoError(errorData['Error']['Message'] ??
-            'Error al obtener los clientes del grupo');
+        try {
+          final errorData = json.decode(responseClientes.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            print('[ELIMINAR GRUPO] Sesión cambiada detectada');
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (responseClientes.statusCode == 404 &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            print('[ELIMINAR GRUPO] JWT expirado detectado');
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return;
+          } else {
+            print('[ELIMINAR GRUPO] Error al obtener clientes del grupo');
+            print('[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
+            mostrarDialogoError(errorData['Error']['Message'] ??
+                'Error al obtener los clientes del grupo');
+          }
+        } catch (parseError) {
+          print('[ELIMINAR GRUPO] Error al parsear respuesta: $parseError');
+          mostrarDialogoError('Error al obtener los clientes del grupo');
+        }
       }
     } catch (e) {
       print('[ELIMINAR GRUPO] Excepción capturada: $e');
