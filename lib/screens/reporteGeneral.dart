@@ -28,7 +28,6 @@ class ReporteGeneralWidget extends StatelessWidget {
   // Color principal definido como constante para fácil referencia
   static const Color primaryColor = Color(0xFF5162F6);
 
-  @override
   Widget build(BuildContext context) {
     final themeProvider =
         Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
@@ -46,7 +45,7 @@ class ReporteGeneralWidget extends StatelessWidget {
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDarkMode ? Colors.grey[850] : Colors.white,
                 borderRadius: BorderRadius.circular(15),
                 boxShadow: [
                   BoxShadow(
@@ -59,7 +58,15 @@ class ReporteGeneralWidget extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(15),
                 child: listaReportes.isEmpty
-                    ? const Center(child: Text('No hay datos para mostrar'))
+                    ? Center(
+                        child: Text(
+                          'No hay datos para mostrar',
+                          style: TextStyle(
+                            color: isDarkMode ? Colors.white : Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      )
                     : Column(
                         children: [
                           _buildDataTableHeader(context),

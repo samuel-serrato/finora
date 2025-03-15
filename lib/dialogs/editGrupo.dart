@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class editGrupoDialog extends StatefulWidget {
@@ -226,15 +228,15 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     ).then((_) => _dialogShown = false);
   }
 
- bool _validarFormularioActual() {
-  if (_currentIndex == 0) {
-    return _infoGrupoFormKey.currentState?.validate() ?? false;
-  } else if (_currentIndex == 1) {
-    // Si no hay campos obligatorios en miembros, retorna true directamente
-    return true;
+  bool _validarFormularioActual() {
+    if (_currentIndex == 0) {
+      return _infoGrupoFormKey.currentState?.validate() ?? false;
+    } else if (_currentIndex == 1) {
+      // Si no hay campos obligatorios en miembros, retorna true directamente
+      return true;
+    }
+    return false;
   }
-  return false;
-}
 
   Future<List<Map<String, dynamic>>> findPersons(String query) async {
     if (query.isEmpty) return [];
@@ -273,7 +275,8 @@ class _editGrupoDialogState extends State<editGrupoDialog>
       return [];
     }
   }
-void _handleTokenExpiration() async {
+
+  void _handleTokenExpiration() async {
     if (mounted) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('tokenauth');
@@ -370,275 +373,285 @@ void _handleTokenExpiration() async {
   }
 
   // 1. Modificar _enviarMiembros para enviar todos los miembros en una sola solicitud
-Future<bool> _enviarMiembros(String idGrupo) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
+  Future<bool> _enviarMiembros(String idGrupo) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
 
-    // Filtrar solo nuevos miembros (no existentes originalmente)
-    final nuevosMiembros = _selectedPersons.where((persona) => 
-      !originalMemberIds.contains(persona['idclientes'].toString())
-    ).toList();
+      // Filtrar solo nuevos miembros (no existentes originalmente)
+      final nuevosMiembros = _selectedPersons
+          .where((persona) =>
+              !originalMemberIds.contains(persona['idclientes'].toString()))
+          .toList();
 
-    if (nuevosMiembros.isEmpty) return true; // No hay miembros nuevos
+      if (nuevosMiembros.isEmpty) return true; // No hay miembros nuevos
 
-    final response = await http.post(
-      Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
-      headers: {'Content-Type': 'application/json', 'tokenauth': token},
-      body: json.encode({
-        'idgrupos': idGrupo,
-        'clientes': nuevosMiembros.map((persona) => {
-          'idclientes': persona['idclientes'].toString(), // Asegurar string
-          'nomCargo': _cargosSeleccionados[persona['idclientes'] ?? 'Miembro'],
-        }).toList(),
-        'idusuarios': grupoData['idusuario'] ?? '6KNV796U0O', // Ajustar según tu lógica
-      }),
-    );
+      final response = await http.post(
+        Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
+        headers: {'Content-Type': 'application/json', 'tokenauth': token},
+        body: json.encode({
+          'idgrupos': idGrupo,
+          'clientes': nuevosMiembros
+              .map((persona) => {
+                    'idclientes':
+                        persona['idclientes'].toString(), // Asegurar string
+                    'nomCargo': _cargosSeleccionados[
+                        persona['idclientes'] ?? 'Miembro'],
+                  })
+              .toList(),
+          'idusuarios':
+              grupoData['idusuario'] ?? '6KNV796U0O', // Ajustar según tu lógica
+        }),
+      );
 
-   print('Body enviado: ${json.encode({
-  'idgrupos': idGrupo,
-  'clientes': nuevosMiembros.map((persona) => {
-    'idclientes': persona['idclientes'].toString(),
-    'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
-  }).toList(),
-  'idusuarios': grupoData['idusuario'] ?? '6KNV796U0O',
-})}');
+      print('Body enviado: ${json.encode({
+            'idgrupos': idGrupo,
+            'clientes': nuevosMiembros
+                .map((persona) => {
+                      'idclientes': persona['idclientes'].toString(),
+                      'nomCargo': _cargosSeleccionados[persona['idclientes']] ??
+                          'Miembro',
+                    })
+                .toList(),
+            'idusuarios': grupoData['idusuario'] ?? '6KNV796U0O',
+          })}');
 
-    if (!mounted) return false;
+      if (!mounted) return false;
 
-    if (response.statusCode == 201) {
-      return true;
-    } else {
-      _handleApiError(response, 'Error al agregar miembros');
+      if (response.statusCode == 201) {
+        return true;
+      } else {
+        _handleApiError(response, 'Error al agregar miembros');
+        return false;
+      }
+    } catch (e) {
+      _handleNetworkError(e);
       return false;
     }
-  } catch (e) {
-    _handleNetworkError(e);
-    return false;
   }
-}
 
 // 2. Actualizar editarGrupo para manejar el nuevo flujo
-Future<void> editarGrupo() async {
-  if (!_validarFormularioActual()) return;
+  Future<void> editarGrupo() async {
+    if (!_validarFormularioActual()) return;
 
-  // Validación para tipo Individual con múltiples miembros
-  if (selectedTipo == 'Individual' && _selectedPersons.length > 1) {
-    bool? cambiarAGrupal = await showDialog<bool>(
-      context: context,
-      builder: (context) => Theme(
-        data: Theme.of(context).copyWith(
-          dialogBackgroundColor: Colors.white,
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: Color(0xFF5162F6),
+    // Validación para tipo Individual con múltiples miembros
+    if (selectedTipo == 'Individual' && _selectedPersons.length > 1) {
+      bool? cambiarAGrupal = await showDialog<bool>(
+        context: context,
+        builder: (context) => Theme(
+          data: Theme.of(context).copyWith(
+            dialogBackgroundColor: Colors.white,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: Color(0xFF5162F6),
+              ),
             ),
           ),
-        ),
-        child: AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.0),
-          ),
-          contentPadding: EdgeInsets.only(top: 20, bottom: 20),
-          title: Column(
-            children: [
-              Icon(
-                Icons.group_add,
-                size: 60,
-                color: Color(0xFF5162F6),
-              ),
-              SizedBox(height: 15),
-              Text(
-                'Varios Integrantes',
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.0),
+            ),
+            contentPadding: EdgeInsets.only(top: 20, bottom: 20),
+            title: Column(
+              children: [
+                Icon(
+                  Icons.group_add,
+                  size: 60,
+                  color: Color(0xFF5162F6),
+                ),
+                SizedBox(height: 15),
+                Text(
+                  'Varios Integrantes',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            content: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Has seleccionado ${_selectedPersons.length} integrantes, pero el tipo de grupo es "Individual".\n\n'
+                '¿Desea cambiar el tipo a "Grupal" para continuar?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  fontSize: 16,
+                  color: Colors.grey[700],
+                  height: 1.4,
                 ),
+              ),
+            ),
+            actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+            actions: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey[700],
+                        side: BorderSide(color: Colors.grey[400]!),
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context, false),
+                      child: Text('Cancelar'),
+                    ),
+                  ),
+                  SizedBox(width: 15),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF5162F6),
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text('Cambiar Tipo'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          content: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'Has seleccionado ${_selectedPersons.length} integrantes, pero el tipo de grupo es "Individual".\n\n'
-              '¿Desea cambiar el tipo a "Grupal" para continuar?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
-                height: 1.4,
-              ),
-            ),
-          ),
-          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey[700],
-                      side: BorderSide(color: Colors.grey[400]!),
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text('Cancelar'),
-                  ),
-                ),
-                SizedBox(width: 15),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF5162F6),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text('Cambiar Tipo'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (cambiarAGrupal != true) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-    if (mounted) setState(() => selectedTipo = 'Grupal');
-  }
-
-  // Validación para tipo Grupal con menos de 2 miembros
-  if (selectedTipo == 'Grupal' && _selectedPersons.length < 2) {
-    bool? cambiarAIndividual = await showDialog<bool>(
-      context: context,
-      builder: (context) => Theme(
-        data: Theme.of(context).copyWith(
-          dialogBackgroundColor: Colors.white,
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: Color(0xFF5162F6),
-          ),
-        ),
-      ), child: AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.0)),
-          contentPadding: EdgeInsets.only(top: 20, bottom: 20),
-          title: Column(
-            children: [
-              Icon(Icons.group_remove, size: 60, color: Color(0xFF5162F6)),
-              SizedBox(height: 15),
-              Text(
-                'Grupo Incompleto',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87),
-              ),
-            ],
-          ),
-          content: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'Los grupos de tipo "Grupal" requieren mínimo 2 integrantes.\n\n'
-              '¿Desea cambiar el tipo a "Individual" para continuar?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
-                height: 1.4),
-            ),
-          ),
-          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.grey[700],
-                      side: BorderSide(color: Colors.grey[400]!),
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text('Cancelar')),
-                ),
-                SizedBox(width: 15),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF5162F6),
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text('Cambiar Tipo')),
-                ),
-              ],
-            ),
-          ],
-        ),
-    ));
-
-    if (cambiarAIndividual != true) {
-      if (mounted) setState(() => _isLoading = false);
-      return;
-    }
-    if (mounted) setState(() => selectedTipo = 'Individual');
-  }
-
-  setState(() => _isLoading = true);
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-
-    // Actualizar datos básicos del grupo
-    await enviarGrupo();
-
-    // Eliminar miembros removidos
-    await eliminarClienteGrupo(widget.idGrupo, token);
-
-    // Actualizar cargos de miembros existentes
-    verificarCambios();
-
-    // Agregar nuevos miembros
-    final success = await _enviarMiembros(widget.idGrupo);
-    
-    if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Grupo y miembros actualizados correctamente'),
-          backgroundColor: Colors.green,
         ),
       );
-      Navigator.of(context).pop();
+
+      if (cambiarAGrupal != true) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+      if (mounted) setState(() => selectedTipo = 'Grupal');
     }
-  } catch (e) {
-    mostrarDialogoError('Error durante la actualización: ${e.toString()}');
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
+
+    // Validación para tipo Grupal con menos de 2 miembros
+    if (selectedTipo == 'Grupal' && _selectedPersons.length < 2) {
+      bool? cambiarAIndividual = await showDialog<bool>(
+          context: context,
+          builder: (context) => Theme(
+                data: Theme.of(context).copyWith(
+                  dialogBackgroundColor: Colors.white,
+                  textButtonTheme: TextButtonThemeData(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Color(0xFF5162F6),
+                    ),
+                  ),
+                ),
+                child: AlertDialog(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20.0)),
+                  contentPadding: EdgeInsets.only(top: 20, bottom: 20),
+                  title: Column(
+                    children: [
+                      Icon(Icons.group_remove,
+                          size: 60, color: Color(0xFF5162F6)),
+                      SizedBox(height: 15),
+                      Text(
+                        'Grupo Incompleto',
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                  content: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      'Los grupos de tipo "Grupal" requieren mínimo 2 integrantes.\n\n'
+                      '¿Desea cambiar el tipo a "Individual" para continuar?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 16, color: Colors.grey[700], height: 1.4),
+                    ),
+                  ),
+                  actionsPadding:
+                      EdgeInsets.only(bottom: 20, right: 25, left: 25),
+                  actions: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.grey[700],
+                                side: BorderSide(color: Colors.grey[400]!),
+                                padding: EdgeInsets.symmetric(vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text('Cancelar')),
+                        ),
+                        SizedBox(width: 15),
+                        Expanded(
+                          child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF5162F6),
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text('Cambiar Tipo')),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ));
+
+      if (cambiarAIndividual != true) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+      if (mounted) setState(() => selectedTipo = 'Individual');
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      // Actualizar datos básicos del grupo
+      await enviarGrupo();
+
+      // Eliminar miembros removidos
+      await eliminarClienteGrupo(widget.idGrupo, token);
+
+      // Actualizar cargos de miembros existentes
+      verificarCambios();
+
+      // Agregar nuevos miembros
+      final success = await _enviarMiembros(widget.idGrupo);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Grupo y miembros actualizados correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      mostrarDialogoError('Error durante la actualización: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
-}
 
   Future<void> eliminarClienteGrupo(String idGrupo, String token) async {
     if (_clientesEliminados.isEmpty) return;
@@ -702,31 +715,31 @@ Future<void> editarGrupo() async {
   }
 
   Future<void> actualizarCargo(
-  String idGrupo,
-  String idCliente,
-  String nuevoCargo,
-  String token,
-) async {
-  print('Actualizando cargo: $idGrupo, $idCliente, $nuevoCargo'); // Log
-  try {
-    final response = await http.put(
-      Uri.parse('http://$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente'),
-      headers: {'Content-Type': 'application/json', 'tokenauth': token},
-      body: json.encode({'nomCargo': nuevoCargo}),
-    );
+    String idGrupo,
+    String idCliente,
+    String nuevoCargo,
+    String token,
+  ) async {
+    print('Actualizando cargo: $idGrupo, $idCliente, $nuevoCargo'); // Log
+    try {
+      final response = await http.put(
+        Uri.parse(
+            'http://$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente'),
+        headers: {'Content-Type': 'application/json', 'tokenauth': token},
+        body: json.encode({'nomCargo': nuevoCargo}),
+      );
 
-    print('Respuesta actualizar cargo: ${response.statusCode}'); // Log
-    if (response.statusCode != 200) {
-      throw Exception('Error actualizando cargo: ${response.body}');
+      print('Respuesta actualizar cargo: ${response.statusCode}'); // Log
+      if (response.statusCode != 200) {
+        throw Exception('Error actualizando cargo: ${response.body}');
+      }
+    } catch (e) {
+      print('Error al actualizar cargo: $e');
+      rethrow;
     }
-  } catch (e) {
-    print('Error al actualizar cargo: $e');
-    rethrow;
   }
-}
 
 // Funciones de ayuda para manejo de errores
-  
 
   void _handleApiError(http.Response response, String mensajeBase) {
     final errorData = json.decode(response.body);
@@ -747,11 +760,14 @@ Future<void> editarGrupo() async {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
     final width = MediaQuery.of(context).size.width * 0.8;
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: isDarkMode ? Color(0xFF212121) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         width: width,
@@ -987,6 +1003,7 @@ Future<void> editarGrupo() async {
                   ),
                   SizedBox(height: verticalSpacing),
                   _buildDropdown(
+                    context: context,
                     value: selectedTipo,
                     hint: 'Tipo',
                     items: tiposGrupo,
@@ -1024,7 +1041,18 @@ Future<void> editarGrupo() async {
   }
 
   Widget _paginaMiembros() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
     int pasoActual = 2; // Paso actual que queremos marcar como activo
+
+    // Colores adaptados al tema
+    final Color textColor = isDarkMode ? Colors.white : Colors.black;
+    final Color subtitleColor = isDarkMode ? Colors.white70 : Colors.grey[700]!;
+    final Color backgroundMenuColor = Color(0xFF5162F6);
+    final Color cardBackgroundColor =
+        isDarkMode ? Colors.grey.shade800 : Colors.white;
+    final Color inputBorderColor =
+        isDarkMode ? Colors.grey.shade400 : Colors.black;
 
     return Form(
       key: _miembrosGrupoFormKey, // ¡Agrega esta línea!
@@ -1061,8 +1089,25 @@ Future<void> editarGrupo() async {
                     focusNode: focusNode,
                     autofocus: true,
                     decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: inputBorderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color: isDarkMode
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color:
+                                isDarkMode ? Colors.blue : Color(0xFF5162F6)),
+                      ),
                       hintText: 'Escribe para buscar',
+                      hintStyle: TextStyle(
+                          color: isDarkMode
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600),
                     ),
                   ),
                   decorationBuilder: (context, child) => Material(
@@ -1085,7 +1130,7 @@ Future<void> editarGrupo() async {
                             '${person['nombres'] ?? ''} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
                             style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.black,
+                                color: textColor,
                                 fontWeight: FontWeight.w600),
                           ),
                           SizedBox(width: 10),
@@ -1093,14 +1138,14 @@ Future<void> editarGrupo() async {
                               style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700])),
+                                  color: subtitleColor)),
                           SizedBox(width: 10),
                           Text('-  Teléfono: ${person['telefono'] ?? ''}',
                               style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
-                                  color: Colors.grey[700])),
-                                  Expanded(
+                                  color: subtitleColor)),
+                          Expanded(
                               child:
                                   SizedBox()), // Esto empuja el estado hacia la derecha
                           // Container para el estado
@@ -1152,11 +1197,15 @@ Future<void> editarGrupo() async {
                     }
                   },
                   controller: _controller,
-                  loadingBuilder: (context) => const Text('Cargando...'),
-                  errorBuilder: (context, error) =>
-                      const Text('Error al cargar los datos!'),
-                  emptyBuilder: (context) =>
-                      const Text('No hay coincidencias!'),
+                  loadingBuilder: (context) =>
+                      Text('Cargando...', style: TextStyle(color: textColor)),
+                  errorBuilder: (context, error) => Text(
+                      'Error al cargar los datos!',
+                      style: TextStyle(
+                          color:
+                              isDarkMode ? Colors.red.shade300 : Colors.red)),
+                  emptyBuilder: (context) => Text('No hay coincidencias!',
+                      style: TextStyle(color: textColor)),
                 ),
                 const SizedBox(height: 20),
                 Expanded(
@@ -1173,19 +1222,18 @@ Future<void> editarGrupo() async {
                       return ListTile(
                         title: Row(
                           children: [
-                            // Mostrar numeración antes del nombre
                             Text(
-                              '${index + 1}. ', // Numeración
+                              '${index + 1}. ',
                               style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: Colors.black),
+                                  color: textColor),
                             ),
-                            // Nombre completo
-                            Expanded(
-                              child: Text(
-                                '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-                                style: TextStyle(fontWeight: FontWeight.w600),
+                            Text(
+                              '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: textColor,
                               ),
                             ),
                           ],
@@ -1197,47 +1245,44 @@ Future<void> editarGrupo() async {
                             Text(
                               'Teléfono: $telefono',
                               style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.grey[700],
-                              ),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: subtitleColor),
                             ),
                             // Fecha de nacimiento
                             SizedBox(width: 30),
                             Text(
                               'Fecha de Nacimiento: $fechaNac',
                               style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: Colors.grey[700],
-                              ),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: subtitleColor),
                             ),
                             SizedBox(width: 10),
-                            // Aquí añadimos el estado al lado derecho
-                           Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 0),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(person['estado']),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: _getStatusColor(person['estado'])
-                                    .withOpacity(
-                                        0.6), // Borde con el mismo color pero más fuerte
-                                width: 1, // Grosor del borde
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 0),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(person['estado']),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _getStatusColor(person['estado'])
+                                      .withOpacity(
+                                          0.6), // Borde con el mismo color pero más fuerte
+                                  width: 1, // Grosor del borde
+                                ),
+                              ),
+                              child: Text(
+                                person['estado'] ?? 'N/A',
+                                style: TextStyle(
+                                  color: _getStatusColor(person['estado'])
+                                      .withOpacity(
+                                          0.8), // Color del texto más oscuro
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              person['estado'] ?? 'N/A',
-                              style: TextStyle(
-                                color: _getStatusColor(person['estado'])
-                                    .withOpacity(
-                                        0.8), // Color del texto más oscuro
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
                           ],
                         ),
                         trailing: Row(
@@ -1361,16 +1406,27 @@ Widget _buildDropdown({
   required String? value,
   required String hint,
   required List<String> items,
+  required BuildContext context,
   required void Function(String?) onChanged,
   double fontSize = 12.0,
   String? Function(String?)? validator,
 }) {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+
+  // Colores adaptados según el tema
+  final Color textColor = isDarkMode ? Colors.white : Colors.black;
+  final Color borderColor = isDarkMode ? Colors.grey.shade400 : Colors.black;
+  final Color enabledBorderColor =
+      isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
+  final Color iconColor = isDarkMode ? Colors.white70 : Colors.black87;
+
   return DropdownButtonFormField<String>(
     value: value,
     hint: value == null
         ? Text(
             hint,
-            style: TextStyle(fontSize: fontSize, color: Colors.black),
+            style: TextStyle(fontSize: fontSize, color: textColor),
           )
         : null,
     items: items.map((item) {
@@ -1378,7 +1434,7 @@ Widget _buildDropdown({
         value: item,
         child: Text(
           item,
-          style: TextStyle(fontSize: fontSize, color: Colors.black),
+          style: TextStyle(fontSize: fontSize, color: textColor),
         ),
       );
     }).toList(),
@@ -1386,19 +1442,22 @@ Widget _buildDropdown({
     validator: validator,
     decoration: InputDecoration(
       labelText: value != null ? hint : null,
+      labelStyle: TextStyle(color: textColor),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
+        borderSide: BorderSide(color: borderColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade700),
+        borderSide: BorderSide(color: enabledBorderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.black),
+        borderSide: BorderSide(color: borderColor),
       ),
     ),
-    style: TextStyle(fontSize: fontSize, color: Colors.black),
+    style: TextStyle(fontSize: fontSize, color: textColor),
+    dropdownColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
+    icon: Icon(Icons.arrow_drop_down, color: iconColor),
   );
 }

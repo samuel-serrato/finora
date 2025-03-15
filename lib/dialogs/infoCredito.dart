@@ -630,6 +630,12 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                     ? 'Interés Semanal'
                                                     : 'Interés Quincenal',
                                                 "\$${formatearNumero(creditoData!.semanalInteres ?? 0.0)}"),
+                                            _buildDetailRow(
+                                                creditoData!.tipoPlazo ==
+                                                        'Semanal'
+                                                    ? 'Interés Semanal %'
+                                                    : 'Interés Quincenal %',
+                                                "\$${creditoData!.ti_semanal ?? ''}"),
                                             _buildDetailRow('Interés Total',
                                                 "\$${formatearNumero(creditoData!.interesTotal ?? 0.0)}"),
                                             SizedBox(height: 3),
@@ -1027,6 +1033,7 @@ class Credito {
   final String tipoPlazo;
   final String tipo;
   final double ti_mensual;
+  final String ti_semanal;
   final String folio;
   final String garantia;
   final double montoGarantia;
@@ -1053,6 +1060,7 @@ class Credito {
     required this.tipoPlazo,
     required this.tipo,
     required this.ti_mensual,
+    required this.ti_semanal,
     required this.folio,
     required this.garantia,
     required this.montoGarantia,
@@ -1084,6 +1092,7 @@ class Credito {
       tipoPlazo: json['tipoPlazo'] ?? "",
       tipo: json['tipo'] ?? "",
       ti_mensual: (json['ti_mensual'] as num?)?.toDouble() ?? 0.0,
+      ti_semanal: json['ti_semanal'] ?? "",
       folio: json['folio'] ?? "",
       garantia: json['garantia'] ?? "",
       montoGarantia: (json['montoGarantia'] as num?)?.toDouble() ?? 0.0,

@@ -870,206 +870,120 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   }
 
   Widget _paginaMiembros() {
-  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-  final isDarkMode = themeProvider.isDarkMode;
-  
-  // Colores adaptados al tema
-  final Color textColor = isDarkMode ? Colors.white : Colors.black;
-  final Color subtitleColor = isDarkMode ? Colors.white70 : Colors.grey[700]!;
-  final Color backgroundMenuColor = Color(0xFF5162F6);
-  final Color cardBackgroundColor = isDarkMode ? Colors.grey.shade800 : Colors.white;
-  final Color inputBorderColor = isDarkMode ? Colors.grey.shade400 : Colors.black;
-  
-  int pasoActual = 2; // Paso actual que queremos marcar como activo
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
 
-  return Form(
-    key: _miembrosGrupoFormKey,
-    child: Row(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-              color: backgroundMenuColor,
-              borderRadius: BorderRadius.all(Radius.circular(20))),
-          width: 250,
-          height: 500,
-          padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              // Paso 1
-              _buildPasoItem(1, "Informacion del grupo", pasoActual == 1),
-              SizedBox(height: 20),
+    // Colores adaptados al tema
+    final Color textColor = isDarkMode ? Colors.white : Colors.black;
+    final Color subtitleColor = isDarkMode ? Colors.white70 : Colors.grey[700]!;
+    final Color backgroundMenuColor = Color(0xFF5162F6);
+    final Color cardBackgroundColor =
+        isDarkMode ? Colors.grey.shade800 : Colors.white;
+    final Color inputBorderColor =
+        isDarkMode ? Colors.grey.shade400 : Colors.black;
 
-              // Paso 2
-              _buildPasoItem(2, "Integrantes del grupo", pasoActual == 2),
-              SizedBox(height: 20),
-            ],
+    int pasoActual = 2; // Paso actual que queremos marcar como activo
+
+    return Form(
+      key: _miembrosGrupoFormKey,
+      child: Row(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+                color: backgroundMenuColor,
+                borderRadius: BorderRadius.all(Radius.circular(20))),
+            width: 250,
+            height: 500,
+            padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // Paso 1
+                _buildPasoItem(1, "Informacion del grupo", pasoActual == 1),
+                SizedBox(height: 20),
+
+                // Paso 2
+                _buildPasoItem(2, "Integrantes del grupo", pasoActual == 2),
+                SizedBox(height: 20),
+              ],
+            ),
           ),
-        ),
-        SizedBox(width: 50), // Espacio entre la columna y el formulario
-        Expanded(
-          child: Column(
-            children: [
-              SizedBox(height: 20),
-              TypeAheadField<Map<String, dynamic>>(
-                builder: (context, controller, focusNode) => TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  autofocus: true,
-                  style: TextStyle(color: textColor),
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide(color: inputBorderColor),
+          SizedBox(width: 50), // Espacio entre la columna y el formulario
+          Expanded(
+            child: Column(
+              children: [
+                SizedBox(height: 20),
+                TypeAheadField<Map<String, dynamic>>(
+                  builder: (context, controller, focusNode) => TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    autofocus: true,
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderSide: BorderSide(color: inputBorderColor),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color: isDarkMode
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                            color:
+                                isDarkMode ? Colors.blue : Color(0xFF5162F6)),
+                      ),
+                      hintText: 'Escribe para buscar',
+                      hintStyle: TextStyle(
+                          color: isDarkMode
+                              ? Colors.grey.shade400
+                              : Colors.grey.shade600),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: isDarkMode ? Colors.blue : Color(0xFF5162F6)),
-                    ),
-                    hintText: 'Escribe para buscar',
-                    hintStyle: TextStyle(color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
                   ),
-                ),
-                decorationBuilder: (context, child) => Material(
-                  type: MaterialType.card,
-                  color: cardBackgroundColor,
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(10),
-                  child: child,
-                ),
-                suggestionsCallback: (search) async {
-                  if (search.isEmpty) {
-                    return [];
-                  }
-                  return await findPersons(search);
-                },
-                itemBuilder: (context, person) {
-                  return ListTile(
-                    title: Row(
-                      children: [
-                        Text(
-                          '${person['nombres'] ?? ''} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: textColor,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        SizedBox(width: 10),
-                        Text('-  F. Nacimiento: ${person['fechaNac'] ?? ''}',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: subtitleColor)),
-                        SizedBox(width: 10),
-                        Text('-  Teléfono: ${person['telefono'] ?? ''}',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: subtitleColor)),
-                        Expanded(
-                            child:
-                                SizedBox()), // Esto empuja el estado hacia la derecha
-                        // Container para el estado
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(person['estado']),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _getStatusColor(person['estado'])
-                                  .withOpacity(
-                                      0.6), // Borde con el mismo color pero más fuerte
-                              width: 1, // Grosor del borde
-                            ),
-                          ),
-                          child: Text(
-                            person['estado'] ?? 'N/A',
-                            style: TextStyle(
-                              color: _getStatusColor(person['estado'])
-                                  .withOpacity(
-                                      0.8), // Color del texto más oscuro
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                onSelected: (person) {
-                  // Verificar si la persona ya está en la lista usando el campo `idclientes`
-                  bool personaYaAgregada = _selectedPersons
-                      .any((p) => p['idclientes'] == person['idclientes']);
-
-                  if (!personaYaAgregada) {
-                    setState(() {
-                      _selectedPersons.add(person);
-                      _rolesSeleccionados[person['idclientes']] =
-                          roles[0]; // Rol predeterminado
-                    });
-                    _controller.clear();
-                  } else {
-                    // Opcional: Mostrar un mensaje indicando que la persona ya fue agregada
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(
-                            'La persona ya ha sido agregada a la lista')));
-                  }
-                },
-                controller: _controller,
-                loadingBuilder: (context) => Text('Cargando...', style: TextStyle(color: textColor)),
-                errorBuilder: (context, error) =>
-                    Text('Error al cargar los datos!', style: TextStyle(color: isDarkMode ? Colors.red.shade300 : Colors.red)),
-                emptyBuilder: (context) =>
-                    Text('No hay coincidencias!', style: TextStyle(color: textColor)),
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _selectedPersons.length,
-                  itemBuilder: (context, index) {
-                    final person = _selectedPersons[index];
-                    final nombre = person['nombres'] ?? '';
-                    final idCliente = person['idclientes'];
-
+                  decorationBuilder: (context, child) => Material(
+                    type: MaterialType.card,
+                    color: cardBackgroundColor,
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(10),
+                    child: child,
+                  ),
+                  suggestionsCallback: (search) async {
+                    if (search.isEmpty) {
+                      return [];
+                    }
+                    return await findPersons(search);
+                  },
+                  itemBuilder: (context, person) {
                     return ListTile(
                       title: Row(
                         children: [
                           Text(
-                            '${index + 1}. ',
+                            '${person['nombres'] ?? ''} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
                             style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: textColor),
-                          ),
-                          Text(
-                            '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      subtitle: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Teléfono: ${person['telefono'] ?? ''}',
-                            style: TextStyle(color: subtitleColor),
+                                fontSize: 14,
+                                color: textColor,
+                                fontWeight: FontWeight.w600),
                           ),
                           SizedBox(width: 10),
-                          Text(
-                            'F. Nacimiento: ${person['fechaNac'] ?? ''}',
-                            style: TextStyle(color: subtitleColor),
-                          ),
+                          Text('-  F. Nacimiento: ${person['fechaNac'] ?? ''}',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: subtitleColor)),
                           SizedBox(width: 10),
-                          // Aquí añadimos el estado al lado derecho
+                          Text('-  Teléfono: ${person['telefono'] ?? ''}',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: subtitleColor)),
+                          Expanded(
+                              child:
+                                  SizedBox()), // Esto empuja el estado hacia la derecha
+                          // Container para el estado
                           Container(
                             padding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 0),
+                                horizontal: 12, vertical: 2),
                             decoration: BoxDecoration(
                               color: _getStatusColor(person['estado']),
                               borderRadius: BorderRadius.circular(20),
@@ -1093,53 +1007,156 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                           ),
                         ],
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          DropdownButton<String>(
-                            value: _rolesSeleccionados[idCliente],
-                            dropdownColor: cardBackgroundColor,
-                            onChanged: (nuevoRol) {
-                              setState(() {
-                                _rolesSeleccionados[idCliente] = nuevoRol!;
-                              });
-                            },
-                            items: roles
-                                .map<DropdownMenuItem<String>>(
-                                  (rol) => DropdownMenuItem<String>(
-                                    value: rol,
-                                    child: Text(
-                                      rol,
-                                      style: TextStyle(color: textColor),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                          SizedBox(width: 10),
-                          IconButton(
-                            icon: Icon(Icons.delete, color: isDarkMode ? Colors.red.shade300 : Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                // Eliminar de la lista y del mapa de roles
-                                _selectedPersons.removeAt(index);
-                                _rolesSeleccionados.remove(idCliente);
-                              });
-                            },
-                          ),
-                        ],
-                      ),
                     );
                   },
+                  onSelected: (person) {
+                    // Verificar si la persona ya está en la lista usando el campo `idclientes`
+                    bool personaYaAgregada = _selectedPersons
+                        .any((p) => p['idclientes'] == person['idclientes']);
+
+                    if (!personaYaAgregada) {
+                      setState(() {
+                        _selectedPersons.add(person);
+                        _rolesSeleccionados[person['idclientes']] =
+                            roles[0]; // Rol predeterminado
+                      });
+                      _controller.clear();
+                    } else {
+                      // Opcional: Mostrar un mensaje indicando que la persona ya fue agregada
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(
+                              'La persona ya ha sido agregada a la lista')));
+                    }
+                  },
+                  controller: _controller,
+                  loadingBuilder: (context) =>
+                      Text('Cargando...', style: TextStyle(color: textColor)),
+                  errorBuilder: (context, error) => Text(
+                      'Error al cargar los datos!',
+                      style: TextStyle(
+                          color:
+                              isDarkMode ? Colors.red.shade300 : Colors.red)),
+                  emptyBuilder: (context) => Text('No hay coincidencias!',
+                      style: TextStyle(color: textColor)),
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _selectedPersons.length,
+                    itemBuilder: (context, index) {
+                      final person = _selectedPersons[index];
+                      final nombre = person['nombres'] ?? '';
+                      final idCliente = person['idclientes'];
+
+                      return ListTile(
+                        title: Row(
+                          children: [
+                            Text(
+                              '${index + 1}. ',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: textColor),
+                            ),
+                            Text(
+                              '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: textColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Teléfono: ${person['telefono'] ?? ''}',
+                              style: TextStyle(color: subtitleColor),
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'F. Nacimiento: ${person['fechaNac'] ?? ''}',
+                              style: TextStyle(color: subtitleColor),
+                            ),
+                            SizedBox(width: 10),
+                            // Aquí añadimos el estado al lado derecho
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 0),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(person['estado']),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _getStatusColor(person['estado'])
+                                      .withOpacity(
+                                          0.6), // Borde con el mismo color pero más fuerte
+                                  width: 1, // Grosor del borde
+                                ),
+                              ),
+                              child: Text(
+                                person['estado'] ?? 'N/A',
+                                style: TextStyle(
+                                  color: _getStatusColor(person['estado'])
+                                      .withOpacity(
+                                          0.8), // Color del texto más oscuro
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            DropdownButton<String>(
+                              value: _rolesSeleccionados[idCliente],
+                              dropdownColor: cardBackgroundColor,
+                              onChanged: (nuevoRol) {
+                                setState(() {
+                                  _rolesSeleccionados[idCliente] = nuevoRol!;
+                                });
+                              },
+                              items: roles
+                                  .map<DropdownMenuItem<String>>(
+                                    (rol) => DropdownMenuItem<String>(
+                                      value: rol,
+                                      child: Text(
+                                        rol,
+                                        style: TextStyle(color: textColor),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                            SizedBox(width: 10),
+                            IconButton(
+                              icon: Icon(Icons.delete,
+                                  color: isDarkMode
+                                      ? Colors.red.shade300
+                                      : Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  // Eliminar de la lista y del mapa de roles
+                                  _selectedPersons.removeAt(index);
+                                  _rolesSeleccionados.remove(idCliente);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Color _getStatusColor(String? estado) {
     switch (estado) {
@@ -1186,7 +1203,8 @@ Widget _buildTextField({
   final darkLabelColor = enabled ? Colors.grey.shade300 : Colors.grey.shade600;
   final darkEnabledBorderColor = Colors.grey.shade500;
   final darkDisabledBorderColor = Colors.grey.shade700;
-  final darkFillColor = enabled ? Color.fromARGB(255, 35, 35, 35) : Colors.grey.shade900;
+  final darkFillColor =
+      enabled ? Color.fromARGB(255, 35, 35, 35) : Colors.grey.shade900;
 
   // Colores finales según el modo
   final textColor = isDarkMode ? darkTextColor : lightTextColor;
@@ -1259,13 +1277,14 @@ Widget _buildUsuarioDropdown({
 }) {
   final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
   final isDarkMode = themeProvider.isDarkMode;
-  
+
   // Colores adaptados según el tema
   final Color textColor = isDarkMode ? Colors.white : Colors.black;
   final Color borderColor = isDarkMode ? Colors.grey.shade400 : Colors.black;
-  final Color enabledBorderColor = isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
+  final Color enabledBorderColor =
+      isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
   final Color iconColor = isDarkMode ? Colors.white70 : Colors.black87;
-  
+
   return DropdownButtonFormField<Usuario>(
     value: value,
     hint: Text(
@@ -1317,13 +1336,14 @@ Widget _buildDropdown({
 }) {
   final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
   final isDarkMode = themeProvider.isDarkMode;
-  
+
   // Colores adaptados según el tema
   final Color textColor = isDarkMode ? Colors.white : Colors.black;
   final Color borderColor = isDarkMode ? Colors.grey.shade400 : Colors.black;
-  final Color enabledBorderColor = isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
+  final Color enabledBorderColor =
+      isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
   final Color iconColor = isDarkMode ? Colors.white70 : Colors.black87;
-  
+
   return DropdownButtonFormField<String>(
     value: value,
     hint: value == null

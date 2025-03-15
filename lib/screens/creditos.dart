@@ -886,6 +886,7 @@ class Credito {
   final double interesGlobal;
   final double montoTotal;
   final double ti_mensual;
+  final String ti_semanal;
   final double interesTotal;
   final double montoMasInteres;
   final String numPago;
@@ -909,6 +910,7 @@ class Credito {
     required this.interesGlobal,
     required this.montoTotal,
     required this.ti_mensual,
+    required this.ti_semanal,
     required this.interesTotal,
     required this.montoMasInteres,
     required this.numPago,
@@ -933,6 +935,7 @@ class Credito {
       pagoCuota: json['pagoCuota'].toDouble(),
       interesGlobal: json['interesGlobal'].toDouble(),
       ti_mensual: json['ti_mensual'].toDouble(),
+      ti_semanal: json['ti_semanal'],
       montoTotal: json['montoTotal'].toDouble(),
       interesTotal: json['interesTotal'].toDouble(),
       montoMasInteres: json['montoMasInteres'].toDouble(),

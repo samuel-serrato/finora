@@ -990,6 +990,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   List<TextEditingController> _controladoresIntegrantes = [];
 
   Widget _paginaIntegrantes() {
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
     int pasoActual = 2; // Paso actual para esta página
 
     // Si no hemos cargado los integrantes, los inicializamos
@@ -1004,8 +1008,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
       // Inicializamos los montos individuales en 0.0 para cada cliente
       for (var i = 0; i < integrantes.length; i++) {
-        montosIndividuales[
-            integrantes[i].idclientes]; // Usamos el idclientes como clave
+        montosIndividuales[integrantes[i].idclientes] =
+            0.0; // Asignamos explícitamente 0.0
       }
 
       // Inicializamos los controladores asociados a cada integrante
@@ -1017,6 +1021,12 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         ),
       );
     }
+
+    // Calculamos la suma total aquí para asegurar que se recalcula cada vez que se renderiza el widget
+    double sumaTotal = 0.0;
+    montosIndividuales.forEach((key, value) {
+      sumaTotal += value ?? 0.0;
+    });
 
     return Row(
       children: [
@@ -1088,6 +1098,9 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                       0.0;
                                   montosIndividuales[cliente.idclientes] =
                                       parsedValue;
+
+                                  // Actualizar la UI para reflejar el nuevo total
+                                  setState(() {});
                                 },
                               ),
                             ),
@@ -1095,6 +1108,41 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         ),
                       );
                     },
+                  ),
+                ),
+
+                SizedBox(height: 20),
+
+                // Sección de suma total de montos
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? const Color.fromARGB(255, 48, 48, 48)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Suma Total:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      Text(
+                        '\$${formatearNumero(sumaTotal)}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Color(0xFF5162F6),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -1858,7 +1906,6 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     );
   }
 
-  // Añade esta función auxiliar en tu clase
   dynamic _redondearDecimales(dynamic valor) {
     if (valor is double) {
       // Verificar si el valor es un entero (con una pequeña tolerancia)
@@ -1866,8 +1913,14 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         return valor
             .truncateToDouble(); // Mantener si es entero (ej: 176.0 → 176.0)
       } else {
-        return valor
-            .ceilToDouble(); // Redondear si tiene decimales (ej: 176.4 → 177.0)
+        // Obtener la parte decimal
+        double parteDecimal = valor - valor.truncateToDouble();
+
+        if (parteDecimal >= 0.5) {
+          return valor.ceilToDouble(); // Redondear hacia arriba si es >= 0.5
+        } else {
+          return valor.floorToDouble(); // Redondear hacia abajo si es < 0.5
+        }
       }
     } else if (valor is int) {
       return valor.toDouble(); // Convertir enteros a double para consistencia

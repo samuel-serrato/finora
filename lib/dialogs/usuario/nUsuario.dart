@@ -152,22 +152,50 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
   }) {
     if (_dialogShown) return;
 
+    final isDarkMode =
+        Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+
+    // Define los colores según el tema actual
+    final backgroundColor =
+        isDarkMode ? Color.fromARGB(255, 60, 60, 60) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final buttonTextColor = isDarkMode ? Colors.grey[300] : Colors.blue;
+    final titleColor = isSuccess
+        ? (isDarkMode ? Colors.green[300] : Colors.green)
+        : (isDarkMode ? Colors.red[300] : Colors.red);
+    final contentTextColor = isDarkMode ? Colors.grey[300] : Colors.grey[800];
+
     _dialogShown = true;
     showDialog(
       barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text(title,
-            style: TextStyle(color: isSuccess ? Colors.green : Colors.red)),
-        content: Text(message),
+        backgroundColor: backgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Text(
+          title,
+          style: TextStyle(color: titleColor, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(color: contentTextColor),
+        ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
               onClose?.call();
             },
-            child: Text('Aceptar'),
+            style: TextButton.styleFrom(
+              foregroundColor: isDarkMode ? Colors.white70 : null,
+            ),
+            child: Text(
+              'Aceptar',
+              style: TextStyle(
+                color: buttonTextColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

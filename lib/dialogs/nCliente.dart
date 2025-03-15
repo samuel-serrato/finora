@@ -3548,30 +3548,30 @@ class _nClienteDialogState extends State<nClienteDialog>
               labelText: 'Fecha de Nacimiento',
               labelStyle: TextStyle(
                 fontSize: 12,
-                color: isDarkMode ? Colors.white70 : Colors.black54,
+                color: isDarkMode ? Colors.white70 : Colors.black,
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
-                  color: isDarkMode ? Colors.white54 : Colors.black45,
+                  color: isDarkMode ? Colors.grey[600]! : Colors.grey[400]!,
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
-                  color: isDarkMode ? Colors.white30 : Colors.black26,
+                  color: isDarkMode ? Colors.grey[500]! : Colors.grey[600]!,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
-                  color: const Color(0xFF5162F6),
+                  color: Colors.grey, // Cambiado de azul a gris
                 ),
               ),
               hintText: 'Selecciona una fecha',
               hintStyle: TextStyle(
                 fontSize: 12,
-                color: isDarkMode ? Colors.white38 : Colors.black38,
+                color: isDarkMode ? Colors.white70 : Colors.black38,
               ),
               fillColor: isDarkMode
                   ? const Color.fromARGB(255, 48, 48, 48)
