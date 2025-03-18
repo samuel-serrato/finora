@@ -34,7 +34,31 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
       print('Error: Campos vacíos');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor completa todos los campos')),
+        const SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Por favor completa todos los campos')),
+      );
+      return;
+    }
+
+    // Validación de longitud mínima del usuario
+    if (_usernameController.text.length < 4) {
+      print('Error: Usuario debe tener al menos 4 caracteres');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('El usuario debe tener al menos 4 caracteres')),
+      );
+      return;
+    }
+
+    // Validación de longitud mínima de la contraseña
+    if (_passwordController.text.length < 4) {
+      print('Error: Contraseña debe tener al menos 4 caracteres');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('La contraseña debe tener al menos 4 caracteres')),
       );
       return;
     }
@@ -59,6 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final responseBody = json.decode(response.body);
 
       if (response.statusCode == 200 && responseBody['code'] == 200) {
+        // Resto del código de login exitoso permanece igual
         final token = response.headers['tokenauth'];
         print('Token recibido: $token');
 
@@ -68,7 +93,6 @@ class _LoginScreenState extends State<LoginScreen> {
           print('Token almacenado en SharedPreferences');
 
           print('Navegando a HomeScreen');
-          // En el método de login exitoso:
           Navigator.pushNamedAndRemoveUntil(
             context,
             AppRoutes.navigation,
@@ -94,7 +118,6 @@ class _LoginScreenState extends State<LoginScreen> {
           throw Exception('Token no encontrado en los headers');
         }
       } else {
-        // Modificación aquí para extraer el mensaje correctamente
         final errorMessage = responseBody['Error']?['Message'] ??
             responseBody['message'] ??
             'Error desconocido';
@@ -103,11 +126,29 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       print('Excepción capturada: $e');
+
+      // Mostrar mensaje personalizado para problemas de red
+      String errorMessage;
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('ClientException') ||
+          e.toString().contains('tiempo de espera')) {
+        errorMessage =
+            'No se pudo conectar al servidor. Por favor verifica tu conexión a internet e intenta nuevamente.';
+      } else {
+        // Para otros errores, mostrar el mensaje sin la parte técnica
+        errorMessage = e.toString().replaceAll('Exception: ', '');
+        // Si contiene información de IP o direcciones, mostrar mensaje genérico
+        if (errorMessage.contains('http://') ||
+            errorMessage.contains('address =')) {
+          errorMessage = 'Error de conexión. Por favor intenta más tarde.';
+        }
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
+          duration: Duration(seconds: 5),
         ),
       );
     } finally {

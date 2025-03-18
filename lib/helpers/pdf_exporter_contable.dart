@@ -5,6 +5,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import 'package:finora/models/reporte_contable.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PDFExportHelperContable {
   static const PdfColor primaryColor = PdfColor.fromInt(0xFF5162F6);
@@ -22,21 +23,37 @@ class PDFExportHelperContable {
     return data.buffer.asUint8List();
   }
 
+  // Nuevo método para cargar el logo desde archivo
+  Future<Uint8List?> _loadLogoFile(String? path) async {
+    if (path == null) return null;
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        return await file.readAsBytes();
+      }
+    } catch (e) {
+      print('Error cargando logo: $e');
+    }
+    return null;
+  }
+
   Future<pw.Document> generatePDF() async {
     final pdf = pw.Document();
 
-    // Precargar imágenes fuera de la construcción del PDF
-    final logoMf = await _loadAsset('assets/logo_mf_n_hzt.png');
+    // Cargar logos
+    final prefs = await SharedPreferences.getInstance();
+    final logoPath = prefs.getString('financiera_logo_path');
+    final financieraLogo = await _loadLogoFile(logoPath);
     final finoraLogo = await _loadAsset('assets/finora_hzt.png');
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(10), // Reducido margen general
+        margin: const pw.EdgeInsets.all(20), // Reducido margen general
         build: (context) => [
           _buildHeader(
             selectedReportType: selectedReportType,
-            logoMf: logoMf,
+            financieraLogo: financieraLogo,
             finoraLogo: finoraLogo,
           ),
           pw.SizedBox(height: 8), // Reducido espacio
@@ -57,7 +74,7 @@ class PDFExportHelperContable {
 
   pw.Widget _buildHeader({
     required String? selectedReportType,
-    required Uint8List logoMf,
+    required Uint8List? financieraLogo,
     required Uint8List finoraLogo,
   }) {
     return pw.Column(
@@ -66,15 +83,21 @@ class PDFExportHelperContable {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Image(
-              pw.MemoryImage(logoMf), // Usa los bytes cargados
-              width: 100,
-              height: 100,
-            ),
+            if (financieraLogo != null)
+              pw.Image(
+                pw.MemoryImage(financieraLogo),
+                width: 120, // Tamaño ajustado
+                height: 40,
+                fit: pw.BoxFit.contain,
+              )
+            else
+              pw.Container(), // Espacio vacío si no hay logo
+
             pw.Image(
               pw.MemoryImage(finoraLogo),
               width: 120,
-              height: 120,
+              height: 40,
+              fit: pw.BoxFit.contain,
             ),
           ],
         ),

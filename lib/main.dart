@@ -1,3 +1,4 @@
+import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -43,6 +44,9 @@ class ScaleProvider extends ChangeNotifier {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final logoProvider = LogoProvider();
+  await logoProvider.loadLogoPath(); // Load saved path when app starts
+
   // Inicializa la configuración de fechas en español.
   await initializeDateFormatting('es_ES', null);
   Intl.defaultLocale = 'es_ES';
@@ -81,6 +85,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => PagosProvider()),
         ChangeNotifierProvider(create: (_) => ScaleProvider(initialScale)),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => logoProvider),
       ],
       child: const MyApp(),
     ),

@@ -8,6 +8,7 @@ import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
 import 'package:finora/models/reporte_general.dart';
 import 'package:flutter/services.dart' show ByteData, Uint8List, rootBundle;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ExportHelperGeneral {
   static void mostrarDialogoError(BuildContext context, String mensaje) {
@@ -19,6 +20,19 @@ class ExportHelperGeneral {
         duration: const Duration(seconds: 3),
       ),
     );
+  }
+
+  static Future<Uint8List?> _loadLogoFile(String? path) async {
+    if (path == null) return null;
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        return await file.readAsBytes();
+      }
+    } catch (e) {
+      print('Error cargando logo: $e');
+    }
+    return null;
   }
 
   static Future<Uint8List> _loadAsset(String path) async {
@@ -42,8 +56,11 @@ class ExportHelperGeneral {
     try {
       final doc = pw.Document();
 
-      // Precargar imágenes fuera de la construcción del PDF
-      final logoMf = await _loadAsset('assets/logo_mf_n_hzt.png');
+      // Cargar logos
+      final prefs = await SharedPreferences.getInstance();
+      final logoPath = prefs.getString('financiera_logo_path');
+
+      final financieraLogo = await _loadLogoFile(logoPath);
       final finoraLogo = await _loadAsset('assets/finora_hzt.png');
 
       void buildPdfPages() {
@@ -71,7 +88,7 @@ class ExportHelperGeneral {
               selectedReportType: selectedReportType,
               selectedDateRange: selectedDateRange,
               reporteData: reporteData!,
-              logoMf: logoMf,
+              financieraLogo: financieraLogo,
               finoraLogo: finoraLogo,
             ),
             footer: (context) => _buildPdfFooter(context),
@@ -214,7 +231,7 @@ class ExportHelperGeneral {
     required String? selectedReportType,
     required DateTimeRange? selectedDateRange,
     required ReporteGeneralData reporteData,
-    required Uint8List logoMf,
+    required Uint8List? financieraLogo,
     required Uint8List finoraLogo,
   }) {
     return pw.Column(
@@ -223,15 +240,18 @@ class ExportHelperGeneral {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Image(
-              pw.MemoryImage(logoMf),
-              width: 100,
-              height: 100,
-            ),
+            if (financieraLogo != null)
+              pw.Image(
+                pw.MemoryImage(financieraLogo),
+                width: 120, // Ajustar tamaño según necesidad
+                height: 40,
+                fit: pw.BoxFit.contain,
+              ),
             pw.Image(
               pw.MemoryImage(finoraLogo),
               width: 120,
-              height: 120,
+              height: 40,
+              fit: pw.BoxFit.contain,
             ),
           ],
         ),

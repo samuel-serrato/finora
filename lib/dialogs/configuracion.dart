@@ -1,7 +1,13 @@
+import 'dart:io';
 import 'package:finora/main.dart';
+import 'package:finora/providers/logo_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ConfiguracionDialog extends StatefulWidget {
   @override
@@ -12,16 +18,25 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
   bool notificationsEnabled = true;
   bool dataSync = true;
   String selectedLanguage = 'Español';
+  File? _logoImage;
+  String? _logoImagePath;
+  bool _isLoading = false;
+  String? _tempLogoPath; // Ruta temporal para previsualización
+  bool _hasPendingChanges = false; // Para controlar cambios no guardados
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedLogo();
+  }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final scaleProvider =
-        Provider.of<ScaleProvider>(context); // Obtén el ScaleProvider
+    final scaleProvider = Provider.of<ScaleProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final size = MediaQuery.of(context).size;
 
-    // Usamos AlertDialog en lugar de Dialog para tener mejor control sobre el fondo
     return AlertDialog(
       backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
       elevation: 10,
@@ -64,10 +79,9 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                           items: [
                             _buildZoomSlider(context, scaleProvider),
                           ],
-                          isExpandable:
-                              true), // Indicar que esta sección es expandible
+                          isExpandable: true),
                       SizedBox(height: 15),
-                      _buildSection(context, title: 'Notificaciones', items: [
+                      /* _buildSection(context, title: 'Notificaciones', items: [
                         _buildSwitchItem(
                           context,
                           title: 'Activar notificaciones',
@@ -81,21 +95,13 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                           iconColor: Colors.red,
                         ),
                       ]),
-                      SizedBox(height: 15),
-                      /* _buildSection(context, title: 'Datos', items: [
-                        _buildSwitchItem(
-                          context,
-                          title: 'Sincronización automática',
-                          value: dataSync,
-                          onChanged: (value) {
-                            setState(() {
-                              dataSync = value;
-                            });
-                          },
-                          icon: Icons.sync,
-                          iconColor: Colors.green,
-                        ),
-                      ]), */
+                      SizedBox(height: 15), */
+                      _buildSection(context,
+                          title: 'Personalización',
+                          items: [
+                            _buildLogoUploader(context),
+                          ],
+                          isExpandable: true),
                       SizedBox(height: 15),
                     ],
                   ),
@@ -109,7 +115,172 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     );
   }
 
- Widget _buildZoomSlider(BuildContext context, ScaleProvider scaleProvider) {
+  Widget _buildLogoUploader(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final logoProvider = Provider.of<LogoProvider>(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: 16),
+        Center(
+          child: Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Color(0xFF5162F6),
+                width: 2,
+              ),
+            ),
+            child: _tempLogoPath != null || _logoImagePath != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.file(
+                      File(_tempLogoPath ?? _logoImagePath!),
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  )
+                : Icon(
+                    Icons.add_photo_alternate,
+                    size: 50,
+                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                  ),
+          ),
+        ),
+        SizedBox(height: 16),
+        Center(
+          child: Text(
+            _logoImagePath != null
+                ? "Logo de la financiera"
+                : _tempLogoPath != null
+                    ? "Nuevo logo (no guardado)"
+                    : "Sin logo",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black,
+            ),
+          ),
+        ),
+        SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (_tempLogoPath == null)
+              ElevatedButton.icon(
+                onPressed: _pickImage,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF5162F6),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: Icon(
+                  Icons.photo_camera,
+                  size: 16,
+                  color: Colors.white,
+                ),
+                label: Text(
+                    _logoImagePath != null ? 'Cambiar logo' : 'Subir logo',
+                    style: TextStyle(fontSize: 14)),
+              ),
+            if (_tempLogoPath != null) ...[
+              ElevatedButton.icon(
+                onPressed: _saveLogo,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: Icon(
+                  Icons.save,
+                  size: 16,
+                  color: Colors.white,
+                ),
+                label: Text('Guardar', style: TextStyle(fontSize: 14)),
+              ),
+              SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: () => setState(() {
+                  _tempLogoPath = null;
+                  _hasPendingChanges = false;
+                }),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: Icon(
+                  Icons.cancel,
+                  size: 16,
+                  color: Colors.white,
+                ),
+                label: Text('Cancelar', style: TextStyle(fontSize: 14)),
+              ),
+            ],
+            if (_logoImagePath != null && _tempLogoPath == null) ...[
+              SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: _deleteLogo,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: Icon(
+                  Icons.delete,
+                  size: 16,
+                  color: Colors.white,
+                ),
+                label: Text('Eliminar', style: TextStyle(fontSize: 14)),
+              ),
+            ],
+          ],
+        ),
+        SizedBox(height: 8),
+        Center(
+          child: Text(
+            "Formatos permitidos: PNG",
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+        ),
+        SizedBox(height: 16),
+        Center(
+          child: Text(
+            "Esta imagen se utilizará como logo de la financiera en la aplicación",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+        ),
+        SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildZoomSlider(BuildContext context, ScaleProvider scaleProvider) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final currentScale = scaleProvider.scaleFactor;
@@ -195,7 +366,6 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       ],
     );
   }
-
 
   void _adjustZoom(ScaleProvider scaleProvider, double amount) {
     double newScale = scaleProvider.scaleFactor + amount;
@@ -292,8 +462,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     BuildContext context, {
     required String title,
     required List<Widget> items,
-    bool isExpandable =
-        false, // Nuevo parámetro para indicar si la sección es expandible
+    bool isExpandable = false,
   }) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
@@ -331,19 +500,22 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                         width: 32,
                         height: 32,
                         decoration: BoxDecoration(
-                          color: Colors.blue
-                              .withOpacity(0.1), // Color de fondo del ícono
+                          color: title == 'Zoom'
+                              ? Colors.blue.withOpacity(0.1)
+                              : Colors.orange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
-                          Icons.zoom_in, // Ícono de zoom
-                          color: Colors.blue, // Color del ícono
+                          title == 'Zoom' ? Icons.zoom_in : Icons.image,
+                          color: title == 'Zoom' ? Colors.blue : Colors.orange,
                           size: 18,
                         ),
                       ),
-                      SizedBox(width: 14), // Espacio entre el ícono y el texto
+                      SizedBox(width: 14),
                       Text(
-                        'Nivel de zoom',
+                        title == 'Zoom'
+                            ? 'Nivel de zoom'
+                            : 'Imagen de la financiera',
                         style: TextStyle(
                           color: isDarkMode ? Colors.white : Colors.black,
                           fontSize: 14,
@@ -352,7 +524,6 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                     ],
                   ),
                   children: items,
-                  initiallyExpanded: false, // Inicialmente contraído
                   tilePadding:
                       EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                   trailing: Icon(
@@ -418,5 +589,274 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
         ],
       ),
     );
+  }
+
+  // Método modificado para solo seleccionar imagen
+  Future<void> _pickImage() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png'],
+        allowMultiple: false,
+      );
+
+      if (result != null) {
+        final String filePath = result.files.single.path!;
+        if (path.extension(filePath).toLowerCase() != '.png') {
+          _showErrorSnackbar('Solo se permiten archivos PNG');
+          return;
+        }
+
+        setState(() {
+          _tempLogoPath = filePath;
+          _hasPendingChanges = true;
+        });
+      }
+    } catch (e) {
+      _showErrorSnackbar('Error al seleccionar imagen: ${e.toString()}');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+// Nuevo método para guardar cambios
+  Future<void> _saveLogo() async {
+    if (_tempLogoPath == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final String projectRoot = await _findProjectRoot();
+      final Directory uploadDir =
+          Directory(path.join(projectRoot, 'assets', 'uploaded'));
+
+      if (!uploadDir.existsSync()) {
+        await uploadDir.create(recursive: true);
+      }
+
+      const String fixedFileName = 'financiera_logo.png';
+      final String destPath = path.join(uploadDir.path, fixedFileName);
+
+      if (File(destPath).existsSync()) {
+        await File(destPath).delete();
+      }
+
+      await File(_tempLogoPath!).copy(destPath);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('financiera_logo_path', destPath);
+
+      // Actualizar Provider
+      final logoProvider = Provider.of<LogoProvider>(context, listen: false);
+      logoProvider.setLogoPath(destPath);
+
+      // Limpiar caché y estado
+      imageCache.clear();
+      imageCache.clearLiveImages();
+
+      setState(() {
+        _logoImagePath = destPath;
+        _tempLogoPath = null;
+        _hasPendingChanges = false;
+      });
+
+      await _updatePubspec(destPath);
+    } catch (e) {
+      _showErrorSnackbar('Error al guardar: ${e.toString()}');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<String> _findProjectRoot() async {
+    Directory currentDir = Directory.current;
+    int maxLevels = 10;
+
+    // Busca hacia arriba en la jerarquía de directorios
+    while (maxLevels-- > 0) {
+      final pubspecFile = File(path.join(currentDir.path, 'pubspec.yaml'));
+
+      // Verifica si existe el pubspec.yaml
+      if (await pubspecFile.exists()) {
+        return currentDir.path;
+      }
+
+      // Sube un nivel si no se encontró
+      currentDir = currentDir.parent;
+    }
+
+    throw Exception('No se encontró la raíz del proyecto con pubspec.yaml');
+  }
+
+  // Método para cargar el logo
+  Future<void> _loadSavedLogo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedLogoPath = prefs.getString('financiera_logo_path');
+
+    if (savedLogoPath != null && File(savedLogoPath).existsSync()) {
+      setState(() {
+        _logoImagePath = savedLogoPath;
+      });
+    }
+  }
+
+  // Método para guardar/sobrescribir la imagen
+  Future<void> _pickAndSaveImage() async {
+    setState(() {
+      _isLoading = true;
+      _logoImagePath = null; // Forzar actualización visual
+    });
+
+    try {
+      // 1. Seleccionar imagen solo PNG
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png'],
+        allowMultiple: false,
+      );
+
+      if (result == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // 2. Verificar extensión manualmente
+      final String filePath = result.files.single.path!;
+      if (path.extension(filePath).toLowerCase() != '.png') {
+        _showErrorSnackbar('Formato no válido. Solo se permiten archivos PNG');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // 3. Obtener rutas del proyecto
+      final String projectRoot = await _findProjectRoot();
+      final Directory uploadDir =
+          Directory(path.join(projectRoot, 'assets', 'uploaded'));
+
+      if (!uploadDir.existsSync()) {
+        await uploadDir.create(recursive: true);
+      }
+
+      // 4. Generar nombre fijo .png
+      const String fixedFileName = 'financiera_logo.png';
+      final String destPath = path.join(uploadDir.path, fixedFileName);
+
+      // 5. Eliminar versión anterior
+      if (File(destPath).existsSync()) {
+        await File(destPath).delete();
+      }
+
+      // 6. Copiar archivo
+      final File file = File(filePath);
+      await file.copy(destPath);
+
+      // 7. Actualizar preferencias
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('financiera_logo_path', destPath);
+
+      // 8. Actualizar UI y limpiar caché
+      imageCache.clear();
+      imageCache.clearLiveImages();
+
+      setState(() {
+        _logoImagePath = destPath;
+        _isLoading = false;
+      });
+
+      // 9. Actualizar pubspec.yaml
+      await _updatePubspec(destPath);
+    } catch (e) {
+      _showErrorSnackbar('Error al subir el logo: ${e.toString()}');
+      setState(() => _isLoading = false);
+    }
+  }
+
+// Nuevo método para mostrar errores
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
+// Modificar el método _generateFixedFileName
+  String _generateFixedFileName(String originalPath) {
+    const String baseName = 'financiera_logo';
+    return '$baseName.png'; // Fuerza extensión .png
+  }
+
+  // Actualizar pubspec.yaml mejorado
+  Future<void> _updatePubspec(String imagePath) async {
+    try {
+      final pubspecFile =
+          File(path.join(path.dirname(imagePath), '..', 'pubspec.yaml'));
+
+      final content = await pubspecFile.readAsString();
+      final relativePath = path
+          .relative(imagePath, from: path.dirname(pubspecFile.path))
+          .replaceAll(r'\', r'/');
+
+      final assetEntry = '    - $relativePath';
+      final assetsSection = RegExp(r'flutter:\s*assets:');
+
+      if (!content.contains(assetEntry)) {
+        final newContent = content.replaceFirst(
+            assetsSection, 'flutter:\n  assets:\n$assetEntry');
+
+        await pubspecFile.writeAsString(newContent);
+        print('pubspec.yaml actualizado correctamente');
+      }
+    } catch (e) {
+      print('Error actualizando pubspec: $e');
+    }
+  }
+
+  // Método para eliminar el logo
+  Future<void> _deleteLogo() async {
+    try {
+      final logoProvider = Provider.of<LogoProvider>(context, listen: false);
+
+      if (_logoImagePath != null) {
+        final file = File(_logoImagePath!);
+        if (await file.exists()) await file.delete();
+        await _removeFromPubspec(_logoImagePath!);
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('financiera_logo_path');
+
+      logoProvider.clearLogo();
+
+      setState(() => _logoImagePath = null);
+    } catch (e) {
+      _showErrorSnackbar('Error al eliminar: $e');
+    }
+  }
+
+  // Nuevo método para remover del pubspec.yaml
+  Future<void> _removeFromPubspec(String imagePath) async {
+    try {
+      final pubspecFile =
+          File(path.join(path.dirname(imagePath), '..', 'pubspec.yaml'));
+
+      final content = await pubspecFile.readAsString();
+      final relativePath = path
+          .relative(imagePath, from: path.dirname(pubspecFile.path))
+          .replaceAll(r'\', r'/');
+
+      final assetEntry = RegExp(r'^\s*-\s*' + relativePath, multiLine: true);
+
+      final newContent = content.replaceAll(assetEntry, '');
+      await pubspecFile.writeAsString(newContent);
+
+      print('Entrada removida del pubspec.yaml');
+    } catch (e) {
+      print('Error removiendo del pubspec: $e');
+    }
   }
 }
