@@ -3516,17 +3516,24 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                       context,
                                                                   StateSetter
                                                                       setState) {
+                                                                // Inicializar con el valor opuesto de isMoratorioEnabled
+                                                                // Si isMoratorioEnabled = "No", entonces deshabilitarMoratorios = true
                                                                 bool
                                                                     deshabilitarMoratorios =
-                                                                    false; // Estado inicial
+                                                                    pago.isMoratorioEnabled ==
+                                                                        "No";
+
                                                                 return CheckboxListTile(
                                                                   title: Text(
                                                                     "Deshabilitar moratorios",
-                                                                    style: TextStyle(
-                                                                        fontSize:
-                                                                            12,
-                                                                        color: Colors
-                                                                            .grey[800]),
+                                                                    style:
+                                                                        TextStyle(
+                                                                      fontSize:
+                                                                          12,
+                                                                      color: Colors
+                                                                              .grey[
+                                                                          800],
+                                                                    ),
                                                                   ),
                                                                   value:
                                                                       deshabilitarMoratorios,
@@ -3539,7 +3546,16 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                           value ??
                                                                               false;
                                                                     });
-                                                                    // Aquí puedes agregar la lógica para deshabilitar moratorios
+
+                                                                    // Actualizar el valor en el objeto pago como string
+                                                                    pago.isMoratorioEnabled = (value ??
+                                                                            false)
+                                                                        ? "No"
+                                                                        : "Si";
+
+                                                                    // Aquí puedes agregar la lógica para actualizar el valor en la base de datos
+                                                                    // Por ejemplo, una función que actualice el valor
+                                                                    // actualizarEstadoMoratorios(pago.idfechaspagos, pago.isMoratorioEnabled);
                                                                   },
                                                                   controlAffinity:
                                                                       ListTileControlAffinity
@@ -3705,12 +3721,13 @@ class Pago {
   double? montoPorCuota;
   List<Map<String, dynamic>> abonos;
   List<String?> fechasDepositos;
-  String? idfechaspagos; // Campo idfechaspagos
+  String? idfechaspagos;
   double? sumaDepositosFavor;
   double? sumaDepositoMoratorisos;
-  Moratorios? moratorios; // Campo de moratorios
-  // Nuevo: pagosMoratorios
+  Moratorios? moratorios;
   List<Map<String, dynamic>> pagosMoratorios;
+  // Ahora almacenamos el valor tal como viene en la respuesta: "Si" o "No"
+  String isMoratorioEnabled;
 
   Pago({
     required this.semana,
@@ -3728,11 +3745,12 @@ class Pago {
     this.montoPorCuota,
     this.abonos = const [],
     this.fechasDepositos = const [],
-    this.idfechaspagos, // Incluir en el constructor
+    this.idfechaspagos,
     this.sumaDepositosFavor,
     this.sumaDepositoMoratorisos,
-    this.moratorios, // Incluir en el constructor
-    this.pagosMoratorios = const [], // Valor por defecto vacío
+    this.moratorios,
+    this.pagosMoratorios = const [],
+    this.isMoratorioEnabled = "Si", // Por defecto "Si" (habilitado)
   });
 
   factory Pago.fromJson(Map<String, dynamic> json) {
@@ -3744,12 +3762,19 @@ class Pago {
       }
     }
 
-    // Parsear pagosMoratorios si existen, de lo contrario asigna una lista vacía
+    // Parsear pagosMoratorios si existen
     List<Map<String, dynamic>> pagosMoratorios =
         (json['pagosMoratorios'] as List?)
                 ?.map((moratorio) => Map<String, dynamic>.from(moratorio))
                 .toList() ??
             [];
+
+    // Obtener el valor de isMoratorioEnabled como string
+    String isMoratorioEnabled = "Si"; // Valor por defecto
+    if (pagosMoratorios.isNotEmpty) {
+      // Si hay pagosMoratorios, tomamos el valor del primer elemento
+      isMoratorioEnabled = pagosMoratorios[0]['isMoratorioEnabled'] ?? "Si";
+    }
 
     return Pago(
       semana: json['semana'] ?? 0,
@@ -3792,11 +3817,12 @@ class Pago {
           .map((pago) => Map<String, dynamic>.from(pago))
           .toList(),
       fechasDepositos: fechasDepositos,
-      idfechaspagos: json['idfechaspagos'], // Parsear el idfechaspagos
+      idfechaspagos: json['idfechaspagos'],
       moratorios: json['moratorios'] is Map<String, dynamic>
           ? Moratorios.fromJson(Map<String, dynamic>.from(json['moratorios']))
           : null,
-      pagosMoratorios: pagosMoratorios, // Asigna los pagosMoratorios parseados
+      pagosMoratorios: pagosMoratorios,
+      isMoratorioEnabled: isMoratorioEnabled, // Asignar el valor como string
     );
   }
 
@@ -3807,7 +3833,7 @@ class Pago {
       deposito: deposito ?? 0.00,
       fechaPago: this.fechaPagoCompleto.isNotEmpty
           ? this.fechaPagoCompleto
-          : this.fechaPago, // <-- Prioriza fechaPagoCompleto
+          : this.fechaPago,
       idfechaspagos: idfechaspagos ?? '',
       capitalMasInteres: capitalMasInteres,
       moratorio: moratorios?.moratorios,
