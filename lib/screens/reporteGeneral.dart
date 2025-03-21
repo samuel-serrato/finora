@@ -334,44 +334,82 @@ class ReporteGeneralWidget extends StatelessWidget {
             : Colors.transparent,
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Container(
-        width: 20,
-        height: 20,
-        decoration: BoxDecoration(
-          color: circleColor,
-          shape: BoxShape.circle,
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          (index + 1).toString(),
-          style: TextStyle(
-            fontSize: cellTextSize,
-            fontWeight: FontWeight.w700,
-            color: textColor,
-          ),
+      child: MouseRegion(
+    cursor: SystemMouseCursors.click,
+    child: Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        color: circleColor,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        (index + 1).toString(),
+        style: TextStyle(
+          fontSize: cellTextSize,
+          fontWeight: FontWeight.w700,
+          color: textColor,
         ),
       ),
+    ),
+  ),
     );
   }
 
-  Widget _buildPagosColumn(
-      List<ReporteGeneral> reportes, BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: reportes.map((reporte) {
-        return Text(
+  Widget _buildPagosColumn(List<ReporteGeneral> reportes, BuildContext context) {
+  final themeProvider = Provider.of<ThemeProvider>(context);
+  final isDarkMode = themeProvider.isDarkMode;
+  
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: reportes.map((reporte) {
+      // Check if payment is a guarantee
+      bool isGarantia = reporte.garantia == "Si";
+      
+      // Create the payment display with or without the pink highlight
+      Widget paymentDisplay = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: isGarantia ? BoxDecoration(
+          color: const Color(0xFFE53888),
+          borderRadius: BorderRadius.circular(10),
+        ) : null,
+        child: Text(
           currencyFormat.format(reporte.pagoficha),
           style: TextStyle(
             fontSize: cellTextSize,
-            color: isDarkMode ? Colors.white70 : Colors.grey[800],
+            // Change text color to white when isGarantia is true
+            color: isGarantia 
+                ? Colors.white 
+                : (isDarkMode ? Colors.white70 : Colors.grey[800]),
           ),
-        );
-      }).toList(),
-    );
-  }
+        ),
+      );
+      
+      // Wrap with Tooltip if it's a guarantee
+      return isGarantia 
+        ? Tooltip(
+            message: 'Pago realizado con garantía',
+            decoration: BoxDecoration(
+              color: const Color(0xFFE53888),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            textStyle: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            preferBelow: true,
+            verticalOffset: 15,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: paymentDisplay,
+            ),
+          )
+        : paymentDisplay;
+    }).toList(),
+  );
+}
 
   Widget _buildSaldoFavor(List<ReporteGeneral> reportes, BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
