@@ -65,6 +65,10 @@ class PagosProvider with ChangeNotifier {
         camposModificados['abonos'] = pagoActual.abonos;
       }
 
+       if (pagoActual.moratorioDesabilitado != pagoOriginal.moratorioDesabilitado) {
+    camposModificados['moratorioDesabilitado'] = pagoActual.moratorioDesabilitado;
+  }
+
       if (camposModificados.isNotEmpty) {
         camposModificados['semana'] = pagoActual.semana;
         camposModificados['tipoPago'] = pagoActual.tipoPago;
@@ -116,13 +120,12 @@ class PagosProvider with ChangeNotifier {
     }
   }
 
- void actualizarPago(int semana, PagoSeleccionado nuevoPago) {
-  int index = _pagosSeleccionados.indexWhere((p) => p.semana == semana);
+// En tu clase PagosProvider
+void actualizarPago(PagoSeleccionado pagoActualizado) { // <-- Cambiar parámetro a PagoSeleccionado
+  final index = _pagosSeleccionados.indexWhere((p) => p.idfechaspagos == pagoActualizado.idfechaspagos);
   if (index != -1) {
-    _pagosSeleccionados[index] = nuevoPago;
+    _pagosSeleccionados[index] = pagoActualizado;
     notifyListeners();
-  } else {
-    throw Exception('Pago no encontrado para la semana $semana');
   }
 }
 

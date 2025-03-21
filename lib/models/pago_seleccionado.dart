@@ -6,7 +6,8 @@ class PagoSeleccionado {
   double? capitalMasInteres;
   List<Map<String, dynamic>> abonos; // Lista mutable
   double? saldoFavor; // Campo adicional para saldo a favor
-  String? idfechaspagos; // Añadido el campo para idfechaspagos
+    final String idfechaspagos; // Cambiar de String? a String
+  String moratorioDesabilitado; // Propiedad con nombre correcto
   double? moratorio;
   double? saldoEnContra; // Añadir campo saldoEnContra
 
@@ -15,7 +16,8 @@ class PagoSeleccionado {
     required this.semana,
     required this.tipoPago,
     required this.deposito,
-    required this.idfechaspagos, // Añadido el campo en el constructor
+    required this.idfechaspagos, // Hacer required
+    required this.moratorioDesabilitado, // Valor por defecto
     this.capitalMasInteres,
     required this.fechaPago,
     required this.saldoFavor, // Inicialización por defecto

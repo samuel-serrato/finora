@@ -317,6 +317,11 @@ class _InfoCreditoState extends State<InfoCredito> {
         orElse: () => pagoActual,
       );
 
+      // Debug: Imprimir estado del checkbox
+      print('Procesando pago ${pagoActual.idfechaspagos}');
+      print(
+          'Moratorio Deshabilitado - Original: ${pagoOriginal.moratorioDesabilitado} | Actual: ${pagoActual.moratorioDesabilitado}');
+
       bool tieneCambios = _compararPagos(pagoActual, pagoOriginal) ||
           pagoActual.abonos
               .any((abono) => !abono.containsKey('idpagosdetalles'));
@@ -473,7 +478,8 @@ class _InfoCreditoState extends State<InfoCredito> {
   bool _compararPagos(PagoSeleccionado actual, PagoSeleccionado original) {
     return actual.deposito != original.deposito ||
         actual.capitalMasInteres != original.capitalMasInteres ||
-        actual.moratorio != original.moratorio;
+        actual.moratorio != original.moratorio ||
+        actual.moratorioDesabilitado != original.moratorioDesabilitado;
   }
 
   double _redondear(double valor, [int decimales = 2]) {
@@ -502,113 +508,190 @@ class _InfoCreditoState extends State<InfoCredito> {
     List<PagoSeleccionado> pagosSeleccionados,
   ) async {
     try {
-      // Obtener los pagos originales del provider
-      final pagosOriginales =
-          Provider.of<PagosProvider>(context, listen: false).pagosOriginales;
+      setState(() => isSending = true);
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
+      final pagosOriginales = pagosProvider.pagosOriginales;
 
-      // Generar los datos JSON con la función que ya tienes
+      // 1. Generar y enviar datos principales de pagos
       List<Map<String, dynamic>> pagosJson =
           generarPagoJson(pagosSeleccionados, pagosOriginales);
 
-      // URL del servidor
-      final url = Uri.parse('http://$baseUrl/api/v1/pagos');
-
-      // Obtener el token de SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-
-      // Verificar que el token esté disponible
-      if (token.isEmpty) {
-        _handleError(false,
-            'Token de autenticación no encontrado. Por favor, inicia sesión.',
-            redirectToLogin: true);
+      if (pagosJson.isEmpty) {
+        mostrarDialogo(context, 'Aviso', 'No hay cambios para guardar');
         return;
       }
 
-      // Datos a enviar
-      print('Datos a enviar: $pagosJson');
-
-      // Hacer la solicitud POST
       final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'tokenauth': token,
-        },
+        Uri.parse('http://$baseUrl/api/v1/pagos'),
+        headers: {'Content-Type': 'application/json', 'tokenauth': token},
         body: json.encode(pagosJson),
       );
 
-      // Verificar la respuesta del servidor
-      if (response.statusCode == 201) {
-        print('Datos enviados exitosamente');
-        mostrarDialogo(context, 'Éxito', 'Datos enviados exitosamente.');
-      } else {
+      // Manejar respuesta del servidor para pagos principales
+      if (response.statusCode != 201) {
+        final errorData = json.decode(response.body);
+        final mensajeError =
+            errorData['Error']['Message'] ?? 'Error desconocido';
+        throw HttpException(mensajeError, uri: response.request?.url);
+      }
+
+      // 2. Actualizar permisos de moratorios si es Admin
+      if (widget.tipoUsuario == 'Admin') {
         try {
-          final errorData = json.decode(response.body);
+          List<Future<bool>> actualizacionesMoratorios = [];
 
-          // Verificar si es el mensaje específico de sesión cambiada
-          if (errorData["Error"] != null &&
-              errorData["Error"]["Message"] ==
-                  "La sesión ha cambiado. Cerrando sesión...") {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
-
-            // Mostrar diálogo y redirigir al login
-            mostrarDialogoCierreSesion(
-                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false, // Elimina todas las rutas anteriores
-              );
-            });
-            return;
-          }
-          // Manejar error JWT expirado
-          else if ((response.statusCode == 404 || response.statusCode == 401) &&
-              errorData["Error"] != null &&
-              errorData["Error"]["Message"] == "jwt expired") {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
-            _handleError(false,
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                redirectToLogin: true);
-            return;
-          } else {
-            // Imprimir detalles del error si la respuesta no es 201
-            print('Error al enviar datos: ${response.statusCode}');
-            print('Respuesta del servidor: ${response.body}');
-
-            // Parsear la respuesta del servidor
-            final int codigoError = errorData['Error']['Code'];
-            final String mensajeError = errorData['Error']['Message'];
-
-            // Mostrar el error usando la misma función
-            mostrarDialogo(
-              context,
-              'Error $codigoError',
-              mensajeError,
-              esError: true,
+          for (final pagoActual in pagosSeleccionados) {
+            final pagoOriginal = pagosOriginales.firstWhere(
+              (p) => p.idfechaspagos == pagoActual.idfechaspagos,
+              orElse: () => pagoActual,
             );
+
+            // Verificar si hubo cambio en el moratorio
+            if (pagoActual.moratorioDesabilitado !=
+                pagoOriginal.moratorioDesabilitado) {
+              actualizacionesMoratorios.add(
+                _actualizarMoratorioServidor(
+                  pagoActual.idfechaspagos,
+                  pagoActual.moratorioDesabilitado,
+                  token,
+                ),
+              );
+            }
           }
-        } catch (parseError) {
-          // Si no podemos parsear la respuesta JSON correctamente
-          print('Error al procesar la respuesta: $parseError');
-          mostrarDialogo(
-            context,
-            'Error de servidor',
-            'No se pudo procesar la respuesta del servidor.',
-            esError: true,
-          );
+
+          // Ejecutar todas las actualizaciones
+          final resultados = await Future.wait(actualizacionesMoratorios);
+
+          if (resultados.contains(false)) {
+            throw Exception('Algunos moratorios no se actualizaron');
+          }
+        } catch (e) {
+          print('Error en actualización de moratorios: $e');
+          mostrarDialogo(context, 'Aviso Parcial',
+              'Pagos principales guardados. Error en algunos moratorios',
+              esError: true);
         }
       }
-    } catch (e) {
-      print('Error al hacer la solicitud: $e');
-      mostrarDialogo(context, 'Error', 'Ocurrió un error: $e', esError: true);
+
+      // 3. Actualizar UI y datos
+      mostrarDialogo(context, 'Éxito', 'Datos guardados correctamente');
+      pagosProvider.limpiarPagos();
+      //paginaControlKey.currentState?.recargarPagos();
+    } on HttpException catch (e) {
+      _handleHttpError(context, e);
+    } on SocketException {
+      _handleNetworkError(context);
+    } on Exception catch (e) {
+      _handleGenericError(context, e);
     } finally {
-      setState(() {
-        isSending = false; // Asegurarse de desactivar el indicador de carga
-      });
+      if (mounted) setState(() => isSending = false);
+    }
+  }
+
+  void _handleHttpError(BuildContext context, HttpException e) {
+    final mensaje = _traducirMensajeError(e.message);
+    mostrarDialogo(context, 'Error HTTP ${e.uri}', mensaje, esError: true);
+  }
+
+  void _handleNetworkError(BuildContext context) {
+    mostrarDialogo(context, 'Error de Red',
+        'No se pudo conectar al servidor. Verifica tu conexión a internet.',
+        esError: true);
+  }
+
+  void _handleGenericError(BuildContext context, Exception e) {
+    mostrarDialogo(context, 'Error Inesperado',
+        'Ocurrió un error no esperado: ${e.toString()}',
+        esError: true);
+  }
+
+  String _traducirMensajeError(String mensajeOriginal) {
+    const traducciones = {
+      'jwt expired': 'Sesión expirada. Vuelve a iniciar sesión.',
+      'invalid token': 'Token inválido. Vuelve a iniciar sesión.',
+      'session changed': 'Sesión modificada. Vuelve a iniciar sesión.',
+    };
+
+    return traducciones[mensajeOriginal] ?? mensajeOriginal;
+  }
+
+  // Método helper para actualizar moratorios
+  Future<bool> _actualizarMoratorioServidor(
+      String idfechaspagos, String estado, String token) async {
+    try {
+      final url =
+          'http://$baseUrl/api/v1/pagos/permiso/moratorio/$idfechaspagos';
+      final body = json.encode({'moratorioDesabilitado': estado});
+
+      // Debug: Imprimir datos a enviar
+      print('╔═══════════════════════════════════════════════════');
+      print('╟[MORATORIO] URL: $url');
+      print('╟[MORATORIO] Body: $body');
+      print('╚═══════════════════════════════════════════════════');
+
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json', 'tokenauth': token},
+        body: body,
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error actualizando moratorio $idfechaspagos: $e');
+      return false;
+    }
+  }
+
+  Future<void> enviarCambiosMoratorio(
+    BuildContext context,
+    List<Map<String, dynamic>> cambiosMoratorio,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      // Iterar cada cambio de moratorio y enviarlos individualmente
+      for (final cambio in cambiosMoratorio) {
+        final idfechaspagos = cambio["idfechaspagos"];
+        final moratorioDesabilitado = cambio["moratorioDesabilitado"];
+        // Enviar a endpoint específico con ID en la URL
+        final response = await http.put(
+          Uri.parse(
+              'http://$baseUrl/api/v1/pagos/permiso/moratorio/$idfechaspagos'),
+          headers: {'Content-Type': 'application/json', 'tokenauth': token},
+          body: json.encode({"moratorioDesabilitado": moratorioDesabilitado}),
+        );
+
+        // Imprimir la respuesta literal del servidor
+        print(
+            'Respuesta del servidor para ID $idfechaspagos: ${response.body}');
+
+        // Manejar respuesta del servidor
+        if (response.statusCode != 200 && response.statusCode != 201) {
+          final errorData = json.decode(response.body);
+          final mensajeError =
+              errorData['Error']?['Message'] ?? 'Error desconocido';
+          throw HttpException(mensajeError, uri: response.request?.url);
+        }
+      }
+
+      // Mostrar mensaje de éxito después de que todos los cambios se envíen correctamente
+      mostrarDialogo(context, 'Éxito', 'Datos guardados correctamente');
+    } on HttpException catch (e) {
+      print('Error HTTP: $e');
+      mostrarDialogo(context, 'Error',
+          'No se pudieron actualizar los permisos de moratorio: ${e.message}',
+          esError: true);
+    } on SocketException {
+      print('Error de conexión');
+      mostrarDialogo(
+          context, 'Error de conexión', 'Verifique su conexión a internet',
+          esError: true);
+    } catch (e) {
+      print('Error general: $e');
+      mostrarDialogo(context, 'Error', 'Ocurrió un error inesperado: $e',
+          esError: true);
     }
   }
 
@@ -981,28 +1064,65 @@ class _InfoCreditoState extends State<InfoCredito> {
                                   await Future.delayed(
                                       Duration(milliseconds: 500));
 
+                                  final pagosProvider =
+                                      Provider.of<PagosProvider>(context,
+                                          listen: false);
                                   final pagosSeleccionados =
-                                      Provider.of<PagosProvider>(context,
-                                              listen: false)
-                                          .pagosSeleccionados;
+                                      pagosProvider.pagosSeleccionados;
                                   final pagosOriginales =
-                                      Provider.of<PagosProvider>(context,
-                                              listen: false)
-                                          .pagosOriginales;
+                                      pagosProvider.pagosOriginales;
 
-                                  // Generar JSON solo con los datos modificados
+                                  // Recolectar cambios de moratorio
+                                  List<Map<String, dynamic>> cambiosMoratorio =
+                                      [];
+                                  for (final pagoActual in pagosSeleccionados) {
+                                    final pagoOriginal =
+                                        pagosOriginales.firstWhere(
+                                      (p) =>
+                                          p.idfechaspagos ==
+                                          pagoActual.idfechaspagos,
+                                      orElse: () => pagoActual,
+                                    );
+
+                                    // Verificar si hubo cambio en el moratorio
+                                    if (pagoActual.moratorioDesabilitado !=
+                                        pagoOriginal.moratorioDesabilitado) {
+                                      cambiosMoratorio.add({
+                                        "idfechaspagos":
+                                            pagoActual.idfechaspagos,
+                                        "moratorioDesabilitado":
+                                            pagoActual.moratorioDesabilitado,
+                                      });
+                                    }
+                                  }
+
+                                  // Enviar cambios de moratorio si existen
+                                  if (cambiosMoratorio.isNotEmpty) {
+                                    print(
+                                        'Datos de moratorio a enviar: $cambiosMoratorio');
+                                    await enviarCambiosMoratorio(
+                                        context, cambiosMoratorio);
+                                  }
+
+                                  // Generar JSON para pagos normales (sin incluir cambios de moratorio)
                                   List<Map<String, dynamic>> pagosJson =
                                       generarPagoJson(
                                           pagosSeleccionados, pagosOriginales);
 
-                                  // Verificar si hay datos modificados para enviar
+                                  // Verificar si hay datos de pagos modificados para enviar
                                   if (pagosJson.isNotEmpty) {
-                                    print('Datos a enviar: $pagosJson');
-                                    // Llamar a la función para enviar los datos al servidor
+                                    print(
+                                        'Datos de pagos a enviar: $pagosJson');
                                     await enviarDatosAlServidor(
                                         context, pagosSeleccionados);
-                                  } else {
+                                  } else if (cambiosMoratorio.isEmpty) {
                                     print("No hay cambios para guardar.");
+                                    // Mostrar un mensaje al usuario
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text(
+                                              'No hay cambios para guardar')),
+                                    );
                                   }
 
                                   setState(() {
@@ -1378,8 +1498,11 @@ class _PaginaControlState extends State<PaginaControl> {
         List<Pago> pagos = data.map((pago) => Pago.fromJson(pago)).toList();
 
         for (var pago in pagos) {
+          // En el método _fetchPagos
           double totalDeuda = (pago.capitalMasInteres ?? 0.0) +
-              (pago.moratorios?.moratorios ?? 0.0);
+              (pago.moratorioDesabilitado == "Si"
+                  ? 0.0
+                  : (pago.moratorios?.moratorios ?? 0.0));
 
           bool tieneGarantia =
               pago.abonos.any((abono) => abono['garantia'] == 'Si');
@@ -1388,6 +1511,12 @@ class _PaginaControlState extends State<PaginaControl> {
               0.0,
               (total, abono) =>
                   total + (double.tryParse(abono['abono'].toString()) ?? 0.0));
+
+          // Luego calcular saldoEnContra
+          pago.saldoEnContra = totalDeuda - montoPagado;
+
+          // Asegurar que no sea negativo
+          if (pago.saldoEnContra! < 0) pago.saldoEnContra = 0.0;
 
           bool sinActividad = pago.abonos.isEmpty;
 
@@ -1459,18 +1588,23 @@ class _PaginaControlState extends State<PaginaControl> {
 
   void _actualizarProviderConPagos(List<Pago> pagos) {
     final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
-    pagosProvider.cargarPagos(pagos
-        .map((pago) => PagoSeleccionado(
-              semana: pago.semana,
-              tipoPago: pago.tipoPago,
-              deposito: pago.deposito ?? 0.0,
-              saldoFavor: 0.0,
-              saldoEnContra: 0.0,
-              abonos: pago.abonos ?? [],
-              idfechaspagos: pago.idfechaspagos ?? '',
-              fechaPago: pago.fechaPago ?? '',
-            ))
-        .toList());
+    // En _actualizarProviderConPagos
+    pagosProvider.cargarPagos(pagos.map((pago) {
+      // Recalcular antes de enviar al provider
+      _recalcularSaldos(pago);
+
+      return PagoSeleccionado(
+        moratorioDesabilitado: pago.moratorioDesabilitado,
+        semana: pago.semana,
+        tipoPago: pago.tipoPago,
+        deposito: pago.deposito ?? 0.0,
+        saldoFavor: pago.saldoFavor ?? 0.0,
+        saldoEnContra: pago.saldoEnContra ?? 0.0,
+        abonos: pago.abonos ?? [],
+        idfechaspagos: pago.idfechaspagos ?? '',
+        fechaPago: pago.fechaPago ?? '',
+      );
+    }).toList());
 
     // Inicializamos los controladores para cada pago
     // En _actualizarProviderConPagos:
@@ -1605,12 +1739,11 @@ class _PaginaControlState extends State<PaginaControl> {
   }
 
   bool _puedeEditarPago(Pago pago) {
-    if (pago.moratorios != null) {
-      return pago.moratorios!.montoTotal > pago.sumaDepositoMoratorisos!;
-    } else {
-      return (pago.capitalMasInteres ?? 0) >
-          (pago.sumaDepositoMoratorisos ?? 0);
+    double montoTotal = pago.capitalMasInteres ?? 0.0;
+    if (pago.moratorioDesabilitado != "Si") {
+      montoTotal += pago.moratorios?.moratorios ?? 0.0;
     }
+    return montoTotal > (pago.sumaDepositoMoratorisos ?? 0.0);
   }
 
   String _formatFecha(String fecha) {
@@ -1656,6 +1789,7 @@ class _PaginaControlState extends State<PaginaControl> {
           double totalPagoActual = 0.0;
           double totalSaldoFavor = 0.0;
           double totalSaldoContra = 0.0;
+          double totalMoratorios = 0.0; // Nueva variable
 
           // Obtener la última semana (el pago más alto)
           int totalPagosDelCredito = pagos.isNotEmpty
@@ -1683,7 +1817,11 @@ class _PaginaControlState extends State<PaginaControl> {
 
             double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
             double deposito = pago.deposito ?? 0.0;
-            double moratorios = pago.moratorios?.moratorios ?? 0.0;
+            double moratorios = pago.moratorioDesabilitado == "Si"
+                ? 0.0
+                : (pago.moratorios?.moratorios ?? 0.0);
+
+            totalMoratorios += moratorios; // Sumamos al total de moratorios ⭐
 
             // Usar sumaDepositoMoratorios en lugar de los abonos
             double sumaDepositoMoratorios = pago.sumaDepositoMoratorisos ?? 0.0;
@@ -1846,9 +1984,9 @@ class _PaginaControlState extends State<PaginaControl> {
                       if (!esPago1) {
                         double capitalMasInteres =
                             pago.capitalMasInteres ?? 0.0;
-                        double moratorio = pago.moratorios!.moratorios ?? 0.0;
-
-                        // Total a pagar incluyendo moratorios
+                        double moratorio = pago.moratorioDesabilitado == "Si"
+                            ? 0.0
+                            : (pago.moratorios?.moratorios ?? 0.0);
                         double montoAPagarTotal = capitalMasInteres + moratorio;
 
                         // Total de abonos de la semana
@@ -2054,6 +2192,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                       PagoSeleccionado
                                                           pagoSeleccionado =
                                                           PagoSeleccionado(
+                                                        moratorioDesabilitado: pago
+                                                            .moratorioDesabilitado,
                                                         semana: pago.semana,
                                                         tipoPago: pago.tipoPago,
                                                         deposito:
@@ -2086,8 +2226,6 @@ class _PaginaControlState extends State<PaginaControl> {
                                                               context,
                                                               listen: false)
                                                           .actualizarPago(
-                                                              pagoSeleccionado
-                                                                  .semana,
                                                               pagoSeleccionado);
 
                                                       // Debug: Imprimir estado actualizado
@@ -2443,6 +2581,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                     pago.semana);
                                                             final pagoActualizado =
                                                                 PagoSeleccionado(
+                                                              moratorioDesabilitado:
+                                                                  pago.moratorioDesabilitado,
                                                               semana:
                                                                   pago.semana,
                                                               tipoPago:
@@ -2457,7 +2597,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                               abonos:
                                                                   pago.abonos,
                                                               idfechaspagos: pago
-                                                                  .idfechaspagos,
+                                                                  .idfechaspagos!,
                                                               fechaPago: pago
                                                                   .fechaPago, // <-- Usar la fecha del diálogo
                                                               capitalMasInteres:
@@ -2955,6 +3095,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                       pagosProvider
                                                                               .pagosSeleccionados[index] =
                                                                           PagoSeleccionado(
+                                                                        moratorioDesabilitado:
+                                                                            pago.moratorioDesabilitado,
                                                                         semana:
                                                                             pago.semana,
                                                                         tipoPago:
@@ -2966,7 +3108,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                         saldoEnContra:
                                                                             pago.saldoEnContra,
                                                                         idfechaspagos:
-                                                                            pago.idfechaspagos,
+                                                                            pago.idfechaspagos!,
                                                                         fechaPago: pago.fechaPagoCompleto.isNotEmpty
                                                                             ? pago.fechaPagoCompleto
                                                                             : pago.fechaPago, // <-- Cambio clave aquí
@@ -2981,6 +3123,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                       pagosProvider
                                                                           .agregarPago(
                                                                         PagoSeleccionado(
+                                                                          moratorioDesabilitado:
+                                                                              pago.moratorioDesabilitado,
                                                                           semana:
                                                                               pago.semana,
                                                                           tipoPago:
@@ -2992,7 +3136,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                           saldoEnContra:
                                                                               pago.saldoEnContra,
                                                                           idfechaspagos:
-                                                                              pago.idfechaspagos,
+                                                                              pago.idfechaspagos!,
                                                                           fechaPago: pago.fechaPagoCompleto.isNotEmpty
                                                                               ? pago.fechaPagoCompleto
                                                                               : pago.fechaPago, // <-- Cambio clave aquí
@@ -3391,9 +3535,10 @@ class _PaginaControlState extends State<PaginaControl> {
                                 esPago1
                                     ? "-"
                                     : (pago.saldoEnContra != null &&
-                                            pago.saldoEnContra! >
-                                                0.0) // ← Mostrar siempre si hay saldo
-                                        ? "\$${formatearNumero(pago.saldoEnContra!)}"
+                                            pago.saldoEnContra! > 0.0)
+                                        ? pago.moratorioDesabilitado == "Si"
+                                            ? "-" // Mostrar "-" si están deshabilitados
+                                            : "\$${formatearNumero(pago.saldoEnContra!)}"
                                         : "-",
                                 flex: 18,
                               ),
@@ -3402,19 +3547,49 @@ class _PaginaControlState extends State<PaginaControl> {
                                 esPago1
                                     ? "-"
                                     : (pago.moratorios == null)
-                                        ? "-" // Mostrar "-" si los moratorios son nulos
+                                        ? Container(
+                                            alignment: Alignment
+                                                .center, // Centra el texto
+                                            child: Text(
+                                              "-",
+                                              textAlign: TextAlign
+                                                  .center, // Alineación central para el texto
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.normal,
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.black,
+                                              ),
+                                            ),
+                                          )
                                         : Row(
-                                            mainAxisAlignment: MainAxisAlignment
-                                                .center, // Distribuir uniformemente
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
                                             children: [
-                                              Text(
-                                                pago.moratorios!.moratorios ==
-                                                        0.0
-                                                    ? "-" // Mostrar "-" si el monto de moratorios es 0.0
-                                                    : "\$${formatearNumero(pago.moratorios!.moratorios)}",
-                                                style: TextStyle(
+                                              Expanded(
+                                                child: Text(
+                                                  pago.moratorioDesabilitado ==
+                                                          "Si"
+                                                      ? "-"
+                                                      : (pago.moratorios!
+                                                                  .moratorios ==
+                                                              0.0)
+                                                          ? "-"
+                                                          : "\$${formatearNumero(pago.moratorios!.moratorios)}",
+                                                  textAlign: TextAlign
+                                                      .center, // Siempre centrado para consistencia
+                                                  style: TextStyle(
                                                     fontWeight:
-                                                        FontWeight.normal),
+                                                        FontWeight.normal,
+                                                    color:
+                                                        pago.moratorioDesabilitado ==
+                                                                "Si"
+                                                            ? Colors.grey
+                                                            : isDarkMode
+                                                                ? Colors.white
+                                                                : Colors.black,
+                                                  ),
+                                                ),
                                               ),
                                               if (pago.moratorios!
                                                           .semanasDeRetraso >
@@ -3423,20 +3598,27 @@ class _PaginaControlState extends State<PaginaControl> {
                                                           .diferenciaEnDias >
                                                       0)
                                                 PopupMenuButton<int>(
+                                                  // El resto del código del PopupMenuButton permanece igual
                                                   tooltip:
                                                       'Mostrar información',
-                                                  color: Colors.white,
-                                                  icon: Icon(Icons.info_outline,
-                                                      size: 16,
-                                                      color: Colors.grey),
-                                                  offset: Offset(0,
-                                                      40), // Ajusta la posición del menú
+                                                  color: isDarkMode
+                                                      ? Colors.grey[800]
+                                                      : Colors.white,
+                                                  icon: Icon(
+                                                    Icons.info_outline,
+                                                    size: 16,
+                                                    color:
+                                                        pago.moratorioDesabilitado ==
+                                                                "Si"
+                                                            ? Colors.grey
+                                                            : Color(0xFF5162F6),
+                                                  ),
+                                                  offset: Offset(0, 40),
                                                   itemBuilder:
                                                       (BuildContext context) =>
                                                           [
                                                     PopupMenuItem(
-                                                      enabled:
-                                                          false, // Desactivado, solo para mostrar información
+                                                      enabled: false,
                                                       child: Column(
                                                         crossAxisAlignment:
                                                             CrossAxisAlignment
@@ -3444,71 +3626,122 @@ class _PaginaControlState extends State<PaginaControl> {
                                                         mainAxisSize:
                                                             MainAxisSize.min,
                                                         children: [
+                                                          // Título de moratorios
+                                                          Text("Moratorios",
+                                                              style: TextStyle(
+                                                                fontSize: 14,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: isDarkMode
+                                                                    ? Colors
+                                                                        .white
+                                                                    : Colors
+                                                                        .black,
+                                                              )),
+                                                          SizedBox(height: 8),
+
+                                                          // Información de cálculo
                                                           if (pago.moratorios!
                                                                   .semanasDeRetraso >
                                                               0)
-                                                            Text(
-                                                              "Semanas de Retraso: ${pago.moratorios!.semanasDeRetraso}",
-                                                              style: TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: Colors
-                                                                          .grey[
-                                                                      800]),
-                                                            ),
-                                                          if (pago.moratorios!
-                                                                  .semanasDeRetraso >
-                                                              0)
-                                                            SizedBox(
-                                                                height:
-                                                                    8), // Espacio entre los elementos
+                                                            _buildPopupItem(
+                                                                "Semanas de retraso:",
+                                                                "${pago.moratorios!.semanasDeRetraso}"),
 
                                                           if (pago.moratorios!
                                                                   .diferenciaEnDias >
                                                               0)
-                                                            Text(
-                                                              "Días de Retraso: ${pago.moratorios!.diferenciaEnDias}",
-                                                              style: TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: Colors
-                                                                          .grey[
-                                                                      800]),
-                                                            ),
-                                                          SizedBox(
-                                                              height:
-                                                                  8), // Espacio entre los elementos
+                                                            _buildPopupItem(
+                                                                "Días de retraso:",
+                                                                "${pago.moratorios!.diferenciaEnDias}"),
 
-                                                          if (pago.moratorios!
-                                                                  .diferenciaEnDias >
-                                                              0)
-                                                            Text(
-                                                              "Monto Total a Pagar: ${formatearNumero(pago.moratorios!.montoTotal)}",
-                                                              style: TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: Colors
-                                                                          .grey[
-                                                                      800]),
-                                                            ),
-                                                          if (pago.moratorios!
-                                                                  .diferenciaEnDias >
-                                                              0)
-                                                            SizedBox(
-                                                                height:
-                                                                    8), // Espacio entre los elementos
+                                                          _buildPopupItem(
+                                                              "Monto calculado:",
+                                                              "\$${formatearNumero(pago.moratorios!.moratorios)}",
+                                                              extraStyle:
+                                                                  pago.moratorioDesabilitado ==
+                                                                          "Si"
+                                                                      ? TextStyle(
+                                                                          color:
+                                                                              Colors.black,
+                                                                        )
+                                                                      : null),
 
+                                                          /* _buildPopupItem(
+                                                              "Monto aplicado:",
+                                                              pago.moratorioDesabilitado ==
+                                                                      "Si"
+                                                                  ? "-"
+                                                                  : "\$${formatearNumero(pago.moratorios!.moratorios)}",
+                                                              isApplied: true), */
+
+                                                          // Mensaje de moratorios
                                                           if (pago
                                                               .moratorios!
                                                               .mensaje
                                                               .isNotEmpty)
-                                                            Text(
-                                                              "${pago.moratorios!.mensaje}",
-                                                              style: TextStyle(
+                                                            Padding(
+                                                              padding: EdgeInsets
+                                                                  .only(
+                                                                      top: 8,
+                                                                      bottom:
+                                                                          8),
+                                                              child: Text(
+                                                                pago.moratorios!
+                                                                    .mensaje,
+                                                                style:
+                                                                    TextStyle(
                                                                   fontSize: 12,
-                                                                  color: Colors
-                                                                          .grey[
-                                                                      800]),
+                                                                  color: isDarkMode
+                                                                      ? Colors.grey[
+                                                                          400]
+                                                                      : Colors.grey[
+                                                                          700],
+                                                                  fontStyle:
+                                                                      FontStyle
+                                                                          .italic,
+                                                                ),
+                                                              ),
                                                             ),
 
-                                                          // Mostrar la opción de deshabilitar moratorios solo si el usuario es 'Admin'
+                                                          SizedBox(height: 12),
+
+                                                          if (pago.moratorioDesabilitado ==
+                                                                  "Si" &&
+                                                              tipoUsuario !=
+                                                                  'Admin')
+                                                            Padding(
+                                                              padding: EdgeInsets
+                                                                  .only(
+                                                                      bottom:
+                                                                          8),
+                                                              child: Row(
+                                                                children: [
+                                                                  Icon(
+                                                                    Icons
+                                                                        .info_outline,
+                                                                    size: 14,
+                                                                    color: Colors
+                                                                        .red,
+                                                                  ),
+                                                                  SizedBox(
+                                                                      width: 6),
+                                                                  Text(
+                                                                    "Moratorios deshabilitados",
+                                                                    style: TextStyle(
+                                                                        fontSize:
+                                                                            12,
+                                                                        color: Colors.red[
+                                                                            700],
+                                                                        fontWeight:
+                                                                            FontWeight.w500),
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            ),
+
+                                                          // Checkbox de deshabilitar (solo para admin)
                                                           if (tipoUsuario ==
                                                               'Admin')
                                                             StatefulBuilder(
@@ -3516,13 +3749,10 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                       context,
                                                                   StateSetter
                                                                       setState) {
-                                                                // Inicializar con el valor opuesto de isMoratorioEnabled
-                                                                // Si isMoratorioEnabled = "No", entonces deshabilitarMoratorios = true
                                                                 bool
-                                                                    deshabilitarMoratorios =
-                                                                    pago.isMoratorioEnabled ==
-                                                                        "No";
-
+                                                                    deshabilitado =
+                                                                    pago.moratorioDesabilitado ==
+                                                                        "Si";
                                                                 return CheckboxListTile(
                                                                   title: Text(
                                                                     "Deshabilitar moratorios",
@@ -3530,32 +3760,38 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                         TextStyle(
                                                                       fontSize:
                                                                           12,
-                                                                      color: Colors
-                                                                              .grey[
-                                                                          800],
+                                                                      color: isDarkMode
+                                                                          ? Colors
+                                                                              .white
+                                                                          : Colors
+                                                                              .black,
                                                                     ),
                                                                   ),
                                                                   value:
-                                                                      deshabilitarMoratorios,
+                                                                      deshabilitado,
                                                                   onChanged:
                                                                       (bool?
                                                                           value) {
                                                                     setState(
                                                                         () {
-                                                                      deshabilitarMoratorios =
+                                                                      deshabilitado =
                                                                           value ??
                                                                               false;
+                                                                      pago.moratorioDesabilitado = deshabilitado
+                                                                          ? "Si"
+                                                                          : "No";
+
+                                                                      // Recálculo forzado
+                                                                      _recalcularSaldos(
+                                                                          pago);
+
+                                                                      Provider.of<PagosProvider>(
+                                                                              context,
+                                                                              listen:
+                                                                                  false)
+                                                                          .actualizarPago(
+                                                                              pago.toPagoSeleccionado());
                                                                     });
-
-                                                                    // Actualizar el valor en el objeto pago como string
-                                                                    pago.isMoratorioEnabled = (value ??
-                                                                            false)
-                                                                        ? "No"
-                                                                        : "Si";
-
-                                                                    // Aquí puedes agregar la lógica para actualizar el valor en la base de datos
-                                                                    // Por ejemplo, una función que actualice el valor
-                                                                    // actualizarEstadoMoratorios(pago.idfechaspagos, pago.isMoratorioEnabled);
                                                                   },
                                                                   controlAffinity:
                                                                       ListTileControlAffinity
@@ -3563,6 +3799,13 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   contentPadding:
                                                                       EdgeInsets
                                                                           .zero,
+                                                                  activeColor:
+                                                                      Color(
+                                                                          0xFF5162F6),
+                                                                  checkColor:
+                                                                      Colors
+                                                                          .white,
+                                                                  dense: true,
                                                                 );
                                                               },
                                                             ),
@@ -3606,7 +3849,10 @@ class _PaginaControlState extends State<PaginaControl> {
                         textColor: Colors.white, flex: 10),
                     _buildTableCell("\$${formatearNumero(totalSaldoContra)}",
                         textColor: Colors.white, flex: 10),
-                    _buildTableCell("0.00", textColor: Colors.white, flex: 10),
+                    _buildTableCell(
+                        "\$${formatearNumero(totalMoratorios)}", // ← Usar la variable calculada
+                        textColor: Colors.white,
+                        flex: 10),
                   ],
                 ),
               ),
@@ -3614,6 +3860,52 @@ class _PaginaControlState extends State<PaginaControl> {
           );
         }
       },
+    );
+  }
+
+  // Nuevo método auxiliar
+  void _recalcularSaldos(Pago pago) {
+    double montoPagado = pago.abonos
+        .fold(0.0, (total, abono) => total + (abono['deposito'] ?? 0.0));
+
+    double totalDeuda = (pago.capitalMasInteres ?? 0.0) +
+        (pago.moratorioDesabilitado == "Si"
+            ? 0.0
+            : (pago.moratorios?.moratorios ?? 0.0));
+
+    pago.saldoEnContra = (totalDeuda - montoPagado).clamp(0, double.infinity);
+    pago.saldoFavor = (montoPagado - totalDeuda).clamp(0, double.infinity);
+  }
+
+  // Método auxiliar para construir items del popup
+  Widget _buildPopupItem(String title, String value,
+      {TextStyle? extraStyle, bool isApplied = false}) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              color: isApplied
+                  ? (isDarkMode ? Colors.green[300] : Colors.green[800])
+                  : (isDarkMode ? Colors.white : Colors.black),
+              fontWeight: isApplied ? FontWeight.bold : FontWeight.bold,
+            ).merge(extraStyle),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3668,7 +3960,7 @@ class _PaginaControlState extends State<PaginaControl> {
         }
 
         Provider.of<PagosProvider>(context, listen: false)
-            .actualizarPago(pago.semana, pago.toPagoSeleccionado());
+            .actualizarPago(pago.toPagoSeleccionado());
       });
     }
   }
@@ -3727,7 +4019,7 @@ class Pago {
   Moratorios? moratorios;
   List<Map<String, dynamic>> pagosMoratorios;
   // Ahora almacenamos el valor tal como viene en la respuesta: "Si" o "No"
-  String isMoratorioEnabled;
+  String moratorioDesabilitado; // Usar nombre exacto del JSON
 
   Pago({
     required this.semana,
@@ -3750,7 +4042,7 @@ class Pago {
     this.sumaDepositoMoratorisos,
     this.moratorios,
     this.pagosMoratorios = const [],
-    this.isMoratorioEnabled = "Si", // Por defecto "Si" (habilitado)
+    required this.moratorioDesabilitado,
   });
 
   factory Pago.fromJson(Map<String, dynamic> json) {
@@ -3768,13 +4060,6 @@ class Pago {
                 ?.map((moratorio) => Map<String, dynamic>.from(moratorio))
                 .toList() ??
             [];
-
-    // Obtener el valor de isMoratorioEnabled como string
-    String isMoratorioEnabled = "Si"; // Valor por defecto
-    if (pagosMoratorios.isNotEmpty) {
-      // Si hay pagosMoratorios, tomamos el valor del primer elemento
-      isMoratorioEnabled = pagosMoratorios[0]['isMoratorioEnabled'] ?? "Si";
-    }
 
     return Pago(
       semana: json['semana'] ?? 0,
@@ -3822,7 +4107,7 @@ class Pago {
           ? Moratorios.fromJson(Map<String, dynamic>.from(json['moratorios']))
           : null,
       pagosMoratorios: pagosMoratorios,
-      isMoratorioEnabled: isMoratorioEnabled, // Asignar el valor como string
+      moratorioDesabilitado: json['moratorioDesabilitado'] ?? "No",
     );
   }
 
@@ -3840,6 +4125,8 @@ class Pago {
       saldoFavor: saldoFavor,
       saldoEnContra: saldoEnContra,
       abonos: abonos,
+      // ¡Agregar esta línea para propagar el campo!
+      moratorioDesabilitado: this.moratorioDesabilitado, // ¡No olvidar este!
     );
   }
 }
