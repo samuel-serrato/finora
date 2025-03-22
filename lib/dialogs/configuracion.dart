@@ -116,169 +116,354 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
   }
 
   Widget _buildLogoUploader(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-    final logoProvider = Provider.of<LogoProvider>(context);
+  final themeProvider = Provider.of<ThemeProvider>(context);
+  final isDarkMode = themeProvider.isDarkMode;
+  final logoProvider = Provider.of<LogoProvider>(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(height: 16),
-        Center(
-          child: Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Color(0xFF5162F6),
-                width: 2,
-              ),
+  // Variables para el logo a color (modo claro)
+  String? _tempColorLogoPath;
+  String? _colorLogoImagePath;
+
+  // Variables para el logo blanco (modo oscuro)
+  String? _tempWhiteLogoPath;
+  String? _whiteLogoImagePath;
+
+
+  // Función para elegir el logo blanco
+  void _pickWhiteImage() async {
+    // Implementar lógica para seleccionar imagen
+    // ...
+    setState(() {
+      _tempWhiteLogoPath = "ruta_seleccionada";
+      _hasPendingChanges = true;
+    });
+  }
+
+  // Función para guardar ambos logos
+  void _saveLogos() async {
+    // Implementar lógica para guardar ambos logos
+    // ...
+    setState(() {
+      _colorLogoImagePath = _tempColorLogoPath;
+      _whiteLogoImagePath = _tempWhiteLogoPath;
+      _tempColorLogoPath = null;
+      _tempWhiteLogoPath = null;
+      _hasPendingChanges = false;
+    });
+  }
+
+  // Función para eliminar ambos logos
+  void _deleteLogos() async {
+    // Implementar lógica para eliminar ambos logos
+    // ...
+    setState(() {
+      _colorLogoImagePath = null;
+      _whiteLogoImagePath = null;
+      _hasPendingChanges = false;
+    });
+  }
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(height: 16),
+      
+      // Logo a color (modo claro)
+      Text(
+        "Logo a color (modo claro)",
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: isDarkMode ? Colors.white : Colors.black,
+        ),
+      ),
+      SizedBox(height: 8),
+      
+      Center(
+        child: Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Color(0xFF5162F6),
+              width: 2,
             ),
-            child: _tempLogoPath != null || _logoImagePath != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.file(
-                      File(_tempLogoPath ?? _logoImagePath!),
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
-                    ),
-                  )
-                : Icon(
-                    Icons.add_photo_alternate,
-                    size: 50,
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+          ),
+          child: _tempColorLogoPath != null || _colorLogoImagePath != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.file(
+                    File(_tempColorLogoPath ?? _colorLogoImagePath!),
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
                   ),
+                )
+              : Icon(
+                  Icons.add_photo_alternate,
+                  size: 50,
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                ),
+        ),
+      ),
+      
+      SizedBox(height: 16),
+      Center(
+        child: Text(
+          _colorLogoImagePath != null
+              ? "Logo a color guardado"
+              : _tempColorLogoPath != null
+                  ? "Nuevo logo a color (no guardado)"
+                  : "Sin logo a color",
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.white : Colors.black,
           ),
         ),
-        SizedBox(height: 16),
-        Center(
-          child: Text(
-            _logoImagePath != null
-                ? "Logo de la financiera"
-                : _tempLogoPath != null
-                    ? "Nuevo logo (no guardado)"
-                    : "Sin logo",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: isDarkMode ? Colors.white : Colors.black,
+      ),
+      
+      SizedBox(height: 16),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (_tempColorLogoPath == null)
+            ElevatedButton.icon(
+              onPressed: _pickColorImage,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF5162F6),
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: Icon(
+                Icons.photo_camera,
+                size: 16,
+                color: Colors.white,
+              ),
+              label: Text(
+                  _colorLogoImagePath != null ? 'Cambiar logo' : 'Subir logo',
+                  style: TextStyle(fontSize: 14)),
+            ),
+          if (_colorLogoImagePath != null && _tempColorLogoPath == null) ...[
+            SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _colorLogoImagePath = null;
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: Icon(
+                Icons.delete,
+                size: 16,
+                color: Colors.white,
+              ),
+              label: Text('Eliminar', style: TextStyle(fontSize: 14)),
+            ),
+          ],
+        ],
+      ),
+      
+      SizedBox(height: 32),
+      
+      // Logo blanco (modo oscuro)
+      Text(
+        "Logo blanco (modo oscuro)",
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: isDarkMode ? Colors.white : Colors.black,
+        ),
+      ),
+      SizedBox(height: 8),
+      
+      Center(
+        child: Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            // Fondo oscuro para visualizar mejor el logo blanco
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Color(0xFF5162F6),
+              width: 2,
             ),
           ),
+          child: _tempWhiteLogoPath != null || _whiteLogoImagePath != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.file(
+                    File(_tempWhiteLogoPath ?? _whiteLogoImagePath!),
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                )
+              : Icon(
+                  Icons.add_photo_alternate,
+                  size: 50,
+                  color: Colors.grey[400],
+                ),
         ),
+      ),
+      
+      SizedBox(height: 16),
+      Center(
+        child: Text(
+          _whiteLogoImagePath != null
+              ? "Logo blanco guardado"
+              : _tempWhiteLogoPath != null
+                  ? "Nuevo logo blanco (no guardado)"
+                  : "Sin logo blanco",
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+      ),
+      
+      SizedBox(height: 16),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (_tempWhiteLogoPath == null)
+            ElevatedButton.icon(
+              onPressed: _pickWhiteImage,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF5162F6),
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: Icon(
+                Icons.photo_camera,
+                size: 16,
+                color: Colors.white,
+              ),
+              label: Text(
+                  _whiteLogoImagePath != null ? 'Cambiar logo' : 'Subir logo',
+                  style: TextStyle(fontSize: 14)),
+            ),
+          if (_whiteLogoImagePath != null && _tempWhiteLogoPath == null) ...[
+            SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _whiteLogoImagePath = null;
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: Icon(
+                Icons.delete,
+                size: 16,
+                color: Colors.white,
+              ),
+              label: Text('Eliminar', style: TextStyle(fontSize: 14)),
+            ),
+          ],
+        ],
+      ),
+      
+      SizedBox(height: 24),
+      
+      // Botones para guardar ambos logos si hay cambios pendientes
+      if (_tempColorLogoPath != null || _tempWhiteLogoPath != null) ...[
+        Divider(),
         SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (_tempLogoPath == null)
-              ElevatedButton.icon(
-                onPressed: _pickImage,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF5162F6),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+            ElevatedButton.icon(
+              onPressed: _saveLogos,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                icon: Icon(
-                  Icons.photo_camera,
-                  size: 16,
-                  color: Colors.white,
-                ),
-                label: Text(
-                    _logoImagePath != null ? 'Cambiar logo' : 'Subir logo',
-                    style: TextStyle(fontSize: 14)),
               ),
-            if (_tempLogoPath != null) ...[
-              ElevatedButton.icon(
-                onPressed: _saveLogo,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                icon: Icon(
-                  Icons.save,
-                  size: 16,
-                  color: Colors.white,
-                ),
-                label: Text('Guardar', style: TextStyle(fontSize: 14)),
+              icon: Icon(
+                Icons.save,
+                size: 16,
+                color: Colors.white,
               ),
-              SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () => setState(() {
-                  _tempLogoPath = null;
-                  _hasPendingChanges = false;
-                }),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+              label: Text('Guardar cambios', style: TextStyle(fontSize: 14)),
+            ),
+            SizedBox(width: 12),
+            ElevatedButton.icon(
+              onPressed: () => setState(() {
+                _tempColorLogoPath = null;
+                _tempWhiteLogoPath = null;
+                _hasPendingChanges = false;
+              }),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                icon: Icon(
-                  Icons.cancel,
-                  size: 16,
-                  color: Colors.white,
-                ),
-                label: Text('Cancelar', style: TextStyle(fontSize: 14)),
               ),
-            ],
-            if (_logoImagePath != null && _tempLogoPath == null) ...[
-              SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: _deleteLogo,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                icon: Icon(
-                  Icons.delete,
-                  size: 16,
-                  color: Colors.white,
-                ),
-                label: Text('Eliminar', style: TextStyle(fontSize: 14)),
+              icon: Icon(
+                Icons.cancel,
+                size: 16,
+                color: Colors.white,
               ),
-            ],
+              label: Text('Cancelar', style: TextStyle(fontSize: 14)),
+            ),
           ],
         ),
-        SizedBox(height: 8),
-        Center(
-          child: Text(
-            "Formatos permitidos: PNG",
-            style: TextStyle(
-              fontSize: 12,
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-            ),
-          ),
-        ),
-        SizedBox(height: 16),
-        Center(
-          child: Text(
-            "Esta imagen se utilizará como logo de la financiera en la aplicación",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-            ),
-          ),
-        ),
-        SizedBox(height: 16),
       ],
-    );
-  }
+      
+      SizedBox(height: 16),
+      Center(
+        child: Text(
+          "Formatos permitidos: PNG",
+          style: TextStyle(
+            fontSize: 12,
+            color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+          ),
+        ),
+      ),
+      SizedBox(height: 16),
+      Center(
+        child: Text(
+          "Estas imágenes se utilizarán como logos de la financiera en la aplicación según el modo de visualización",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+          ),
+        ),
+      ),
+      SizedBox(height: 16),
+    ],
+  );
+}
 
   Widget _buildZoomSlider(BuildContext context, ScaleProvider scaleProvider) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -592,7 +777,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
   }
 
   // Método modificado para solo seleccionar imagen
-  Future<void> _pickImage() async {
+  Future<void> _pickColorImage() async {
     setState(() => _isLoading = true);
 
     try {

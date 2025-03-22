@@ -1818,7 +1818,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                               .emailAddress, // <- Aquí se especifica
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese el correo electrónico';
+                              return null;
                             }
                             // Expresión regular para validar el formato de un correo electrónico
                             final emailRegex =
