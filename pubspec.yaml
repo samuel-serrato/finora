@@ -54,6 +54,8 @@ dependencies:
   window_manager: ^0.4.3
   printing: ^5.14.2
   image_picker: ^1.1.2
+  dio: ^5.1.2               # Para realizar solicitudes HTTP con soporte multipart
+
 
 dev_dependencies:
   flutter_test:

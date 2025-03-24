@@ -10,14 +10,13 @@ import 'package:finora/formateador.dart';
 import 'package:provider/provider.dart';
 
 class SimuladorScreen extends StatefulWidget {
-  final String username;
-  final String tipoUsuario;
+
 
   @override
   State<SimuladorScreen> createState() => _SimuladorScreenState();
 
   const SimuladorScreen(
-      {Key? key, required this.username, required this.tipoUsuario})
+      {Key? key})
       : super(key: key);
 }
 
@@ -79,9 +78,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
         toggleDarkMode: (value) {
           themeProvider.toggleDarkMode(value); // Cambia el tema
         },
-        title: 'Simulador', // Título específico para esta pantalla
-        nombre: widget.username,
-        tipoUsuario: widget.tipoUsuario,
+        title: 'Simulador'
       ),
       body: content(context),
     );

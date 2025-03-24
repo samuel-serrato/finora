@@ -15,10 +15,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ClientesScreen extends StatefulWidget {
-  final String username;
-  final String tipoUsuario;
 
-  const ClientesScreen({required this.username, required this.tipoUsuario});
+  const ClientesScreen();
 
   @override
   State<ClientesScreen> createState() => _ClientesScreenState();
@@ -610,9 +608,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
         toggleDarkMode: (value) {
           themeProvider.toggleDarkMode(value); // Cambia el tema
         },
-        title: 'Clientes',
-        nombre: widget.username,
-        tipoUsuario: widget.tipoUsuario,
+        title: 'Clientes'
       ),
       body: Column(
         children: [

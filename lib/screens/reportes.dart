@@ -21,10 +21,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:finora/models/reporte_general.dart'; // Importación correcta de modelos
 
 class ReportesScreen extends StatefulWidget {
-  final String username;
-  final String tipoUsuario;
 
-  const ReportesScreen({required this.username, required this.tipoUsuario});
+  const ReportesScreen();
 
   @override
   State<ReportesScreen> createState() => _ReportesScreenState();
@@ -341,9 +339,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
         toggleDarkMode: (value) {
           themeProvider.toggleDarkMode(value); // Cambia el tema
         },
-        title: 'Reportes Financieros',
-        nombre: widget.username,
-        tipoUsuario: widget.tipoUsuario,
+        title: 'Reportes Financieros'
       ),
       body: Column(
         children: [

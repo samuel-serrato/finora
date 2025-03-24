@@ -16,10 +16,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GruposScreen extends StatefulWidget {
-  final String username;
-  final String tipoUsuario;
 
-  const GruposScreen({required this.username, required this.tipoUsuario});
+  const GruposScreen();
 
   @override
   State<GruposScreen> createState() => _GruposScreenState();
@@ -466,9 +464,7 @@ class _GruposScreenState extends State<GruposScreen> {
         toggleDarkMode: (value) {
           themeProvider.toggleDarkMode(value); // Cambia el tema
         },
-        title: 'Grupos',
-        nombre: widget.username,
-        tipoUsuario: widget.tipoUsuario,
+        title: 'Grupos'
       ),
       body: Column(
         children: [

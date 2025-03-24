@@ -15,11 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GestionUsuariosScreen extends StatefulWidget {
-  final String username;
-  final String tipoUsuario;
-
-  const GestionUsuariosScreen(
-      {required this.username, required this.tipoUsuario});
+  const GestionUsuariosScreen();
 
   @override
   State<GestionUsuariosScreen> createState() => _GestionUsuariosScreenState();
@@ -539,14 +535,11 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
           ? Colors.grey[900]
           : const Color(0xFFF7F8FA), // Fondo dinámico
       appBar: CustomAppBar(
-        isDarkMode: isDarkMode,
-        toggleDarkMode: (value) {
-          themeProvider.toggleDarkMode(value); // Cambia el tema
-        },
-        title: 'Gestión de Usuarios',
-        nombre: widget.username,
-        tipoUsuario: widget.tipoUsuario,
-      ),
+          isDarkMode: isDarkMode,
+          toggleDarkMode: (value) {
+            themeProvider.toggleDarkMode(value); // Cambia el tema
+          },
+          title: 'Gestión de Usuarios'),
       body: Column(
         children: [
           if (!errorDeConexion) filaBuscarYAgregar(context),

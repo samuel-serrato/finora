@@ -1,5 +1,6 @@
 import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/providers/user_data_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:finora/navigation_rail.dart';
@@ -45,7 +46,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final logoProvider = LogoProvider();
-  await logoProvider.loadLogoPath(); // Load saved path when app starts
 
   // Inicializa la configuración de fechas en español.
   await initializeDateFormatting('es_ES', null);
@@ -86,6 +86,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ScaleProvider(initialScale)),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => logoProvider),
+        ChangeNotifierProvider(create: (_) => UserDataProvider()), // Nuevo Provider
+
       ],
       child: const MyApp(),
     ),
@@ -176,10 +178,6 @@ class MyApp extends StatelessWidget {
               final args = settings.arguments as Map<String, dynamic>;
               return MaterialPageRoute(
                 builder: (context) => NavigationScreen(
-                  username: args['username'] ?? 'Usuario',
-                  rol: args['rol'] ?? 'sin_rol',
-                  userId: args['userId'] ?? '',
-                  userType: args['userType'] ?? 'standard',
                   scaleFactor: scaleProvider.scaleFactor,
                 ),
               );

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/providers/user_data_provider.dart';
 import 'package:finora/screens/login.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -11,13 +12,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
-  final String username;
-  final String tipoUsuario;
+
 
   const HomeScreen({
     Key? key,
-    required this.username,
-    required this.tipoUsuario,
   }) : super(key: key);
 
   @override
@@ -372,9 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
         toggleDarkMode: (value) {
           themeProvider.toggleDarkMode(value); // Cambia el tema
         },
-        title: 'Home',
-        nombre: widget.username,
-        tipoUsuario: widget.tipoUsuario,
+        title: 'Home'
       ),
     );
   }
@@ -399,6 +395,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final themeProvider =
         Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+        final userData = Provider.of<UserDataProvider>(context, listen: false);
+
 
     return Card(
       elevation: 5,
@@ -429,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.white.withOpacity(0.9), size: 28),
                     SizedBox(width: 10),
                     Text(
-                      "Hola, ${widget.username}!",
+                      "Hola, ${userData.nombreUsuario}!",
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w600,

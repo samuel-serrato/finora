@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/providers/user_data_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:finora/custom_app_bar.dart';
@@ -14,10 +15,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Para manejar fechas
 
 class SeguimientoScreen extends StatefulWidget {
-  final String username;
-  final String tipoUsuario;
 
-  const SeguimientoScreen({required this.username, required this.tipoUsuario});
+
+  const SeguimientoScreen();
 
   @override
   State<SeguimientoScreen> createState() => _SeguimientoScreenState();
@@ -470,9 +470,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         toggleDarkMode: (value) {
           themeProvider.toggleDarkMode(value); // Cambia el tema
         },
-        title: 'Créditos Activos',
-        nombre: widget.username,
-        tipoUsuario: widget.tipoUsuario,
+        title: 'Créditos Activos'
       ),
       backgroundColor:
           isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
@@ -692,6 +690,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     final themeProvider =
         Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+        final userData = Provider.of<UserDataProvider>(context, listen: false);
+
     return SizedBox(
       width: MediaQuery.of(context).size.width,
       child: DataTable(
@@ -763,7 +763,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   context: context,
                   builder: (context) => InfoCredito(
                     folio: credito.folio,
-                    tipoUsuario: widget.tipoUsuario,
+                    tipoUsuario: userData.tipoUsuario,
                   ),
                 );
               }

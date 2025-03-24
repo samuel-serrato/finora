@@ -1,38 +1,46 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class LogoProvider extends ChangeNotifier {
-  String? _logoPath;
-  int _version = 0; // Nuevo contador de versión
-
-  String? get logoPath => _logoPath;
-  int get version => _version; // Getter para la versión
-
-  void setLogoPath(String path) {
-    _logoPath = path;
-    _version++; // Incrementar versión al actualizar
+class LogoProvider with ChangeNotifier {
+  String? _colorLogoPath;
+  String? _whiteLogoPath;
+  
+  LogoProvider() {
+    _loadSavedPaths();
+  }
+  
+  // Getters
+  String? get colorLogoPath => _colorLogoPath;
+  String? get whiteLogoPath => _whiteLogoPath;
+  
+  // Setters
+  Future<void> setColorLogoPath(String? path) async {
+    _colorLogoPath = path;
+    await _savePath('color_logo_path', path);
     notifyListeners();
   }
-
-  Future<void> loadLogoPath() async {
-    final prefs = await SharedPreferences.getInstance();
-    _logoPath = prefs.getString('financiera_logo_path');
-    notifyListeners(); // Notificar para reconstruir la UI
-  }
-
-  void updateLogoPath(String newPath) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('financiera_logo_path', newPath);
-    _logoPath = newPath;
-    _version++;
+  
+  Future<void> setWhiteLogoPath(String? path) async {
+    _whiteLogoPath = path;
+    await _savePath('white_logo_path', path);
     notifyListeners();
   }
-
-  void clearLogo() {
-    _logoPath = null;
-    _version++; // Incrementar versión al eliminar
+  
+  // Cargar rutas guardadas
+  Future<void> _loadSavedPaths() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    _colorLogoPath = prefs.getString('color_logo_path');
+    _whiteLogoPath = prefs.getString('white_logo_path');
     notifyListeners();
+  }
+  
+  // Guardar ruta
+  Future<void> _savePath(String key, String? value) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (value == null) {
+      await prefs.remove(key);
+    } else {
+      await prefs.setString(key, value);
+    }
   }
 }

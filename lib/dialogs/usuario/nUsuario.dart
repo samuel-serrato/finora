@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/providers/user_data_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -48,6 +49,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
   }
 
   Future<void> _agregarUsuario() async {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -86,6 +88,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
           'nombreCompleto': nombreCompletoController.text,
           'email': emailController.text,
           'password': passwordController.text,
+          'idfinanciera': userData.idfinanciera
         }),
       );
 
@@ -206,6 +209,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
+    final userData = Provider.of<UserDataProvider>(context); // Nuevo
 
     final width = MediaQuery.of(context).size.width * 0.6;
     final height = MediaQuery.of(context).size.height * 0.8;

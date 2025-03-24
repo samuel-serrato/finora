@@ -7,24 +7,14 @@ import 'package:finora/screens/home.dart';
 import 'package:finora/screens/creditos.dart';
 import 'package:finora/screens/simulador.dart';
 import 'package:finora/screens/usuarios.dart';
-
-import 'package:easy_sidemenu/easy_sidemenu.dart';
-import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:finora/providers/theme_provider.dart'; // Asegúrate de importar tu ThemeProvider
+import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/providers/user_data_provider.dart'; // Añadir import
 
 class NavigationScreen extends StatefulWidget {
-  final String username;
-  final String rol;
-  final String userId;
-  final String userType;
   final double scaleFactor;
 
   const NavigationScreen({
-    required this.username,
-    required this.rol,
-    required this.userId,
-    required this.userType,
     required this.scaleFactor,
   });
 
@@ -54,29 +44,30 @@ class _NavigationScreenState extends State<NavigationScreen> {
   }
 
   List<Widget> _buildPages() {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+    
     List<Widget> pages = [
-      HomeScreen(username: widget.username, tipoUsuario: widget.userType),
-      SeguimientoScreen(
-          username: widget.username, tipoUsuario: widget.userType),
-      GruposScreen(username: widget.username, tipoUsuario: widget.userType),
-      ClientesScreen(username: widget.username, tipoUsuario: widget.userType),
-      SimuladorScreen(username: widget.username, tipoUsuario: widget.userType),
+      HomeScreen(),
+      SeguimientoScreen(),
+      GruposScreen(),
+      ClientesScreen(),
+      SimuladorScreen(),
     ];
 
-    if (widget.userType == 'Admin') {
-      pages.add(GestionUsuariosScreen(
-          username: widget.username, tipoUsuario: widget.userType));
+    if (userData.tipoUsuario == 'Admin') {
+      pages.add(GestionUsuariosScreen());
     }
 
-    if (widget.userType != 'Invitado') {
-      pages.add(ReportesScreen(
-          username: widget.username, tipoUsuario: widget.userType));
+    if (userData.tipoUsuario != 'Invitado') {
+      pages.add(ReportesScreen());
     }
 
     return pages;
   }
 
   List<SideMenuItem> _buildMenuItems() {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+    
     List<SideMenuItem> items = [
       SideMenuItem(
           title: 'Home',
@@ -100,15 +91,15 @@ class _NavigationScreenState extends State<NavigationScreen> {
           icon: const Icon(Icons.edit_document)),
     ];
 
-    if (widget.userType == 'Admin') {
+    if (userData.tipoUsuario == 'Admin') {
       items.add(SideMenuItem(
           title: 'Usuarios',
           onTap: (index, _) => sideMenu.changePage(5),
           icon: const Icon(Icons.manage_accounts)));
     }
 
-    if (widget.userType != 'Invitado') {
-      int reportesIndex = widget.userType == 'Admin' ? 6 : 5;
+    if (userData.tipoUsuario != 'Invitado') {
+      int reportesIndex = userData.tipoUsuario == 'Admin' ? 6 : 5;
       items.add(SideMenuItem(
           title: 'Reportes',
           onTap: (index, _) => sideMenu.changePage(reportesIndex),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/providers/user_data_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/constants/routes.dart';
@@ -92,18 +93,28 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('tokenauth', token);
           print('Token almacenado en SharedPreferences');
 
+          final usuario = responseBody['usuario'][0]; // Simplificamos el acceso
+
+          // Guardar datos en el Provider
+          final userDataProvider =
+              Provider.of<UserDataProvider>(context, listen: false);
+          userDataProvider.setUserData(
+            nombreFinanciera: usuario['nombreFinanciera'],
+            imagenes: usuario['imagenes'],
+            nombreUsuario: usuario['nombreCompleto'],
+            tipoUsuario: usuario['tipoUsuario'],
+            idfinanciera: usuario['idfinanciera']
+          );
+
           print('Navegando a HomeScreen');
+          // Navegación (simplificada ya que no necesitas pasar tantos argumentos)
           Navigator.pushNamedAndRemoveUntil(
             context,
             AppRoutes.navigation,
             (route) => false,
             arguments: {
-              'username': responseBody['usuario'][0]['nombreCompleto'],
-              'rol': responseBody['usuario'][0]['roles'].isNotEmpty
-                  ? responseBody['usuario'][0]['roles'][0]
-                  : 'sin_rol',
-              'userId': responseBody['usuario'][0]['idusuarios'],
-              'userType': responseBody['usuario'][0]['tipoUsuario']
+              'userId':
+                  usuario['idusuarios'], // Solo lo necesario para el navigation
             },
           );
 

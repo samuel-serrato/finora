@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:finora/dialogs/configuracion.dart';
 import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/providers/user_data_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:finora/constants/routes.dart';
 import 'package:finora/ip.dart';
@@ -14,19 +15,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isDarkMode;
   final Function toggleDarkMode;
   final String title;
-  final String nombre;
-  final String tipoUsuario;
 
   @override
   Size get preferredSize => Size.fromHeight(90);
 
-  CustomAppBar({
-    required this.isDarkMode,
-    required this.toggleDarkMode,
-    required this.title,
-    required this.nombre,
-    required this.tipoUsuario,
-  });
+  CustomAppBar(
+      {required this.isDarkMode,
+      required this.toggleDarkMode,
+      required this.title});
 
   Future<void> _logoutUser(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
@@ -91,12 +87,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final logoProvider = Provider.of<LogoProvider>(context);
+    final userData = Provider.of<UserDataProvider>(context); // Nuevo
 
-    // Make sure we've loaded the logo path
-    if (logoProvider.logoPath == null) {
-      // Try to load it if it's not loaded yet
-      logoProvider.loadLogoPath();
-    }
 
     final isDarkMode = themeProvider.isDarkMode;
 
@@ -239,11 +231,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                     child: Consumer<LogoProvider>(
                       builder: (context, logoProvider, _) {
-                        // Check if we have a path and if the file exists
-                        final hasLogo = logoProvider.logoPath != null;
-                        final fileExists = hasLogo
-                            ? File(logoProvider.logoPath!).existsSync()
-                            : false;
+                        // Check if we have a path and if the file exist
 
                         return Container(
                           height: 50,
@@ -253,20 +241,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             color: isDarkMode ? Colors.grey[900] : Colors.white,
                             borderRadius: BorderRadius.circular(50),
                           ),
-                          child: (hasLogo && fileExists)
-                              ? Image.file(
-                                  File(logoProvider.logoPath!),
-                                  width: 120,
-                                  height: 40,
-                                  fit: BoxFit.contain,
-                                  key: ValueKey(logoProvider.version),
-                                  errorBuilder: (context, error, stackTrace) {
-                                    print(
-                                        "Error loading image: $error"); // Debug output
-                                    return _buildDefaultPlaceholder();
-                                  },
-                                )
-                              : _buildDefaultPlaceholder(),
+                          child: _buildDefaultPlaceholder(),
                         );
                       },
                     )),
@@ -500,15 +475,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             CircleAvatar(
                               backgroundColor: Color(0xFF5162F6),
                               radius: 18,
-                              child: Icon(_getIconForUserType(tipoUsuario),
-                                  color: Colors.white, size: 22),
+                              child: Icon(
+                                  _getIconForUserType(userData
+                                      .tipoUsuario), // Usar del provider
+                                  color: Colors.white,
+                                  size: 22),
                             ),
                             SizedBox(width: 14),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  nombre,
+                                  userData.nombreUsuario, // Usar del provider
                                   style: TextStyle(
                                     color: isDarkMode
                                         ? Colors.white
@@ -518,7 +496,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   ),
                                 ),
                                 Text(
-                                  tipoUsuario,
+                                  userData.tipoUsuario, // Usar del provider
                                   style: TextStyle(
                                     color: isDarkMode
                                         ? Colors.grey[300]
