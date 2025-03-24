@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/providers/user_data_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -66,10 +67,15 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
 
         // Verifica que el arreglo no esté vacío
         if (data is List && data.isNotEmpty) {
-          final usuarioData =
-              data[0]; // <- Accede al primer elemento del arreglo
+          final usuarioData = data[0];
 
-          usuarioController.text = usuarioData['usuario'];
+          // Aquí agregas el código para quitar el .nombreFinanciera
+          String usuario = usuarioData['usuario'];
+          if (usuario.contains('.')) {
+            usuario = usuario.split('.')[0];
+          }
+          usuarioController.text = usuario;
+
           nombreCompletoController.text = usuarioData['nombreCompleto'];
           emailController.text = usuarioData['email'];
           selectedTipoUsuario = usuarioData['tipoUsuario'];
@@ -83,6 +89,8 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
   }
 
   Future<void> _editarUsuario() async {
+        final userData = Provider.of<UserDataProvider>(context, listen: false);
+
     print('flutter: [_editarUsuario] Iniciando edición de usuario...');
 
     if (!_formKey.currentState!.validate()) {
@@ -123,9 +131,13 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
       final url = 'http://$baseUrl/api/v1/usuarios/${widget.idUsuario}';
       print('flutter: [_editarUsuario] URL: $url');
 
+       // Modificación aquí: Combina el usuario con un punto y el nombre de la financiera sin espacios
+      final usuarioCompleto =
+          '${usuarioController.text}.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}';
+
       // BODY ACTUALIZADO (sin password)
       final requestBody = {
-        'usuario': usuarioController.text,
+        'usuario': usuarioCompleto,
         'tipoUsuario': selectedTipoUsuario,
         'nombreCompleto': nombreCompletoController.text,
         'email': emailController.text,
@@ -262,9 +274,20 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
+    final userData = Provider.of<UserDataProvider>(context); // Nuevo
 
     final width = MediaQuery.of(context).size.width * 0.6;
     final height = MediaQuery.of(context).size.height * 0.8;
+
+    // Define theme colors based on dark mode state
+    final backgroundColor = isDarkMode ? Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final dividerColor = isDarkMode ? Colors.grey[700] : Colors.grey;
+    final primaryColor = Color(0xFF5162F6); // Brand color stays the same
+    final borderColor = isDarkMode ? Colors.grey[700] : Colors.grey[400];
+    final secondaryTextColor = isDarkMode ? Colors.grey[300] : Colors.grey[600];
+    final cancelButtonColor = isDarkMode ? Colors.grey[800] : Colors.grey[700];
+    final fieldBgColor = isDarkMode ? Color(0xFF2A2A2A) : Colors.white;
 
     return Dialog(
       backgroundColor: isDarkMode ? Color(0xFF212121) : Colors.white,
@@ -340,19 +363,85 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                         SizedBox(height: 30),
 
                                         // Campos del formulario
-                                        _buildTextField(
-                                          controller: usuarioController,
-                                          label: 'Nombre de usuario',
-                                          icon: Icons.person_outline,
-                                          maxLength: 20,
-                                          isDarkMode: isDarkMode,
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.isEmpty) {
-                                              return 'Campo obligatorio';
-                                            }
-                                            return null;
-                                          },
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          children: [
+                                            Flexible(
+                                              flex: 3,
+                                              child: TextFormField(
+                                                controller: usuarioController,
+                                                maxLength: 20,
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: textColor),
+                                                decoration: InputDecoration(
+                                                  labelText:
+                                                      'Nombre de usuario',
+                                                  labelStyle: TextStyle(
+                                                      fontSize: 12,
+                                                      color:
+                                                          secondaryTextColor),
+                                                  prefixIcon: Icon(
+                                                      Icons.person_outline,
+                                                      color:
+                                                          secondaryTextColor),
+                                                  border: OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                    borderSide: BorderSide(
+                                                        color: borderColor ??
+                                                            Colors.grey),
+                                                  ),
+                                                  focusedBorder:
+                                                      OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                    borderSide: BorderSide(
+                                                        color: primaryColor,
+                                                        width: 1.5),
+                                                  ),
+                                                  errorBorder:
+                                                      OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                    borderSide: BorderSide(
+                                                        color: Colors.red),
+                                                  ),
+                                                  contentPadding:
+                                                      EdgeInsets.symmetric(
+                                                          vertical: 14,
+                                                          horizontal: 16),
+                                                  fillColor: fieldBgColor,
+                                                  filled: true,
+                                                ),
+                                                validator: (value) {
+                                                  if (value == null ||
+                                                      value.isEmpty) {
+                                                    return 'Campo obligatorio';
+                                                  }
+                                                  return null;
+                                                },
+                                                autovalidateMode:
+                                                    AutovalidateMode
+                                                        .onUserInteraction,
+                                              ),
+                                            ),
+                                            SizedBox(width: 10),
+                                            Flexible(
+                                              flex: 3,
+                                              child: Text(
+                                                '.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}',
+                                                style: TextStyle(
+                                                  color: secondaryTextColor,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                         SizedBox(height: 20),
 

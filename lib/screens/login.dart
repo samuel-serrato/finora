@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:finora/models/image_data.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
 import 'package:flutter/material.dart';
@@ -95,16 +96,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
           final usuario = responseBody['usuario'][0]; // Simplificamos el acceso
 
+          // Convierte las imágenes a objetos ImageData
+          List<ImageData> imagenes = (usuario['imagenes'] as List)
+              .map((img) => ImageData.fromJson(img))
+              .toList();
+
           // Guardar datos en el Provider
           final userDataProvider =
               Provider.of<UserDataProvider>(context, listen: false);
           userDataProvider.setUserData(
-            nombreFinanciera: usuario['nombreFinanciera'],
-            imagenes: usuario['imagenes'],
-            nombreUsuario: usuario['nombreCompleto'],
-            tipoUsuario: usuario['tipoUsuario'],
-            idfinanciera: usuario['idfinanciera']
-          );
+              nombreFinanciera: usuario['nombreFinanciera'],
+              imagenes: imagenes, // Ahora usa la lista tipada
+              nombreUsuario: usuario['nombreCompleto'],
+              tipoUsuario: usuario['tipoUsuario'],
+              idfinanciera: usuario['idfinanciera']);
 
           print('Navegando a HomeScreen');
           // Navegación (simplificada ya que no necesitas pasar tantos argumentos)

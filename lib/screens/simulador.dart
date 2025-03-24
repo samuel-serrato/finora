@@ -10,14 +10,10 @@ import 'package:finora/formateador.dart';
 import 'package:provider/provider.dart';
 
 class SimuladorScreen extends StatefulWidget {
-
-
   @override
   State<SimuladorScreen> createState() => _SimuladorScreenState();
 
-  const SimuladorScreen(
-      {Key? key})
-      : super(key: key);
+  const SimuladorScreen({Key? key}) : super(key: key);
 }
 
 class _SimuladorScreenState extends State<SimuladorScreen> {
@@ -74,12 +70,11 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
           ? Colors.grey[900]
           : const Color(0xFFF7F8FA), // Fondo dinámico
       appBar: CustomAppBar(
-        isDarkMode: isDarkMode,
-        toggleDarkMode: (value) {
-          themeProvider.toggleDarkMode(value); // Cambia el tema
-        },
-        title: 'Simulador'
-      ),
+          isDarkMode: isDarkMode,
+          toggleDarkMode: (value) {
+            themeProvider.toggleDarkMode(value); // Cambia el tema
+          },
+          title: 'Simulador'),
       body: content(context),
     );
   }
@@ -101,14 +96,12 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
           Spacer(), // Espacio flexible para empujar los ChoiceChip a la derecha
           SizedBox(
             child: ChoiceChip(
+              showCheckmark: false,
               labelPadding: EdgeInsets.all(0),
               label: Text(
                 'General',
                 style: TextStyle(
-                  color: isGeneralSelected
-                      ? Colors.white
-                      : Color(
-                          0xFF5162F6), // Cambia el color del texto según la selección
+                  color: isGeneralSelected ? Colors.white : Color(0xFF5162F6),
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 ),
@@ -117,12 +110,12 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
               onSelected: (isSelected) {
                 setState(() {
                   isGeneralSelected = true;
-                  isIndividualSelected =
-                      false; // Asegúrate de que el otro sea falso
+                  isIndividualSelected = false;
                 });
               },
               backgroundColor: Colors.white,
               selectedColor: Color(0xFF5162F6),
+              checkmarkColor: Colors.white, // <-- Esta es la propiedad clave
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15.0),
                 side: BorderSide(
@@ -137,6 +130,7 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
           SizedBox(width: 10),
           SizedBox(
             child: ChoiceChip(
+              showCheckmark: false,
               labelPadding: EdgeInsets.all(0),
               label: Text(
                 'Grupal',
@@ -157,6 +151,8 @@ class _SimuladorScreenState extends State<SimuladorScreen> {
               },
               backgroundColor: Colors.white,
               selectedColor: Color(0xFF5162F6),
+              checkmarkColor: Colors.white, // <-- Esta es la propiedad clave
+
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15.0),
                 side: BorderSide(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:finora/ip.dart';
@@ -120,12 +121,16 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                         ),
                       ]),
                       SizedBox(height: 15), */
-                      _buildSection(context,
-                          title: 'Personalización',
-                          items: [
-                            _buildLogoUploader(context),
-                          ],
-                          isExpandable: true),
+                      _buildSection(
+                        context,
+                        title: 'Personalización',
+                        items: [
+                          _buildLogoUploader(context),
+                        ],
+                        isExpandable: true,
+                        enabled:
+                            userData.tipoUsuario == 'Admin', // Nueva validación
+                      ),
                       SizedBox(height: 15),
                     ],
                   ),
@@ -143,18 +148,32 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final logoProvider = Provider.of<LogoProvider>(context);
+    final userData = Provider.of<UserDataProvider>(context);
+
+    bool isAdmin = userData.tipoUsuario == 'Admin';
+
+// Depuración: Imprimir todas las imágenes para verificar
+    print("Número de imágenes: ${userData.imagenes.length}");
+    userData.imagenes.forEach((img) {
+      print("Tipo de imagen: ${img.tipoImagen}, Ruta: ${img.rutaImagen}");
+    });
+
+    final colorLogo = userData.imagenes
+        .where((img) => img.tipoImagen == 'logoColor')
+        .firstOrNull;
+    final whiteLogo = userData.imagenes
+        .where((img) => img.tipoImagen == 'logoBlanco')
+        .firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(height: 16),
-
-        // Fila que contiene ambos logos
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Logo a color (modo claro) - Columna izquierda
+            // Color Logo (Light Mode)
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -170,8 +189,8 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                   ),
                   SizedBox(height: 8),
                   Container(
-                    width: 120,
-                    height: 120,
+                    width: 150,
+                    height: 150,
                     decoration: BoxDecoration(
                       color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
                       borderRadius: BorderRadius.circular(12),
@@ -180,31 +199,49 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                         width: 2,
                       ),
                     ),
-                    child: _tempColorLogoPath != null ||
-                            _colorLogoImagePath != null
+                    child: _tempColorLogoPath != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: Image.file(
-                              File(_tempColorLogoPath ?? _colorLogoImagePath!),
-                              fit: BoxFit.cover,
+                              File(_tempColorLogoPath!),
+                              fit: BoxFit.contain,
                               width: double.infinity,
                               height: double.infinity,
                             ),
                           )
-                        : Icon(
-                            Icons.add_photo_alternate,
-                            size: 50,
-                            color: isDarkMode
-                                ? Colors.grey[400]
-                                : Colors.grey[600],
-                          ),
+                        : colorLogo != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  'http://$baseUrl/imagenes/subidas/${colorLogo.rutaImagen}',
+                                  fit: BoxFit.contain,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.add_photo_alternate,
+                                      size: 50,
+                                      color: isDarkMode
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
+                                    );
+                                  },
+                                ),
+                              )
+                            : Icon(
+                                Icons.add_photo_alternate,
+                                size: 50,
+                                color: isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
+                              ),
                   ),
                   SizedBox(height: 16),
                   Text(
-                    _colorLogoImagePath != null
-                        ? "Logo a color guardado"
-                        : _tempColorLogoPath != null
-                            ? "Nuevo logo a color (no guardado)"
+                    _tempColorLogoPath != null
+                        ? "Nuevo logo a color (no guardado)"
+                        : colorLogo != null
+                            ? "Logo a color guardado"
                             : "Sin logo a color",
                     style: TextStyle(
                       fontSize: 14,
@@ -224,7 +261,9 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                         )
                       else
                         ElevatedButton.icon(
-                          onPressed: () => _pickAndUploadLogo("logoColor"),
+                          onPressed: isAdmin
+                              ? () => _pickAndUploadLogo("logoColor")
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Color(0xFF5162F6),
                             foregroundColor: Colors.white,
@@ -239,21 +278,13 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                             size: 16,
                             color: Colors.white,
                           ),
-                          label: Text(
-                              _colorLogoImagePath != null ? 'Cambiar' : 'Subir',
+                          label: Text(colorLogo != null ? 'Cambiar' : 'Subir',
                               style: TextStyle(fontSize: 14)),
                         ),
-                      if (_colorLogoImagePath != null &&
-                          _tempColorLogoPath == null) ...[
+                      if (colorLogo != null && _tempColorLogoPath == null) ...[
                         SizedBox(width: 8),
                         ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _colorLogoImagePath = null;
-                            });
-                            // Eliminar el logo en el provider
-                            logoProvider.setColorLogoPath(null);
-                          },
+                          onPressed: isAdmin ? () {/* ... */} : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
@@ -278,7 +309,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
               ),
             ),
 
-            // Separador vertical
+            // Vertical Separator
             SizedBox(width: 20),
             Container(
               height: 250,
@@ -287,7 +318,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
             ),
             SizedBox(width: 20),
 
-            // Logo blanco (modo oscuro) - Columna derecha
+            // White Logo (Dark Mode)
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -303,10 +334,9 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                   ),
                   SizedBox(height: 8),
                   Container(
-                    width: 120,
-                    height: 120,
+                    width: 150,
+                    height: 150,
                     decoration: BoxDecoration(
-                      // Fondo oscuro para visualizar mejor el logo blanco
                       color: Colors.grey[800],
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
@@ -314,29 +344,45 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                         width: 2,
                       ),
                     ),
-                    child: _tempWhiteLogoPath != null ||
-                            _whiteLogoImagePath != null
+                    child: _tempWhiteLogoPath != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(10),
                             child: Image.file(
-                              File(_tempWhiteLogoPath ?? _whiteLogoImagePath!),
-                              fit: BoxFit.cover,
+                              File(_tempWhiteLogoPath!),
+                              fit: BoxFit.contain,
                               width: double.infinity,
                               height: double.infinity,
                             ),
                           )
-                        : Icon(
-                            Icons.add_photo_alternate,
-                            size: 50,
-                            color: Colors.grey[400],
-                          ),
+                        : whiteLogo != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  'http://$baseUrl/imagenes/subidas/${whiteLogo.rutaImagen}',
+                                  fit: BoxFit.contain,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.add_photo_alternate,
+                                      size: 50,
+                                      color: Colors.grey[400],
+                                    );
+                                  },
+                                ),
+                              )
+                            : Icon(
+                                Icons.add_photo_alternate,
+                                size: 50,
+                                color: Colors.grey[400],
+                              ),
                   ),
                   SizedBox(height: 16),
                   Text(
-                    _whiteLogoImagePath != null
-                        ? "Logo blanco guardado"
-                        : _tempWhiteLogoPath != null
-                            ? "Nuevo logo blanco (no guardado)"
+                    _tempWhiteLogoPath != null
+                        ? "Nuevo logo blanco (no guardado)"
+                        : whiteLogo != null
+                            ? "Logo blanco guardado"
                             : "Sin logo blanco",
                     style: TextStyle(
                       fontSize: 14,
@@ -356,7 +402,9 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                         )
                       else
                         ElevatedButton.icon(
-                          onPressed: () => _pickAndUploadLogo("logoBlanco"),
+                          onPressed: isAdmin
+                              ? () => _pickAndUploadLogo("logoBlanco")
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Color(0xFF5162F6),
                             foregroundColor: Colors.white,
@@ -371,21 +419,13 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                             size: 16,
                             color: Colors.white,
                           ),
-                          label: Text(
-                              _whiteLogoImagePath != null ? 'Cambiar' : 'Subir',
+                          label: Text(whiteLogo != null ? 'Cambiar' : 'Subir',
                               style: TextStyle(fontSize: 14)),
                         ),
-                      if (_whiteLogoImagePath != null &&
-                          _tempWhiteLogoPath == null) ...[
+                      if (whiteLogo != null && _tempWhiteLogoPath == null) ...[
                         SizedBox(width: 8),
                         ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _whiteLogoImagePath = null;
-                            });
-                            // Eliminar el logo en el provider
-                            logoProvider.setWhiteLogoPath(null);
-                          },
+                          onPressed: isAdmin ? () {/* ... */} : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,
@@ -412,10 +452,9 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
           ],
         ),
 
-        SizedBox(height: 24),
-
         // Botones para guardar ambos logos si hay cambios pendientes
-        if (_tempColorLogoPath != null || _tempWhiteLogoPath != null) ...[
+        if ((_tempColorLogoPath != null || _tempWhiteLogoPath != null) &&
+            isAdmin) ...[
           Divider(),
           SizedBox(height: 16),
           Row(
@@ -670,14 +709,17 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     );
   }
 
+  // En el método _buildSection, modifica la parte del ExpansionTile:
   Widget _buildSection(
     BuildContext context, {
     required String title,
     required List<Widget> items,
     bool isExpandable = false,
+    bool enabled = true, // Nuevo parámetro
   }) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
+    final userData = Provider.of<UserDataProvider>(context); // Nuevo
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -705,42 +747,55 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
             ),
           ),
           child: isExpandable
-              ? ExpansionTile(
-                  title: Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: title == 'Zoom'
-                              ? Colors.blue.withOpacity(0.1)
-                              : Colors.orange.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          title == 'Zoom' ? Icons.zoom_in : Icons.image,
-                          color: title == 'Zoom' ? Colors.blue : Colors.orange,
-                          size: 18,
-                        ),
+              ? IgnorePointer(
+                  ignoring: !enabled, // Deshabilita la interacción
+                  child: Opacity(
+                    opacity: enabled ? 1.0 : 0.6,
+                    child: ExpansionTile(
+                      onExpansionChanged: enabled ? (value) {} : null,
+                      title: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: title == 'Zoom'
+                                  ? Colors.blue.withOpacity(0.1)
+                                  : Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              title == 'Zoom' ? Icons.zoom_in : Icons.image,
+                              color:
+                                  title == 'Zoom' ? Colors.blue : Colors.orange,
+                              size: 18,
+                            ),
+                          ),
+                          SizedBox(width: 14),
+                          Text(
+                            title == 'Zoom'
+                                ? 'Nivel de zoom'
+                                : 'Imagen de la financiera',
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.black,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(width: 14),
-                      Text(
-                        title == 'Zoom'
-                            ? 'Nivel de zoom'
-                            : 'Imagen de la financiera',
-                        style: TextStyle(
-                          color: isDarkMode ? Colors.white : Colors.black,
-                          fontSize: 14,
-                        ),
+                      children: enabled
+                          ? items
+                          : [_buildDisabledMessage()], // Mensaje si no es Admin
+                      tilePadding: EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 12.0),
+                      trailing: Icon(
+                        Icons.arrow_drop_down,
+                        color: enabled
+                            ? (isDarkMode ? Colors.grey[400] : Colors.grey[600])
+                            : Colors
+                                .grey, // Color diferente si está deshabilitado
                       ),
-                    ],
-                  ),
-                  children: items,
-                  tilePadding:
-                      EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  trailing: Icon(
-                    Icons.arrow_drop_down,
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    ),
                   ),
                 )
               : Column(
@@ -749,6 +804,22 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                 ),
         ),
       ],
+    );
+  }
+
+// Nuevo método para mensaje de deshabilitado
+  Widget _buildDisabledMessage() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Text(
+        'Se requieren permisos de administrador\npara modificar esta configuración',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.grey,
+          fontSize: 14,
+          fontStyle: FontStyle.italic,
+        ),
+      ),
     );
   }
 
@@ -805,8 +876,16 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
 
   Widget _buildFinancialInfoBlock(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final userData = Provider.of<UserDataProvider>(context); // Nuevo
+    final userData = Provider.of<UserDataProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
+
+    // Buscar el logo principal (usaremos el logo a color)
+    final logo = userData.imagenes
+        .where((img) => img.tipoImagen == 'logoColor')
+        .firstOrNull;
+    final logoUrl = logo != null
+        ? 'http://$baseUrl/imagenes/subidas/${logo.rutaImagen}'
+        : null;
 
     return Container(
       decoration: BoxDecoration(
@@ -830,10 +909,17 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: null != null
-                    ? Image.file(
-                        null!,
-                        fit: BoxFit.cover,
+                child: logoUrl != null
+                    ? Image.network(
+                        logoUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          // Si falla la carga de la imagen, mostrar ícono
+                          return Icon(
+                            Icons.account_balance,
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          );
+                        },
                       )
                     : Icon(
                         Icons.account_balance,
@@ -872,6 +958,8 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
   }
 
   Future<void> _pickAndUploadLogo(String tipoLogo) async {
+  final userData = Provider.of<UserDataProvider>(context, listen: false);
+  if (userData.tipoUsuario == 'Admin') {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -879,16 +967,17 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       );
 
       if (result != null && result.files.isNotEmpty) {
-        // Solo guarda la ruta temporal para previsualización
         String tempPath = result.files.single.path!;
 
         setState(() {
           if (tipoLogo == "logoColor") {
-            _tempColorLogoPath = tempPath; // Vista previa modo claro
+            _tempColorLogoPath = tempPath;
           } else {
-            _tempWhiteLogoPath = tempPath; // Vista previa modo oscuro
+            _tempWhiteLogoPath = tempPath;
           }
         });
+
+        // No llamamos a _uploadLogoToServer aquí
       }
     } catch (e) {
       print('Error al seleccionar el logo: $e');
@@ -896,116 +985,146 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
         SnackBar(content: Text('Error al seleccionar el archivo')),
       );
     }
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Solo los administradores pueden subir logos')),
+    );
   }
+}
+
 
 // Función para guardar los cambios pendientes (cuando hay imagenes temporales)
   Future<void> _saveLogoChanges() async {
-    try {
-      setState(() => _isSaving = true);
+  try {
+    setState(() => _isSaving = true);
 
-      if (_tempColorLogoPath != null) {
-        await _uploadLogoToServer(_tempColorLogoPath!, "logoColor");
-        setState(() => _colorLogoImagePath = _tempColorLogoPath);
-      }
-
-      if (_tempWhiteLogoPath != null) {
-        await _uploadLogoToServer(_tempWhiteLogoPath!, "logoBlanco");
-        setState(() => _whiteLogoImagePath = _tempWhiteLogoPath);
-      }
-
-      // Limpiar temporales
-      setState(() {
-        _tempColorLogoPath = null;
-        _tempWhiteLogoPath = null;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Logo guardado correctamente'), 
-        backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
-      setState(() => _isSaving = false);
+    if (_tempColorLogoPath != null) {
+      // Sube el logo a color y espera la respuesta del servidor
+      await _uploadLogoToServer(_tempColorLogoPath!, "logoColor");
+      setState(() => _colorLogoImagePath = _tempColorLogoPath);
     }
-  }
 
-// Función para subir un logo ya seleccionado
-  Future<void> _uploadLogoToServer(
-    String filePath,
-    String tipoLogo,
-  ) async {
-    final userData = Provider.of<UserDataProvider>(context, listen: false);
-
-    try {
-      // 1. Crear solicitud
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('http://$baseUrl/api/v1/imagenes/subir/logo'),
-      );
-
-      // 2. Adjuntar archivo
-      File file = File(filePath);
-      String fileName = path.basename(file.path);
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'imagen',
-          file.path,
-          filename: fileName,
-          contentType: MediaType('image', 'png'),
-        ),
-      );
-
-      // 3. Adjuntar campos
-      request.fields.addAll({
-        'tipoImagen': tipoLogo,
-        'idfinanciera': userData.idfinanciera,
-      });
-
-      // 4. Imprimir detalles de la solicitud ANTES de enviar
-      print('\n=== PETICIÓN ===');
-      print('URL: ${request.url}');
-      print('Método: ${request.method}');
-      print('Headers: ${request.headers}');
-      print('Campos: ${request.fields}');
-      print('Archivos: ${request.files.map((f) => f.filename).toList()}');
-
-      // 5. Enviar y capturar respuesta
-      http.StreamedResponse response =
-          await request.send().timeout(Duration(seconds: 30));
-
-      // 6. Leer cuerpo de la respuesta
-      String responseBody = await response.stream.bytesToString();
-
-      // 7. Imprimir detalles de la respuesta
-      print('\n=== RESPUESTA ===');
-      print('Status: ${response.statusCode}');
-      print('Headers: ${response.headers}');
-      print('Body: $responseBody');
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception('Error HTTP ${response.statusCode}');
-      }
-    } on SocketException catch (e) {
-      print('Error de red: $e');
-      throw Exception('Verifica tu conexión a internet');
-    } on TimeoutException {
-      print('Tiempo de espera agotado');
-      throw Exception('El servidor no respondió a tiempo');
-    } catch (e) {
-      print('Error inesperado: $e');
-      rethrow;
+    if (_tempWhiteLogoPath != null) {
+      // Sube el logo blanco y espera la respuesta del servidor
+      await _uploadLogoToServer(_tempWhiteLogoPath!, "logoBlanco");
+      setState(() => _whiteLogoImagePath = _tempWhiteLogoPath);
     }
-  }
 
-// Función para cancelar los cambios
-  void _cancelLogoChanges() {
+    // Limpiar variables temporales
     setState(() {
       _tempColorLogoPath = null;
       _tempWhiteLogoPath = null;
     });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Logo guardado correctamente'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
+  } finally {
+    setState(() => _isSaving = false);
   }
+}
+
+
+// Función para subir un logo ya seleccionado
+  Future<void> _uploadLogoToServer(
+  String filePath,
+  String tipoLogo,
+) async {
+  final userData = Provider.of<UserDataProvider>(context, listen: false);
+
+  try {
+    // 0. Obtener token de autenticación
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    if (token.isEmpty) {
+      throw Exception('Token de autenticación no encontrado. Por favor, inicia sesión.');
+    }
+
+    // 1. Crear solicitud
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('http://$baseUrl/api/v1/imagenes/subir/logo'),
+    );
+
+    // Agregar token al header
+    request.headers['tokenauth'] = token;
+
+    // 2. Adjuntar archivo
+    File file = File(filePath);
+    String fileName = path.basename(file.path);
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'imagen',
+        file.path,
+        filename: fileName,
+        contentType: MediaType('image', 'png'),
+      ),
+    );
+
+    // 3. Adjuntar campos
+    request.fields.addAll({
+      'tipoImagen': tipoLogo,
+      'idfinanciera': userData.idfinanciera,
+    });
+
+    // 4. Imprimir detalles de la solicitud
+    print('\n=== PETICIÓN ===');
+    print('URL: ${request.url}');
+    print('Método: ${request.method}');
+    print('Headers: ${request.headers}');
+    print('Campos: ${request.fields}');
+    print('Archivos: ${request.files.map((f) => f.filename).toList()}');
+
+    // 5. Enviar y capturar respuesta
+    http.StreamedResponse response =
+        await request.send().timeout(Duration(seconds: 30));
+
+    // 6. Leer cuerpo de la respuesta
+    String responseBody = await response.stream.bytesToString();
+
+    // 7. Imprimir detalles de la respuesta
+    print('\n=== RESPUESTA ===');
+    print('Status: ${response.statusCode}');
+    print('Headers: ${response.headers}');
+    print('Body: $responseBody');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      // Parsear el JSON de la respuesta
+      final Map<String, dynamic> jsonResponse = jsonDecode(responseBody);
+      final nuevaRuta = jsonResponse['filename'];
+
+      // Actualizar el provider con el nuevo logo
+      userData.actualizarLogo(tipoLogo, nuevaRuta);
+    } else {
+      throw Exception('Error HTTP ${response.statusCode}');
+    }
+  } on SocketException catch (e) {
+    print('Error de red: $e');
+    throw Exception('Verifica tu conexión a internet');
+  } on TimeoutException {
+    print('Tiempo de espera agotado');
+    throw Exception('El servidor no respondió a tiempo');
+  } catch (e) {
+    print('Error inesperado: $e');
+    rethrow;
+  }
+}
+
+
+
+// Función para cancelar los cambios
+ void _cancelLogoChanges() {
+  setState(() {
+    _tempColorLogoPath = null;
+    _tempWhiteLogoPath = null;
+  });
+}
 }

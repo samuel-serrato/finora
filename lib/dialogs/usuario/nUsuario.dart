@@ -76,6 +76,10 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
+      // Modificación aquí: Combina el usuario con un punto y el nombre de la financiera sin espacios
+      final usuarioCompleto =
+          '${usuarioController.text}.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}';
+
       final response = await http.post(
         Uri.parse('http://$baseUrl/api/v1/usuarios'),
         headers: {
@@ -83,7 +87,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
           'Content-Type': 'application/json',
         },
         body: json.encode({
-          'usuario': usuarioController.text,
+          'usuario': usuarioCompleto,
           'tipoUsuario': selectedTipoUsuario,
           'nombreCompleto': nombreCompletoController.text,
           'email': emailController.text,
@@ -295,25 +299,86 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                                       children: [
                                         SizedBox(height: 30),
 
-                                        // Campos del formulario
-                                        _buildTextField(
-                                          controller: usuarioController,
-                                          label: 'Nombre de usuario',
-                                          icon: Icons.person_outline,
-                                          maxLength: 20,
-                                          isDarkMode: isDarkMode,
-                                          textColor: textColor,
-                                          secondaryColor: secondaryTextColor,
-                                          primaryColor: primaryColor,
-                                          borderColor: borderColor,
-                                          fieldBgColor: fieldBgColor,
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.isEmpty) {
-                                              return 'Campo obligatorio';
-                                            }
-                                            return null;
-                                          },
+                                        // Reemplaza el _buildTextField del usuarioController con este Row
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          children: [
+                                            Flexible(
+                                              flex: 3,
+                                              child: TextFormField(
+                                                controller: usuarioController,
+                                                maxLength: 20,
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: textColor),
+                                                decoration: InputDecoration(
+                                                  labelText:
+                                                      'Nombre de usuario',
+                                                  labelStyle: TextStyle(
+                                                      fontSize: 12,
+                                                      color:
+                                                          secondaryTextColor),
+                                                  prefixIcon: Icon(
+                                                      Icons.person_outline,
+                                                      color:
+                                                          secondaryTextColor),
+                                                  border: OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                    borderSide: BorderSide(
+                                                        color: borderColor ??
+                                                            Colors.grey),
+                                                  ),
+                                                  focusedBorder:
+                                                      OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                    borderSide: BorderSide(
+                                                        color: primaryColor,
+                                                        width: 1.5),
+                                                  ),
+                                                  errorBorder:
+                                                      OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                    borderSide: BorderSide(
+                                                        color: Colors.red),
+                                                  ),
+                                                  contentPadding:
+                                                      EdgeInsets.symmetric(
+                                                          vertical: 14,
+                                                          horizontal: 16),
+                                                  fillColor: fieldBgColor,
+                                                  filled: true,
+                                                ),
+                                                validator: (value) {
+                                                  if (value == null ||
+                                                      value.isEmpty) {
+                                                    return 'Campo obligatorio';
+                                                  }
+                                                  return null;
+                                                },
+                                                autovalidateMode:
+                                                    AutovalidateMode
+                                                        .onUserInteraction,
+                                              ),
+                                            ),
+                                            SizedBox(width: 10),
+                                            Flexible(
+                                              flex: 3,
+                                              child: Text(
+                                                '.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}',
+                                                style: TextStyle(
+                                                  color: secondaryTextColor,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                         SizedBox(height: 20),
 
@@ -352,7 +417,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                                           validator: (value) {
                                             if (value == null ||
                                                 value.isEmpty) {
-                                              return 'Campo obligatorio';
+                                              return null;
                                             }
                                             if (!RegExp(
                                                     r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')

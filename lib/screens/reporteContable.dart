@@ -52,7 +52,7 @@ class ReporteContableWidget extends StatelessWidget {
                       children: [
                         // Contenido principal
                         Expanded(
-                          child: _buildGruposList(),
+                          child: _buildGruposList(context),
                         ),
                         const SizedBox(height: 0),
                         // La tarjeta de totales ahora va al final
@@ -316,19 +316,40 @@ class ReporteContableWidget extends StatelessWidget {
   }
 
   // SECCIÓN: LISTA DE GRUPOS
-  Widget _buildGruposList() {
-    return ListView.builder(
-      controller: verticalScrollController,
-      itemCount: reporteData.listaGrupos.length,
-      itemBuilder: (context, index) {
-        final grupo = reporteData.listaGrupos[index];
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          child: _buildGrupoCard(context, grupo),
-        );
-      },
+  Widget _buildGruposList(BuildContext context) {
+  final themeProvider = Provider.of<ThemeProvider>(context);
+  final isDarkMode = themeProvider.isDarkMode;
+
+  if (reporteData.listaGrupos.isEmpty) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+        
+          Text(
+            'No hay datos para mostrar',
+            style: TextStyle(
+              fontSize: 16,
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  return ListView.builder(
+    controller: verticalScrollController,
+    itemCount: reporteData.listaGrupos.length,
+    itemBuilder: (context, index) {
+      final grupo = reporteData.listaGrupos[index];
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        child: _buildGrupoCard(context, grupo),
+      );
+    },
+  );
+}
 
   Widget _buildGrupoCard(BuildContext context, ReporteContableGrupo grupo) {
     final themeProvider = Provider.of<ThemeProvider>(context);

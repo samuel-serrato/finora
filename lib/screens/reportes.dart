@@ -883,7 +883,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
         }
 
         final pdfHelper = PDFExportHelperContable(
-            listaReportesContable.first, currencyFormat, selectedReportType);
+            listaReportesContable.first, currencyFormat, selectedReportType, context);
 
         final pdfDocument = await pdfHelper.generatePDF();
         final bytes = await pdfDocument.save();

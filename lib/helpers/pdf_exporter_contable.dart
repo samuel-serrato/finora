@@ -1,10 +1,14 @@
 import 'dart:io';
-
+import 'package:finora/ip.dart';
+import 'package:finora/providers/user_data_provider.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import 'package:finora/models/reporte_contable.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PDFExportHelperContable {
@@ -13,9 +17,11 @@ class PDFExportHelperContable {
   final ReporteContableData reporteData;
   final NumberFormat currencyFormat;
   final String? selectedReportType;
+  final BuildContext context; // Nuevo parámetro
 
   PDFExportHelperContable(
-      this.reporteData, this.currencyFormat, this.selectedReportType);
+      this.reporteData, this.currencyFormat, this.selectedReportType,     this.context, // Contexto añadido
+);
 
   // Función para cargar assets
   Future<Uint8List> _loadAsset(String path) async {
@@ -23,16 +29,17 @@ class PDFExportHelperContable {
     return data.buffer.asUint8List();
   }
 
-  // Nuevo método para cargar el logo desde archivo
-  Future<Uint8List?> _loadLogoFile(String? path) async {
-    if (path == null) return null;
+  // Nuevo método para cargar desde URL
+  Future<Uint8List?> _loadNetworkImage(String? imageUrl) async {
+    if (imageUrl == null || imageUrl.isEmpty) return null;
+    
     try {
-      final file = File(path);
-      if (await file.exists()) {
-        return await file.readAsBytes();
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
       }
     } catch (e) {
-      print('Error cargando logo: $e');
+      print('Error cargando imagen desde URL: $e');
     }
     return null;
   }
@@ -40,11 +47,23 @@ class PDFExportHelperContable {
   Future<pw.Document> generatePDF() async {
     final pdf = pw.Document();
 
+     // Obtener datos del provider
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+    
+    // Buscar el logo a color
+    final logoColor = userData.imagenes
+        .where((img) => img.tipoImagen == 'logoColor')
+        .firstOrNull;
+    
+    // Construir URL completa
+    final logoUrl = logoColor != null 
+        ? 'http://$baseUrl/imagenes/subidas/${logoColor.rutaImagen}'
+        : null;
+
     // Cargar logos
-    final prefs = await SharedPreferences.getInstance();
-    final logoPath = prefs.getString('financiera_logo_path');
-    final financieraLogo = await _loadLogoFile(logoPath);
+    final financieraLogo = await _loadNetworkImage(logoUrl);
     final finoraLogo = await _loadAsset('assets/finora_hzt.png');
+
 
     pdf.addPage(
       pw.MultiPage(

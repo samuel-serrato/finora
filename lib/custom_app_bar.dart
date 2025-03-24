@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:finora/dialogs/configuracion.dart';
+import 'package:finora/models/image_data.dart';
 import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
@@ -63,11 +64,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     }
   }
 
-  Future<String?> _getLogoPath() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('financiera_logo_path');
-  }
-
   Widget _buildDefaultPlaceholder() {
     return Container(
       width: 120,
@@ -88,7 +84,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final logoProvider = Provider.of<LogoProvider>(context);
     final userData = Provider.of<UserDataProvider>(context); // Nuevo
-
 
     final isDarkMode = themeProvider.isDarkMode;
 
@@ -214,37 +209,73 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
                 SizedBox(width: 10),
                 Container(
+                  height: 50,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDarkMode ? Colors.grey[900] : Colors.white,
+                    borderRadius: BorderRadius.circular(50),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 4,
+                        spreadRadius: 2,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: // Reemplaza el Consumer<LogoProvider> existente con este código
+                      Container(
                     height: 50,
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
                     decoration: BoxDecoration(
                       color: isDarkMode ? Colors.grey[900] : Colors.white,
                       borderRadius: BorderRadius.circular(50),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 4,
-                          spreadRadius: 2,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
                     ),
-                    child: Consumer<LogoProvider>(
-                      builder: (context, logoProvider, _) {
-                        // Check if we have a path and if the file exist
+                    child: // En el Widget donde se muestra la imagen, modifica el Consumer
+                        Consumer<UserDataProvider>(
+                      builder: (context, userDataProvider, _) {
+                        final themeProvider =
+                            Provider.of<ThemeProvider>(context, listen: true);
+                        final isDarkMode = themeProvider.isDarkMode;
+                        final logoImage =
+                            userDataProvider.getLogoForTheme(isDarkMode);
 
-                        return Container(
-                          height: 50,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 0, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isDarkMode ? Colors.grey[900] : Colors.white,
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          child: _buildDefaultPlaceholder(),
-                        );
+                        if (logoImage != null &&
+                            logoImage.rutaImagen.isNotEmpty) {
+                          return SizedBox(
+                            width: 120,
+                            height: 40,
+                            child: Image.network(
+                              'http://$baseUrl/imagenes/subidas/${logoImage.rutaImagen}',
+                              fit: BoxFit.contain,
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes !=
+                                            null
+                                        ? loadingProgress
+                                                .cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                        : null,
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildDefaultPlaceholder();
+                              },
+                            ),
+                          );
+                        }
+
+                        return _buildDefaultPlaceholder();
                       },
-                    )),
+                    ),
+                  ),
+                ),
                 SizedBox(width: 10),
                 Row(
                   children: [

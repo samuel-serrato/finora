@@ -43,4 +43,5 @@ class LogoProvider with ChangeNotifier {
       await prefs.setString(key, value);
     }
   }
+  
 }
