@@ -89,7 +89,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
   }
 
   Future<void> _editarUsuario() async {
-        final userData = Provider.of<UserDataProvider>(context, listen: false);
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
 
     print('flutter: [_editarUsuario] Iniciando edición de usuario...');
 
@@ -131,7 +131,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
       final url = 'http://$baseUrl/api/v1/usuarios/${widget.idUsuario}';
       print('flutter: [_editarUsuario] URL: $url');
 
-       // Modificación aquí: Combina el usuario con un punto y el nombre de la financiera sin espacios
+      // Modificación aquí: Combina el usuario con un punto y el nombre de la financiera sin espacios
       final usuarioCompleto =
           '${usuarioController.text}.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}';
 
@@ -470,7 +470,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                           validator: (value) {
                                             if (value == null ||
                                                 value.isEmpty) {
-                                              return 'Campo obligatorio';
+                                              return null;
                                             }
                                             if (!RegExp(
                                                     r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')

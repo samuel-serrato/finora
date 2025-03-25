@@ -10,7 +10,7 @@
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{BADD2DAB-7DBC-44D3-B4F3-E83185EA2F37}
+AppId={{20E1B33A-F3B6-4A21-9137-AF8EB09B33F2}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
@@ -51,6 +51,7 @@ Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Re
 Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\pdfium.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\printing_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\screen_retriever_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\url_launcher_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\window_manager_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\PC\Desktop\Flutter Projects\finora\build\windows\x64\runner\Release\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files

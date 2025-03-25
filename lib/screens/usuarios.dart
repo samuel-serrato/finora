@@ -934,7 +934,9 @@ class Usuario {
       usuario: json['usuario'],
       tipoUsuario: json['tipoUsuario'],
       nombreCompleto: json['nombreCompleto'],
-      email: json['email'],
+      email: json['email'] == null || json['email'].trim().isEmpty
+          ? 'No asignado'
+          : json['email'],
       roles: List<String>.from(json['roles']),
       fCreacion: json['fCreacion'],
     );

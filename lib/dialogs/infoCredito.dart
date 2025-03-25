@@ -1977,6 +1977,11 @@ class _PaginaControlState extends State<PaginaControl> {
                     children: pagos.map((pago) {
                       bool esPago1 = pagos.indexOf(pago) == 0;
                       int index = pagos.indexOf(pago);
+                      // Calcula si el botón debe estar habilitado
+                      bool isDateButtonEnabled =
+                          (pago.moratorioDesabilitado == "Si" ||
+                                  (pago.moratorios?.moratorios ?? 0) == 0) &&
+                              _puedeEditarPago(pago);
 
                       double saldoFavor = 0.0;
                       double saldoContra = 0.0;
@@ -2272,21 +2277,22 @@ class _PaginaControlState extends State<PaginaControl> {
                                                 mainAxisAlignment:
                                                     MainAxisAlignment.center,
                                                 children: [
+                                                  // Widget ElevatedButton modificado
                                                   ElevatedButton(
-                                                    onPressed: _puedeEditarPago(
-                                                            pago)
-                                                        ? () =>
-                                                            _editarFechaPago(
-                                                                context, pago)
-                                                        : null,
+                                                    onPressed:
+                                                        isDateButtonEnabled
+                                                            ? () =>
+                                                                _editarFechaPago(
+                                                                    context,
+                                                                    pago)
+                                                            : null,
                                                     style: ButtonStyle(
                                                       backgroundColor:
                                                           MaterialStateProperty
                                                               .resolveWith<
                                                                   Color>(
                                                         (states) =>
-                                                            _puedeEditarPago(
-                                                                    pago)
+                                                            isDateButtonEnabled
                                                                 ? Color(
                                                                     0xFF5162F6)
                                                                 : Colors
@@ -2297,14 +2303,12 @@ class _PaginaControlState extends State<PaginaControl> {
                                                               .all<EdgeInsets>(
                                                         EdgeInsets.symmetric(
                                                             horizontal: 8,
-                                                            vertical:
-                                                                8), // Menos espacio interno
+                                                            vertical: 8),
                                                       ),
                                                       minimumSize:
                                                           MaterialStateProperty
-                                                              .all<Size>(Size(
-                                                                  24,
-                                                                  24)), // Tamaño mínimo
+                                                              .all<Size>(
+                                                                  Size(24, 24)),
                                                       shape: MaterialStateProperty
                                                           .all<
                                                               RoundedRectangleBorder>(
@@ -2314,8 +2318,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   .circular(
                                                                       6.0),
                                                           side: BorderSide(
-                                                            color: _puedeEditarPago(
-                                                                    pago)
+                                                            color: isDateButtonEnabled
                                                                 ? Color(0xFF5162F6)
                                                                     .withOpacity(
                                                                         0.3)
@@ -2335,13 +2338,12 @@ class _PaginaControlState extends State<PaginaControl> {
                                                       Icons
                                                           .calendar_month_outlined,
                                                       size: 18,
-                                                      color: _puedeEditarPago(
-                                                              pago)
+                                                      color: isDateButtonEnabled
                                                           ? Colors.white
-                                                          : isDarkMode
+                                                          : (isDarkMode
                                                               ? Colors.grey[500]
                                                               : Colors
-                                                                  .grey[400],
+                                                                  .grey[400]),
                                                     ),
                                                   ),
                                                   SizedBox(width: 8),
@@ -2492,6 +2494,11 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                           .pop(
                                                                               abonos);
                                                                     },
+                                                                    moratorioDesabilitado:
+                                                                        pago.moratorioDesabilitado, // <-- Pasa el valor
+                                                                    moratorios: pago
+                                                                        .moratorios
+                                                                        ?.moratorios, // <-- Pasa el valor
                                                                   ),
                                                                 )) ??
                                                                 [];
@@ -4176,10 +4183,14 @@ void imprimirPagos(List<Pago> pagos) {
 class AbonosDialog extends StatefulWidget {
   final double montoAPagar;
   final Function(List<Map<String, dynamic>>) onConfirm;
+  final String moratorioDesabilitado; // <-- Nuevo parámetro
+  final double? moratorios; // <-- Nuevo parámetro
 
   AbonosDialog({
     required this.montoAPagar,
     required this.onConfirm,
+    required this.moratorioDesabilitado, // <-- Añade esto
+    this.moratorios, // <-- Añade esto
   });
 
   @override
@@ -4200,12 +4211,20 @@ class _AbonosDialogState extends State<AbonosDialog> {
     final width = MediaQuery.of(context).size.width * 0.4;
     final height = MediaQuery.of(context).size.height * 0.52;
 
+    // 1. Añade estas variables al inicio del build (para acceder a los parámetros del widget)
+    String moratorioDesabilitado = widget.moratorioDesabilitado;
+    double? moratorios = widget.moratorios;
+
+// 2. Calcula si el botón debe estar habilitado
+    bool isDateButtonEnabled =
+        (moratorioDesabilitado == "Si" || (moratorios ?? 0) == 0);
+
     // Colores adaptados según el modo
     final Color primaryColor = Color(0xFF5162F6);
-    final Color backgroundColor = isDarkMode ? Color(0xFF121212) : Colors.white;
+    final Color? backgroundColor = isDarkMode ? Colors.grey[900] : Colors.white;
     final Color cardColor = isDarkMode ? Color(0xFF1E1E1E) : Colors.grey[50]!;
     final Color textColor = isDarkMode ? Colors.white : Colors.grey[800]!;
-    final Color labelColor = isDarkMode ? Colors.grey[300]! : Colors.grey[700]!;
+    final Color labelColor = isDarkMode ? Colors.grey[300]! : Colors.grey[800]!;
     final Color inputBackground =
         isDarkMode ? Color(0xFF2C2C2C) : Colors.grey[100]!;
     final Color inputBorderColor =
@@ -4268,7 +4287,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                             hintStyle: TextStyle(
                                 color: isDarkMode
                                     ? Colors.grey[500]
-                                    : Colors.grey[400]),
+                                    : Colors.grey[700]),
                             filled: true,
                             fillColor: inputBackground,
                             border: OutlineInputBorder(
@@ -4315,57 +4334,65 @@ class _AbonosDialogState extends State<AbonosDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: InkWell(
+                              child: // 3. Modifica el InkWell y su contenido:
+                                  InkWell(
                                 borderRadius: BorderRadius.circular(12),
-                                onTap: () async {
-                                  DateTime? pickedDate = await showDatePicker(
-                                    context: context,
-                                    initialDate: fechaPago,
-                                    firstDate: DateTime(2000),
-                                    lastDate: DateTime.now(),
-                                    builder: (context, child) {
-                                      return Theme(
-                                        data: Theme.of(context).copyWith(
-                                          colorScheme: ColorScheme.light(
-                                            primary: primaryColor,
-                                            onPrimary: Colors.white,
-                                            surface: isDarkMode
-                                                ? Color(0xFF2C2C2C)
-                                                : Colors.white,
-                                            onSurface: isDarkMode
-                                                ? Colors.white
-                                                : Colors.black,
-                                          ),
-                                          dialogBackgroundColor: isDarkMode
-                                              ? Color(0xFF1E1E1E)
-                                              : Colors.white,
-                                        ),
-                                        child: child!,
-                                      );
-                                    },
-                                  );
-                                  if (pickedDate != null &&
-                                      pickedDate != fechaPago) {
-                                    setState(() {
-                                      fechaPago = pickedDate;
-                                    });
-                                  }
-                                },
+                                onTap: isDateButtonEnabled
+                                    ? () async {
+                                        // Solo permite tocar si está habilitado
+                                        DateTime? pickedDate =
+                                            await showDatePicker(
+                                          context: context,
+                                          initialDate: fechaPago,
+                                          firstDate: DateTime(2000),
+                                          lastDate: DateTime.now(),
+                                          builder: (context, child) {
+                                            return Theme(
+                                              data: Theme.of(context).copyWith(
+                                                colorScheme: ColorScheme.light(
+                                                  primary: primaryColor,
+                                                  onPrimary: Colors.white,
+                                                  surface: isDarkMode
+                                                      ? Color(0xFF2C2C2C)
+                                                      : Colors.white,
+                                                  onSurface: isDarkMode
+                                                      ? Colors.white
+                                                      : Colors.black,
+                                                ),
+                                                dialogBackgroundColor:
+                                                    isDarkMode
+                                                        ? Color(0xFF1E1E1E)
+                                                        : Colors.white,
+                                              ),
+                                              child: child!,
+                                            );
+                                          },
+                                        );
+                                        if (pickedDate != null &&
+                                            pickedDate != fechaPago) {
+                                          setState(
+                                              () => fechaPago = pickedDate);
+                                        }
+                                      }
+                                    : null, // Deshabilita el onTap si no cumple las condiciones
                                 child: Container(
                                   padding: EdgeInsets.symmetric(
                                       vertical: 12, horizontal: 20),
                                   decoration: BoxDecoration(
-                                    color: inputBackground,
+                                    color: isDateButtonEnabled
+                                        ? inputBackground
+                                        : inputBackground.withOpacity(
+                                            0.5), // Fondo más claro si está deshabilitado
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      // Color del borde mejorado para modo claro
-                                      color: isDarkMode
-                                          ? inputBorderColor
-                                          : Color(0xFFAAAAAA),
-                                      // Ancho del borde mayor en modo claro
+                                      color: isDateButtonEnabled
+                                          ? (isDarkMode
+                                              ? inputBorderColor
+                                              : Color(0xFFAAAAAA))
+                                          : Colors
+                                              .transparent, // Borde transparente si está deshabilitado
                                       width: isDarkMode ? 1.2 : 1.5,
                                     ),
-                                    // Añadir sombra sutil en modo claro para mejor profundidad
                                     boxShadow: isDarkMode
                                         ? []
                                         : [
@@ -4382,15 +4409,23 @@ class _AbonosDialogState extends State<AbonosDialog> {
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        "${fechaPago.toLocal()}".split(' ')[0],
+                                        DateFormat('dd/MM/yyyy').format(
+                                            fechaPago), // Formato dd-MM-yyyy
                                         style: TextStyle(
                                           fontSize: 14,
-                                          color: textColor,
+                                          color: isDateButtonEnabled
+                                              ? textColor
+                                              : textColor.withOpacity(0.5),
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
-                                      Icon(Icons.calendar_today,
-                                          color: primaryColor),
+                                      Icon(
+                                        Icons.calendar_today,
+                                        color: isDateButtonEnabled
+                                            ? primaryColor
+                                            : primaryColor.withOpacity(
+                                                0.5), // Ícono atenuado
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -4416,8 +4451,8 @@ class _AbonosDialogState extends State<AbonosDialog> {
                                   setState(() {
                                     abonos.add({
                                       'deposito': montoPorAbono,
-                                      'fechaDeposito': "${fechaPago.toLocal()}"
-                                          .split(' ')[0],
+                                      'fechaDeposito': DateFormat('dd/MM/yyyy')
+                                          .format(fechaPago), // Formato con /
                                     });
                                     montoPorAbono = 0.0;
                                     montoController.clear();
@@ -4460,7 +4495,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                         ),
                         child: ListTile(
                           title: Text(
-                            "Monto: \$${abonos[index]['deposito']} - Fecha: ${abonos[index]['fechaDeposito']}",
+                            "Monto: \$${abonos[index]['deposito']} - Fecha: ${abonos[index]['fechaDeposito']}", // Muestra directamente el valor guardado
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,

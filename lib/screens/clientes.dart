@@ -15,7 +15,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ClientesScreen extends StatefulWidget {
-
   const ClientesScreen();
 
   @override
@@ -604,12 +603,11 @@ class _ClientesScreenState extends State<ClientesScreen> {
       backgroundColor:
           isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
       appBar: CustomAppBar(
-        isDarkMode: isDarkMode,
-        toggleDarkMode: (value) {
-          themeProvider.toggleDarkMode(value); // Cambia el tema
-        },
-        title: 'Clientes'
-      ),
+          isDarkMode: isDarkMode,
+          toggleDarkMode: (value) {
+            themeProvider.toggleDarkMode(value); // Cambia el tema
+          },
+          title: 'Clientes'),
       body: Column(
         children: [
           if (!errorDeConexion) filaBuscarYAgregar(context),
@@ -1085,7 +1083,9 @@ class Cliente {
       fechaNac: json['fechaNac'],
       sexo: json['sexo'],
       telefono: json['telefono'] ?? 'N/A', // Proveer 'N/A' si es null
-      email: json['email'] ?? 'N/A', // Proveer 'N/A' si es null
+      email: json['email'] == null || json['email'].trim().isEmpty
+          ? 'No asignado'
+          : json['email'],
       eCilvi: json['eCivil'],
       estado: json['estado'] ?? 'N/A',
       fCreacion: json['fCreacion'],

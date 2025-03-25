@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:finora/models/image_data.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:finora/constants/routes.dart';
@@ -10,6 +11,7 @@ import 'package:finora/ip.dart';
 import 'package:finora/navigation_rail.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(MaterialApp(
@@ -25,8 +27,26 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
+  bool _rememberMe = false; // Variable para el checkbox
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedUser();
+  }
+
+  Future<void> _loadRememberedUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUser = prefs.getString('rememberedUser');
+    if (savedUser != null) {
+      setState(() {
+        _usernameController.text = savedUser;
+        _rememberMe = true;
+      });
+    }
+  }
 
   Future<void> _handleLogin() async {
     print('=== INICIANDO LOGIN ===');
@@ -37,8 +57,9 @@ class _LoginScreenState extends State<LoginScreen> {
       print('Error: Campos vacíos');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('Por favor completa todos los campos')),
+          backgroundColor: Colors.red,
+          content: Text('Por favor completa todos los campos'),
+        ),
       );
       return;
     }
@@ -48,8 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
       print('Error: Usuario debe tener al menos 4 caracteres');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('El usuario debe tener al menos 4 caracteres')),
+          backgroundColor: Colors.red,
+          content: Text('El usuario debe tener al menos 4 caracteres'),
+        ),
       );
       return;
     }
@@ -59,8 +81,9 @@ class _LoginScreenState extends State<LoginScreen> {
       print('Error: Contraseña debe tener al menos 4 caracteres');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('La contraseña debe tener al menos 4 caracteres')),
+          backgroundColor: Colors.red,
+          content: Text('La contraseña debe tener al menos 4 caracteres'),
+        ),
       );
       return;
     }
@@ -85,7 +108,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final responseBody = json.decode(response.body);
 
       if (response.statusCode == 200 && responseBody['code'] == 200) {
-        // Resto del código de login exitoso permanece igual
         final token = response.headers['tokenauth'];
         print('Token recibido: $token');
 
@@ -94,9 +116,16 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('tokenauth', token);
           print('Token almacenado en SharedPreferences');
 
-          final usuario = responseBody['usuario'][0]; // Simplificamos el acceso
+          // Guardar o eliminar el usuario según el checkbox "Recuérdame"
+          if (_rememberMe) {
+            await prefs.setString('rememberedUser', _usernameController.text);
+          } else {
+            await prefs.remove('rememberedUser');
+          }
 
-          // Convierte las imágenes a objetos ImageData
+          final usuario = responseBody['usuario'][0];
+
+          // Conversión de imágenes a objetos ImageData
           List<ImageData> imagenes = (usuario['imagenes'] as List)
               .map((img) => ImageData.fromJson(img))
               .toList();
@@ -105,29 +134,28 @@ class _LoginScreenState extends State<LoginScreen> {
           final userDataProvider =
               Provider.of<UserDataProvider>(context, listen: false);
           userDataProvider.setUserData(
-              nombreFinanciera: usuario['nombreFinanciera'],
-              imagenes: imagenes, // Ahora usa la lista tipada
-              nombreUsuario: usuario['nombreCompleto'],
-              tipoUsuario: usuario['tipoUsuario'],
-              idfinanciera: usuario['idfinanciera']);
+            nombreFinanciera: usuario['nombreFinanciera'],
+            imagenes: imagenes,
+            nombreUsuario: usuario['nombreCompleto'],
+            tipoUsuario: usuario['tipoUsuario'],
+            idfinanciera: usuario['idfinanciera'],
+          );
 
           print('Navegando a HomeScreen');
-          // Navegación (simplificada ya que no necesitas pasar tantos argumentos)
           Navigator.pushNamedAndRemoveUntil(
             context,
             AppRoutes.navigation,
             (route) => false,
             arguments: {
-              'userId':
-                  usuario['idusuarios'], // Solo lo necesario para el navigation
+              'userId': usuario['idusuarios'],
             },
           );
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                backgroundColor: Colors.green,
-                content: Text(
-                    'Bienvenido ${responseBody['usuario'][0]['nombreCompleto']}')),
+              backgroundColor: Colors.green,
+              content: Text('Bienvenido ${usuario['nombreCompleto']}'),
+            ),
           );
         } else {
           print('Error: Token no encontrado en headers');
@@ -143,7 +171,6 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       print('Excepción capturada: $e');
 
-      // Mostrar mensaje personalizado para problemas de red
       String errorMessage;
       if (e.toString().contains('SocketException') ||
           e.toString().contains('ClientException') ||
@@ -151,9 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
         errorMessage =
             'No se pudo conectar al servidor. Por favor verifica tu conexión a internet e intenta nuevamente.';
       } else {
-        // Para otros errores, mostrar el mensaje sin la parte técnica
         errorMessage = e.toString().replaceAll('Exception: ', '');
-        // Si contiene información de IP o direcciones, mostrar mensaje genérico
         if (errorMessage.contains('http://') ||
             errorMessage.contains('address =')) {
           errorMessage = 'Error de conexión. Por favor intenta más tarde.';
@@ -207,57 +232,133 @@ class _LoginScreenState extends State<LoginScreen> {
     final isDarkMode = themeProvider.isDarkMode;
 
     return Scaffold(
-      body: Stack(children: [
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.bottomCenter,
-              end: Alignment.topCenter,
-              colors: isDarkMode
-                  ? [
-                      // Colores para modo oscuro
-                      const Color(0xFF1A1A2E), // Azul muy oscuro
-                      const Color(0xFF121212), // Casi negro
-                    ]
-                  : [
-                      // Colores para modo claro (los originales)
-                      const Color(0xFFF0EFFF),
-                      Colors.white,
-                    ],
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: MediaQuery.of(context).size.width / 2.5,
-                child: SliderWidget(slides: _slides),
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: isDarkMode
+                    ? [
+                        const Color(0xFF1A1A2E),
+                        const Color(0xFF121212),
+                      ]
+                    : [
+                        const Color(0xFFF0EFFF),
+                        Colors.white,
+                      ],
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 80, vertical: 40),
-                  child: LoginForm(
-                    usernameController: _usernameController,
-                    passwordController: _passwordController,
-                    onLogin: _handleLogin,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: MediaQuery.of(context).size.width / 2.5,
+                  child: SliderWidget(slides: _slides),
+                ),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 100, vertical: 120),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 100),
+                          child: LoginForm(
+                            usernameController: _usernameController,
+                            passwordController: _passwordController,
+                            onLogin: _handleLogin,
+                            rememberMe: _rememberMe,
+                            onRememberMeChanged: (value) {
+                              setState(() {
+                                _rememberMe = value;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      // Texto pegado abajo, centrado en el contenedor derecho.
+                      Positioned(
+                        bottom: 20, // Ajuste del margen inferior
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              RichText(
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text:
+                                          'Finora v1.0.0  |  Desarrollado por ',
+                                      style: TextStyle(
+                                        color: isDarkMode
+                                            ? Colors.grey[400]
+                                            : Colors.grey[700],
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'CODX',
+                                      style: TextStyle(
+                                        color: isDarkMode
+                                            ? Colors.grey[400]
+                                            : Colors.grey[700],
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = _launchURL,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(
+                                  height: 4), // Espaciado entre líneas
+                              Text(
+                                '© ${DateTime.now().year} Todos los derechos reservados.', // Derechos de autor en una línea aparte
+                                style: TextStyle(
+                                  color: isDarkMode
+                                      ? Colors.grey[500]
+                                      : Colors.grey[600],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        if (_isLoading)
-          Container(
-            color: Colors.black.withOpacity(0.5),
-            child: const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5162F6)),
-                strokeWidth: 6,
-              ),
+              ],
             ),
           ),
-      ]),
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5162F6)),
+                  strokeWidth: 6,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  Future<void> _launchURL() async {
+    final Uri url = Uri.parse('https://codxtech.com');
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      throw 'No se pudo abrir el enlace: $url';
+    }
   }
 }
 
@@ -411,16 +512,20 @@ class LoginForm extends StatefulWidget {
   final TextEditingController usernameController;
   final TextEditingController passwordController;
   final VoidCallback onLogin;
+  final bool rememberMe;
+  final ValueChanged<bool> onRememberMeChanged;
 
   const LoginForm({
     Key? key,
     required this.usernameController,
     required this.passwordController,
     required this.onLogin,
+    required this.rememberMe,
+    required this.onRememberMeChanged,
   }) : super(key: key);
 
   @override
-  State<LoginForm> createState() => _LoginFormState();
+  _LoginFormState createState() => _LoginFormState();
 }
 
 class _LoginFormState extends State<LoginForm> {
@@ -430,8 +535,6 @@ class _LoginFormState extends State<LoginForm> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     var isDarkMode = themeProvider.isDarkMode;
-    // Usar colores del tema actual
-    //final theme = Theme.of(context);
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -443,12 +546,12 @@ class _LoginFormState extends State<LoginForm> {
             SizedBox(
               width: 500,
               height: 100,
-              // Considera usar diferentes imágenes para modo claro/oscuro
               child: Image.asset(
-                  isDarkMode
-                      ? 'assets/finora_blanco.png'
-                      : 'assets/finora_hzt.png',
-                  fit: BoxFit.contain),
+                isDarkMode
+                    ? 'assets/finora_blanco.png'
+                    : 'assets/finora_hzt.png',
+                fit: BoxFit.contain,
+              ),
             ),
           ],
         ),
@@ -472,6 +575,71 @@ class _LoginFormState extends State<LoginForm> {
           isDarkMode: isDarkMode,
         ),
         const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment
+              .spaceBetween, // Separa los elementos en los extremos
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CheckboxTheme(
+                  data: CheckboxThemeData(
+                    fillColor: MaterialStateProperty.resolveWith<Color?>(
+                      (Set<MaterialState> states) {
+                        if (states.contains(MaterialState.selected)) {
+                          return const Color(
+                              0xFF5162F6); // Color cuando está seleccionado
+                        }
+                        return isDarkMode
+                            ? Colors.grey[800]
+                            : Colors.white; // Check blanco en dark mode
+                      },
+                    ),
+                    checkColor: MaterialStateProperty.resolveWith<Color?>(
+                      (Set<MaterialState> states) {
+                        if (states.contains(MaterialState.selected)) {
+                          return isDarkMode
+                              ? Colors.white
+                              : Colors.white; // Check blanco en dark mode
+                        }
+                        return null; // Usa el color por defecto en otros estados
+                      },
+                    ),
+                    side: BorderSide(color: Colors.grey[600]!, width: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  child: Checkbox(
+                    value: widget.rememberMe,
+                    onChanged: (bool? value) {
+                      if (value != null) {
+                        widget.onRememberMeChanged(value);
+                      }
+                    },
+                    side: BorderSide(color: Colors.grey[600]!, width: 2),
+                  ),
+                ),
+                Text(
+                  "Recuérdame",
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                      fontSize: 15),
+                ),
+              ],
+            ),
+            IconButton(
+              icon: Icon(
+                isDarkMode ? Icons.dark_mode : Icons.dark_mode,
+                color: isDarkMode ? Colors.white : const Color(0xFF5162F6),
+              ),
+              onPressed: () {
+                themeProvider.toggleDarkMode(!isDarkMode);
+              },
+            ),
+          ],
+        ),
         const SizedBox(height: 40.0),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -493,20 +661,6 @@ class _LoginFormState extends State<LoginForm> {
             ),
           ),
         ),
-        const SizedBox(height: 30),
-        // Botón para cambiar a modo oscuro
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: Icon(isDarkMode ? Icons.dark_mode : Icons.dark_mode,
-                  color: isDarkMode ? Colors.white : Color(0xFF5162F6)),
-              onPressed: () {
-                themeProvider.toggleDarkMode(!isDarkMode);
-              },
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -521,7 +675,6 @@ class _LoginFormState extends State<LoginForm> {
     VoidCallback? onFieldSubmitted,
     TextInputAction? textInputAction,
   }) {
-    // Usar colores del tema
     final theme = Theme.of(context);
 
     return Column(
@@ -531,7 +684,6 @@ class _LoginFormState extends State<LoginForm> {
           label,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            // Usar el color de texto del tema actual
             color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
             fontSize: 15,
           ),
@@ -540,7 +692,6 @@ class _LoginFormState extends State<LoginForm> {
         TextFormField(
           controller: controller,
           obscureText: isPassword ? _obscurePassword : false,
-          // Usar el color de texto del tema
           style: TextStyle(
             color: isDarkMode ? Colors.white : Colors.grey[800],
           ),
@@ -570,7 +721,6 @@ class _LoginFormState extends State<LoginForm> {
                   )
                 : null,
             filled: true,
-            // Color de fondo según el modo
             fillColor: isDarkMode ? Colors.grey[800] : Colors.white,
             contentPadding:
                 const EdgeInsets.symmetric(vertical: 18, horizontal: 20),

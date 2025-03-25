@@ -258,7 +258,7 @@ class _nClienteDialogState extends State<nClienteDialog>
             'ocupacion': clienteData['ocupacion'],
             'dependientes_economicos': clienteData['dependientes_economicos'],
             'telefono': clienteData['telefono'],
-            'email': clienteData['email'],
+            'email': clienteData['email'] ?? '',
             'eCivil': clienteData['eCivil'],
             'fechaNac': clienteData['fechaNac'],
             'nombreConyuge': clienteData['nombreConyuge'],
@@ -452,7 +452,9 @@ class _nClienteDialogState extends State<nClienteDialog>
           depEconomicosController.text =
               clienteData['dependientes_economicos'] ?? '';
           telefonoClienteController.text = clienteData['telefono'] ?? '';
-          emailClientecontroller.text = clienteData['email'] ?? '';
+          emailClientecontroller.text = clienteData['email'] == 'No asignado'
+              ? ''
+              : clienteData['email'] ?? '';
 
           // Información adicional del cliente
           selectedECivil = clienteData['eCivil'] ?? '';

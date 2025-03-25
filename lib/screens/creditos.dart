@@ -15,8 +15,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Para manejar fechas
 
 class SeguimientoScreen extends StatefulWidget {
-
-
   const SeguimientoScreen();
 
   @override
@@ -466,12 +464,11 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
     return Scaffold(
       appBar: CustomAppBar(
-        isDarkMode: isDarkMode,
-        toggleDarkMode: (value) {
-          themeProvider.toggleDarkMode(value); // Cambia el tema
-        },
-        title: 'Créditos Activos'
-      ),
+          isDarkMode: isDarkMode,
+          toggleDarkMode: (value) {
+            themeProvider.toggleDarkMode(value); // Cambia el tema
+          },
+          title: 'Créditos Activos'),
       backgroundColor:
           isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
       body: Column(
@@ -690,7 +687,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     final themeProvider =
         Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
-        final userData = Provider.of<UserDataProvider>(context, listen: false);
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
 
     return SizedBox(
       width: MediaQuery.of(context).size.width,

@@ -258,7 +258,13 @@ class _InfoUsuarioState extends State<InfoUsuario> {
                     _buildInfoItem('Usuario', userData!['usuario'], isDarkMode),
                     _buildInfoItem(
                         'Nombre', userData!['nombreCompleto'], isDarkMode),
-                    _buildInfoItem('Email', userData!['email'], isDarkMode),
+                    _buildInfoItem(
+                        'Email',
+                        userData!['email'] == null ||
+                                userData!['email'].trim().isEmpty
+                            ? 'No asignado'
+                            : userData!['email'],
+                        isDarkMode),
                   ],
                 ),
                 const SizedBox(height: 25),

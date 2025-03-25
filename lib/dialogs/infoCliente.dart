@@ -264,7 +264,11 @@ class _InfoClienteState extends State<InfoCliente> {
                               _buildDetailRowIG('Dependientes Económicos:',
                                   clienteData!['dependientes_economicos']),
                               _buildDetailRowIG(
-                                  'Email:', clienteData!['email']),
+                                  'Email:',
+                                  clienteData!['email'] == null ||
+                                          clienteData!['email'].trim().isEmpty
+                                      ? 'No asignado'
+                                      : clienteData!['email']),
                               _buildDetailRowIG(
                                   'Estado:', clienteData!['estado'] ?? 'N/A'),
                             ],
