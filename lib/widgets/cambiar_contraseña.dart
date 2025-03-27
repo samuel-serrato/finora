@@ -26,6 +26,10 @@ class _CambiarPasswordDialogState extends State<CambiarPasswordDialog> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
+  // Add password visibility state variables
+  bool _obscureNuevaPassword = true;
+  bool _obscureConfirmarPassword = true;
+
   Future<void> _cambiarPassword() async {
     print('flutter: Iniciando cambio de contraseña...');
 
@@ -133,7 +137,7 @@ class _CambiarPasswordDialogState extends State<CambiarPasswordDialog> {
           children: [
             TextFormField(
               controller: _nuevaPasswordController,
-              obscureText: true,
+              obscureText: _obscureNuevaPassword,
               style: TextStyle(
                 fontSize: 14,
                 color: isDarkMode ? Colors.white : Colors.black87,
@@ -146,6 +150,24 @@ class _CambiarPasswordDialogState extends State<CambiarPasswordDialog> {
                         : Colors.grey.shade600),
                 prefixIcon: Icon(Icons.lock_outline,
                     color: isDarkMode ? Color(0xFF5162F6) : Color(0xFF5162F6)),
+                // Add suffix icon for password visibility toggle
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: IconButton(
+                    icon: Icon(
+                      size: 20,
+                      _obscureNuevaPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureNuevaPassword = !_obscureNuevaPassword;
+                      });
+                    },
+                  ),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
@@ -180,7 +202,7 @@ class _CambiarPasswordDialogState extends State<CambiarPasswordDialog> {
             SizedBox(height: 20),
             TextFormField(
               controller: _confirmarPasswordController,
-              obscureText: true,
+              obscureText: _obscureConfirmarPassword,
               style: TextStyle(
                 fontSize: 14,
                 color: isDarkMode ? Colors.white : Colors.black87,
@@ -193,6 +215,24 @@ class _CambiarPasswordDialogState extends State<CambiarPasswordDialog> {
                         : Colors.grey.shade600),
                 prefixIcon: Icon(Icons.lock_reset,
                     color: isDarkMode ? Color(0xFF5162F6) : Color(0xFF5162F6)),
+                // Add suffix icon for password visibility toggle
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: IconButton(
+                    icon: Icon(
+                      size: 20,
+                      _obscureConfirmarPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmarPassword = !_obscureConfirmarPassword;
+                      });
+                    },
+                  ),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(

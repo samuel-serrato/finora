@@ -569,39 +569,63 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
     required Color fieldBgColor,
     String? Function(String?)? validator,
   }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      maxLength: maxLength,
-      style: TextStyle(fontSize: 12, color: textColor),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(
-            fontSize: 12, color: secondaryColor), // Tamaño más pequeño
-        hintText:
-            label, // Opcional, si quieres un hint en lugar del label flotante
-        hintStyle: TextStyle(
-            fontSize: 12, color: Colors.grey), // También lo haces más pequeño
-        prefixIcon: Icon(icon, color: secondaryColor),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: borderColor ?? Colors.grey),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: primaryColor, width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.red),
-        ),
-        contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        fillColor: fieldBgColor,
-        filled: true,
-      ),
-      validator: validator,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
+    // Add a state variable to control password visibility
+    bool _isPasswordVisible = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return TextFormField(
+          controller: controller,
+          obscureText: obscureText ? !_isPasswordVisible : false,
+          keyboardType: keyboardType,
+          maxLength: maxLength,
+          style: TextStyle(fontSize: 12, color: textColor),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: TextStyle(fontSize: 12, color: secondaryColor),
+            hintText: label,
+            hintStyle: TextStyle(fontSize: 12, color: Colors.grey),
+            prefixIcon: Icon(icon, color: secondaryColor),
+            // Add suffix icon for password visibility toggle
+            suffixIcon: obscureText
+                ? Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: IconButton(
+                      icon: Icon(
+                        size: 20,
+                        _isPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: secondaryColor,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
+                  )
+                : null,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: borderColor ?? Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: primaryColor, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: Colors.red),
+            ),
+            contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            fillColor: fieldBgColor,
+            filled: true,
+          ),
+          validator: validator,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+        );
+      },
     );
   }
 

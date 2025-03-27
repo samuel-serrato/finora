@@ -172,98 +172,122 @@ class _InfoGrupoState extends State<InfoGrupo> {
       final uri = Uri.parse(
           'http://$baseUrl/api/v1/grupodetalles/historial/$nombreCodificado');
 
-      print(
-          'Iniciando petición de historial para grupo: $nombreGrupo'); // Añadir log inicial
+      print('Iniciando petición de historial para grupo: $nombreGrupo');
 
       final response = await http.get(
         uri,
-        headers: {'tokenauth': token},
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
       ).timeout(Duration(seconds: 10));
 
       print('Respuesta recibida (historial): ${response.statusCode}');
-      print(
-          'Respuesta completa (historial): ${response.body}'); // Imprime respuesta completa
+      print('Respuesta completa (historial): ${response.body}');
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          historialData = data;
-          errorDeConexion = false;
-        });
-      } else if (response.statusCode == 400) {
-        print('Error 400: ${response.body}'); // Imprime detalle del error
-        final errorData = json.decode(response.body);
-        if (errorData["Error"]["Message"] ==
-            "No hay historial del grupo registrado con este nombre") {
+      if (mounted) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
           setState(() {
-            historialData = [];
+            historialData = data;
             errorDeConexion = false;
           });
-        }
-      } else if (response.statusCode == 404) {
-        print('Error 404: ${response.body}'); // Imprime detalle del error
-        final errorData = json.decode(response.body);
-        if (errorData["Error"]["Message"] == "jwt expired") {
-          if (mounted) {
-            setState(() => isLoading = false);
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
-            _timerHistorial?.cancel();
+        } else {
+          try {
+            final errorData = json.decode(response.body);
 
-            if (!dialogShown) {
-              dialogShown = true;
-              mostrarDialogoError(
-                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                  onClose: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                );
+            // Check for specific session change message
+            if (errorData["Error"] != null &&
+                errorData["Error"]["Message"] ==
+                    "La sesión ha cambiado. Cerrando sesión...") {
+              if (mounted) {
+                setState(() => isLoading = false);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('tokenauth');
+                _timerHistorial?.cancel();
+
+                // Show dialog and redirect to login
+                mostrarDialogoCierreSesion(
+                    'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                    (route) => false, // Remove all previous routes
+                  );
+                });
+              }
+              return;
+            }
+            // Handle JWT expired error
+            else if (response.statusCode == 404 &&
+                errorData["Error"]["Message"] == "jwt expired") {
+              if (mounted) {
+                setState(() => isLoading = false);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('tokenauth');
+                _timerHistorial?.cancel();
+                mostrarDialogoError(
+                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                    onClose: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                });
+              }
+              return;
+            }
+            // Handle no history found error
+            else if (response.statusCode == 400 &&
+                errorData["Error"]["Message"] ==
+                    "No hay historial del grupo registrado con este nombre") {
+              setState(() {
+                historialData = [];
+                errorDeConexion = false;
               });
             }
-          }
-          return;
-        } else {
-          throw Exception('Endpoint no encontrado: ${response.body}');
-        }
-      } else if (response.statusCode == 401) {
-        print('Error 401: ${response.body}'); // Imprime detalle del error
-        if (mounted) {
-          setState(() => isLoading = false);
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('tokenauth');
-          _timerHistorial?.cancel();
+            // Other authentication errors
+            else if (response.statusCode == 401) {
+              if (mounted) {
+                setState(() => isLoading = false);
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('tokenauth');
+                _timerHistorial?.cancel();
 
-          if (!dialogShown) {
-            dialogShown = true;
-            mostrarDialogoError(
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                onClose: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
-            });
+                mostrarDialogoError(
+                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                    onClose: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                  );
+                });
+              }
+              return;
+            }
+            // Other errors
+            else {
+              setErrorState(dialogShown);
+            }
+          } catch (parseError) {
+            // If response body cannot be parsed, handle as generic error
+            setErrorState(dialogShown);
           }
         }
-      } else {
-        throw Exception(
-            'Error del servidor: ${response.statusCode}, Respuesta: ${response.body}');
       }
     } on SocketException catch (e) {
-      print('Error de conexión: $e'); // Imprime el error completo
+      print('Error de conexión: $e');
       setErrorState(dialogShown, SocketException('Error de conexión'));
     } on TimeoutException catch (e) {
-      print('Error de timeout: $e'); // Imprime el error completo
+      print('Error de timeout: $e');
       setErrorState(dialogShown, TimeoutException('Timeout'));
     } catch (e) {
-      print(
-          'Error general fetchGrupoHistorial: $e'); // Imprime el error completo
+      print('Error general fetchGrupoHistorial: $e');
       setErrorState(dialogShown, e);
     }
   }
 
-// Mantenemos tu método setErrorState original
+  // Método para manejar estados de error
   void setErrorState(bool dialogShown, [dynamic error]) {
     if (!mounted || dialogShown) return;
 
@@ -334,7 +358,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
     return "${parsedDate.day}-${parsedDate.month}-${parsedDate.year}";
   }
 
-  Future<void> obtenerGrupos() async {
+  Future<void> obtenerGrupos({int page = 1}) async {
     setState(() {
       isLoading = true;
       errorDeConexion = false;
@@ -350,68 +374,108 @@ class _InfoGrupoState extends State<InfoGrupo> {
         final token = prefs.getString('tokenauth') ?? '';
 
         final response = await http.get(
-          Uri.parse('http://$baseUrl/api/v1/grupodetalles'),
+          Uri.parse(
+              'http://$baseUrl/api/v1/grupodetalles'), // Add pagination parameters
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
           },
         );
 
+        print('Respuesta recibida (grupodetalles): ${response.statusCode}');
         print(
-            'Respuesta recibida (grupodetalles fetchData): ${response.statusCode}');
-        print(
-            'Respuesta completa (grupodetalles fetchData): ${response.body}'); // Imprime respuesta completa
+            'Respuesta completa (grupodetalles): ${response.body}'); // Imprime respuesta completa
 
         if (mounted) {
           if (response.statusCode == 200) {
+            /*   int totalDatosResp =
+                int.tryParse(response.headers['x-total-totaldatos'] ?? '0') ??
+                    0;
+            int totalPaginasResp =
+                int.tryParse(response.headers['x-total-totalpaginas'] ?? '1') ??
+                    1; */
+
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
               listaGrupos.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
+
               isLoading = false;
               errorDeConexion = false;
+              /*  totalDatos = totalDatosResp;
+              totalPaginas = totalPaginasResp; */
             });
             _timer?.cancel();
-          } else if (response.statusCode == 404) {
-            print('Error 404: ${response.body}'); // Imprime detalle del error
-            final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] == "jwt expired") {
-              if (mounted) {
-                setState(() => isLoading = false);
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.remove('tokenauth');
-                _timer?.cancel();
-                mostrarDialogoError(
-                    'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                    onClose: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginScreen()),
-                  );
-                });
-              }
-              return;
-            } else {
-              setErrorState(dialogShown);
-            }
-          } else if (response.statusCode == 400) {
-            print('Error 400: ${response.body}'); // Imprime detalle del error
-            final errorData = json.decode(response.body);
-            if (errorData["Error"]["Message"] ==
-                "No hay detalle de grupos registrados") {
-              setState(() {
-                listaGrupos = [];
-                isLoading = false;
-                noGroupsFound = true;
-              });
-              _timer?.cancel();
-            } else {
-              setErrorState(dialogShown);
-            }
           } else {
-            print(
-                'Error no manejado: ${response.statusCode}, Respuesta: ${response.body}');
-            setErrorState(dialogShown);
+            // In case of error, reset pagination
+            setState(() {
+              /*   totalDatos = 0;
+              totalPaginas = 1; */
+            });
+
+            try {
+              final errorData = json.decode(response.body);
+
+              // Check for specific session change message
+              if (errorData["Error"] != null &&
+                  errorData["Error"]["Message"] ==
+                      "La sesión ha cambiado. Cerrando sesión...") {
+                if (mounted) {
+                  setState(() => isLoading = false);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('tokenauth');
+                  _timer?.cancel();
+
+                  // Show dialog and redirect to login
+                  mostrarDialogoCierreSesion(
+                      'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (route) => false, // Remove all previous routes
+                    );
+                  });
+                }
+                return;
+              }
+              // Handle JWT expired error
+              else if (response.statusCode == 404 &&
+                  errorData["Error"]["Message"] == "jwt expired") {
+                if (mounted) {
+                  setState(() => isLoading = false);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('tokenauth');
+                  _timer?.cancel();
+                  mostrarDialogoError(
+                      'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                      onClose: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  });
+                }
+                return;
+              }
+              // Handle no groups found error
+              else if (response.statusCode == 400 &&
+                  errorData["Error"]["Message"] ==
+                      "No hay detalle de grupos registrados") {
+                setState(() {
+                  listaGrupos = [];
+                  isLoading = false;
+                  noGroupsFound = true;
+                });
+                _timer?.cancel();
+              }
+              // Other errors
+              else {
+                setErrorState(dialogShown);
+              }
+            } catch (parseError) {
+              // If response body cannot be parsed, handle as generic error
+              setErrorState(dialogShown);
+            }
           }
         }
       } catch (e) {
@@ -437,6 +501,82 @@ class _InfoGrupoState extends State<InfoGrupo> {
         }
       });
     }
+  }
+
+  void mostrarDialogoCierreSesion(String mensaje,
+      {required Function() onClose}) {
+    // Detectar si estamos en modo oscuro
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          contentPadding: EdgeInsets.only(top: 25, bottom: 10),
+          title: Column(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.red[700],
+              ),
+              SizedBox(height: 15),
+              Text(
+                'Sesión Finalizada',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                height: 1.4,
+              ),
+            ),
+          ),
+          actionsPadding: EdgeInsets.only(bottom: 20, right: 25, left: 25),
+          actions: [
+            SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                minimumSize: Size(double.infinity, 48), // Ancho completo
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                onClose();
+              },
+              child: Text(
+                'Iniciar Sesión',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
