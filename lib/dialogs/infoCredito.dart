@@ -4616,6 +4616,10 @@ class PaginaIntegrantes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sort the list by capitalIndividual in descending order
+    final sortedClientesMontosInd = List<ClienteMonto>.from(clientesMontosInd)
+      ..sort((a, b) => b.capitalIndividual.compareTo(a.capitalIndividual));
+
     final themeProvider = Provider.of<ThemeProvider>(context,
         listen: false); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
@@ -4650,7 +4654,7 @@ class PaginaIntegrantes extends StatelessWidget {
       );
     }
 
-// Método para construir las celdas de datos
+    // Método para construir las celdas de datos
     Widget _buildDataCell(String text) {
       return Expanded(
         child: Padding(
@@ -4661,7 +4665,7 @@ class PaginaIntegrantes extends StatelessWidget {
       );
     }
 
-// Método para construir las celdas de totales
+    // Método para construir las celdas de totales
     Widget _buildTotalCell(String text) {
       return Expanded(
         child: Padding(
@@ -4690,7 +4694,7 @@ class PaginaIntegrantes extends StatelessWidget {
     double sumCapitalMasInteres = 0;
     double sumTotal = 0;
 
-    for (var cliente in clientesMontosInd) {
+    for (var cliente in sortedClientesMontosInd) {
       sumCapitalIndividual += cliente.capitalIndividual;
       sumPeriodoCapital += cliente.periodoCapital;
       sumPeriodoInteres += cliente.periodoInteres;
@@ -4733,7 +4737,7 @@ class PaginaIntegrantes extends StatelessWidget {
                     ),
                   ),
                   // Cuerpo de la tabla: Lista de datos (Rows)
-                  for (var cliente in clientesMontosInd)
+                  for (var cliente in sortedClientesMontosInd)
                     Row(
                       children: [
                         _buildDataCell(cliente.nombreCompleto),

@@ -91,6 +91,7 @@ class _nClienteDialogState extends State<nClienteDialog>
   dynamic clienteData; // Almacena los datos del cliente
   Timer? _timer;
   bool _dialogShown = false;
+  bool _sinNumeroCuenta = false; // Mueve esto al estado de la clase
 
   Map<String, dynamic> originalData = {};
 
@@ -1279,7 +1280,7 @@ class _nClienteDialogState extends State<nClienteDialog>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message, style: TextStyle(color: Colors.white)),
         backgroundColor: color,
         duration: const Duration(seconds: 3),
       ),
@@ -2287,7 +2288,7 @@ class _nClienteDialogState extends State<nClienteDialog>
     void initState() {
       super.initState();
 
-      // Listener para el número de cuenta
+      // Listeners existentes
       _numCuentaController.addListener(() {
         if (clienteData != null && clienteData.containsKey('cuentabanco')) {
           clienteData['cuentabanco'][0]['numCuenta'] =
@@ -2295,7 +2296,6 @@ class _nClienteDialogState extends State<nClienteDialog>
         }
       });
 
-      // Listener para el número de tarjeta
       _numTarjetaController.addListener(() {
         if (clienteData != null && clienteData.containsKey('cuentabanco')) {
           clienteData['cuentabanco'][0]['numTarjeta'] =
@@ -2316,7 +2316,7 @@ class _nClienteDialogState extends State<nClienteDialog>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Contenedor azul a la izquierda para los pasos
+        // Contenedor azul con los pasos
         Container(
           decoration: BoxDecoration(
             color: Color(0xFF5162F6),
@@ -2338,12 +2338,12 @@ class _nClienteDialogState extends State<nClienteDialog>
             ],
           ),
         ),
-        SizedBox(width: 50), // Espacio entre el contenedor azul y la lista
+        SizedBox(width: 50), // Espacio entre contenedor y formulario
 
         // Contenido principal: Formulario de cuenta bancaria
         Expanded(
           child: Form(
-            key: _cuentaBancariaFormKey, // Usar el GlobalKey aquí
+            key: _cuentaBancariaFormKey,
             child: Column(
               children: [
                 SizedBox(height: 20),
@@ -2354,14 +2354,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                     setState(() {
                       _noCuentaBancaria = value ?? false;
                       if (_noCuentaBancaria) {
-                        _nombreBanco =
-                            'No asignado'; // Internamente 'No asignado'
+                        _nombreBanco = '';
                         _numCuentaController.clear();
                         _numTarjetaController.clear();
                       } else {
-                        // Si es false, vuelve a asignar los valores previos si es necesario
-                        _nombreBanco =
-                            'No asignado'; // Puedes poner el valor predeterminado si lo deseas
+                        _nombreBanco = '';
                       }
                     });
                   },
@@ -2371,21 +2368,15 @@ class _nClienteDialogState extends State<nClienteDialog>
                 ),
                 SizedBox(height: 20),
                 if (!_noCuentaBancaria) ...[
-                  // Dropdown que no mostrará 'No asignado'
+                  // Dropdown para selección de banco
                   _buildDropdown(
-                    value: _nombreBanco == 'No asignado'
-                        ? null
-                        : _nombreBanco, // Ignora 'No asignado'
+                    value: _nombreBanco == 'No asignado' ? null : _nombreBanco,
                     hint: 'Seleccione un Banco',
-                    items: _bancos
-                        .where((item) =>
-                            item !=
-                            'No asignado') // Filtra 'No asignado' de las opciones
-                        .toList(),
+                    items:
+                        _bancos.where((item) => item != 'No asignado').toList(),
                     onChanged: (value) {
                       setState(() {
-                        _nombreBanco = value ??
-                            'No asignado'; // Asigna 'No asignado' si es null
+                        _nombreBanco = value ?? 'No asignado';
                       });
                     },
                     validator: (value) {
@@ -2403,8 +2394,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                       icon: Icons.security,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       keyboardType: TextInputType.number,
-                      maxLength:
-                          18, // Longitud estándar para claves interbancarias
+                      maxLength: 18,
                       validator: (value) {
                         if (_nombreBanco == "Santander") {
                           if (value == null || value.isEmpty) {
@@ -2417,37 +2407,67 @@ class _nClienteDialogState extends State<nClienteDialog>
                       },
                     ),
                   SizedBox(height: 10),
-                  _buildTextField(
-                    controller: _numCuentaController,
-                    label: 'Número de Cuenta',
-                    icon: Icons.account_balance,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    keyboardType: TextInputType.number,
-                    maxLength: 11, // Especificar la longitud máxima aquí
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor ingrese el número de cuenta';
-                      } else if (value.length != 11) {
-                        return 'El número de cuenta debe tener exactamente 11 dígitos';
-                      }
-                      return null; // Si es válido
-                    },
+                  // Fila con número de cuenta y checkbox
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: _sinNumeroCuenta
+                            ? Text(
+                                'No tiene número de cuenta',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
+                                ),
+                              )
+                            : _buildTextField(
+                                controller: _numCuentaController,
+                                label: 'Número de Cuenta',
+                                icon: Icons.account_balance,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly
+                                ],
+                                keyboardType: TextInputType.number,
+                                maxLength: 11,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Por favor ingrese el número de cuenta';
+                                  } else if (value.length != 11) {
+                                    return 'El número de cuenta debe tener exactamente 11 dígitos';
+                                  }
+                                  return null;
+                                },
+                              ),
+                      ),
+                      Checkbox(
+                        value: _sinNumeroCuenta,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            _sinNumeroCuenta = value ?? false;
+                            if (_sinNumeroCuenta) {
+                              _numCuentaController.clear(); // Limpiar el campo
+                            }
+                          });
+                        },
+                      ),
+                      Text('S/C'),
+                    ],
                   ),
-                  SizedBox(height: 10),
+                  SizedBox(height: 20),
                   _buildTextField(
                     controller: _numTarjetaController,
                     label: 'Número de Tarjeta',
                     icon: Icons.credit_card,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    maxLength: 16, // Especificar la longitud máxima aquí
+                    maxLength: 16,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Por favor ingrese el número de tarjeta';
                       } else if (value.length != 16) {
                         return 'El número de tarjeta debe tener exactamente 16 dígitos';
                       }
-                      return null; // Si es válido
+                      return null;
                     },
                   ),
                 ],
@@ -3535,7 +3555,8 @@ class _nClienteDialogState extends State<nClienteDialog>
     String? Function(String?)? validator,
     double fontSize = 12.0,
     int? maxLength,
-    List<TextInputFormatter>? inputFormatters, // Nuevo parámetro
+    List<TextInputFormatter>? inputFormatters,
+    bool enabled = true, // Added enabled parameter
   }) {
     return TextFormField(
       controller: controller,
@@ -3549,6 +3570,7 @@ class _nClienteDialogState extends State<nClienteDialog>
       ),
       textCapitalization: TextCapitalization.characters,
       validator: validator,
+      enabled: enabled, // Use the enabled parameter
       inputFormatters: [
         if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
         ...(inputFormatters ?? []), // Agrega los formateadores personalizados
@@ -3748,7 +3770,10 @@ class _nClienteDialogState extends State<nClienteDialog>
         // Muestra el SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Cliente agregado correctamente'),
+            content: Text(
+              'Cliente agregado correctamente',
+              style: TextStyle(color: Colors.white),
+            ),
             backgroundColor: Colors.green,
           ),
         );

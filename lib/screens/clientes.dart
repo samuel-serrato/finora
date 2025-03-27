@@ -13,6 +13,7 @@ import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math' show max, min; // Add this import at the top of the file
 
 class ClientesScreen extends StatefulWidget {
   const ClientesScreen();
@@ -31,6 +32,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
   Timer? _debounceTimer; // Para el debounce de la búsqueda
   final TextEditingController _searchController =
       TextEditingController(); // Controlador para el SearchBar
+  int currentPage = 1;
+  int totalPaginas = 1;
+  int totalDatos = 0;
 
   @override
   void initState() {
@@ -49,11 +53,12 @@ class _ClientesScreenState extends State<ClientesScreen> {
   final double textHeaderTableSize = 12.0;
   final double textTableSize = 12.0;
 
-  Future<void> obtenerClientes() async {
+  Future<void> obtenerClientes({int page = 1}) async {
     setState(() {
       isLoading = true;
       errorDeConexion = false;
       noClientsFound = false;
+      currentPage = page; // Actualizar página actual
     });
 
     bool dialogShown = false;
@@ -64,7 +69,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
         final token = prefs.getString('tokenauth') ?? '';
 
         final response = await http.get(
-          Uri.parse('http://$baseUrl/api/v1/clientes'),
+          Uri.parse(
+              'http://$baseUrl/api/v1/clientes?limit=12&page=$page'), // Parámetros de paginación
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -73,6 +79,12 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
         if (mounted) {
           if (response.statusCode == 200) {
+            int totalDatosResp =
+                int.tryParse(response.headers['x-total-totaldatos'] ?? '0') ??
+                    0;
+            int totalPaginasResp =
+                int.tryParse(response.headers['x-total-totalpaginas'] ?? '1') ??
+                    1;
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaClientes =
@@ -81,9 +93,16 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
               isLoading = false;
               errorDeConexion = false;
+              totalDatos = totalDatosResp;
+              totalPaginas = totalPaginasResp;
             });
             _timer?.cancel();
           } else {
+            // En caso de error, resetear paginación
+            setState(() {
+              totalDatos = 0;
+              totalPaginas = 1;
+            });
             // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
             try {
               final errorData = json.decode(response.body);
@@ -247,6 +266,162 @@ class _ClientesScreenState extends State<ClientesScreen> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildPaginationControls(bool isDarkMode) {
+    // Calculate the number of items on the current page
+    int itemsPerPage = 12; // Match the limit in your API call
+    int currentPageItemCount = listaClientes.length;
+
+    // List of possible page sizes
+    final List<int> pageSizes = [12, 24, 36, 48, 60];
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey[850] : Colors.white,
+        borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
+        border: Border(
+          top: BorderSide(
+            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Dynamic showing count
+          Text(
+            'Mostrando $currentPageItemCount de $totalDatos',
+            style: TextStyle(
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              fontSize: 12,
+            ),
+          ),
+
+          Row(
+            children: [
+              // Previous page button
+              IconButton(
+                icon: Icon(
+                  Icons.chevron_left,
+                  color: currentPage > 1
+                      ? (isDarkMode ? Colors.white : Colors.black87)
+                      : Colors.grey[400],
+                  size: 20,
+                ),
+                onPressed: currentPage > 1
+                    ? () => obtenerClientes(page: currentPage - 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints(),
+              ),
+
+              // Page numbers
+              Row(
+                children: _buildPageNumbers(isDarkMode),
+              ),
+
+              // Next page button
+              IconButton(
+                icon: Icon(
+                  Icons.chevron_right,
+                  color: currentPage < totalPaginas
+                      ? (isDarkMode ? Colors.white : Colors.black87)
+                      : Colors.grey[400],
+                  size: 20,
+                ),
+                onPressed: currentPage < totalPaginas
+                    ? () => obtenerClientes(page: currentPage + 1)
+                    : null,
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+// Helper method to build page number buttons
+  List<Widget> _buildPageNumbers(bool isDarkMode) {
+    List<Widget> pageNumbers = [];
+
+    // First page
+    pageNumbers.add(_pageNumberButton(1, currentPage == 1, isDarkMode));
+
+    // Ellipsis if needed
+    if (currentPage > 3) {
+      pageNumbers.add(_ellipsisButton(isDarkMode));
+    }
+
+    // Middle pages
+    for (int i = max(2, currentPage - 1);
+        i <= min(totalPaginas - 1, currentPage + 1);
+        i++) {
+      if (i != 1 && i != totalPaginas) {
+        pageNumbers.add(_pageNumberButton(i, i == currentPage, isDarkMode));
+      }
+    }
+
+    // Ellipsis if needed
+    if (currentPage < totalPaginas - 2) {
+      pageNumbers.add(_ellipsisButton(isDarkMode));
+    }
+
+    // Last page
+    if (totalPaginas > 1) {
+      pageNumbers.add(_pageNumberButton(
+          totalPaginas, currentPage == totalPaginas, isDarkMode));
+    }
+
+    return pageNumbers;
+  }
+
+// Helper method to create page number buttons
+  Widget _pageNumberButton(int page, bool isActive, bool isDarkMode) {
+    return GestureDetector(
+      onTap: () => obtenerClientes(page: page),
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 4),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive
+              ? (isDarkMode
+                  ? Colors.grey[700]
+                  : Color(0xFF5162F6).withOpacity(0.9))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          '$page',
+          style: TextStyle(
+            color: isActive
+                ? (isDarkMode ? Colors.white : Colors.white)
+                : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+            fontSize: 12,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+// Helper method to create ellipsis button
+  Widget _ellipsisButton(bool isDarkMode) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4),
+      child: Text(
+        '...',
+        style: TextStyle(
+          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+          fontSize: 12,
+        ),
+      ),
     );
   }
 
@@ -561,7 +736,13 @@ class _ClientesScreenState extends State<ClientesScreen> {
 // Función para mostrar un SnackBar con el mensaje de éxito
   void mostrarSnackBar(BuildContext context, String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje)),
+      SnackBar(
+        content: Text(
+          mensaje,
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 
@@ -590,7 +771,13 @@ class _ClientesScreenState extends State<ClientesScreen> {
 // Función para mostrar mensajes de error
   void mostrarMensajeError(BuildContext context, String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje)),
+      SnackBar(
+        content: Text(
+          mensaje,
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 
@@ -618,9 +805,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   Widget _buildTableContainer() {
-    final themeProvider =
-        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
-    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
 
     if (isLoading) {
       return Center(
@@ -672,7 +858,32 @@ class _ClientesScreenState extends State<ClientesScreen> {
                     color: isDarkMode ? Colors.white : Colors.grey),
               ),
             )
-          : tablaClientes(context);
+          : Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              child: Container(
+                padding: const EdgeInsets.all(0),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[800] : Colors.white,
+                  borderRadius: BorderRadius.circular(15.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 0.5,
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: tablaClientes(context),
+                    ),
+                    if (totalPaginas > 1) _buildPaginationControls(isDarkMode),
+                  ],
+                ),
+              ),
+            );
     }
   }
 
@@ -766,13 +977,14 @@ class _ClientesScreenState extends State<ClientesScreen> {
     return Expanded(
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(0),
         child: Container(
           padding: const EdgeInsets.all(0),
           decoration: BoxDecoration(
             color:
                 isDarkMode ? Colors.grey[800] : Colors.white, // Fondo dinámico
-            borderRadius: BorderRadius.circular(15.0),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(15), topRight: Radius.circular(15)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -782,7 +994,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(15.0),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(15), topRight: Radius.circular(15)),
             child: listaClientes.isEmpty
                 ? Center(
                     child: Text(

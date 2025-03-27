@@ -16,7 +16,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GruposScreen extends StatefulWidget {
-
   const GruposScreen();
 
   @override
@@ -208,13 +207,12 @@ class _GruposScreenState extends State<GruposScreen> {
 
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
-
         setState(() {
           listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
           isLoading = false;
-          noGroupsFound = listaGrupos.isEmpty;
         });
       } else {
+        // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
         try {
           final errorData = json.decode(response.body);
 
@@ -226,7 +224,6 @@ class _GruposScreenState extends State<GruposScreen> {
               setState(() => isLoading = false);
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('tokenauth');
-              _timer?.cancel();
 
               // Mostrar diálogo y redirigir al login
               mostrarDialogoCierreSesion(
@@ -242,12 +239,12 @@ class _GruposScreenState extends State<GruposScreen> {
           }
           // Manejar error JWT expirado
           else if (response.statusCode == 404 &&
+              errorData["Error"] != null &&
               errorData["Error"]["Message"] == "jwt expired") {
             if (mounted) {
               setState(() => isLoading = false);
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('tokenauth');
-              _timer?.cancel();
               mostrarDialogoError(
                   'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
                   onClose: () {
@@ -259,16 +256,29 @@ class _GruposScreenState extends State<GruposScreen> {
             }
             return;
           }
-          // Manejar error de no hay grupos
-          else if (response.statusCode == 400 &&
-              errorData["Error"]["Message"] ==
-                  "No hay detalle de grupos registrados") {
-            setState(() {
-              listaGrupos = [];
-              isLoading = false;
-              noGroupsFound = true;
-            });
-            return;
+          // Manejar 401 para token expirado
+          else if (response.statusCode == 401) {
+            _handleTokenExpiration();
+          }
+          // Manejar error de no hay clientes
+          else if (response.statusCode == 400) {
+            // Si el mensaje específicamente dice que no hay resultados
+            if (errorData["Error"] != null &&
+                errorData["Error"]["Message"] ==
+                    "No hay ningun cliente registrado") {
+              setState(() {
+                listaGrupos = [];
+                isLoading = false;
+                noGroupsFound = true;
+              });
+            } else {
+              // Otros errores 400
+              setState(() {
+                listaGrupos = [];
+                isLoading = false;
+                noGroupsFound = true;
+              });
+            }
           }
           // Otros errores
           else {
@@ -460,12 +470,11 @@ class _GruposScreenState extends State<GruposScreen> {
           isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
 
       appBar: CustomAppBar(
-        isDarkMode: isDarkMode,
-        toggleDarkMode: (value) {
-          themeProvider.toggleDarkMode(value); // Cambia el tema
-        },
-        title: 'Grupos'
-      ),
+          isDarkMode: isDarkMode,
+          toggleDarkMode: (value) {
+            themeProvider.toggleDarkMode(value); // Cambia el tema
+          },
+          title: 'Grupos'),
       body: Column(
         children: [
           if (!errorDeConexion) filaBuscarYAgregar(context),
@@ -1023,13 +1032,34 @@ class _GruposScreenState extends State<GruposScreen> {
                       '[ELIMINAR GRUPO] Error al eliminar cliente $idCliente');
                   print(
                       '[ELIMINAR GRUPO] Error detallado: ${errorData?['Error']}');
-                  mostrarDialogoError('Error al eliminar cliente $idCliente');
+                  // Use SnackBar to show the error message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        errorData['Error']?['Message'] ??
+                            'Error al eliminar cliente $idCliente',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                   return;
                 }
               } catch (parseError) {
                 print(
                     '[ELIMINAR GRUPO] Error al parsear respuesta: $parseError');
-                mostrarDialogoError('Error al eliminar cliente $idCliente');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Error al eliminar cliente $idCliente',
+                      style: TextStyle(
+                        color:
+                            Colors.white, // Explicitly set text color to white
+                      ),
+                    ),
+                    backgroundColor: Colors.red,
+                  ),
+                );
                 return;
               }
             }

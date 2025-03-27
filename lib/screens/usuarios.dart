@@ -285,6 +285,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
           isLoading = false;
         });
       } else {
+        // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
         try {
           final errorData = json.decode(response.body);
 
@@ -310,19 +311,47 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
             return;
           }
           // Manejar error JWT expirado
-          else if (response.statusCode == 401 ||
-              (response.statusCode == 404 &&
-                  errorData["Error"]["Message"] == "jwt expired")) {
-            _handleTokenExpiration();
+          else if (response.statusCode == 404 &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              setState(() => isLoading = false);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
             return;
           }
-          // No hay resultados en la búsqueda
-          else if (response.statusCode == 404) {
-            setState(() {
-              listaUsuarios = [];
-              isLoading = false;
-              noUsersFound = true;
-            });
+          // Manejar 401 para token expirado
+          else if (response.statusCode == 401) {
+            _handleTokenExpiration();
+          }
+          // Manejar error de no hay clientes
+          else if (response.statusCode == 400) {
+            // Si el mensaje específicamente dice que no hay resultados
+            if (errorData["Error"] != null &&
+                errorData["Error"]["Message"] ==
+                    "No hay ningun cliente registrado") {
+              setState(() {
+                listaUsuarios = [];
+                isLoading = false;
+                noUsersFound = true;
+              });
+            } else {
+              // Otros errores 400
+              setState(() {
+                listaUsuarios = [];
+                isLoading = false;
+                noUsersFound = true;
+              });
+            }
           }
           // Otros errores
           else {
@@ -442,7 +471,10 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Usuario eliminado correctamente'),
+              content: Text(
+                'Usuario eliminado correctamente',
+                style: TextStyle(color: Colors.white),
+              ),
               backgroundColor: Colors.green,
             ),
           );

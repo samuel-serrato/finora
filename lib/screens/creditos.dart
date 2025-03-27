@@ -228,6 +228,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           isLoading = false;
         });
       } else {
+        // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
         try {
           final errorData = json.decode(response.body);
 
@@ -235,60 +236,75 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           if (errorData["Error"] != null &&
               errorData["Error"]["Message"] ==
                   "La sesión ha cambiado. Cerrando sesión...") {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
+            if (mounted) {
+              setState(() => isLoading = false);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
 
-            // Mostrar diálogo y redirigir al login
-            mostrarDialogoCierreSesion(
-                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false, // Elimina todas las rutas anteriores
-              );
-            });
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+            }
             return;
           }
           // Manejar error JWT expirado
-          else if ((response.statusCode == 401 || response.statusCode == 404) &&
+          else if (response.statusCode == 404 &&
               errorData["Error"] != null &&
               errorData["Error"]["Message"] == "jwt expired") {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
-
-            setState(() => isLoading = false);
-
-            mostrarDialogoError(
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                onClose: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
-            });
+            if (mounted) {
+              setState(() => isLoading = false);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
             return;
           }
-          // Verificar si es el mensaje de no hay créditos
-          else if (response.statusCode == 400 &&
-              errorData["Error"] != null &&
-              errorData["Error"]["Message"] ==
-                  "No hay ningun credito registrado") {
-            setState(() {
-              listaCreditos = [];
-              isLoading = false;
-              noCreditsFound = true;
-            });
-            return;
+          // Manejar 401 para token expirado
+          else if (response.statusCode == 401) {
+            _handleTokenExpiration();
+          }
+          // Manejar error de no hay clientes
+          else if (response.statusCode == 400) {
+            // Si el mensaje específicamente dice que no hay resultados
+            if (errorData["Error"] != null &&
+                errorData["Error"]["Message"] ==
+                    "No hay ningun cliente registrado") {
+              setState(() {
+                listaCreditos = [];
+                isLoading = false;
+                noCreditsFound = true;
+              });
+            } else {
+              // Otros errores 400
+              setState(() {
+                listaCreditos = [];
+                isLoading = false;
+                noCreditsFound = true;
+              });
+            }
           }
           // Otros errores
           else {
             setState(() {
               isLoading = false;
-              errorDeConexion = true; // Activar estado de error
+              errorDeConexion = true;
             });
           }
         } catch (parseError) {
-          // Si no podemos parsear la respuesta, activamos el estado de error
+          // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
           setState(() {
             isLoading = false;
             errorDeConexion = true;
@@ -296,7 +312,6 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         }
       }
     } on SocketException catch (e) {
-      // Capturar error de conexión
       print('SocketException: $e');
       if (mounted) {
         setState(() {
@@ -305,7 +320,6 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         });
       }
     } on TimeoutException catch (_) {
-      // Capturar timeout
       print('Timeout');
       if (mounted) {
         setState(() {
@@ -978,7 +992,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         // Mostrar SnackBar de éxito
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Crédito eliminado exitosamente'),
+            content: Text(
+              'Crédito eliminado exitosamente',
+              style: TextStyle(color: Colors.white),
+            ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
@@ -1028,8 +1045,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content:
-                    Text('Error al eliminar: ${errorData['Error']['Message']}'),
+                content: Text(
+                  'Error al eliminar: ${errorData['Error']['Message']}',
+                  style: TextStyle(color: Colors.white),
+                ),
                 backgroundColor: Colors.red,
               ),
             );
@@ -1038,7 +1057,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           // Si no podemos parsear la respuesta, mostramos un error genérico
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error al procesar la respuesta del servidor'),
+              content: Text(
+                'Error al procesar la respuesta del servidor',
+                style: TextStyle(color: Colors.white),
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -1048,7 +1070,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error de conexión. Verifica tu red.'),
+          content: Text(
+            'Error de conexión. Verifica tu red.',
+            style: TextStyle(color: Colors.white),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -1056,7 +1081,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error inesperado: $e'),
+          content: Text(
+            'Error inesperado: $e',
+            style: TextStyle(color: Colors.white),
+          ),
           backgroundColor: Colors.red,
         ),
       );

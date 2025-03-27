@@ -99,10 +99,14 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
       if (response.statusCode == 201) {
         widget.onUsuarioAgregado();
         Navigator.of(context).pop();
-        _mostrarDialogo(
-          title: 'Éxito',
-          message: 'Usuario creado correctamente',
-          isSuccess: true,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Usuario creado correctamente',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+          ),
         );
       } else {
         _handleResponseError(response);

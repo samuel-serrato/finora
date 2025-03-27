@@ -238,7 +238,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         if (response.statusCode == 200 || response.statusCode == 201) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Crédito guardado exitosamente'),
+              content: Text(
+                'Crédito guardado exitosamente',
+                style: TextStyle(color: Colors.white),
+              ),
               backgroundColor: Colors.green,
             ),
           );
@@ -584,8 +587,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         listen: false); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
 
-    final width = MediaQuery.of(context).size.width * 0.8;
-    final height = MediaQuery.of(context).size.height * 0.8;
+    final width = MediaQuery.of(context).size.width * 0.9;
+    final height = MediaQuery.of(context).size.height * 0.9;
 
     return Dialog(
       backgroundColor: isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA),
@@ -697,7 +700,9 @@ class _nCreditoDialogState extends State<nCreditoDialog>
               width: width,
               height: height,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDarkMode
+                    ? Colors.grey[900]
+                    : Color(0xFFF7F8FA), // Fondo dinámico
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Center(
@@ -1339,8 +1344,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     double interesPorcentaje = 0.0;
     double pagoTotal = 0.0;
     interesTotal = 0.0;
-    interesGlobal =
-        _redondearDecimales((tasaInteresMensualCalculada / 4) * plazoNumerico);
+    interesGlobal = ((tasaInteresMensualCalculada / 4) * plazoNumerico);
 
     print('interesGlobal print: $interesGlobal');
 
@@ -1353,18 +1357,16 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
     if (frecuenciaPago == "Semanal") {
       int pagosTotales = plazoNumerico;
-      capitalPago = _redondearDecimales(monto / pagosTotales);
-      interesPago =
-          _redondearDecimales(monto * (tasaInteresMensualCalculada / 4 / 100));
-      interesPorcentaje = _redondearDecimales(tasaInteresMensualCalculada / 4);
+      capitalPago = (monto / pagosTotales);
+      interesPago = (monto * (tasaInteresMensualCalculada / 4 / 100));
+      interesPorcentaje = (tasaInteresMensualCalculada / 4);
       interesTotal = _redondearDecimales(interesPago * pagosTotales);
-      pagoTotal = _redondearDecimales(capitalPago + interesPago);
+      pagoTotal = (capitalPago + interesPago);
     } else if (frecuenciaPago == "Quincenal") {
       int pagosTotales = plazoNumerico * 2;
-      capitalPago = _redondearDecimales(monto / pagosTotales);
-      interesPago =
-          _redondearDecimales(monto * (tasaInteresMensualCalculada / 2 / 100));
-      interesPorcentaje = _redondearDecimales(tasaInteresMensualCalculada / 2);
+      capitalPago = (monto / pagosTotales);
+      interesPago = (monto * (tasaInteresMensualCalculada / 2 / 100));
+      interesPorcentaje = (tasaInteresMensualCalculada / 2);
       interesTotal = _redondearDecimales(interesPago * pagosTotales);
       pagoTotal = _redondearDecimales(capitalPago + interesPago);
     }
@@ -1774,17 +1776,15 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                               : plazoNumerico * 2;
 
                                       final capitalSemanal =
-                                          _redondearDecimales(
-                                              montoIndividual / pagosTotales);
-                                      final interesSemanal =
-                                          _redondearDecimales(montoIndividual *
-                                              (tasaInteresMensualCalculada /
-                                                  (frecuenciaPago == "Semanal"
-                                                      ? 4
-                                                      : 2) /
-                                                  100));
-                                      final pagoSemanal = _redondearDecimales(
-                                          capitalSemanal + interesSemanal);
+                                          (montoIndividual / pagosTotales);
+                                      final interesSemanal = (montoIndividual *
+                                          (tasaInteresMensualCalculada /
+                                              (frecuenciaPago == "Semanal"
+                                                  ? 4
+                                                  : 2) /
+                                              100));
+                                      final pagoSemanal =
+                                          (capitalSemanal + interesSemanal);
                                       final totalCapital = _redondearDecimales(
                                           capitalSemanal * pagosTotales);
                                       final totalIntereses =

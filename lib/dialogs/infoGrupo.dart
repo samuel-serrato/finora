@@ -546,156 +546,163 @@ class _InfoGrupoState extends State<InfoGrupo> {
                             // Columna de Integrantes
                             Expanded(
                               flex: 5,
-                              child: Container(
-                                constraints: BoxConstraints(minHeight: 300),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8.0),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      _buildSectionTitle(
-                                          'Integrantes', isDarkMode),
-                                      if (grupoData!.clientes.isNotEmpty) ...[
-                                        for (var cliente in grupoData!.clientes)
-                                          Card(
-                                            color: isDarkMode
-                                                ? Colors.grey[800]
-                                                : Colors
-                                                    .white, // Fondo oscuro o claro
-                                            margin: EdgeInsets.symmetric(
-                                                vertical: 8),
-                                            elevation: 4,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            child: ExpansionTile(
-                                              title: Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.account_circle,
-                                                    size: 40,
-                                                    color: Color(0xFF5162F6),
-                                                  ),
-                                                  SizedBox(width: 16),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          cliente.nombres,
-                                                          style: TextStyle(
-                                                            fontSize: 14,
-                                                            color: isDarkMode
-                                                                ? Colors.white
-                                                                : Colors
-                                                                    .black, // Texto oscuro o claro
-                                                          ),
-                                                        ),
-                                                        Row(
-                                                          children: [
-                                                            Text(
-                                                              'Cargo:',
-                                                              style: TextStyle(
-                                                                fontSize: 12,
-                                                                color: isDarkMode
-                                                                    ? Colors
-                                                                        .white
-                                                                    : Colors
-                                                                        .black, // Texto oscuro o claro
-                                                              ),
-                                                            ),
-                                                            SizedBox(width: 4),
-                                                            Text(
-                                                              cliente.cargo!,
-                                                              style: TextStyle(
-                                                                fontSize: 12,
-                                                                color: isDarkMode
-                                                                    ? Colors
-                                                                        .white
-                                                                    : Colors
-                                                                        .black, // Texto oscuro o claro
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8.0),
+                                    child: _buildSectionTitle(
+                                        'Integrantes', isDarkMode),
+                                  ),
+                                  Expanded(
+                                    child: ListView(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8.0),
+                                      children: [
+                                        if (grupoData!.clientes.isNotEmpty) ...[
+                                          for (var cliente
+                                              in grupoData!.clientes)
+                                            Card(
+                                              color: isDarkMode
+                                                  ? Colors.grey[800]
+                                                  : Colors.white,
+                                              margin: EdgeInsets.symmetric(
+                                                  vertical: 8),
+                                              elevation: 4,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
-                                              children: [
-                                                if (cliente.cuenta != null) ...[
-                                                  Padding(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 16.0,
-                                                        vertical: 8.0),
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        _buildDetailRow(
-                                                          'Banco:',
-                                                          cliente.cuenta!
-                                                              .nombreBanco,
-                                                          isDarkMode:
-                                                              isDarkMode,
-                                                        ),
-                                                        _buildDetailRow(
-                                                          'Número de Cuenta:',
-                                                          cliente.cuenta!
-                                                              .numCuenta,
-                                                          isDarkMode:
-                                                              isDarkMode,
-                                                        ),
-                                                        _buildDetailRow(
-                                                          'Número de Tarjeta:',
-                                                          cliente.cuenta!
-                                                              .numTarjeta,
-                                                          isDarkMode:
-                                                              isDarkMode,
-                                                        ),
-                                                        _buildDetailRow(
-                                                          'CLABE:',
-                                                          cliente.cuenta!
-                                                              .clbIntBanc,
-                                                          isDarkMode:
-                                                              isDarkMode,
-                                                        ),
-                                                      ],
+                                              child: ExpansionTile(
+                                                title: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.account_circle,
+                                                      size: 40,
+                                                      color: Color(0xFF5162F6),
                                                     ),
-                                                  ),
-                                                ] else ...[
-                                                  Padding(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 16.0,
-                                                        vertical: 8.0),
-                                                    child: Text(
-                                                      'No hay información de cuenta bancaria.',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: isDarkMode
-                                                            ? Colors.white
-                                                            : Colors
-                                                                .grey, // Texto oscuro o claro
+                                                    SizedBox(width: 16),
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            cliente.nombres,
+                                                            style: TextStyle(
+                                                              fontSize: 14,
+                                                              color: isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black,
+                                                            ),
+                                                          ),
+                                                          Row(
+                                                            children: [
+                                                              Text(
+                                                                'Cargo:',
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: isDarkMode
+                                                                      ? Colors
+                                                                          .white
+                                                                      : Colors
+                                                                          .black,
+                                                                ),
+                                                              ),
+                                                              SizedBox(
+                                                                  width: 4),
+                                                              Text(
+                                                                cliente.cargo!,
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontSize: 12,
+                                                                  color: isDarkMode
+                                                                      ? Colors
+                                                                          .white
+                                                                      : Colors
+                                                                          .black,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
                                                       ),
                                                     ),
-                                                  ),
+                                                  ],
+                                                ),
+                                                children: [
+                                                  if (cliente.cuenta !=
+                                                      null) ...[
+                                                    Padding(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 16.0,
+                                                          vertical: 8.0),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          _buildDetailRow(
+                                                            'Banco:',
+                                                            cliente.cuenta!
+                                                                .nombreBanco,
+                                                            isDarkMode:
+                                                                isDarkMode,
+                                                          ),
+                                                          _buildDetailRow(
+                                                            'Número de Cuenta:',
+                                                            cliente.cuenta!
+                                                                .numCuenta,
+                                                            isDarkMode:
+                                                                isDarkMode,
+                                                          ),
+                                                          _buildDetailRow(
+                                                            'Número de Tarjeta:',
+                                                            cliente.cuenta!
+                                                                .numTarjeta,
+                                                            isDarkMode:
+                                                                isDarkMode,
+                                                          ),
+                                                          _buildDetailRow(
+                                                            'CLABE:',
+                                                            cliente.cuenta!
+                                                                .clbIntBanc,
+                                                            isDarkMode:
+                                                                isDarkMode,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ] else ...[
+                                                    Padding(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 16.0,
+                                                          vertical: 8.0),
+                                                      child: Text(
+                                                        'No hay información de cuenta bancaria.',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: isDarkMode
+                                                              ? Colors.white
+                                                              : Colors.grey,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ],
-                                              ],
+                                              ),
                                             ),
-                                          ),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ),
                             SizedBox(width: 20),

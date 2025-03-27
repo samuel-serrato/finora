@@ -604,7 +604,10 @@ class _nGrupoDialogState extends State<nGrupoDialog>
             widget.onGrupoAgregado();
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 backgroundColor: Colors.green,
-                content: Text('Grupo agregado correctamente')));
+                content: Text(
+                  'Grupo agregado correctamente',
+                  style: TextStyle(color: Colors.white),
+                )));
             Navigator.of(context).pop();
           }
         }

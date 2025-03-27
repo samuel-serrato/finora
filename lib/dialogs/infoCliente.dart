@@ -248,7 +248,7 @@ class _InfoClienteState extends State<InfoCliente> {
                               ),
                               /*   _buildDetailRow(
                                   'ID:', clienteData!['idclientes']), */
-                              _buildDetailRowIG('Nombre:',
+                              _buildDetailRowIG('',
                                   '${clienteData!['nombres']} ${clienteData!['apellidoP']} ${clienteData!['apellidoM']}'),
                               _buildDetailRowIG(
                                   'Fecha de Nac:', clienteData!['fechaNac']),
@@ -263,12 +263,8 @@ class _InfoClienteState extends State<InfoCliente> {
                                   'Estado Civil:', clienteData!['eCivil']),
                               _buildDetailRowIG('Dependientes Económicos:',
                                   clienteData!['dependientes_economicos']),
-                              _buildDetailRowIG(
-                                  'Email:',
-                                  clienteData!['email'] == null ||
-                                          clienteData!['email'].trim().isEmpty
-                                      ? 'No asignado'
-                                      : clienteData!['email']),
+                              _buildDetailRowIG('Email:',
+                                  _getValidatedValue(clienteData!['email'])),
                               _buildDetailRowIG(
                                   'Estado:', clienteData!['estado'] ?? 'N/A'),
                             ],
@@ -336,23 +332,27 @@ class _InfoClienteState extends State<InfoCliente> {
                                                           'cuentabanco']) ...[
                                                     _buildDetailRow(
                                                         'Banco:',
-                                                        cuenta['nombreBanco'] ??
-                                                            'No asignado',
+                                                        _getValidatedValue(
+                                                            cuenta[
+                                                                'nombreBanco']),
                                                         isDarkMode),
                                                     _buildDetailRow(
                                                         'Núm. de Cuenta:',
-                                                        cuenta['numCuenta'] ??
-                                                            'No asignado',
+                                                        _getValidatedValue(
+                                                            cuenta[
+                                                                'numCuenta']),
                                                         isDarkMode),
                                                     _buildDetailRow(
                                                         'CLABE Interbancaria:',
-                                                        cuenta['clbIntBanc'] ??
-                                                            'No asignado',
+                                                        _getValidatedValue(
+                                                            cuenta[
+                                                                'clbIntBanc']),
                                                         isDarkMode),
                                                     _buildDetailRow(
                                                         'Núm. de Tarjeta:',
-                                                        cuenta['numTarjeta'] ??
-                                                            'No asignado',
+                                                        _getValidatedValue(
+                                                            cuenta[
+                                                                'numTarjeta']),
                                                         isDarkMode),
                                                     SizedBox(height: 16),
                                                   ],
@@ -978,5 +978,13 @@ class _InfoClienteState extends State<InfoCliente> {
         ),
       ],
     );
+  }
+
+  // Helper method to handle null and empty values
+  String _getValidatedValue(dynamic value) {
+    if (value == null || (value is String && value.trim().isEmpty)) {
+      return 'No asignado';
+    }
+    return value.toString();
   }
 }
