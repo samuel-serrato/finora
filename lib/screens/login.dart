@@ -134,12 +134,12 @@ class _LoginScreenState extends State<LoginScreen> {
           final userDataProvider =
               Provider.of<UserDataProvider>(context, listen: false);
           userDataProvider.setUserData(
-            nombreFinanciera: usuario['nombreFinanciera'],
-            imagenes: imagenes,
-            nombreUsuario: usuario['nombreCompleto'],
-            tipoUsuario: usuario['tipoUsuario'],
-            idfinanciera: usuario['idfinanciera'],
-          );
+              nombreFinanciera: usuario['nombreFinanciera'],
+              imagenes: imagenes,
+              nombreUsuario: usuario['nombreCompleto'],
+              tipoUsuario: usuario['tipoUsuario'],
+              idfinanciera: usuario['idfinanciera'],
+              idusuario: usuario['idusuarios']);
 
           print('Navegando a HomeScreen');
           Navigator.pushNamedAndRemoveUntil(

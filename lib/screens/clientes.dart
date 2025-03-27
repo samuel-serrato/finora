@@ -38,6 +38,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
   int totalDatos = 0;
 
   int? _hoveredPage;
+  String _currentSearchQuery = '';
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -273,18 +275,25 @@ class _ClientesScreenState extends State<ClientesScreen> {
   }
 
   // Reemplaza el método _buildPaginationControls por:
-Widget _buildPaginationControls(bool isDarkMode) {
-  return PaginationWidget(
-    currentPage: currentPage,
-    totalPages: totalPaginas,
-    currentPageItemCount: listaClientes.length,
-    totalDatos: totalDatos,
-    isDarkMode: isDarkMode,
-    onPageChanged: (page) => obtenerClientes(page: page),
-  );
-}
+  Widget _buildPaginationControls(bool isDarkMode) {
+    return PaginationWidget(
+      currentPage: currentPage,
+      totalPages: totalPaginas,
+      currentPageItemCount: listaClientes.length,
+      totalDatos: totalDatos,
+      isDarkMode: isDarkMode,
+      onPageChanged: (page) {
+        if (_isSearching) {
+          searchClientes(_currentSearchQuery, page: page);
+        } else {
+          obtenerClientes(page: page);
+        }
+      },
+    );
+  }
 
-  Future<void> searchClientes(String query) async {
+  Future<void> searchClientes(String query, {int page = 1}) async {
+    // <- Añade parámetro page
     if (query.trim().isEmpty) {
       obtenerClientes();
       return;
@@ -296,6 +305,7 @@ Widget _buildPaginationControls(bool isDarkMode) {
       isLoading = true;
       errorDeConexion = false;
       noClientsFound = false;
+      currentPage = page; // Actualizar página actual para búsqueda
     });
 
     try {
@@ -303,7 +313,8 @@ Widget _buildPaginationControls(bool isDarkMode) {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
+        Uri.parse(
+            'http://$baseUrl/api/v1/clientes/$query?limit=12&page=$page'), // Añade parámetros de paginación
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -317,10 +328,17 @@ Widget _buildPaginationControls(bool isDarkMode) {
       print('Status code (search): ${response.statusCode}');
 
       if (response.statusCode == 200) {
+        int totalDatosResp =
+            int.tryParse(response.headers['x-total-totaldatos'] ?? '0') ?? 0;
+        int totalPaginasResp =
+            int.tryParse(response.headers['x-total-totalpaginas'] ?? '1') ?? 1;
+
         List<dynamic> data = json.decode(response.body);
         setState(() {
           listaClientes = data.map((item) => Cliente.fromJson(item)).toList();
           isLoading = false;
+          totalDatos = totalDatosResp;
+          totalPaginas = totalPaginasResp;
         });
       } else {
         // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
@@ -724,7 +742,7 @@ Widget _buildPaginationControls(bool isDarkMode) {
                 padding: const EdgeInsets.all(0),
                 decoration: BoxDecoration(
                   color: isDarkMode ? Colors.grey[800] : Colors.white,
-                  borderRadius: BorderRadius.circular(15.0),
+                  borderRadius: BorderRadius.circular(20.0),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
@@ -784,6 +802,8 @@ Widget _buildPaginationControls(bool isDarkMode) {
                             color: isDarkMode ? Colors.white : Colors.grey),
                         onPressed: () {
                           _searchController.clear();
+                          _currentSearchQuery = '';
+                          setState(() => _isSearching = false);
                           obtenerClientes();
                         },
                       )
@@ -801,11 +821,19 @@ Widget _buildPaginationControls(bool isDarkMode) {
                 ),
               ),
               onChanged: (value) {
+                _currentSearchQuery = value;
                 if (_debounceTimer?.isActive ?? false) {
                   _debounceTimer!.cancel();
                 }
                 _debounceTimer = Timer(Duration(milliseconds: 500), () {
-                  searchClientes(value);
+                  if (_currentSearchQuery.trim().isEmpty) {
+                    setState(() => _isSearching = false);
+                    obtenerClientes();
+                  } else {
+                    setState(() => _isSearching = true);
+                    searchClientes(_currentSearchQuery,
+                        page: 1); // Siempre empieza en página 1 al buscar
+                  }
                 });
               },
             ),
@@ -843,7 +871,7 @@ Widget _buildPaginationControls(bool isDarkMode) {
             color:
                 isDarkMode ? Colors.grey[800] : Colors.white, // Fondo dinámico
             borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(15), topRight: Radius.circular(15)),
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -854,7 +882,7 @@ Widget _buildPaginationControls(bool isDarkMode) {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(15), topRight: Radius.circular(15)),
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
             child: listaClientes.isEmpty
                 ? Center(
                     child: Text(

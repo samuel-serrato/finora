@@ -117,6 +117,8 @@ class _PaginationWidgetState extends State<PaginationWidget> {
     final bool isCurrentPage = page == widget.currentPage;
 
     return MouseRegion(
+      cursor:
+          isCurrentPage ? SystemMouseCursors.basic : SystemMouseCursors.click,
       onEnter: (_) {
         if (!isCurrentPage) {
           setState(() => _hoveredPage = page);
@@ -134,17 +136,11 @@ class _PaginationWidgetState extends State<PaginationWidget> {
           padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: isCurrentPage
-                ? (widget.isDarkMode ? Colors.grey[700] : Color(0xFF5162F6))
+                ? (widget.isDarkMode ? Color(0xFF5162F6) : Color(0xFF5162F6))
                 : (_hoveredPage == page
-                    ? Colors.grey[300]
+                    ? (widget.isDarkMode ? Colors.grey[800] : Colors.grey[300])
                     : Colors.transparent),
             borderRadius: BorderRadius.circular(4),
-            border: isCurrentPage
-                ? Border.all(
-                    color: widget.isDarkMode ? Colors.grey[500]! : Color(0xFF5162F6),
-                    width: 1,
-                  )
-                : null,
           ),
           child: Text(
             '$page',

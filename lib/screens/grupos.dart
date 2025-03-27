@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/widgets/pagination.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -33,6 +34,14 @@ class _GruposScreenState extends State<GruposScreen> {
   final TextEditingController _searchController =
       TextEditingController(); // Controlador para el SearchBar
 
+  int currentPage = 1;
+  int totalPaginas = 1;
+  int totalDatos = 0;
+
+  int? _hoveredPage;
+  String _currentSearchQuery = '';
+  bool _isSearching = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,11 +59,12 @@ class _GruposScreenState extends State<GruposScreen> {
   final double textHeaderTableSize = 12.0;
   final double textTableSize = 12.0;
 
-  Future<void> obtenerGrupos() async {
+  Future<void> obtenerGrupos({int page = 1}) async {
     setState(() {
       isLoading = true;
       errorDeConexion = false;
       noGroupsFound = false;
+      currentPage = page; // Update current page
     });
 
     bool dialogShown = false;
@@ -65,7 +75,8 @@ class _GruposScreenState extends State<GruposScreen> {
         final token = prefs.getString('tokenauth') ?? '';
 
         final response = await http.get(
-          Uri.parse('http://$baseUrl/api/v1/grupodetalles'),
+          Uri.parse(
+              'http://$baseUrl/api/v1/grupodetalles?limit=12&page=$page'), // Add pagination parameters
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -74,6 +85,13 @@ class _GruposScreenState extends State<GruposScreen> {
 
         if (mounted) {
           if (response.statusCode == 200) {
+            int totalDatosResp =
+                int.tryParse(response.headers['x-total-totaldatos'] ?? '0') ??
+                    0;
+            int totalPaginasResp =
+                int.tryParse(response.headers['x-total-totalpaginas'] ?? '1') ??
+                    1;
+
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
@@ -81,13 +99,21 @@ class _GruposScreenState extends State<GruposScreen> {
 
               isLoading = false;
               errorDeConexion = false;
+              totalDatos = totalDatosResp;
+              totalPaginas = totalPaginasResp;
             });
             _timer?.cancel();
           } else {
+            // In case of error, reset pagination
+            setState(() {
+              totalDatos = 0;
+              totalPaginas = 1;
+            });
+
             try {
               final errorData = json.decode(response.body);
 
-              // Verificar si es el mensaje específico de sesión cambiada
+              // Check for specific session change message
               if (errorData["Error"] != null &&
                   errorData["Error"]["Message"] ==
                       "La sesión ha cambiado. Cerrando sesión...") {
@@ -97,19 +123,19 @@ class _GruposScreenState extends State<GruposScreen> {
                   await prefs.remove('tokenauth');
                   _timer?.cancel();
 
-                  // Mostrar diálogo y redirigir al login
+                  // Show dialog and redirect to login
                   mostrarDialogoCierreSesion(
                       'La sesión ha cambiado. Cerrando sesión...', onClose: () {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (context) => LoginScreen()),
-                      (route) => false, // Elimina todas las rutas anteriores
+                      (route) => false, // Remove all previous routes
                     );
                   });
                 }
                 return;
               }
-              // Manejar error JWT expirado
+              // Handle JWT expired error
               else if (response.statusCode == 404 &&
                   errorData["Error"]["Message"] == "jwt expired") {
                 if (mounted) {
@@ -128,7 +154,7 @@ class _GruposScreenState extends State<GruposScreen> {
                 }
                 return;
               }
-              // Manejar error de no hay grupos
+              // Handle no groups found error
               else if (response.statusCode == 400 &&
                   errorData["Error"]["Message"] ==
                       "No hay detalle de grupos registrados") {
@@ -139,12 +165,12 @@ class _GruposScreenState extends State<GruposScreen> {
                 });
                 _timer?.cancel();
               }
-              // Otros errores
+              // Other errors
               else {
                 setErrorState(dialogShown);
               }
             } catch (parseError) {
-              // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
+              // If response body cannot be parsed, handle as generic error
               setErrorState(dialogShown);
             }
           }
@@ -173,7 +199,7 @@ class _GruposScreenState extends State<GruposScreen> {
     }
   }
 
-  Future<void> searchGrupos(String query) async {
+  Future<void> searchGrupos(String query, {int page = 1}) async {
     if (query.trim().isEmpty) {
       obtenerGrupos();
       return;
@@ -185,6 +211,7 @@ class _GruposScreenState extends State<GruposScreen> {
       isLoading = true;
       errorDeConexion = false;
       noGroupsFound = false;
+      currentPage = page; // Update current page for search
     });
 
     try {
@@ -192,7 +219,8 @@ class _GruposScreenState extends State<GruposScreen> {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/grupodetalles/$query'),
+        Uri.parse(
+            'http://$baseUrl/api/v1/grupodetalles/$query?limit=12&page=$page'), // Add pagination parameters
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -206,17 +234,23 @@ class _GruposScreenState extends State<GruposScreen> {
       print('Status code (search): ${response.statusCode}');
 
       if (response.statusCode == 200) {
+        int totalDatosResp =
+            int.tryParse(response.headers['x-total-totaldatos'] ?? '0') ?? 0;
+        int totalPaginasResp =
+            int.tryParse(response.headers['x-total-totalpaginas'] ?? '1') ?? 1;
+
         List<dynamic> data = json.decode(response.body);
         setState(() {
           listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
           isLoading = false;
+          totalDatos = totalDatosResp;
+          totalPaginas = totalPaginasResp;
         });
       } else {
-        // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
         try {
           final errorData = json.decode(response.body);
 
-          // Verificar si es el mensaje específico de sesión cambiada
+          // Check for specific session change message
           if (errorData["Error"] != null &&
               errorData["Error"]["Message"] ==
                   "La sesión ha cambiado. Cerrando sesión...") {
@@ -225,19 +259,19 @@ class _GruposScreenState extends State<GruposScreen> {
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('tokenauth');
 
-              // Mostrar diálogo y redirigir al login
+              // Show dialog and redirect to login
               mostrarDialogoCierreSesion(
                   'La sesión ha cambiado. Cerrando sesión...', onClose: () {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (route) => false, // Elimina todas las rutas anteriores
+                  (route) => false, // Remove all previous routes
                 );
               });
             }
             return;
           }
-          // Manejar error JWT expirado
+          // Handle JWT expired error
           else if (response.statusCode == 404 &&
               errorData["Error"] != null &&
               errorData["Error"]["Message"] == "jwt expired") {
@@ -256,23 +290,23 @@ class _GruposScreenState extends State<GruposScreen> {
             }
             return;
           }
-          // Manejar 401 para token expirado
+          // Handle 401 for expired token
           else if (response.statusCode == 401) {
             _handleTokenExpiration();
           }
-          // Manejar error de no hay clientes
+          // Handle no groups found error
           else if (response.statusCode == 400) {
-            // Si el mensaje específicamente dice que no hay resultados
+            // If the message specifically says no results
             if (errorData["Error"] != null &&
                 errorData["Error"]["Message"] ==
-                    "No hay ningun cliente registrado") {
+                    "No hay detalle de grupos registrados") {
               setState(() {
                 listaGrupos = [];
                 isLoading = false;
                 noGroupsFound = true;
               });
             } else {
-              // Otros errores 400
+              // Other 400 errors
               setState(() {
                 listaGrupos = [];
                 isLoading = false;
@@ -280,7 +314,7 @@ class _GruposScreenState extends State<GruposScreen> {
               });
             }
           }
-          // Otros errores
+          // Other errors
           else {
             setState(() {
               isLoading = false;
@@ -288,7 +322,7 @@ class _GruposScreenState extends State<GruposScreen> {
             });
           }
         } catch (parseError) {
-          // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
+          // If response body cannot be parsed, handle as generic error
           setState(() {
             isLoading = false;
             errorDeConexion = true;
@@ -459,6 +493,23 @@ class _GruposScreenState extends State<GruposScreen> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
+  Widget _buildPaginationControls(bool isDarkMode) {
+    return PaginationWidget(
+      currentPage: currentPage,
+      totalPages: totalPaginas,
+      currentPageItemCount: listaGrupos.length,
+      totalDatos: totalDatos,
+      isDarkMode: isDarkMode,
+      onPageChanged: (page) {
+        if (_isSearching) {
+          searchGrupos(_currentSearchQuery, page: page);
+        } else {
+          obtenerGrupos(page: page);
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider =
@@ -540,7 +591,32 @@ class _GruposScreenState extends State<GruposScreen> {
                     color: isDarkMode ? Colors.white : Colors.grey),
               ),
             )
-          : filaTabla(context);
+          : Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              child: Container(
+                padding: const EdgeInsets.all(0),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[800] : Colors.white,
+                  borderRadius: BorderRadius.circular(20.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 0.5,
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: tablaGrupos(context),
+                    ),
+                    _buildPaginationControls(isDarkMode)
+                  ],
+                ),
+              ),
+            );
     }
   }
 
@@ -627,7 +703,7 @@ class _GruposScreenState extends State<GruposScreen> {
     );
   }
 
-  Widget filaTabla(BuildContext context) {
+  Widget tablaGrupos(BuildContext context) {
     final themeProvider =
         Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
@@ -635,13 +711,14 @@ class _GruposScreenState extends State<GruposScreen> {
     return Expanded(
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(0),
         child: Container(
           padding: const EdgeInsets.all(0),
           decoration: BoxDecoration(
             color:
                 isDarkMode ? Colors.grey[800] : Colors.white, // Fondo dinámico
-            borderRadius: BorderRadius.circular(15.0),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -651,7 +728,8 @@ class _GruposScreenState extends State<GruposScreen> {
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(15.0),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
             child: listaGrupos.isEmpty
                 ? Center(
                     child: Text(

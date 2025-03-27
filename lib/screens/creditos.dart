@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
+import 'package:finora/widgets/pagination.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:finora/custom_app_bar.dart';
@@ -33,6 +34,14 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   Timer? _debounceTimer; // Para el debounce de la búsqueda
   final TextEditingController _searchController = TextEditingController();
 
+  int currentPage = 1;
+  int totalPaginas = 1;
+  int totalDatos = 0;
+
+  int? _hoveredPage;
+  String _currentSearchQuery = '';
+  bool _isSearching = false;
+
   @override
   void initState() {
     super.initState();
@@ -47,86 +56,91 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     super.dispose();
   }
 
-  Future<void> obtenerCreditos() async {
+  Future<void> obtenerCreditos({int page = 1}) async {
     setState(() {
       isLoading = true;
       errorDeConexion = false;
       noCreditsFound = false;
+      currentPage = page; // Update current page
     });
 
     bool dialogShown = false;
 
     Future<void> fetchData() async {
       try {
-        //Recuperar el token de Shared Preferences
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('tokenauth') ?? '';
 
         final response = await http.get(
-          Uri.parse('http://$baseUrl/api/v1/creditos'),
+          Uri.parse(
+              'http://$baseUrl/api/v1/creditos?limit=12&page=$page'), // Add pagination parameters
           headers: {
-            'tokenauth': token, // Agregar el token al header
+            'tokenauth': token,
             'Content-Type': 'application/json',
           },
         );
 
-        print('Status code: ${response.statusCode}');
-        print('Response body: ${response.body}');
-
         if (mounted) {
           if (response.statusCode == 200) {
-            // Agrega estos prints
-            print('✅ GET exitoso');
-            print('📦 Token usado: $token');
-            print('🌐 Endpoint: http://$baseUrl/api/v1/creditos');
-            print('📡 Response headers: ${response.headers}');
+            int totalDatosResp =
+                int.tryParse(response.headers['x-total-totaldatos'] ?? '0') ??
+                    0;
+            int totalPaginasResp =
+                int.tryParse(response.headers['x-total-totalpaginas'] ?? '1') ??
+                    1;
 
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaCreditos =
                   data.map((item) => Credito.fromJson(item)).toList();
-              listaCreditos.sort((a, b) =>
-                  b.fCreacion.compareTo(a.fCreacion)); // <-- Agrega esta línea
+              listaCreditos.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
 
               isLoading = false;
               errorDeConexion = false;
+              totalDatos = totalDatosResp;
+              totalPaginas = totalPaginasResp;
             });
             _timer?.cancel();
           } else {
-            // Intentamos decodificar la respuesta para verificar mensajes específicos de error
+            // In case of error, reset pagination
+            setState(() {
+              totalDatos = 0;
+              totalPaginas = 1;
+            });
+
             try {
               final errorData = json.decode(response.body);
 
-              // Verificar si es el mensaje específico de sesión cambiada
+              // Check for specific session change message
               if (errorData["Error"] != null &&
                   errorData["Error"]["Message"] ==
                       "La sesión ha cambiado. Cerrando sesión...") {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.remove('tokenauth');
-                _timer?.cancel(); // Cancela el temporizador antes de navegar
+                if (mounted) {
+                  setState(() => isLoading = false);
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('tokenauth');
+                  _timer?.cancel();
 
-                // Mostrar diálogo y redirigir al login
-                mostrarDialogoCierreSesion(
-                    'La sesión ha cambiado. Cerrando sesión...', onClose: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginScreen()),
-                    (route) => false, // Elimina todas las rutas anteriores
-                  );
-                });
+                  // Show dialog and redirect to login
+                  mostrarDialogoCierreSesion(
+                      'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (route) => false, // Remove all previous routes
+                    );
+                  });
+                }
                 return;
               }
-              // Manejar error JWT expirado
+              // Handle JWT expired error
               else if (response.statusCode == 404 &&
-                  errorData["Error"] != null &&
                   errorData["Error"]["Message"] == "jwt expired") {
                 if (mounted) {
                   setState(() => isLoading = false);
-                  // Limpiar token y redirigir
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.remove('tokenauth');
-                  _timer?.cancel(); // Cancela el temporizador antes de navegar
-
+                  _timer?.cancel();
                   mostrarDialogoError(
                       'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
                       onClose: () {
@@ -138,7 +152,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 }
                 return;
               }
-              // Verificar mensaje específico de no hay créditos registrados
+              // Handle no credits found error
               else if (response.statusCode == 400 &&
                   errorData["Error"]["Message"] ==
                       "No hay ningun credito registrado") {
@@ -147,22 +161,20 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   isLoading = false;
                   noCreditsFound = true;
                 });
-                _timer
-                    ?.cancel(); // Detener intentos de reconexión si no hay créditos
+                _timer?.cancel();
               }
-              // Otros errores
+              // Other errors
               else {
                 setErrorState(dialogShown);
               }
             } catch (parseError) {
-              // Si no podemos parsear la respuesta, delegamos al manejador de errores existente
+              // If response body cannot be parsed, handle as generic error
               setErrorState(dialogShown);
             }
           }
         }
       } catch (e) {
         if (mounted) {
-          print('Error: $e'); // Imprime el error capturado
           setErrorState(dialogShown, e);
         }
       }
@@ -186,7 +198,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   // Función para buscar créditos según el texto ingresado
-  Future<void> searchCreditos(String query) async {
+  Future<void> searchCreditos(String query, {int page = 1}) async {
     if (query.trim().isEmpty) {
       obtenerCreditos();
       return;
@@ -198,41 +210,46 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       isLoading = true;
       errorDeConexion = false;
       noCreditsFound = false;
+      currentPage = page; // Update current page for search
     });
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
-      // Agregar timeout a la petición
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/creditos/$query'),
+        Uri.parse(
+            'http://$baseUrl/api/v1/creditos/$query?limit=12&page=$page'), // Add pagination parameters
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
         },
-      ).timeout(Duration(seconds: 10)); // Limitar tiempo de espera
+      ).timeout(Duration(seconds: 10));
 
-      // Delay para mostrar el loading (500ms)
       await Future.delayed(Duration(milliseconds: 500));
 
       if (!mounted) return;
 
       print('Status code (search): ${response.statusCode}');
-      print('Response body (search): ${response.body}');
 
       if (response.statusCode == 200) {
+        int totalDatosResp =
+            int.tryParse(response.headers['x-total-totaldatos'] ?? '0') ?? 0;
+        int totalPaginasResp =
+            int.tryParse(response.headers['x-total-totalpaginas'] ?? '1') ?? 1;
+
         List<dynamic> data = json.decode(response.body);
         setState(() {
           listaCreditos = data.map((item) => Credito.fromJson(item)).toList();
           isLoading = false;
+          totalDatos = totalDatosResp;
+          totalPaginas = totalPaginasResp;
         });
       } else {
-        // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
         try {
           final errorData = json.decode(response.body);
 
-          // Verificar si es el mensaje específico de sesión cambiada
+          // Check for specific session change message
           if (errorData["Error"] != null &&
               errorData["Error"]["Message"] ==
                   "La sesión ha cambiado. Cerrando sesión...") {
@@ -241,19 +258,19 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('tokenauth');
 
-              // Mostrar diálogo y redirigir al login
+              // Show dialog and redirect to login
               mostrarDialogoCierreSesion(
                   'La sesión ha cambiado. Cerrando sesión...', onClose: () {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (route) => false, // Elimina todas las rutas anteriores
+                  (route) => false, // Remove all previous routes
                 );
               });
             }
             return;
           }
-          // Manejar error JWT expirado
+          // Handle JWT expired error
           else if (response.statusCode == 404 &&
               errorData["Error"] != null &&
               errorData["Error"]["Message"] == "jwt expired") {
@@ -272,23 +289,23 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             }
             return;
           }
-          // Manejar 401 para token expirado
+          // Handle 401 for expired token
           else if (response.statusCode == 401) {
             _handleTokenExpiration();
           }
-          // Manejar error de no hay clientes
+          // Handle no credits found error
           else if (response.statusCode == 400) {
-            // Si el mensaje específicamente dice que no hay resultados
+            // If the message specifically says no results
             if (errorData["Error"] != null &&
                 errorData["Error"]["Message"] ==
-                    "No hay ningun cliente registrado") {
+                    "No hay ningun credito registrado") {
               setState(() {
                 listaCreditos = [];
                 isLoading = false;
                 noCreditsFound = true;
               });
             } else {
-              // Otros errores 400
+              // Other 400 errors
               setState(() {
                 listaCreditos = [];
                 isLoading = false;
@@ -296,7 +313,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               });
             }
           }
-          // Otros errores
+          // Other errors
           else {
             setState(() {
               isLoading = false;
@@ -304,7 +321,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             });
           }
         } catch (parseError) {
-          // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
+          // If response body cannot be parsed, handle as generic error
           setState(() {
             isLoading = false;
             errorDeConexion = true;
@@ -470,6 +487,23 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     );
   }
 
+  Widget _buildPaginationControls(bool isDarkMode) {
+    return PaginationWidget(
+      currentPage: currentPage,
+      totalPages: totalPaginas,
+      currentPageItemCount: listaCreditos.length,
+      totalDatos: totalDatos,
+      isDarkMode: isDarkMode,
+      onPageChanged: (page) {
+        if (_isSearching) {
+          searchCreditos(_currentSearchQuery, page: page);
+        } else {
+          obtenerCreditos(page: page);
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider =
@@ -553,7 +587,32 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                     color: isDarkMode ? Colors.white : Colors.grey),
               ),
             )
-          : filaTabla(context);
+          : Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              child: Container(
+                padding: const EdgeInsets.all(0),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[800] : Colors.white,
+                  borderRadius: BorderRadius.circular(20.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 0.5,
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: tablaCreditos(context),
+                    ),
+                    _buildPaginationControls(isDarkMode)
+                  ],
+                ),
+              ),
+            );
     }
   }
 
@@ -657,20 +716,21 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     );
   }
 
-  Widget filaTabla(BuildContext context) {
+  Widget tablaCreditos(BuildContext context) {
     final themeProvider =
         Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(0),
       child: Center(
         child: Container(
           padding: const EdgeInsets.all(0),
           decoration: BoxDecoration(
             color:
                 isDarkMode ? Colors.grey[800] : Colors.white, // Fondo dinámico
-            borderRadius: BorderRadius.circular(15.0),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -681,7 +741,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(15.0),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
             child: Column(
               children: [
                 Expanded(

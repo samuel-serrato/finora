@@ -11,6 +11,7 @@ import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:finora/widgets/cambiar_contraseña.dart';
 
 class editUsuarioDialog extends StatefulWidget {
   final VoidCallback onUsuarioEditado;
@@ -164,14 +165,26 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
       print('flutter: [_editarUsuario] Body de respuesta: ${response.body}');
 
       if (response.statusCode == 200) {
+        // Después de una edición exitosa
+        final userDataProvider =
+            Provider.of<UserDataProvider>(context, listen: false);
+        userDataProvider.actualizarDatosUsuario(
+          nombreCompleto: nombreCompletoController.text,
+          tipoUsuario: selectedTipoUsuario,
+          // Puedes añadir más campos si es necesario
+        );
         // Debería ser 200 en lugar de 201 para actualización
         print('flutter: [_editarUsuario] Edición exitosa');
         widget.onUsuarioEditado();
         Navigator.of(context).pop();
-        _mostrarDialogo(
-          title: 'Éxito',
-          message: 'Usuario actualizado correctamente',
-          isSuccess: true,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Usuario creado correctamente',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+          ),
         );
       } else {
         print('flutter: [_editarUsuario] Error en la respuesta');
@@ -488,14 +501,14 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                           onPressed: () => showDialog(
                                             context: context,
                                             builder: (context) =>
-                                                _CambiarPasswordDialog(
+                                                CambiarPasswordDialog(
                                               idUsuario: widget.idUsuario,
                                               isDarkMode: isDarkMode,
                                             ),
                                           ),
                                           icon: Icon(Icons.lock_reset,
                                               size: 18, color: Colors.white),
-                                          label: Text('CAMBIAR CONTRASEÑA'),
+                                          label: Text('Cambiar contraseña'),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Color(0xFF5162F6),
                                             foregroundColor: Colors.white,
@@ -727,314 +740,6 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
         Icons.arrow_drop_down,
         color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
       ),
-    );
-  }
-}
-
-class _CambiarPasswordDialog extends StatefulWidget {
-  final String idUsuario;
-  final bool isDarkMode;
-
-  const _CambiarPasswordDialog({
-    required this.idUsuario,
-    required this.isDarkMode,
-  });
-
-  @override
-  __CambiarPasswordDialogState createState() => __CambiarPasswordDialogState();
-}
-
-class __CambiarPasswordDialogState extends State<_CambiarPasswordDialog> {
-  final TextEditingController _nuevaPasswordController =
-      TextEditingController();
-  final TextEditingController _confirmarPasswordController =
-      TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
-
-  Future<void> _cambiarPassword() async {
-    print('flutter: Iniciando cambio de contraseña...');
-
-    if (!_formKey.currentState!.validate()) {
-      print('flutter: Validación de formulario fallida');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-      print('flutter: Token obtenido: ${token.isNotEmpty ? "****" : "VACÍO"}');
-
-      final url =
-          'http://$baseUrl/api/v1/usuarios/recuperar/password/${widget.idUsuario}';
-      print('flutter: URL de petición: $url');
-
-      final response = await http.put(
-        Uri.parse(url),
-        headers: {
-          'tokenauth': token,
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'password': _nuevaPasswordController.text,
-        }),
-      );
-
-      print('flutter: Respuesta del servidor - Código: ${response.statusCode}');
-      print('flutter: Body de respuesta: ${response.body}');
-
-      if (response.statusCode == 200) {
-        print('flutter: Contraseña cambiada exitosamente');
-        Navigator.of(context).pop();
-        _mostrarMensajeExito();
-      } else {
-        final errorData = json.decode(response.body);
-        final errorMessage =
-            errorData['Error']['Message'] ?? 'Error al cambiar contraseña';
-        print('flutter: Error del servidor: $errorMessage');
-        throw Exception(errorMessage);
-      }
-    } catch (e) {
-      print('flutter: Excepción capturada: $e');
-      print(
-          'flutter: Stack trace: ${e is Error ? (e as Error).stackTrace : ""}');
-      _mostrarError(e.toString());
-    } finally {
-      print('flutter: Finalizando proceso de cambio de contraseña');
-      setState(() => _isLoading = false);
-    }
-  }
-
-  void _mostrarMensajeExito() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Contraseña actualizada correctamente'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  void _mostrarError(String mensaje) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(mensaje),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDarkMode = widget.isDarkMode;
-
-    return AlertDialog(
-      backgroundColor: isDarkMode ? Color(0xFF303030) : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.0),
-        side: BorderSide(
-            color: isDarkMode ? Colors.blue.shade800 : Colors.blue.shade100,
-            width: 2),
-      ),
-      title: Column(
-        children: [
-          Icon(Icons.lock_reset,
-              size: 40,
-              color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade800),
-          SizedBox(height: 10),
-          Text(
-            'Cambiar Contraseña',
-            style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color:
-                    isDarkMode ? Colors.blue.shade200 : Colors.blue.shade900),
-          ),
-          Divider(
-              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade300,
-              height: 20),
-        ],
-      ),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nuevaPasswordController,
-              obscureText: true,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Nueva contraseña',
-                labelStyle: TextStyle(
-                    color: isDarkMode
-                        ? Colors.grey.shade300
-                        : Colors.grey.shade600),
-                prefixIcon: Icon(Icons.lock_outline,
-                    color: isDarkMode
-                        ? Colors.blue.shade300
-                        : Colors.blue.shade600),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                      color: isDarkMode
-                          ? Colors.blue.shade700
-                          : Colors.blue.shade200),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                      color: isDarkMode
-                          ? Colors.grey.shade600
-                          : Colors.grey.shade400),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                      color: isDarkMode
-                          ? Colors.blue.shade400
-                          : Colors.blue.shade600,
-                      width: 1.5),
-                ),
-                contentPadding:
-                    EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                fillColor: isDarkMode ? Color(0xFF424242) : Colors.white,
-                filled: true,
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty)
-                  return '⚠️ Campo obligatorio';
-                if (value.length < 4) return '⚠️ Mínimo 4 caracteres';
-                return null;
-              },
-            ),
-            SizedBox(height: 20),
-            TextFormField(
-              controller: _confirmarPasswordController,
-              obscureText: true,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDarkMode ? Colors.white : Colors.black87,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Confirmar contraseña',
-                labelStyle: TextStyle(
-                    color: isDarkMode
-                        ? Colors.grey.shade300
-                        : Colors.grey.shade600),
-                prefixIcon: Icon(Icons.lock_reset,
-                    color: isDarkMode
-                        ? Colors.blue.shade300
-                        : Colors.blue.shade600),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                      color: isDarkMode
-                          ? Colors.blue.shade700
-                          : Colors.blue.shade200),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                      color: isDarkMode
-                          ? Colors.grey.shade600
-                          : Colors.grey.shade400),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(
-                      color: isDarkMode
-                          ? Colors.blue.shade400
-                          : Colors.blue.shade600,
-                      width: 1.5),
-                ),
-                contentPadding:
-                    EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                fillColor: isDarkMode ? Color(0xFF424242) : Colors.white,
-                filled: true,
-              ),
-              validator: (value) {
-                if (value != _nuevaPasswordController.text) {
-                  return '⚠️ Las contraseñas no coinciden';
-                }
-                return null;
-              },
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  backgroundColor:
-                      isDarkMode ? Color(0xFF424242) : Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(
-                        color: isDarkMode
-                            ? Colors.grey.shade600
-                            : Colors.grey.shade400),
-                  ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                ),
-                child: Text(
-                  'Cancelar',
-                  style: TextStyle(
-                      color: isDarkMode
-                          ? Colors.grey.shade300
-                          : Colors.grey.shade700,
-                      fontWeight: FontWeight.w500),
-                ),
-              ),
-              SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _cambiarPassword,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      isDarkMode ? Colors.blue.shade700 : Colors.blue.shade800,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  padding: EdgeInsets.symmetric(horizontal: 25, vertical: 12),
-                  elevation: 2,
-                ),
-                child: _isLoading
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.save_rounded,
-                              size: 18, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            'Guardar',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

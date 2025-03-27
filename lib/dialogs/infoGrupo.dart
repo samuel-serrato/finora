@@ -635,8 +635,39 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                   ],
                                                 ),
                                                 children: [
-                                                  if (cliente.cuenta !=
-                                                      null) ...[
+                                                  if (cliente.cuenta == null ||
+                                                      (cliente
+                                                              .cuenta!
+                                                              .nombreBanco
+                                                              .isEmpty &&
+                                                          cliente
+                                                              .cuenta!
+                                                              .numCuenta
+                                                              .isEmpty &&
+                                                          cliente
+                                                              .cuenta!
+                                                              .numTarjeta
+                                                              .isEmpty &&
+                                                          cliente
+                                                              .cuenta!
+                                                              .clbIntBanc
+                                                              .isEmpty)) ...[
+                                                    Padding(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 16.0,
+                                                          vertical: 8.0),
+                                                      child: Text(
+                                                        'No hay información de cuenta bancaria.',
+                                                        style: TextStyle(
+                                                          fontSize: 12,
+                                                          color: isDarkMode
+                                                              ? Colors.white
+                                                              : Colors.grey,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ] else ...[
                                                     Padding(
                                                       padding: const EdgeInsets
                                                           .symmetric(
@@ -676,22 +707,6 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                                 isDarkMode,
                                                           ),
                                                         ],
-                                                      ),
-                                                    ),
-                                                  ] else ...[
-                                                    Padding(
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                          horizontal: 16.0,
-                                                          vertical: 8.0),
-                                                      child: Text(
-                                                        'No hay información de cuenta bancaria.',
-                                                        style: TextStyle(
-                                                          fontSize: 12,
-                                                          color: isDarkMode
-                                                              ? Colors.white
-                                                              : Colors.grey,
-                                                        ),
                                                       ),
                                                     ),
                                                   ],

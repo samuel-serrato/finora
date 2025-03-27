@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/widgets/pagination.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -32,6 +33,14 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   final TextEditingController _searchController =
       TextEditingController(); // Controlador para el SearchBar
 
+  int currentPage = 1;
+  int totalPaginas = 1;
+  int totalDatos = 0;
+
+  int? _hoveredPage;
+  String _currentSearchQuery = '';
+  bool _isSearching = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,11 +58,12 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   final double textHeaderTableSize = 12.0;
   final double textTableSize = 12.0;
 
-  Future<void> obtenerUsuarios() async {
+  Future<void> obtenerUsuarios({int page = 1}) async {
     setState(() {
       isLoading = true;
       errorDeConexion = false;
       noUsersFound = false;
+      currentPage = page; // Update current page
     });
 
     bool dialogShown = false;
@@ -64,7 +74,8 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
         final token = prefs.getString('tokenauth') ?? '';
 
         final response = await http.get(
-          Uri.parse('http://$baseUrl/api/v1/usuarios'),
+          Uri.parse(
+              'http://$baseUrl/api/v1/usuarios?limit=12&page=$page'), // Add pagination parameters
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -73,6 +84,13 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
 
         if (mounted) {
           if (response.statusCode == 200) {
+            int totalDatosResp =
+                int.tryParse(response.headers['x-total-totaldatos'] ?? '0') ??
+                    0;
+            int totalPaginasResp =
+                int.tryParse(response.headers['x-total-totalpaginas'] ?? '1') ??
+                    1;
+
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaUsuarios =
@@ -81,13 +99,21 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
 
               isLoading = false;
               errorDeConexion = false;
+              totalDatos = totalDatosResp;
+              totalPaginas = totalPaginasResp;
             });
             _timer?.cancel();
           } else {
+            // In case of error, reset pagination
+            setState(() {
+              totalDatos = 0;
+              totalPaginas = 1;
+            });
+
             try {
               final errorData = json.decode(response.body);
 
-              // Verificar si es el mensaje específico de sesión cambiada
+              // Check for specific session change message
               if (errorData["Error"] != null &&
                   errorData["Error"]["Message"] ==
                       "La sesión ha cambiado. Cerrando sesión...") {
@@ -97,19 +123,19 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                   await prefs.remove('tokenauth');
                   _timer?.cancel();
 
-                  // Mostrar diálogo y redirigir al login
+                  // Show dialog and redirect to login
                   mostrarDialogoCierreSesion(
                       'La sesión ha cambiado. Cerrando sesión...', onClose: () {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(builder: (context) => LoginScreen()),
-                      (route) => false, // Elimina todas las rutas anteriores
+                      (route) => false, // Remove all previous routes
                     );
                   });
                 }
                 return;
               }
-              // Manejar error JWT expirado
+              // Handle JWT expired error
               else if (response.statusCode == 404 &&
                   errorData["Error"]["Message"] == "jwt expired") {
                 if (mounted) {
@@ -128,7 +154,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                 }
                 return;
               }
-              // Manejar error de no hay usuarios
+              // Handle no users found error
               else if (response.statusCode == 400 &&
                   errorData["Error"]["Message"] ==
                       "No hay usuarios registrados") {
@@ -139,12 +165,12 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                 });
                 _timer?.cancel();
               }
-              // Otros errores
+              // Other errors
               else {
                 setErrorState(dialogShown);
               }
             } catch (parseError) {
-              // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
+              // If response body cannot be parsed, handle as generic error
               setErrorState(dialogShown);
             }
           }
@@ -170,6 +196,163 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
               'No se pudo conectar al servidor. Verifica tu red.');
         }
       });
+    }
+  }
+
+  Future<void> searchUsuarios(String query, {int page = 1}) async {
+    if (query.trim().isEmpty) {
+      obtenerUsuarios();
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = true;
+      errorDeConexion = false;
+      noUsersFound = false;
+      currentPage = page; // Update current page for search
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.get(
+        Uri.parse(
+            'http://$baseUrl/api/v1/usuarios/$query?limit=12&page=$page'), // Add pagination parameters
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      ).timeout(Duration(seconds: 10));
+
+      await Future.delayed(Duration(milliseconds: 500));
+
+      if (!mounted) return;
+
+      print('Status code (search): ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        int totalDatosResp =
+            int.tryParse(response.headers['x-total-totaldatos'] ?? '0') ?? 0;
+        int totalPaginasResp =
+            int.tryParse(response.headers['x-total-totalpaginas'] ?? '1') ?? 1;
+
+        List<dynamic> data = json.decode(response.body);
+        setState(() {
+          listaUsuarios = data.map((item) => Usuario.fromJson(item)).toList();
+          isLoading = false;
+          totalDatos = totalDatosResp;
+          totalPaginas = totalPaginasResp;
+        });
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+
+          // Check for specific session change message
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              setState(() => isLoading = false);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+
+              // Show dialog and redirect to login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Remove all previous routes
+                );
+              });
+            }
+            return;
+          }
+          // Handle JWT expired error
+          else if (response.statusCode == 404 &&
+              errorData["Error"] != null &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              setState(() => isLoading = false);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return;
+          }
+          // Handle 401 for expired token
+          else if (response.statusCode == 401) {
+            _handleTokenExpiration();
+          }
+          // Handle no users found error
+          else if (response.statusCode == 400) {
+            // If the message specifically says no results
+            if (errorData["Error"] != null &&
+                errorData["Error"]["Message"] ==
+                    "No hay usuarios registrados") {
+              setState(() {
+                listaUsuarios = [];
+                isLoading = false;
+                noUsersFound = true;
+              });
+            } else {
+              // Other 400 errors
+              setState(() {
+                listaUsuarios = [];
+                isLoading = false;
+                noUsersFound = true;
+              });
+            }
+          }
+          // Other errors
+          else {
+            setState(() {
+              isLoading = false;
+              errorDeConexion = true;
+            });
+          }
+        } catch (parseError) {
+          // If response body cannot be parsed, handle as generic error
+          setState(() {
+            isLoading = false;
+            errorDeConexion = true;
+          });
+        }
+      }
+    } on SocketException catch (e) {
+      print('SocketException: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } on TimeoutException catch (_) {
+      print('Timeout');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
+    } catch (e) {
+      print('Error general: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorDeConexion = true;
+        });
+      }
     }
   }
 
@@ -247,152 +430,6 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
         );
       },
     );
-  }
-
-  Future<void> searchUsuarios(String query) async {
-    if (query.trim().isEmpty) {
-      obtenerUsuarios();
-      return;
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      isLoading = true;
-      errorDeConexion = false;
-      noUsersFound = false;
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-
-      final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/usuarios/$query'),
-        headers: {'tokenauth': token},
-      ).timeout(Duration(seconds: 10));
-
-      await Future.delayed(Duration(milliseconds: 500));
-
-      if (!mounted) return;
-
-      print('Status code (search): ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        List<dynamic> data = json.decode(response.body);
-        setState(() {
-          listaUsuarios = data.map((item) => Usuario.fromJson(item)).toList();
-          isLoading = false;
-        });
-      } else {
-        // Intentar decodificar el cuerpo de la respuesta para verificar mensajes de error específicos
-        try {
-          final errorData = json.decode(response.body);
-
-          // Verificar si es el mensaje específico de sesión cambiada
-          if (errorData["Error"] != null &&
-              errorData["Error"]["Message"] ==
-                  "La sesión ha cambiado. Cerrando sesión...") {
-            if (mounted) {
-              setState(() => isLoading = false);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('tokenauth');
-
-              // Mostrar diálogo y redirigir al login
-              mostrarDialogoCierreSesion(
-                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (route) => false, // Elimina todas las rutas anteriores
-                );
-              });
-            }
-            return;
-          }
-          // Manejar error JWT expirado
-          else if (response.statusCode == 404 &&
-              errorData["Error"] != null &&
-              errorData["Error"]["Message"] == "jwt expired") {
-            if (mounted) {
-              setState(() => isLoading = false);
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('tokenauth');
-              mostrarDialogoError(
-                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                  onClose: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                );
-              });
-            }
-            return;
-          }
-          // Manejar 401 para token expirado
-          else if (response.statusCode == 401) {
-            _handleTokenExpiration();
-          }
-          // Manejar error de no hay clientes
-          else if (response.statusCode == 400) {
-            // Si el mensaje específicamente dice que no hay resultados
-            if (errorData["Error"] != null &&
-                errorData["Error"]["Message"] ==
-                    "No hay ningun cliente registrado") {
-              setState(() {
-                listaUsuarios = [];
-                isLoading = false;
-                noUsersFound = true;
-              });
-            } else {
-              // Otros errores 400
-              setState(() {
-                listaUsuarios = [];
-                isLoading = false;
-                noUsersFound = true;
-              });
-            }
-          }
-          // Otros errores
-          else {
-            setState(() {
-              isLoading = false;
-              errorDeConexion = true;
-            });
-          }
-        } catch (parseError) {
-          // Si no se puede parsear el cuerpo de la respuesta, manejar como error genérico
-          setState(() {
-            isLoading = false;
-            errorDeConexion = true;
-          });
-        }
-      }
-    } on SocketException catch (e) {
-      print('SocketException: $e');
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorDeConexion = true;
-        });
-      }
-    } on TimeoutException catch (_) {
-      print('Timeout');
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorDeConexion = true;
-        });
-      }
-    } catch (e) {
-      print('Error general: $e');
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorDeConexion = true;
-        });
-      }
-    }
   }
 
   void _handleTokenExpiration() async {
@@ -556,6 +593,23 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
         false;
   }
 
+  Widget _buildPaginationControls(bool isDarkMode) {
+    return PaginationWidget(
+      currentPage: currentPage,
+      totalPages: totalPaginas,
+      currentPageItemCount: listaUsuarios.length,
+      totalDatos: totalDatos,
+      isDarkMode: isDarkMode,
+      onPageChanged: (page) {
+        if (_isSearching) {
+          searchUsuarios(_currentSearchQuery, page: page);
+        } else {
+          obtenerUsuarios(page: page);
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider =
@@ -636,7 +690,32 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                     color: isDarkMode ? Colors.white : Colors.grey),
               ),
             )
-          : filaTabla(context);
+          : Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              child: Container(
+                padding: const EdgeInsets.all(0),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[800] : Colors.white,
+                  borderRadius: BorderRadius.circular(20.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      spreadRadius: 0.5,
+                      blurRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: tablaUsuarios(context),
+                    ),
+                    _buildPaginationControls(isDarkMode)
+                  ],
+                ),
+              ),
+            );
     }
   }
 
@@ -723,7 +802,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
     );
   }
 
-  Widget filaTabla(BuildContext context) {
+  Widget tablaUsuarios(BuildContext context) {
     final themeProvider =
         Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
@@ -731,13 +810,14 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
     return Expanded(
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(0),
         child: Container(
           padding: const EdgeInsets.all(0),
           decoration: BoxDecoration(
             color:
                 isDarkMode ? Colors.grey[800] : Colors.white, // Fondo dinámico
-            borderRadius: BorderRadius.circular(15.0),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.1),
@@ -748,7 +828,8 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
           ),
           // ClipRRect para que el contenido respete los bordes redondeados
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(15.0),
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20), topRight: Radius.circular(20)),
             child: listaUsuarios.isEmpty
                 ? Center(
                     child: Text(

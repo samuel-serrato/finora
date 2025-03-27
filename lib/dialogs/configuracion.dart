@@ -6,6 +6,7 @@ import 'package:finora/ip.dart';
 import 'package:finora/main.dart';
 import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
+import 'package:finora/widgets/cambiar_contraseña.dart';
 import 'package:flutter/material.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:intl/intl.dart';
@@ -85,7 +86,8 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                     children: [
                       _buildFinancialInfoBlock(
                           context), // Nuevo bloque agregado aquí
-
+                      _buildUserSection(context),
+                      SizedBox(height: 15),
                       _buildSection(context, title: 'Apariencia', items: [
                         _buildSwitchItem(
                           context,
@@ -106,6 +108,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                           ],
                           isExpandable: true),
                       SizedBox(height: 15),
+
                       /* _buildSection(context, title: 'Notificaciones', items: [
                         _buildSwitchItem(
                           context,
@@ -957,174 +960,246 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     );
   }
 
-  Future<void> _pickAndUploadLogo(String tipoLogo) async {
-  final userData = Provider.of<UserDataProvider>(context, listen: false);
-  if (userData.tipoUsuario == 'Admin') {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['png'],
-      );
+  Widget _buildUserSection(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final userData = Provider.of<UserDataProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
 
-      if (result != null && result.files.isNotEmpty) {
-        String tempPath = result.files.single.path!;
-
-        setState(() {
-          if (tipoLogo == "logoColor") {
-            _tempColorLogoPath = tempPath;
-          } else {
-            _tempWhiteLogoPath = tempPath;
-          }
-        });
-
-        // No llamamos a _uploadLogoToServer aquí
-      }
-    } catch (e) {
-      print('Error al seleccionar el logo: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al seleccionar el archivo')),
-      );
-    }
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Solo los administradores pueden subir logos')),
+    return _buildSection(
+      context,
+      title: 'Usuario',
+      items: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.person,
+                  color: Colors.green,
+                  size: 18,
+                ),
+              ),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      userData.nombreUsuario,
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      userData.tipoUsuario,
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (context) => CambiarPasswordDialog(
+                    idUsuario: userData.idusuario,
+                    isDarkMode: isDarkMode,
+                  ),
+                ),
+                icon:
+                    Icon(Icons.lock_reset, size: 18, color: Color(0xFF5162F6)),
+                label: Text('Cambiar contraseña'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Color(0xFF5162F6),
+                  side: BorderSide(
+                      color: Color(0xFF5162F6),
+                      width: 0.7), // Añadido borde azul
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
-}
 
+  Future<void> _pickAndUploadLogo(String tipoLogo) async {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+    if (userData.tipoUsuario == 'Admin') {
+      try {
+        FilePickerResult? result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['png'],
+        );
+
+        if (result != null && result.files.isNotEmpty) {
+          String tempPath = result.files.single.path!;
+
+          setState(() {
+            if (tipoLogo == "logoColor") {
+              _tempColorLogoPath = tempPath;
+            } else {
+              _tempWhiteLogoPath = tempPath;
+            }
+          });
+
+          // No llamamos a _uploadLogoToServer aquí
+        }
+      } catch (e) {
+        print('Error al seleccionar el logo: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al seleccionar el archivo')),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Solo los administradores pueden subir logos')),
+      );
+    }
+  }
 
 // Función para guardar los cambios pendientes (cuando hay imagenes temporales)
   Future<void> _saveLogoChanges() async {
-  try {
-    setState(() => _isSaving = true);
+    try {
+      setState(() => _isSaving = true);
 
-    if (_tempColorLogoPath != null) {
-      // Sube el logo a color y espera la respuesta del servidor
-      await _uploadLogoToServer(_tempColorLogoPath!, "logoColor");
-      setState(() => _colorLogoImagePath = _tempColorLogoPath);
+      if (_tempColorLogoPath != null) {
+        // Sube el logo a color y espera la respuesta del servidor
+        await _uploadLogoToServer(_tempColorLogoPath!, "logoColor");
+        setState(() => _colorLogoImagePath = _tempColorLogoPath);
+      }
+
+      if (_tempWhiteLogoPath != null) {
+        // Sube el logo blanco y espera la respuesta del servidor
+        await _uploadLogoToServer(_tempWhiteLogoPath!, "logoBlanco");
+        setState(() => _whiteLogoImagePath = _tempWhiteLogoPath);
+      }
+
+      // Limpiar variables temporales
+      setState(() {
+        _tempColorLogoPath = null;
+        _tempWhiteLogoPath = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Logo guardado correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      setState(() => _isSaving = false);
     }
+  }
 
-    if (_tempWhiteLogoPath != null) {
-      // Sube el logo blanco y espera la respuesta del servidor
-      await _uploadLogoToServer(_tempWhiteLogoPath!, "logoBlanco");
-      setState(() => _whiteLogoImagePath = _tempWhiteLogoPath);
+// Función para subir un logo ya seleccionado
+  Future<void> _uploadLogoToServer(
+    String filePath,
+    String tipoLogo,
+  ) async {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+
+    try {
+      // 0. Obtener token de autenticación
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      if (token.isEmpty) {
+        throw Exception(
+            'Token de autenticación no encontrado. Por favor, inicia sesión.');
+      }
+
+      // 1. Crear solicitud
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://$baseUrl/api/v1/imagenes/subir/logo'),
+      );
+
+      // Agregar token al header
+      request.headers['tokenauth'] = token;
+
+      // 2. Adjuntar archivo
+      File file = File(filePath);
+      String fileName = path.basename(file.path);
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'imagen',
+          file.path,
+          filename: fileName,
+          contentType: MediaType('image', 'png'),
+        ),
+      );
+
+      // 3. Adjuntar campos
+      request.fields.addAll({
+        'tipoImagen': tipoLogo,
+        'idfinanciera': userData.idfinanciera,
+      });
+
+      // 4. Imprimir detalles de la solicitud
+      print('\n=== PETICIÓN ===');
+      print('URL: ${request.url}');
+      print('Método: ${request.method}');
+      print('Headers: ${request.headers}');
+      print('Campos: ${request.fields}');
+      print('Archivos: ${request.files.map((f) => f.filename).toList()}');
+
+      // 5. Enviar y capturar respuesta
+      http.StreamedResponse response =
+          await request.send().timeout(Duration(seconds: 30));
+
+      // 6. Leer cuerpo de la respuesta
+      String responseBody = await response.stream.bytesToString();
+
+      // 7. Imprimir detalles de la respuesta
+      print('\n=== RESPUESTA ===');
+      print('Status: ${response.statusCode}');
+      print('Headers: ${response.headers}');
+      print('Body: $responseBody');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Parsear el JSON de la respuesta
+        final Map<String, dynamic> jsonResponse = jsonDecode(responseBody);
+        final nuevaRuta = jsonResponse['filename'];
+
+        // Actualizar el provider con el nuevo logo
+        userData.actualizarLogo(tipoLogo, nuevaRuta);
+      } else {
+        throw Exception('Error HTTP ${response.statusCode}');
+      }
+    } on SocketException catch (e) {
+      print('Error de red: $e');
+      throw Exception('Verifica tu conexión a internet');
+    } on TimeoutException {
+      print('Tiempo de espera agotado');
+      throw Exception('El servidor no respondió a tiempo');
+    } catch (e) {
+      print('Error inesperado: $e');
+      rethrow;
     }
+  }
 
-    // Limpiar variables temporales
+// Función para cancelar los cambios
+  void _cancelLogoChanges() {
     setState(() {
       _tempColorLogoPath = null;
       _tempWhiteLogoPath = null;
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Logo guardado correctamente'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: $e')),
-    );
-  } finally {
-    setState(() => _isSaving = false);
   }
-}
-
-
-// Función para subir un logo ya seleccionado
-  Future<void> _uploadLogoToServer(
-  String filePath,
-  String tipoLogo,
-) async {
-  final userData = Provider.of<UserDataProvider>(context, listen: false);
-
-  try {
-    // 0. Obtener token de autenticación
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-
-    if (token.isEmpty) {
-      throw Exception('Token de autenticación no encontrado. Por favor, inicia sesión.');
-    }
-
-    // 1. Crear solicitud
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('http://$baseUrl/api/v1/imagenes/subir/logo'),
-    );
-
-    // Agregar token al header
-    request.headers['tokenauth'] = token;
-
-    // 2. Adjuntar archivo
-    File file = File(filePath);
-    String fileName = path.basename(file.path);
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'imagen',
-        file.path,
-        filename: fileName,
-        contentType: MediaType('image', 'png'),
-      ),
-    );
-
-    // 3. Adjuntar campos
-    request.fields.addAll({
-      'tipoImagen': tipoLogo,
-      'idfinanciera': userData.idfinanciera,
-    });
-
-    // 4. Imprimir detalles de la solicitud
-    print('\n=== PETICIÓN ===');
-    print('URL: ${request.url}');
-    print('Método: ${request.method}');
-    print('Headers: ${request.headers}');
-    print('Campos: ${request.fields}');
-    print('Archivos: ${request.files.map((f) => f.filename).toList()}');
-
-    // 5. Enviar y capturar respuesta
-    http.StreamedResponse response =
-        await request.send().timeout(Duration(seconds: 30));
-
-    // 6. Leer cuerpo de la respuesta
-    String responseBody = await response.stream.bytesToString();
-
-    // 7. Imprimir detalles de la respuesta
-    print('\n=== RESPUESTA ===');
-    print('Status: ${response.statusCode}');
-    print('Headers: ${response.headers}');
-    print('Body: $responseBody');
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      // Parsear el JSON de la respuesta
-      final Map<String, dynamic> jsonResponse = jsonDecode(responseBody);
-      final nuevaRuta = jsonResponse['filename'];
-
-      // Actualizar el provider con el nuevo logo
-      userData.actualizarLogo(tipoLogo, nuevaRuta);
-    } else {
-      throw Exception('Error HTTP ${response.statusCode}');
-    }
-  } on SocketException catch (e) {
-    print('Error de red: $e');
-    throw Exception('Verifica tu conexión a internet');
-  } on TimeoutException {
-    print('Tiempo de espera agotado');
-    throw Exception('El servidor no respondió a tiempo');
-  } catch (e) {
-    print('Error inesperado: $e');
-    rethrow;
-  }
-}
-
-
-
-// Función para cancelar los cambios
- void _cancelLogoChanges() {
-  setState(() {
-    _tempColorLogoPath = null;
-    _tempWhiteLogoPath = null;
-  });
-}
 }

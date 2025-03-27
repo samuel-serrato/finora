@@ -513,30 +513,33 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                                   size: 22),
                             ),
                             SizedBox(width: 14),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  userData.nombreUsuario, // Usar del provider
-                                  style: TextStyle(
-                                    color: isDarkMode
-                                        ? Colors.white
-                                        : Colors.black, // Color dinámico
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    userData.nombreUsuario, // Usar del provider
+                                    style: TextStyle(
+                                      color: isDarkMode
+                                          ? Colors.white
+                                          : Colors.black, // Color dinámico
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  userData.tipoUsuario, // Usar del provider
-                                  style: TextStyle(
-                                    color: isDarkMode
-                                        ? Colors.grey[300]
-                                        : Colors
-                                            .grey.shade900, // Color dinámico
-                                    fontSize: 10,
+                                  Text(
+                                    userData.tipoUsuario, // Usar del provider
+                                    style: TextStyle(
+                                      color: isDarkMode
+                                          ? Colors.grey[300]
+                                          : Colors
+                                              .grey.shade900, // Color dinámico
+                                      fontSize: 10,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Icon(Icons.arrow_drop_down,
