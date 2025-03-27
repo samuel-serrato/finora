@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:finora/custom_app_bar.dart';
 import 'package:finora/screens/simGrupal.dart';
-import 'package:finora/widgets/CardUserWidget.dart';
 import 'package:finora/formateador.dart';
 import 'package:provider/provider.dart';
 

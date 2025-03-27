@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/widgets/pagination.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -35,6 +36,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
   int currentPage = 1;
   int totalPaginas = 1;
   int totalDatos = 0;
+
+  int? _hoveredPage;
 
   @override
   void initState() {
@@ -269,161 +272,17 @@ class _ClientesScreenState extends State<ClientesScreen> {
     );
   }
 
-  Widget _buildPaginationControls(bool isDarkMode) {
-    // Calculate the number of items on the current page
-    int itemsPerPage = 12; // Match the limit in your API call
-    int currentPageItemCount = listaClientes.length;
-
-    // List of possible page sizes
-    final List<int> pageSizes = [12, 24, 36, 48, 60];
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[850] : Colors.white,
-        borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(20), bottomRight: Radius.circular(20)),
-        border: Border(
-          top: BorderSide(
-            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Dynamic showing count
-          Text(
-            'Mostrando $currentPageItemCount de $totalDatos',
-            style: TextStyle(
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-              fontSize: 12,
-            ),
-          ),
-
-          Row(
-            children: [
-              // Previous page button
-              IconButton(
-                icon: Icon(
-                  Icons.chevron_left,
-                  color: currentPage > 1
-                      ? (isDarkMode ? Colors.white : Colors.black87)
-                      : Colors.grey[400],
-                  size: 20,
-                ),
-                onPressed: currentPage > 1
-                    ? () => obtenerClientes(page: currentPage - 1)
-                    : null,
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints(),
-              ),
-
-              // Page numbers
-              Row(
-                children: _buildPageNumbers(isDarkMode),
-              ),
-
-              // Next page button
-              IconButton(
-                icon: Icon(
-                  Icons.chevron_right,
-                  color: currentPage < totalPaginas
-                      ? (isDarkMode ? Colors.white : Colors.black87)
-                      : Colors.grey[400],
-                  size: 20,
-                ),
-                onPressed: currentPage < totalPaginas
-                    ? () => obtenerClientes(page: currentPage + 1)
-                    : null,
-                padding: EdgeInsets.zero,
-                constraints: BoxConstraints(),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-// Helper method to build page number buttons
-  List<Widget> _buildPageNumbers(bool isDarkMode) {
-    List<Widget> pageNumbers = [];
-
-    // First page
-    pageNumbers.add(_pageNumberButton(1, currentPage == 1, isDarkMode));
-
-    // Ellipsis if needed
-    if (currentPage > 3) {
-      pageNumbers.add(_ellipsisButton(isDarkMode));
-    }
-
-    // Middle pages
-    for (int i = max(2, currentPage - 1);
-        i <= min(totalPaginas - 1, currentPage + 1);
-        i++) {
-      if (i != 1 && i != totalPaginas) {
-        pageNumbers.add(_pageNumberButton(i, i == currentPage, isDarkMode));
-      }
-    }
-
-    // Ellipsis if needed
-    if (currentPage < totalPaginas - 2) {
-      pageNumbers.add(_ellipsisButton(isDarkMode));
-    }
-
-    // Last page
-    if (totalPaginas > 1) {
-      pageNumbers.add(_pageNumberButton(
-          totalPaginas, currentPage == totalPaginas, isDarkMode));
-    }
-
-    return pageNumbers;
-  }
-
-// Helper method to create page number buttons
-  Widget _pageNumberButton(int page, bool isActive, bool isDarkMode) {
-    return GestureDetector(
-      onTap: () => obtenerClientes(page: page),
-      child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 4),
-        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isActive
-              ? (isDarkMode
-                  ? Colors.grey[700]
-                  : Color(0xFF5162F6).withOpacity(0.9))
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(
-          '$page',
-          style: TextStyle(
-            color: isActive
-                ? (isDarkMode ? Colors.white : Colors.white)
-                : (isDarkMode ? Colors.grey[400] : Colors.grey[600]),
-            fontSize: 12,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-
-// Helper method to create ellipsis button
-  Widget _ellipsisButton(bool isDarkMode) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 4),
-      child: Text(
-        '...',
-        style: TextStyle(
-          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
+  // Reemplaza el método _buildPaginationControls por:
+Widget _buildPaginationControls(bool isDarkMode) {
+  return PaginationWidget(
+    currentPage: currentPage,
+    totalPages: totalPaginas,
+    currentPageItemCount: listaClientes.length,
+    totalDatos: totalDatos,
+    isDarkMode: isDarkMode,
+    onPageChanged: (page) => obtenerClientes(page: page),
+  );
+}
 
   Future<void> searchClientes(String query) async {
     if (query.trim().isEmpty) {
@@ -879,7 +738,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                     Expanded(
                       child: tablaClientes(context),
                     ),
-                    if (totalPaginas > 1) _buildPaginationControls(isDarkMode),
+                    _buildPaginationControls(isDarkMode)
                   ],
                 ),
               ),
