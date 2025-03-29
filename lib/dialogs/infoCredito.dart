@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:finora/helpers/pdf_exporter_controlpago.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -1005,6 +1006,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                         tipo: creditoData!.tipo,
                                                         folio:
                                                             creditoData!.folio,
+                                                        credito: creditoData!,
                                                       )
                                                     ],
                                                   ),
@@ -4800,12 +4802,14 @@ class PaginaDescargables extends StatefulWidget {
   final String tipo;
   final String folio;
   final bool descargando; // Nuevo parámetro para controlar el estado
+  final Credito credito; // Nuevo parámetro requerido
 
   const PaginaDescargables({
     Key? key,
     required this.tipo,
     required this.folio,
     this.descargando = false,
+    required this.credito, // Marcar como requerido
   }) : super(key: key);
 
   @override
@@ -5044,8 +5048,8 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
       barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Error', style: TextStyle(color: Colors.red)),
-        content: Text(mensaje),
+        title: SelectableText('Error', style: TextStyle(color: Colors.red)),
+        content: SelectableText(mensaje),
         actions: [
           TextButton(
             onPressed: () {
@@ -5135,6 +5139,21 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
           color: Colors.green[700]!,
           documento: 'pagare', // Nuevo parámetro
           onTap: () => _descargarDocumento('pagare'),
+        ),
+        const SizedBox(height: 15),
+        _buildBotonDescarga(
+          titulo: 'Descargar Control de Pagos',
+          icono: Icons.picture_as_pdf,
+          color: Colors.purple[700]!,
+          documento: 'control_pagos',
+          onTap: () async {
+            try {
+              await PDFControlPagos.generar(
+                  widget.credito); // Usar widget.credito
+            } catch (e) {
+              _mostrarError('Error al generar PDF: ${e.toString()}');
+            }
+          },
         ),
       ],
     );
