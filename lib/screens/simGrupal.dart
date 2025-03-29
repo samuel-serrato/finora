@@ -781,12 +781,10 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
                 children: [
                   // Tabla de resultados
                   Expanded(
-                    flex: 3, // Define cuánto espacio ocupará la tabla
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical, // Desplazamiento vertical
-                      child: TablaResultados(
-                        listaUsuarios: listaUsuarios,
-                      ),
+                    flex: 3,
+                    child: Container(
+                      color: backgroundColor,
+                      child: TablaResultados(listaUsuarios: listaUsuarios),
                     ),
                   ),
                   // Relleno para mantener espacio entre tabla y recuadro verde
@@ -918,7 +916,6 @@ class _simuladorGrupalState extends State<simuladorGrupal> {
   }
 }
 
-// Nuevo widget para mostrar la tabla
 class TablaResultados extends StatelessWidget {
   final List<UsuarioPrestamo> listaUsuarios;
 
@@ -927,110 +924,137 @@ class TablaResultados extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final backgroundColor = isDarkMode ? Colors.grey[800] : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final headerColor = isDarkMode ? Colors.grey[800] : Colors.white;
+
+    return Container(
+      color: backgroundColor,
       child: SingleChildScrollView(
         scrollDirection: Axis.vertical,
-        child: SizedBox(
-          width: double.infinity,
-          child: DataTable(
-            border: TableBorder(
-              horizontalInside: BorderSide(color: Colors.grey, width: 1),
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            dataTableTheme: DataTableThemeData(
+              decoration: BoxDecoration(color: backgroundColor),
+              headingRowColor: MaterialStateProperty.all(headerColor!),
+              dataRowColor: MaterialStateProperty.all(backgroundColor),
             ),
-            dataRowHeight: 30,
-            columnSpacing: 0,
-            columns: const [
-              DataColumn(
-                  label: Text('Integrantes', style: TextStyle(fontSize: 12))),
-              DataColumn(
-                  label:
-                      Text('Monto individual', style: TextStyle(fontSize: 12))),
-              DataColumn(
-                  label:
-                      Text('Capital Semanal', style: TextStyle(fontSize: 12))),
-              DataColumn(
-                  label:
-                      Text('Interés Semanal', style: TextStyle(fontSize: 12))),
-              DataColumn(
-                  label: Text('Total Capital',
-                      style: TextStyle(fontSize: 12))), // Nueva columna
-              DataColumn(
-                  label:
-                      Text('Total Intereses', style: TextStyle(fontSize: 12))),
-              DataColumn(
-                  label:
-                      Text('Pago Ind. Sem.', style: TextStyle(fontSize: 12))),
-              DataColumn(
-                  label:
-                      Text('Pago Ind. Total', style: TextStyle(fontSize: 12))),
+          ),
+          child: DataTable(
+            columns: [
+              _buildDataColumn('Integrantes', textColor),
+              _buildDataColumn('Monto individual', textColor),
+              _buildDataColumn('Capital Semanal', textColor),
+              _buildDataColumn('Interés Semanal', textColor),
+              _buildDataColumn('Total Capital', textColor),
+              _buildDataColumn('Total Intereses', textColor),
+              _buildDataColumn('Pago Ind. Sem.', textColor),
+              _buildDataColumn('Pago Ind. Total', textColor),
             ],
-            rows: List<DataRow>.generate(listaUsuarios.length, (index) {
-              final usuario = listaUsuarios[index];
-
-              bool isTotalRow = index == listaUsuarios.length - 1;
-
-              return DataRow(cells: [
-                DataCell(Text(
-                  isTotalRow ? 'Total' : 'Usuario ${index + 1}',
-                  style: TextStyle(
-                      fontWeight:
-                          isTotalRow ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12),
-                )),
-                DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.montoIndividual)}',
-                  style: TextStyle(
-                      fontWeight:
-                          isTotalRow ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12),
-                )),
-                DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.capitalSemanal)}',
-                  style: TextStyle(
-                      fontWeight:
-                          isTotalRow ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12),
-                )),
-                DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.interesIndividualSemanal)}',
-                  style: TextStyle(
-                      fontWeight:
-                          isTotalRow ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12),
-                )),
-                DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.totalCapital)}', // Nueva celda
-                  style: TextStyle(
-                      fontWeight:
-                          isTotalRow ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12),
-                )),
-                DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.totalIntereses)}',
-                  style: TextStyle(
-                      fontWeight:
-                          isTotalRow ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12),
-                )),
-                DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.pagoIndSemanal)}',
-                  style: TextStyle(
-                      fontWeight:
-                          isTotalRow ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12),
-                )),
-                DataCell(Text(
-                  '\$${NumberFormat.currency(locale: 'en_US', symbol: '', decimalDigits: 2).format(usuario.pagoIndTotal)}',
-                  style: TextStyle(
-                      fontWeight:
-                          isTotalRow ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12),
-                )),
-              ]);
-            }),
+            rows: listaUsuarios.map((usuario) {
+              return DataRow(
+                cells: [
+                  _buildDataCell(
+                    usuario == listaUsuarios.last
+                        ? 'Total'
+                        : 'Usuario ${listaUsuarios.indexOf(usuario) + 1}',
+                    textColor,
+                    isBold: usuario == listaUsuarios.last,
+                  ),
+                  _buildDataCell(
+                    _formatCurrency(usuario.montoIndividual),
+                    textColor,
+                    isBold: usuario == listaUsuarios.last,
+                  ),
+                  _buildDataCell(
+                    _formatCurrency(usuario.capitalSemanal),
+                    textColor,
+                    isBold: usuario == listaUsuarios.last,
+                  ),
+                  _buildDataCell(
+                    _formatCurrency(usuario.interesIndividualSemanal),
+                    textColor,
+                    isBold: usuario == listaUsuarios.last,
+                  ),
+                  _buildDataCell(
+                    _formatCurrency(usuario.totalCapital),
+                    textColor,
+                    isBold: usuario == listaUsuarios.last,
+                  ),
+                  _buildDataCell(
+                    _formatCurrency(usuario.totalIntereses),
+                    textColor,
+                    isBold: usuario == listaUsuarios.last,
+                  ),
+                  _buildDataCell(
+                    _formatCurrency(usuario.pagoIndSemanal),
+                    textColor,
+                    isBold: usuario == listaUsuarios.last,
+                  ),
+                  _buildDataCell(
+                    _formatCurrency(usuario.pagoIndTotal),
+                    textColor,
+                    isBold: usuario == listaUsuarios.last,
+                  ),
+                ],
+              );
+            }).toList(),
+            headingTextStyle: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: textColor,
+              fontSize: 12,
+            ),
+            dataTextStyle: TextStyle(
+              color: textColor,
+              fontSize: 12,
+            ),
+            dividerThickness: 1,
+            horizontalMargin: 12,
+            columnSpacing: 10,
+            showBottomBorder: true,
           ),
         ),
       ),
     );
+  }
+
+  DataColumn _buildDataColumn(String text, Color color) {
+    return DataColumn(
+      label: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: color,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  DataCell _buildDataCell(String text, Color color, {bool isBold = false}) {
+    return DataCell(
+      Container(
+        color: color.withOpacity(0.0), // Fondo transparente forzado
+        child: Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatCurrency(double value) {
+    return NumberFormat.currency(
+      locale: 'en_US',
+      symbol: '\$',
+      decimalDigits: 2,
+    ).format(value);
   }
 }
 
@@ -1048,42 +1072,66 @@ class CustomTable extends StatelessWidget {
   final String title;
   final List<String> fechasDePago;
 
-  CustomTable({required this.title, required this.fechasDePago});
+  const CustomTable({
+    Key? key,
+    required this.title,
+    required this.fechasDePago,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final backgroundColor = isDarkMode ? Colors.grey[800] : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final headerColor = isDarkMode ? Colors.grey[800] : Colors.white;
+
     return Expanded(
       flex: 1,
       child: Container(
-        height: double.infinity, // Se ajusta al espacio disponible
+        color: backgroundColor,
+        height: double.infinity,
         padding: EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-        ),
         child: SingleChildScrollView(
           scrollDirection: Axis.vertical,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF5162F6),
+                  color: Colors.white,
                 ),
+                textAlign: TextAlign.center,
               ),
               SizedBox(height: 10),
-              // Tabla dentro del widget
               Table(
                 border: TableBorder(
-                  horizontalInside: BorderSide(color: Colors.grey, width: 1),
+                  horizontalInside: BorderSide(
+                    color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                    width: 1,
+                  ),
                 ),
+                columnWidths: const {
+                  0: FlexColumnWidth(1),
+                  1: FlexColumnWidth(1.5),
+                },
                 children: [
                   TableRow(
-                    children: _buildTableHeader(['Semana', 'Fecha de Pago']),
+                    decoration: BoxDecoration(
+                      color: headerColor,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
+                      ),
+                    ),
+                    children: _buildTableHeader(
+                        ['Semana', 'Fecha de Pago'], textColor),
                   ),
-                  ..._buildTableRows(fechasDePago),
+                  ..._buildTableRows(fechasDePago, textColor, backgroundColor!),
                 ],
               ),
             ],
@@ -1093,36 +1141,50 @@ class CustomTable extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildTableHeader(List<String> headers) {
+  List<Widget> _buildTableHeader(List<String> headers, Color textColor) {
     return headers
         .map((header) => Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 header,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: textColor,
+                ),
                 textAlign: TextAlign.center,
               ),
             ))
         .toList();
   }
 
-  List<TableRow> _buildTableRows(List<String> fechas) {
+  List<TableRow> _buildTableRows(
+      List<String> fechas, Color textColor, Color backgroundColor) {
     return List<TableRow>.generate(fechas.length, (index) {
       return TableRow(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+        ),
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              style: TextStyle(fontSize: 12),
-              "Semana $index", // Aquí empieza desde Semana 0
+              "Semana $index",
+              style: TextStyle(
+                fontSize: 12,
+                color: textColor,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              style: TextStyle(fontSize: 12),
               fechas[index],
+              style: TextStyle(
+                fontSize: 12,
+                color: textColor,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
