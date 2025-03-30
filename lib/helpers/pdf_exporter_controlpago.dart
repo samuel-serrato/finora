@@ -1,4 +1,5 @@
 import 'package:finora/dialogs/infoCredito.dart';
+import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -33,9 +34,16 @@ class PDFControlPagos {
       }
 
       // 3. Parsear fechas
-      final format = DateFormat('yyyy/MM/dd');
-      final fechaInicio = format.parse(partes[0].trim());
-      final fechaFin = format.parse(partes[1].trim());
+// Cambiar el formato de fecha
+      final formatEntrada = DateFormat('yyyy/MM/dd');
+      final formatSalida = DateFormat('dd/MM/yyyy');
+
+      final fechaInicio = formatEntrada.parse(partes[0].trim());
+      final fechaFin = formatEntrada.parse(partes[1].trim());
+
+// Convertir al nuevo formato
+      final fechaInicioFormateada = formatSalida.format(fechaInicio);
+      final fechaFinFormateada = formatSalida.format(fechaFin);
 
       // 4. Generar documento PDF
       final pdf = pw.Document();
@@ -68,7 +76,8 @@ class PDFControlPagos {
             pw.SizedBox(height: 15),
             _buildGroupInfo(credito, sectionTitleStyle),
             pw.SizedBox(height: 15),
-            _buildLoanInfo(credito, sectionTitleStyle),
+            _buildLoanInfo(credito, sectionTitleStyle, fechaInicioFormateada,
+                fechaFinFormateada),
             pw.SizedBox(height: 25),
             ..._buildPaymentTables(fechas, credito),
             pw.SizedBox(height: 30),
@@ -91,7 +100,12 @@ class PDFControlPagos {
   }
 
   static List<DateTime> _generarFechas(DateTime startDate, int weeks) {
-    return List.generate(weeks, (i) => startDate.add(Duration(days: 7 * i)));
+    // Genera fechas empezando desde la semana 1 (omite la semana 0)
+    return List.generate(
+      weeks,
+      (i) => startDate
+          .add(Duration(days: 7 * (i + 1))), // i + 1 para saltar semana 0
+    );
   }
 
   static pw.Widget _buildDocumentHeader(
@@ -188,7 +202,11 @@ class PDFControlPagos {
   }
 
   static pw.Widget _buildLoanInfo(
-      Credito credito, pw.TextStyle sectionTitleStyle) {
+      Credito credito,
+      pw.TextStyle sectionTitleStyle,
+      String fechaInicioFormateada, // <- Añadir parámetros
+      String fechaFinFormateada // <- aquí
+      ) {
     final format = NumberFormat("#,##0.00");
     final partesFecha = credito.fechasIniciofin.split(' - ');
 
@@ -212,21 +230,23 @@ class PDFControlPagos {
             _buildInfoColumn('MONTO DESEMBOLSADO',
                 '\$${format.format(credito.montoDesembolsado)}',
                 flex: 1),
-            _buildInfoColumn('TASA DE INTERÉS', '${credito.ti_semanal}',
-                flex: 1),
-          ]),
-          pw.SizedBox(height: 8),
-          pw.Row(children: [
-            _buildInfoColumn('FECHA INICIO DE CONTRATO', partesFecha[0].trim(),
-                flex: 1),
-            _buildInfoColumn('FECHA TÉRMINO DE CONTRATO', partesFecha[1].trim(),
+            _buildInfoColumn('TASA DE INTERÉS SEMANAL', '${credito.ti_semanal}',
                 flex: 1),
           ]),
           pw.SizedBox(height: 8),
           pw.Row(children: [
             _buildInfoColumn('TIPO DE CRÉDITO',
                 credito.tipo == "AVAL" ? "AVAL SOLIDARIO" : credito.tipo,
-                flex: 2),
+                flex: 1),
+            _buildInfoColumn('TASA DE INTERÉS MENSUAL', '${credito.ti_mensual}',
+                flex: 1),
+          ]),
+          pw.SizedBox(height: 8),
+          pw.Row(children: [
+            _buildInfoColumn('FECHA INICIO DE CONTRATO', fechaInicioFormateada,
+                flex: 1),
+            _buildInfoColumn('FECHA TÉRMINO DE CONTRATO', fechaFinFormateada,
+                flex: 1),
           ]),
         ],
       ),
@@ -278,75 +298,457 @@ class PDFControlPagos {
     widgets.add(pw.SizedBox(height: 10));
 
     for (var i = 0; i < blocks.length; i++) {
-      widgets.add(_paymentTable(blocks[i], credito));
-      if (i < blocks.length - 1) {
-        widgets.add(pw.SizedBox(height: 15));
-      }
+      // Calcular el número de semana inicial para este bloque
+      int startWeek = i * 4 + 1;
+
+      widgets.add(
+        pw.Column(
+          // Agrupa la tabla y evita que se divida el encabezado
+          children: [
+            _paymentTable(blocks[i], credito, startWeek),
+            if (i < blocks.length - 1) pw.SizedBox(height: 15), // Espaciado
+          ],
+        ),
+      );
     }
 
     return widgets;
   }
 
-  static pw.Widget _paymentTable(List<DateTime> dates, Credito credito) {
-    return pw.Table(
-      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
-      columnWidths: {
-        0: const pw.FixedColumnWidth(30),
-        1: const pw.FlexColumnWidth(2),
-        2: const pw.FixedColumnWidth(80),
-        for (var i = 0; i < dates.length; i++)
-          i + 3: const pw.FixedColumnWidth(70),
-      },
+  // Modify the _paymentTable function to split "PAGO SOLIDARIO" into two columns
+  static pw.Widget _paymentTable(
+      List<DateTime> dates, Credito credito, int startWeek) {
+    // Calcular totales
+    double totalMontoAutorizado = 0;
+    double totalPagoSemanal = 0;
+
+    for (var member in credito.clientesMontosInd) {
+      totalMontoAutorizado += member.capitalIndividual;
+      totalPagoSemanal += member.capitalMasInteres;
+    }
+
+    // En lugar de usar rowSpan, vamos a crear una tabla personalizada
+    return pw.Column(
       children: [
-        // Header row
-        pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColors.grey300),
+        // Primera fila
+        pw.Row(
           children: [
-            _buildCell('No.', isHeader: true),
-            _buildCell('NOMBRE DE INTEGRANTES', isHeader: true),
-            _buildCell('MONTO AUTORIZADO', isHeader: true),
-            for (var date in dates)
-              _buildCell(
-                  'SEMANA ${dates.indexOf(date) + 1}\nFECHA: ${DateFormat('dd/MM').format(date)}',
-                  isHeader: true,
-                  isDateCell: true),
+            // Columna No.
+            pw.Expanded(
+              flex: 30,
+              child: pw.Container(
+                height: 40, // Altura suficiente para 2 filas
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  color: PdfColors.grey300,
+                ),
+                child: pw.Center(
+                  child: pw.Text(
+                    'No.',
+                    style: pw.TextStyle(
+                      fontSize: 6,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Columna NOMBRE DE INTEGRANTES
+            pw.Expanded(
+              flex: 200, // Más ancha
+              child: pw.Container(
+                height: 40, // Altura suficiente para 2 filas
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  color: PdfColors.grey300,
+                ),
+                child: pw.Center(
+                  child: pw.Text(
+                    'NOMBRE DE INTEGRANTES',
+                    style: pw.TextStyle(
+                      fontSize: 6,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Columna MONTO AUTORIZADO
+            pw.Expanded(
+              flex: 70, // Más pequeña
+              child: pw.Container(
+                height: 40, // Altura suficiente para 2 filas
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  color: PdfColors.grey300,
+                ),
+                child: pw.Center(
+                  child: pw.Text(
+                    'MONTO\nAUTORIZADO',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 6,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Columna PAGO SEMANAL
+            pw.Expanded(
+              flex: 70, // Más pequeña
+              child: pw.Container(
+                height: 40, // Altura suficiente para 2 filas
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  color: PdfColors.grey300,
+                ),
+                child: pw.Center(
+                  child: pw.Text(
+                    'PAGO\nSEMANAL',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      fontSize: 6,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Celdas de semanas
+            for (var i = 0; i < dates.length; i++)
+              pw.Expanded(
+                flex: 70,
+                child: pw.Column(
+                  children: [
+                    // Primera fila - Encabezado de semana
+                    pw.Container(
+                      height: 20,
+                      decoration: pw.BoxDecoration(
+                        border:
+                            pw.Border.all(color: PdfColors.black, width: 0.5),
+                        color: PdfColors.grey300,
+                      ),
+                      child: pw.Center(
+                        child: pw.Text(
+                          'SEMANA ${startWeek + i}\nFECHA: ${DateFormat('dd/MM/yyyy').format(dates[i])}',
+                          textAlign: pw.TextAlign.center,
+                          style: pw.TextStyle(
+                            fontSize: 5,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Segunda fila - Split "PAGO SOLIDARIO" into two columns
+                    pw.Row(
+                      children: [
+                        // Left column: "PAGO"
+                        pw.Expanded(
+                          flex: 1,
+                          child: pw.Container(
+                            height: 20,
+                            decoration: pw.BoxDecoration(
+                              border: pw.Border.all(
+                                  color: PdfColors.black, width: 0.5),
+                              color: PdfColors.grey300,
+                            ),
+                            child: pw.Center(
+                              child: pw.Text(
+                                'PAGO',
+                                textAlign: pw.TextAlign.center,
+                                style: pw.TextStyle(
+                                  fontSize: 4,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Right column: "SOLIDARIO"
+                        pw.Expanded(
+                          flex: 1,
+                          child: pw.Container(
+                            height: 20,
+                            decoration: pw.BoxDecoration(
+                              border: pw.Border.all(
+                                  color: PdfColors.black, width: 0.5),
+                              color: PdfColors.grey300,
+                            ),
+                            child: pw.Center(
+                              child: pw.Text(
+                                'SOLIDARIO',
+                                textAlign: pw.TextAlign.center,
+                                style: pw.TextStyle(
+                                  fontSize: 4,
+                                  fontWeight: pw.FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
-        // Second header row
-        pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColors.grey300),
-          children: [
-            _buildCell('', isHeader: true),
-            _buildCell('', isHeader: true),
-            _buildCell('PAGO SEMANAL', isHeader: true),
-            for (var date in dates)
-              _buildCell('PAGO SOLIDARIO', isHeader: true),
-          ],
-        ),
-        // Member rows
+
+        // Filas de datos
         for (var member in credito.clientesMontosInd)
-          pw.TableRow(
+          pw.Row(
             children: [
-              _buildCell('${credito.clientesMontosInd.indexOf(member) + 1}-'),
-              _buildCell(member.nombreCompleto),
-              _buildCell(
-                  '\$${NumberFormat("#,##0.00").format(member.capitalMasInteres)}'),
-              for (var date in dates) _buildEmptyPaymentCell(),
+              // No.
+              pw.Expanded(
+                flex: 30,
+                child: pw.Container(
+                  height: 24,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      '${credito.clientesMontosInd.indexOf(member) + 1}-',
+                      style: pw.TextStyle(fontSize: 6),
+                    ),
+                  ),
+                ),
+              ),
+              // Nombre
+              pw.Expanded(
+                flex: 200,
+                child: pw.Container(
+                  height: 24,
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 4),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  ),
+                  alignment: pw.Alignment.centerLeft,
+                  child: pw.Text(
+                    member.nombreCompleto,
+                    style: pw.TextStyle(fontSize: 6),
+                  ),
+                ),
+              ),
+              // Monto Autorizado
+              pw.Expanded(
+                flex: 70,
+                child: pw.Container(
+                  height: 24,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      '\$${NumberFormat("#,##0.00").format(member.capitalIndividual)}',
+                      style: pw.TextStyle(fontSize: 6),
+                    ),
+                  ),
+                ),
+              ),
+              // Pago Semanal
+              pw.Expanded(
+                flex: 70,
+                child: pw.Container(
+                  height: 24,
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  ),
+                  child: pw.Center(
+                    child: pw.Text(
+                      '\$${NumberFormat("#,##0.00").format(member.capitalMasInteres)}',
+                      style: pw.TextStyle(fontSize: 6),
+                    ),
+                  ),
+                ),
+              ),
+              // Celdas de pago
+              for (var date in dates)
+                pw.Expanded(
+                  flex: 70,
+                  child: pw.Row(
+                    children: [
+                      // Left cell for "PAGO" column
+                      pw.Expanded(
+                        flex: 1,
+                        child: pw.Container(
+                          height: 24,
+                          padding: const pw.EdgeInsets.all(2),
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(
+                                color: PdfColors.black, width: 0.5),
+                          ),
+                          child: pw.Container(
+                            decoration: pw.BoxDecoration(
+                              borderRadius: pw.BorderRadius.circular(4),
+                              border: pw.Border.all(
+                                  color: mediumGrey.shade(0.3), width: 0.5),
+                              color: PdfColors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Right cell for "SOLIDARIO" column
+                      pw.Expanded(
+                        flex: 1,
+                        child: pw.Container(
+                          height: 24,
+                          padding: const pw.EdgeInsets.all(2),
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(
+                                color: PdfColors.black, width: 0.5),
+                          ),
+                          child: pw.Container(
+                            decoration: pw.BoxDecoration(
+                              borderRadius: pw.BorderRadius.circular(4),
+                              border: pw.Border.all(
+                                  color: mediumGrey.shade(0.3), width: 0.5),
+                              color: PdfColors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
-        // Total row
-        pw.TableRow(
-          decoration: pw.BoxDecoration(color: PdfColors.grey200),
+
+        // Fila de totales
+        pw.Row(
           children: [
-            _buildCell('', isHeader: true),
-            _buildCell('Total', isHeader: true),
-            _buildCell(
-                '\$${NumberFormat("#,##0.00").format(credito.montoDesembolsado)}',
-                isHeader: true),
+            // No.
+            pw.Expanded(
+              flex: 30,
+              child: pw.Container(
+                height: 24,
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  color: PdfColors.grey200,
+                ),
+                child: pw.Center(
+                  child: pw.Text(
+                    '',
+                    style: pw.TextStyle(
+                      fontSize: 6,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Total
+            pw.Expanded(
+              flex: 200,
+              child: pw.Container(
+                height: 24,
+                padding: const pw.EdgeInsets.symmetric(horizontal: 4),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  color: PdfColors.grey200,
+                ),
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text(
+                  'TOTAL:',
+                  style: pw.TextStyle(
+                    fontSize: 6,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            // Total Monto Autorizado
+            pw.Expanded(
+              flex: 70,
+              child: pw.Container(
+                height: 24,
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  color: PdfColors.grey200,
+                ),
+                child: pw.Center(
+                  child: pw.Text(
+                    '\$${NumberFormat("#,##0.00").format(totalMontoAutorizado)}',
+                    style: pw.TextStyle(
+                      fontSize: 6,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Total Pago Semanal
+            pw.Expanded(
+              flex: 70,
+              child: pw.Container(
+                height: 24,
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                  color: PdfColors.grey200,
+                ),
+                child: pw.Center(
+                  child: pw.Text(
+                    '\$${NumberFormat("#,##0.00").format(totalPagoSemanal)}',
+                    style: pw.TextStyle(
+                      fontSize: 6,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Celdas de pago vacías para totales
             for (var date in dates)
-              _buildCell(
-                  '\$${NumberFormat("#,##0.00").format(credito.pagoCuota)}',
-                  isHeader: true),
+              pw.Expanded(
+                flex: 70,
+                child: pw.Row(
+                  children: [
+                    // Left total cell for "PAGO" column
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Container(
+                        height: 24,
+                        decoration: pw.BoxDecoration(
+                          border:
+                              pw.Border.all(color: PdfColors.black, width: 0.5),
+                          color: PdfColors.grey200,
+                        ),
+                        child: pw.Center(
+                          child: pw.Text(
+                            '',
+                            style: pw.TextStyle(
+                              fontSize: 6,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Right total cell for "SOLIDARIO" column
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Container(
+                        height: 24,
+                        decoration: pw.BoxDecoration(
+                          border:
+                              pw.Border.all(color: PdfColors.black, width: 0.5),
+                          color: PdfColors.grey200,
+                        ),
+                        child: pw.Center(
+                          child: pw.Text(
+                            '',
+                            style: pw.TextStyle(
+                              fontSize: 6,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ],
@@ -369,17 +771,19 @@ class PDFControlPagos {
     String text, {
     bool isHeader = false,
     bool isDateCell = false,
+    int rowSpan = 1,
     pw.TextStyle? style,
+    pw.TextAlign textAlign = pw.TextAlign.left,
   }) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(4),
       child: pw.Center(
         child: pw.Text(
           text,
-          textAlign: isDateCell ? pw.TextAlign.center : pw.TextAlign.left,
+          textAlign: isDateCell ? pw.TextAlign.center : textAlign,
           style: style ??
               pw.TextStyle(
-                fontSize: 8,
+                fontSize: 6,
                 fontWeight:
                     isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
               ),
