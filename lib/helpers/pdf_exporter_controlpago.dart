@@ -141,82 +141,93 @@ class PDFControlPagos {
     return pw.Container(
       padding: const pw.EdgeInsets.all(15),
       decoration: pw.BoxDecoration(
-        color: lightGrey.shade(0.3),
+        color: PdfColors.grey100,
         borderRadius: pw.BorderRadius.circular(8),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('Información del Grupo', style: sectionTitleStyle),
+          pw.Text('INFORMACIÓN DEL GRUPO', style: sectionTitleStyle),
           pw.SizedBox(height: 10),
-          pw.Row(
-            children: [
-              _buildInfoColumn('Grupo', credito.nombreGrupo, flex: 2),
-              _buildInfoColumn('Ciclo', '01', flex: 1),
-            ],
-          ),
+          pw.Row(children: [
+            _buildInfoColumn('NOMBRE DEL GRUPO', credito.nombreGrupo, flex: 2),
+            _buildInfoColumn('CICLO', '01', flex: 1),
+          ]),
           pw.SizedBox(height: 8),
-          pw.Row(
-            children: [
-              _buildInfoColumn('Presidenta', 'Miriam Yamilet Campos López',
-                  flex: 2),
-              _buildInfoColumn('Tesorera', 'Adriana Molina Escobar', flex: 2),
-            ],
-          ),
+          /*  pw.Row(children: [
+            _buildInfoColumn('NOMBRE DE LA PRESIDENTA',
+                _getPresidenta(credito.clientesMontosInd),
+                flex: 2),
+            _buildInfoColumn('NOMBRE DE LA TESORERA',
+                _getTesorera(credito.clientesMontosInd),
+                flex: 2),
+          ]),
           pw.SizedBox(height: 8),
-          pw.Row(
-            children: [
-              _buildInfoColumn('Asesor', 'Ma. Carmen Fernández León', flex: 2),
-            ],
-          ),
+          pw.Row(children: [
+            _buildInfoColumn(
+                'NOMBRE DEL ASESOR',
+                credito.garantia == "ASESOR"
+                    ? credito.garantia
+                    : "MA. CARMEN FERNANDEZ LEON",
+                flex: 2),
+          ]), */
         ],
       ),
     );
   }
 
+// Helper functions to get specific roles
+  static String _getPresidenta(List<ClienteMonto> clientes) {
+    // Implement logic to find presidenta based on your data structure
+    return "MIRIAM YAMILET CAMPOS LOPEZ"; // Ejemplo
+  }
+
+  static String _getTesorera(List<ClienteMonto> clientes) {
+    // Implement logic to find tesorera based on your data structure
+    return "ADRIANA MOLINA ESCOBAR"; // Ejemplo
+  }
+
   static pw.Widget _buildLoanInfo(
       Credito credito, pw.TextStyle sectionTitleStyle) {
     final format = NumberFormat("#,##0.00");
+    final partesFecha = credito.fechasIniciofin.split(' - ');
+
     return pw.Container(
       padding: const pw.EdgeInsets.all(15),
       decoration: pw.BoxDecoration(
-        color: primaryColor.shade(0.05),
+        color: PdfColors.grey100,
         borderRadius: pw.BorderRadius.circular(8),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('Detalles del Crédito', style: sectionTitleStyle),
+          pw.Text('DETALLES DEL CRÉDITO', style: sectionTitleStyle),
           pw.SizedBox(height: 10),
-          pw.Row(
-            children: [
-              _buildInfoColumn('Día de pago', credito.diaPago, flex: 1),
-              _buildInfoColumn('Plazo', '${credito.plazo} semanas', flex: 1),
-              _buildInfoColumn('Tasa interés', '${credito.ti_semanal}% semanal',
-                  flex: 1),
-            ],
-          ),
+          pw.Row(children: [
+            _buildInfoColumn('DÍA DE PAGO', credito.diaPago, flex: 1),
+            _buildInfoColumn('PLAZO', '${credito.plazo} SEMANAS', flex: 1),
+          ]),
           pw.SizedBox(height: 8),
-          pw.Row(
-            children: [
-              _buildInfoColumn('Monto desembolsado',
-                  '\$${format.format(credito.montoDesembolsado)}',
-                  valueStyle: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 12,
-                    color: accentColor,
-                  ),
-                  flex: 2),
-              _buildInfoColumn('Pago semanal',
-                  '\$${format.format(credito.semanalCapital + credito.semanalInteres)}',
-                  valueStyle: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 12,
-                    color: accentColor,
-                  ),
-                  flex: 1),
-            ],
-          ),
+          pw.Row(children: [
+            _buildInfoColumn('MONTO DESEMBOLSADO',
+                '\$${format.format(credito.montoDesembolsado)}',
+                flex: 1),
+            _buildInfoColumn('TASA DE INTERÉS', '${credito.ti_semanal}',
+                flex: 1),
+          ]),
+          pw.SizedBox(height: 8),
+          pw.Row(children: [
+            _buildInfoColumn('FECHA INICIO DE CONTRATO', partesFecha[0].trim(),
+                flex: 1),
+            _buildInfoColumn('FECHA TÉRMINO DE CONTRATO', partesFecha[1].trim(),
+                flex: 1),
+          ]),
+          pw.SizedBox(height: 8),
+          pw.Row(children: [
+            _buildInfoColumn('TIPO DE CRÉDITO',
+                credito.tipo == "AVAL" ? "AVAL SOLIDARIO" : credito.tipo,
+                flex: 2),
+          ]),
         ],
       ),
     );
@@ -277,91 +288,68 @@ class PDFControlPagos {
   }
 
   static pw.Widget _paymentTable(List<DateTime> dates, Credito credito) {
-    return pw.Container(
-      decoration: pw.BoxDecoration(
-        borderRadius: pw.BorderRadius.circular(8),
-        border: pw.Border.all(color: mediumGrey),
-      ),
-      child: pw.Column(
-        children: [
-          pw.Container(
-            padding: const pw.EdgeInsets.symmetric(vertical: 8),
-            decoration: pw.BoxDecoration(
-              color: primaryColor,
-              borderRadius: pw.BorderRadius.only(
-                topLeft: pw.Radius.circular(7),
-                topRight: pw.Radius.circular(7),
-              ),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.center,
-              children: [
-                pw.Text(
-                  'Fechas de pago: ${DateFormat('dd/MM').format(dates.first)} - ${DateFormat('dd/MM').format(dates.last)}',
-                  style: pw.TextStyle(
-                    color: PdfColors.white,
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          pw.Table(
-            border: pw.TableBorder.symmetric(
-              inside: pw.BorderSide(color: mediumGrey.shade(0.5), width: 0.5),
-            ),
-            columnWidths: {
-              0: const pw.FixedColumnWidth(30),
-              1: const pw.FlexColumnWidth(3),
-              for (var i = 0; i < dates.length; i++)
-                i + 2: const pw.FixedColumnWidth(70),
-            },
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+      columnWidths: {
+        0: const pw.FixedColumnWidth(30),
+        1: const pw.FlexColumnWidth(2),
+        2: const pw.FixedColumnWidth(80),
+        for (var i = 0; i < dates.length; i++)
+          i + 3: const pw.FixedColumnWidth(70),
+      },
+      children: [
+        // Header row
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColors.grey300),
+          children: [
+            _buildCell('No.', isHeader: true),
+            _buildCell('NOMBRE DE INTEGRANTES', isHeader: true),
+            _buildCell('MONTO AUTORIZADO', isHeader: true),
+            for (var date in dates)
+              _buildCell(
+                  'SEMANA ${dates.indexOf(date) + 1}\nFECHA: ${DateFormat('dd/MM').format(date)}',
+                  isHeader: true,
+                  isDateCell: true),
+          ],
+        ),
+        // Second header row
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColors.grey300),
+          children: [
+            _buildCell('', isHeader: true),
+            _buildCell('', isHeader: true),
+            _buildCell('PAGO SEMANAL', isHeader: true),
+            for (var date in dates)
+              _buildCell('PAGO SOLIDARIO', isHeader: true),
+          ],
+        ),
+        // Member rows
+        for (var member in credito.clientesMontosInd)
+          pw.TableRow(
             children: [
-              pw.TableRow(
-                decoration: pw.BoxDecoration(color: lightGrey),
-                children: [
-                  _buildCell('No.', isHeader: true),
-                  _buildCell('Integrante',
-                      isHeader: true, alignment: pw.Alignment.centerLeft),
-                  ...dates.map((d) => _buildCell(
-                        DateFormat('dd/MM').format(d),
-                        isHeader: true,
-                      )),
-                ],
-              ),
-              for (var member in credito.clientesMontosInd)
-                pw.TableRow(
-                  verticalAlignment: pw.TableCellVerticalAlignment.middle,
-                  children: [
-                    _buildCell(
-                        '${credito.clientesMontosInd.indexOf(member) + 1}'),
-                    _buildCell(member.nombreCompleto,
-                        alignment: pw.Alignment.centerLeft),
-                    ...List.generate(
-                        dates.length, (_) => _buildEmptyPaymentCell()),
-                  ],
-                ),
-              pw.TableRow(
-                decoration: pw.BoxDecoration(color: accentColor.shade(0.1)),
-                children: [
-                  _buildCell('', isHeader: true),
-                  _buildCell('TOTAL SEMANAL',
-                      isHeader: true, alignment: pw.Alignment.centerRight),
-                  ...List.generate(
-                    dates.length,
-                    (_) => _buildCell(
-                      '\$${NumberFormat("#,##0.00").format(credito.semanalCapital + credito.semanalInteres)}',
-                      isHeader: true,
-                      textColor: accentColor,
-                    ),
-                  ),
-                ],
-              ),
+              _buildCell('${credito.clientesMontosInd.indexOf(member) + 1}-'),
+              _buildCell(member.nombreCompleto),
+              _buildCell(
+                  '\$${NumberFormat("#,##0.00").format(member.capitalMasInteres)}'),
+              for (var date in dates) _buildEmptyPaymentCell(),
             ],
           ),
-        ],
-      ),
+        // Total row
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColors.grey200),
+          children: [
+            _buildCell('', isHeader: true),
+            _buildCell('Total', isHeader: true),
+            _buildCell(
+                '\$${NumberFormat("#,##0.00").format(credito.montoDesembolsado)}',
+                isHeader: true),
+            for (var date in dates)
+              _buildCell(
+                  '\$${NumberFormat("#,##0.00").format(credito.pagoCuota)}',
+                  isHeader: true),
+          ],
+        ),
+      ],
     );
   }
 
@@ -380,25 +368,21 @@ class PDFControlPagos {
   static pw.Widget _buildCell(
     String text, {
     bool isHeader = false,
-    pw.Alignment alignment = pw.Alignment.center,
-    PdfColor? textColor,
+    bool isDateCell = false,
+    pw.TextStyle? style,
   }) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.all(6),
-      child: pw.Align(
-        alignment: alignment,
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(4),
+      child: pw.Center(
         child: pw.Text(
           text,
-          style: isHeader
-              ? pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                  fontSize: 9,
-                  color: textColor ?? darkGrey,
-                )
-              : pw.TextStyle(
-                  fontSize: 9,
-                  color: textColor ?? darkGrey,
-                ),
+          textAlign: isDateCell ? pw.TextAlign.center : pw.TextAlign.left,
+          style: style ??
+              pw.TextStyle(
+                fontSize: 8,
+                fontWeight:
+                    isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+              ),
         ),
       ),
     );
