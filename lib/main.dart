@@ -1,6 +1,10 @@
+import 'dart:convert';
+
+import 'package:finora/ip.dart';
 import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
+import 'package:finora/widgets/downloadUpdate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:finora/navigation_rail.dart';
@@ -13,71 +17,218 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Añadido SharedPreferences
 import 'constants/routes.dart';
+import 'package:http/http.dart' as http; // Añade esto al inicio
 
-// Provider para gestionar el factor de escala dinámicamente
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 class ScaleProvider extends ChangeNotifier {
   double _scaleFactor;
-  static const String _scaleFactorKey =
-      'scale_factor'; // Clave para SharedPreferences
+  static const String _scaleFactorKey = 'scale_factor';
 
   ScaleProvider(this._scaleFactor);
 
   double get scaleFactor => _scaleFactor;
 
-  // Método para cargar el factor de escala guardado
   Future<void> loadSavedScale() async {
     final prefs = await SharedPreferences.getInstance();
     _scaleFactor = prefs.getDouble(_scaleFactorKey) ?? _scaleFactor;
     notifyListeners();
   }
 
-  // Método modificado para guardar el factor cada vez que cambia
   void setScaleFactor(double newScale) async {
     _scaleFactor = newScale;
     notifyListeners();
-
-    // Guardar en SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_scaleFactorKey, newScale);
   }
 }
 
+bool isNewVersionAvailable(String localVersion, String remoteVersion) {
+  List<int> local = localVersion.split('.').map((e) => int.parse(e)).toList();
+  List<int> remote = remoteVersion.split('.').map((e) => int.parse(e)).toList();
+
+  for (int i = 0; i < remote.length; i++) {
+    int remotePart = remote[i];
+    int localPart = i < local.length ? local[i] : 0;
+
+    if (remotePart > localPart) return true;
+    if (remotePart < localPart) return false;
+  }
+  return false;
+}
+
+void showUpdateDialog(
+    BuildContext context, String newVersion, String downloadUrl) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      final width = MediaQuery.of(context).size.width * 0.3;
+      final height = MediaQuery.of(context).size.height * 0.35;
+
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 8,
+        backgroundColor: Colors.white,
+        child: Container(
+          width: width,
+          padding: const EdgeInsets.all(24),
+          constraints: BoxConstraints(
+            maxHeight: height,
+            minHeight: 150,
+            minWidth: 300,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Icono de actualización
+              const Icon(
+                Icons.cloud_download_outlined,
+                color: Colors.blueAccent,
+                size: 70,
+              ),
+              const SizedBox(height: 10),
+
+              // Título
+              const Text(
+                'Nueva actualización disponible',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 12),
+
+              // Versión
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.blueAccent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'Versión $newVersion',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.blueAccent.shade700,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Botones
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey.shade700,
+                    ),
+                    child: const Text('Más tarde'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(
+                          context); // Cierra el diálogo de actualización
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => DownloadProgressDialog(
+                          downloadUrl:
+                              'http://$baseUrl/descargar' + downloadUrl,
+                          version: newVersion, // Pasar la versión
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Actualizar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Future<void> checkAppVersion() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final response = await http.get(
+      Uri.parse('http://$baseUrl/api/v1/buscar/version'),
+      headers: {'Accept': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final remoteVersion = data['version'] as String;
+      final downloadUrl = data['downloadUrl'] as String;
+      final localVersion = prefs.getString('version') ?? '1.0.0';
+
+      if (isNewVersionAvailable(localVersion, remoteVersion)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showUpdateDialog(
+            navigatorKey.currentContext!,
+            remoteVersion,
+            downloadUrl,
+          );
+        });
+      }
+    }
+  } catch (e) {
+    print('Error al verificar versión: $e');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   final logoProvider = LogoProvider();
 
-  // Inicializa la configuración de fechas en español.
   await initializeDateFormatting('es_ES', null);
   Intl.defaultLocale = 'es_ES';
-
-  // Inicializa window_manager
   await windowManager.ensureInitialized();
 
-  // Obtener la escala del sistema
+  // Configuración de escala
   double systemScale = await windowManager.getDevicePixelRatio();
-
-  // Verificar si hay una escala guardada previamente
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  double savedScale = prefs.getDouble('scale_factor') ?? 0.0;
 
-  // Si no hay escala guardada, calcular el factor inicial
-  double initialScale;
-  if (savedScale > 0.0) {
-    // Usar la escala guardada
-    initialScale = savedScale;
-  } else {
-    // Calcular una escala predeterminada basada en la configuración del sistema
-    double targetScale = 1.4; // Escala predeterminada deseada
-    initialScale = systemScale < 1.4 ? targetScale / systemScale : 1.0;
+  // Establecer versión por defecto
+  if (!prefs.containsKey('version')) {
+    await prefs.setString('version', '1.0.0');
   }
 
-  // Si hay que escalar, ajustamos la ventana
+  double savedScale = prefs.getDouble('scale_factor') ?? 0.0;
+  double initialScale = savedScale > 0.0
+      ? savedScale
+      : (systemScale < 1.4 ? 1.4 / systemScale : 1.0);
+
   if (initialScale > 1.0) {
     Size screenSize = await windowManager.getSize();
     await windowManager.setSize(Size(
         screenSize.width * initialScale, screenSize.height * initialScale));
   }
+
+  // Verificar versión antes de iniciar la app
+  await checkAppVersion();
 
   runApp(
     MultiProvider(
@@ -86,8 +237,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ScaleProvider(initialScale)),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => logoProvider),
-        ChangeNotifierProvider(create: (_) => UserDataProvider()), // Nuevo Provider
-
+        ChangeNotifierProvider(create: (_) => UserDataProvider()),
       ],
       child: const MyApp(),
     ),
@@ -108,44 +258,20 @@ class MyApp extends StatelessWidget {
       onKey: (event) {
         if (event is RawKeyDownEvent) {
           final bool isControlPressed = event.isControlPressed;
+          double currentScale = scaleProvider.scaleFactor;
 
           if (isControlPressed) {
-            double currentScale = scaleProvider.scaleFactor;
-
-            // Teclas normales
             if (event.logicalKey == LogicalKeyboardKey.equal ||
-                event.logicalKey == LogicalKeyboardKey.add) {
-              // Control + Plus: Aumentar zoom
+                event.logicalKey == LogicalKeyboardKey.add ||
+                event.logicalKey == LogicalKeyboardKey.numpadAdd) {
               double newScale = currentScale + 0.1;
-              if (newScale <= 2.5) {
-                scaleProvider.setScaleFactor(newScale);
-              }
-            } else if (event.logicalKey == LogicalKeyboardKey.minus) {
-              // Control + Minus: Disminuir zoom
+              if (newScale <= 2.5) scaleProvider.setScaleFactor(newScale);
+            } else if (event.logicalKey == LogicalKeyboardKey.minus ||
+                event.logicalKey == LogicalKeyboardKey.numpadSubtract) {
               double newScale = currentScale - 0.1;
-              if (newScale >= 0.5) {
-                scaleProvider.setScaleFactor(newScale);
-              }
-            } else if (event.logicalKey == LogicalKeyboardKey.digit0) {
-              // Control + 0: Resetear zoom a 1.4 (valor original)
-              scaleProvider.setScaleFactor(1.4);
-            }
-
-            // Teclas numéricas
-            else if (event.logicalKey == LogicalKeyboardKey.numpadAdd) {
-              // Control + NumpadPlus
-              double newScale = currentScale + 0.1;
-              if (newScale <= 2.5) {
-                scaleProvider.setScaleFactor(newScale);
-              }
-            } else if (event.logicalKey == LogicalKeyboardKey.numpadSubtract) {
-              // Control + NumpadMinus
-              double newScale = currentScale - 0.1;
-              if (newScale >= 0.5) {
-                scaleProvider.setScaleFactor(newScale);
-              }
-            } else if (event.logicalKey == LogicalKeyboardKey.numpad0) {
-              // Control + Numpad0
+              if (newScale >= 0.5) scaleProvider.setScaleFactor(newScale);
+            } else if (event.logicalKey == LogicalKeyboardKey.digit0 ||
+                event.logicalKey == LogicalKeyboardKey.numpad0) {
               scaleProvider.setScaleFactor(1.4);
             }
           }
@@ -157,6 +283,7 @@ class MyApp extends StatelessWidget {
           devicePixelRatio: scaleProvider.scaleFactor,
         ),
         child: MaterialApp(
+          navigatorKey: navigatorKey,
           locale: const Locale('es', 'ES'),
           supportedLocales: const [
             Locale('es', 'ES'),
@@ -172,10 +299,6 @@ class MyApp extends StatelessWidget {
           },
           onGenerateRoute: (settings) {
             if (settings.name == AppRoutes.navigation) {
-              if (settings.arguments is! Map<String, dynamic>) {
-                return _errorRoute();
-              }
-              final args = settings.arguments as Map<String, dynamic>;
               return MaterialPageRoute(
                 builder: (context) => NavigationScreen(
                   scaleFactor: scaleProvider.scaleFactor,
@@ -193,13 +316,10 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// Ruta de error genérica
 Route<dynamic> _errorRoute() {
   return MaterialPageRoute(
     builder: (_) => Scaffold(
-      body: Center(
-        child: Text('Error de navegación'),
-      ),
+      body: Center(child: Text('Error de navegación')),
     ),
   );
 }

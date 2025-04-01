@@ -901,15 +901,9 @@ class PDFControlPagos {
       padding: const pw.EdgeInsets.all(20),
       child: pw.Column(
         children: [
-          pw.Text(
-            'FIRMAN DE CONFORMIDAD',
-            style: pw.TextStyle(
-              fontWeight: pw.FontWeight.bold,
-              fontSize: 12,
-              color: PdfColor.fromHex('#5162F6'),
-            ),
-          ),
-          pw.SizedBox(height: 50),
+          // Add significant space to push everything down
+          pw.SizedBox(height: 70),
+          // First add the signature lines
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
             children: [
@@ -917,6 +911,16 @@ class PDFControlPagos {
               _signatureLine('TESORERA', tesoreraName),
               _signatureLine('ASESOR', asesorName),
             ],
+          ),
+          // Add the text below the signatures
+          pw.SizedBox(height: 30),
+          pw.Text(
+            'FIRMAN DE CONFORMIDAD',
+            style: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              fontSize: 12,
+              color: PdfColor.fromHex('#5162F6'),
+            ),
           ),
         ],
       ),

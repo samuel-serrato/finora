@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:finora/helpers/pdf_exporter_controlpago.dart';
+import 'package:finora/helpers/pdf_exporter_cuentaspago.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -699,6 +700,10 @@ class _InfoCreditoState extends State<InfoCredito> {
 // Función para mostrar un diálogo genérico o de error con diseño
   void mostrarDialogo(BuildContext context, String titulo, String mensaje,
       {bool esError = false}) {
+    // Reemplazar la IP si está en el mensaje
+    mensaje = mensaje.replaceAll(
+        RegExp(r'http://\d+\.\d+\.\d+\.\d+:\d+/\S*'), '[URL Oculta]');
+
     showDialog(
       barrierDismissible: false,
       context: context,
@@ -713,7 +718,9 @@ class _InfoCreditoState extends State<InfoCredito> {
               if (!esError) Icon(Icons.info_outline, color: Colors.blue),
               SizedBox(width: 10),
               Text(
-                titulo,
+                esError
+                    ? "Error"
+                    : titulo, // Solo muestra "Error" si es un error
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: esError ? Colors.red : Colors.blue,
@@ -730,6 +737,8 @@ class _InfoCreditoState extends State<InfoCredito> {
             ElevatedButton.icon(
               onPressed: () {
                 Navigator.of(context).pop(); // Cerrar el diálogo
+
+                // Especificar el tipo correcto de Provider
                 Provider.of<PagosProvider>(context, listen: false)
                     .limpiarPagos();
 
@@ -4810,15 +4819,15 @@ class PaginaIntegrantes extends StatelessWidget {
 class PaginaDescargables extends StatefulWidget {
   final String tipo;
   final String folio;
-  final bool descargando; // Nuevo parámetro para controlar el estado
-  final Credito credito; // Nuevo parámetro requerido
+  final bool descargando;
+  final Credito credito;
 
   const PaginaDescargables({
     Key? key,
     required this.tipo,
     required this.folio,
     this.descargando = false,
-    required this.credito, // Marcar como requerido
+    required this.credito,
   }) : super(key: key);
 
   @override
@@ -4826,7 +4835,7 @@ class PaginaDescargables extends StatefulWidget {
 }
 
 class _PaginaDescargablesState extends State<PaginaDescargables> {
-  String? _documentoDescargando; // null, 'contrato' o 'pagare'
+  String? _documentoDescargando; // null, 'contrato', 'pagare' o 'control_pagos'
   bool dialogShown = false; // Controlar diálogos mostrados
 
   Future<void> _descargarDocumento(String documento) async {
@@ -4929,6 +4938,67 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
       if (mounted) {
         setState(() => _documentoDescargando = null);
       }
+    }
+  }
+
+  Future<void> _generarControlPagos() async {
+    // Establecer estado de carga
+    setState(() => _documentoDescargando = 'control_pagos');
+
+    try {
+      final String? savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar Control de Pagos',
+        fileName: 'Control_Pagos_${widget.folio}.pdf',
+        allowedExtensions: ['pdf'],
+        type: FileType.custom,
+      );
+
+      if (!mounted) return;
+
+      if (savePath != null) {
+        await PDFControlPagos.generar(context, widget.credito, savePath);
+        if (!mounted) return;
+        await _abrirArchivoGuardado(savePath);
+      }
+    } catch (e) {
+      _mostrarError('Error al generar PDF: ${e.toString()}');
+    } finally {
+      // Limpiar estado de carga cuando termine (ya sea éxito o error)
+      if (mounted) {
+        setState(() => _documentoDescargando = null);
+      }
+    }
+  }
+
+  // --- NEW Method for Ficha de Pago Semanal PDF ---
+  Future<void> _generarFichaPagoSemanal() async {
+    setState(() => _documentoDescargando = 'ficha_pago');
+    try {
+      // Validate required data before proceeding
+      if (widget.credito.pagoCuota == null) {
+        _mostrarError(
+            'Faltan datos necesarios en el crédito para generar la ficha de pago (monto semanal, titular o tarjeta).');
+        setState(() => _documentoDescargando = null); // Reset loading state
+        return;
+      }
+
+      final String? savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar Ficha de Pago Semanal',
+        fileName: 'Ficha_Pago_Semanal_${widget.folio}.pdf',
+        allowedExtensions: ['pdf'],
+        type: FileType.custom,
+      );
+      if (!mounted || savePath == null) return;
+
+      // Pass context and credito object to the new generator
+      await PDFFichaPagoSemanal.generar(context, widget.credito, savePath);
+      if (!mounted) return;
+      await _abrirArchivoGuardado(savePath);
+    } catch (e) {
+      if (mounted)
+        _mostrarError('Error al generar Ficha de Pago: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _documentoDescargando = null);
     }
   }
 
@@ -5138,7 +5208,7 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
           titulo: 'Descargar Contrato',
           icono: Icons.description,
           color: Colors.blue[800]!,
-          documento: 'contrato', // Nuevo parámetro
+          documento: 'contrato',
           onTap: () => _descargarDocumento('contrato'),
         ),
         const SizedBox(height: 15),
@@ -5146,7 +5216,7 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
           titulo: 'Descargar Pagaré',
           icono: Icons.monetization_on_rounded,
           color: Colors.green[700]!,
-          documento: 'pagare', // Nuevo parámetro
+          documento: 'pagare',
           onTap: () => _descargarDocumento('pagare'),
         ),
         const SizedBox(height: 15),
@@ -5155,24 +5225,16 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
           icono: Icons.table_chart,
           color: Colors.purple[700]!,
           documento: 'control_pagos',
-          onTap: () async {
-            try {
-              final String? savePath = await FilePicker.platform.saveFile(
-                dialogTitle: 'Guardar Control de Pagos',
-                fileName: 'Control_Pagos_${widget.folio}.pdf',
-                allowedExtensions: ['pdf'],
-                type: FileType.custom,
-              );
-
-              if (savePath != null) {
-                await PDFControlPagos.generar(
-                    context, widget.credito, savePath);
-                await _abrirArchivoGuardado(savePath);
-              }
-            } catch (e) {
-              _mostrarError('Error al generar PDF: ${e.toString()}');
-            }
-          },
+          onTap: _generarControlPagos, // Usar la nueva función
+        ),
+        const SizedBox(height: 15), // Add space
+        // --- NEW BUTTON ---
+        _buildBotonDescarga(
+          titulo: 'Generar Ficha de Pago',
+          icono: Icons.receipt_long, // Example icon
+          color: Colors.orange[800]!, // Example color
+          documento: 'ficha_pago', // Unique identifier for loading state
+          onTap: _generarFichaPagoSemanal, // Link to the new function
         ),
       ],
     );
@@ -5182,7 +5244,7 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
     required String titulo,
     required IconData icono,
     required Color color,
-    required String documento, // Nuevo parámetro
+    required String documento,
     required VoidCallback onTap,
   }) {
     final estaDescargando = _documentoDescargando == documento;
@@ -5199,9 +5261,7 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
             color: color,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: estaDescargando
-              ? _buildLoadingIndicator()
-              : _buildButtonContent(titulo, icono),
+          child: _buildButtonContent(titulo, icono, estaDescargando),
         ),
       ),
     );
@@ -5220,7 +5280,8 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
     );
   }
 
-  Widget _buildButtonContent(String titulo, IconData icono) {
+  Widget _buildButtonContent(
+      String titulo, IconData icono, bool estaDescargando) {
     return Row(
       children: [
         Icon(icono, color: Colors.white, size: 28),
@@ -5233,7 +5294,17 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
                 fontWeight: FontWeight.w600,
               )),
         ),
-        const Icon(Icons.download_rounded, color: Colors.white, size: 24),
+        // Aquí reemplazamos el icono de descarga con un indicador de carga cuando está descargando
+        estaDescargando
+            ? SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.download_rounded, color: Colors.white, size: 24),
       ],
     );
   }
