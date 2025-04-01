@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:finora/dialogs/infoCredito.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
@@ -6,6 +7,11 @@ import 'package:printing/printing.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 import 'dart:typed_data';
+import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:finora/providers/user_data_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:finora/ip.dart';
 
 class PDFControlPagos {
   // Modern color palette
@@ -15,7 +21,30 @@ class PDFControlPagos {
   static final PdfColor mediumGrey = PdfColors.grey400;
   static final PdfColor darkGrey = PdfColors.grey800;
 
-  static Future<void> generar(Credito credito) async {
+  // Función para cargar assets (por ejemplo, el logo de FINORA)
+  static Future<Uint8List> _loadAsset(String path) async {
+    final ByteData data = await rootBundle.load(path);
+    return data.buffer.asUint8List();
+  }
+
+  // Función para cargar imágenes desde URL (por ejemplo, el logo de la financiera)
+  static Future<Uint8List?> _loadNetworkImage(String? imageUrl) async {
+    if (imageUrl == null || imageUrl.isEmpty) return null;
+
+    try {
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      }
+    } catch (e) {
+      print('Error cargando imagen desde URL: $e');
+    }
+    return null;
+  }
+
+  // Se agrega BuildContext para obtener datos del Provider
+  static Future<void> generar(
+      BuildContext context, Credito credito, String savePath) async {
     try {
       // 1. Validar permisos
       final status = await Permission.storage.request();
@@ -33,15 +62,13 @@ class PDFControlPagos {
         throw 'Formato debe ser: fecha_inicio - fecha_fin';
       }
 
-      // 3. Parsear fechas
-// Cambiar el formato de fecha
+      // 3. Parsear fechas y cambiar el formato
       final formatEntrada = DateFormat('yyyy/MM/dd');
       final formatSalida = DateFormat('dd/MM/yyyy');
 
       final fechaInicio = formatEntrada.parse(partes[0].trim());
       final fechaFin = formatEntrada.parse(partes[1].trim());
 
-// Convertir al nuevo formato
       final fechaInicioFormateada = formatSalida.format(fechaInicio);
       final fechaFinFormateada = formatSalida.format(fechaFin);
 
@@ -57,20 +84,39 @@ class PDFControlPagos {
       );
 
       final sectionTitleStyle = pw.TextStyle(
-        fontSize: 14,
+        fontSize: 10,
         fontWeight: pw.FontWeight.bold,
         color: darkGrey,
       );
 
+      // Obtener datos del provider
+      final userData = Provider.of<UserDataProvider>(context, listen: false);
+      // Buscar el logo a color
+      final logoColor = userData.imagenes
+          .where((img) => img.tipoImagen == 'logoColor')
+          .firstOrNull;
+      // Construir URL completa
+      final logoUrl = logoColor != null
+          ? 'http://$baseUrl/imagenes/subidas/${logoColor.rutaImagen}'
+          : null;
+      // Cargar logos
+      final financieraLogo = await _loadNetworkImage(logoUrl);
+      final finoraLogo = await _loadAsset('assets/finora_hzt.png');
+
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(25),
+          margin: const pw.EdgeInsets.all(20),
           theme: pw.ThemeData.withFont(
             base: pw.Font.helvetica(),
             bold: pw.Font.helveticaBold(),
           ),
-          header: (context) => _buildDocumentHeader(credito, titleStyle),
+          header: (context) => _buildDocumentHeader(
+            credito,
+            titleStyle,
+            finoraLogo,
+            financieraLogo,
+          ),
           footer: (context) => _buildFooter(context),
           build: (context) => [
             pw.SizedBox(height: 15),
@@ -81,17 +127,14 @@ class PDFControlPagos {
             pw.SizedBox(height: 25),
             ..._buildPaymentTables(fechas, credito),
             pw.SizedBox(height: 30),
-            _buildSignatures(),
+            _buildSignatures(credito),
           ],
         ),
       );
 
-      // 6. Guardar y compartir PDF
-      final bytes = await pdf.save();
-      await Printing.sharePdf(
-        bytes: bytes,
-        filename: 'ControlPagos_${credito.folio}.pdf',
-      );
+      // 6. Guardar PDF en la ruta seleccionada
+      final file = File(savePath);
+      await file.writeAsBytes(await pdf.save());
     } on FormatException catch (e) {
       throw 'Error en fecha: ${e.message}';
     } catch (e) {
@@ -103,47 +146,57 @@ class PDFControlPagos {
     // Genera fechas empezando desde la semana 1 (omite la semana 0)
     return List.generate(
       weeks,
-      (i) => startDate
-          .add(Duration(days: 7 * (i + 1))), // i + 1 para saltar semana 0
+      (i) => startDate.add(Duration(days: 7 * (i + 1))),
     );
   }
 
   static pw.Widget _buildDocumentHeader(
-      Credito credito, pw.TextStyle titleStyle) {
+      Credito credito,
+      pw.TextStyle titleStyle,
+      Uint8List finoraLogo,
+      Uint8List? financieraLogo) {
     return pw.Container(
       padding: const pw.EdgeInsets.only(bottom: 10),
       decoration: pw.BoxDecoration(
         border: pw.Border(bottom: pw.BorderSide(color: mediumGrey, width: 0.5)),
       ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      child: pw.Column(
         children: [
-          pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('CONTROL DE PAGO SEMANAL', style: titleStyle),
-              pw.SizedBox(height: 5),
-              pw.Text('Folio: ${credito.folio}',
-                  style: pw.TextStyle(fontSize: 10, color: darkGrey)),
+              if (financieraLogo != null)
+                pw.Image(
+                  pw.MemoryImage(financieraLogo),
+                  width: 120,
+                  height: 40,
+                  fit: pw.BoxFit.contain,
+                )
+              else
+                pw.Container(),
+              pw.Image(
+                pw.MemoryImage(finoraLogo),
+                width: 120,
+                height: 40,
+                fit: pw.BoxFit.contain,
+              ),
             ],
           ),
-          pw.Container(
-            width: 60,
-            height: 60,
-            decoration: pw.BoxDecoration(
-              color: accentColor,
-              borderRadius: pw.BorderRadius.circular(30),
-            ),
-            child: pw.Center(
-              child: pw.Text(
-                'FINORA',
-                style: pw.TextStyle(
-                  color: PdfColors.white,
-                  fontWeight: pw.FontWeight.bold,
-                  fontSize: 10,
-                ),
+          pw.SizedBox(height: 20),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Control de pago',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('#5162F6'),
+                  )),
+              pw.Text(
+                'Generado: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                style: pw.TextStyle(fontSize: 8),
               ),
-            ),
+            ],
           ),
         ],
       ),
@@ -155,7 +208,7 @@ class PDFControlPagos {
     return pw.Container(
       padding: const pw.EdgeInsets.all(15),
       decoration: pw.BoxDecoration(
-        color: PdfColors.grey100,
+        color: PdfColor.fromHex('f2f7fa'),
         borderRadius: pw.BorderRadius.circular(8),
       ),
       child: pw.Column(
@@ -165,10 +218,10 @@ class PDFControlPagos {
           pw.SizedBox(height: 10),
           pw.Row(children: [
             _buildInfoColumn('NOMBRE DEL GRUPO', credito.nombreGrupo, flex: 2),
-            _buildInfoColumn('CICLO', '01', flex: 1),
+            _buildInfoColumn('CICLO', credito.detalles, flex: 2),
           ]),
           pw.SizedBox(height: 8),
-          /*  pw.Row(children: [
+          pw.Row(children: [
             _buildInfoColumn('NOMBRE DE LA PRESIDENTA',
                 _getPresidenta(credito.clientesMontosInd),
                 flex: 2),
@@ -178,13 +231,8 @@ class PDFControlPagos {
           ]),
           pw.SizedBox(height: 8),
           pw.Row(children: [
-            _buildInfoColumn(
-                'NOMBRE DEL ASESOR',
-                credito.garantia == "ASESOR"
-                    ? credito.garantia
-                    : "MA. CARMEN FERNANDEZ LEON",
-                flex: 2),
-          ]), */
+            _buildInfoColumn('NOMBRE DEL ASESOR', credito.asesor, flex: 2),
+          ]),
         ],
       ),
     );
@@ -192,13 +240,25 @@ class PDFControlPagos {
 
 // Helper functions to get specific roles
   static String _getPresidenta(List<ClienteMonto> clientes) {
-    // Implement logic to find presidenta based on your data structure
-    return "MIRIAM YAMILET CAMPOS LOPEZ"; // Ejemplo
+    // Find the client with the "Presidenta" cargo (role)
+    for (var cliente in clientes) {
+      if (cliente.cargo == "Presidente/a") {
+        return cliente.nombreCompleto;
+      }
+    }
+    // If not found, return empty string or default message
+    return "No asignada";
   }
 
   static String _getTesorera(List<ClienteMonto> clientes) {
-    // Implement logic to find tesorera based on your data structure
-    return "ADRIANA MOLINA ESCOBAR"; // Ejemplo
+    // Find the client with the "Tesorera" cargo (role)
+    for (var cliente in clientes) {
+      if (cliente.cargo == "Tesorero/a") {
+        return cliente.nombreCompleto;
+      }
+    }
+    // If not found, return empty string or default message
+    return "No asignada";
   }
 
   static pw.Widget _buildLoanInfo(
@@ -213,7 +273,7 @@ class PDFControlPagos {
     return pw.Container(
       padding: const pw.EdgeInsets.all(15),
       decoration: pw.BoxDecoration(
-        color: PdfColors.grey100,
+        color: PdfColor.fromHex('f2f7fa'),
         borderRadius: pw.BorderRadius.circular(8),
       ),
       child: pw.Column(
@@ -236,7 +296,7 @@ class PDFControlPagos {
           pw.SizedBox(height: 8),
           pw.Row(children: [
             _buildInfoColumn('TIPO DE CRÉDITO',
-                credito.tipo == "AVAL" ? "AVAL SOLIDARIO" : credito.tipo,
+                '${credito.tipo}${credito.tipo == "Grupal" ? " - AVAL SOLIDARIO" : ""}',
                 flex: 1),
             _buildInfoColumn('TASA DE INTERÉS MENSUAL', '${credito.ti_mensual}',
                 flex: 1),
@@ -263,16 +323,16 @@ class PDFControlPagos {
           pw.Text(
             label,
             style: pw.TextStyle(
-              fontSize: 9,
+              fontSize: 7,
               color: darkGrey,
             ),
           ),
           pw.SizedBox(height: 2),
           pw.Text(
-            value,
+            value.toUpperCase(),
             style: valueStyle ??
                 pw.TextStyle(
-                  fontSize: 11,
+                  fontSize: 8,
                   fontWeight: pw.FontWeight.bold,
                 ),
           ),
@@ -286,28 +346,41 @@ class PDFControlPagos {
     final blocks = _splitDates(dates, 4);
     final widgets = <pw.Widget>[];
 
-    widgets.add(pw.Text(
-      'Registro de Pagos Semanales',
-      style: pw.TextStyle(
-        fontSize: 14,
-        fontWeight: pw.FontWeight.bold,
-        color: darkGrey,
+    /*  widgets.add(pw.Container(
+      padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 0),
+      child: pw.Text(
+        'REGISTRO DE PAGOS SEMANALES',
+        style: pw.TextStyle(
+          fontSize: 14,
+          fontWeight: pw.FontWeight.bold,
+          color: darkGrey,
+        ),
       ),
-    ));
+    )); */
 
-    widgets.add(pw.SizedBox(height: 10));
+    //widgets.add(pw.SizedBox(height: 15));
 
     for (var i = 0; i < blocks.length; i++) {
       // Calcular el número de semana inicial para este bloque
       int startWeek = i * 4 + 1;
 
       widgets.add(
-        pw.Column(
-          // Agrupa la tabla y evita que se divida el encabezado
-          children: [
-            _paymentTable(blocks[i], credito, startWeek),
-            if (i < blocks.length - 1) pw.SizedBox(height: 15), // Espaciado
-          ],
+        pw.Container(
+          decoration: pw.BoxDecoration(
+            boxShadow: [
+              pw.BoxShadow(
+                color: PdfColors.grey300,
+                offset: const PdfPoint(2, 2),
+                blurRadius: 3,
+              ),
+            ],
+          ),
+          child: pw.Column(
+            children: [
+              _paymentTable(blocks[i], credito, startWeek),
+              if (i < blocks.length - 1) pw.SizedBox(height: 15), // Espaciado
+            ],
+          ),
         ),
       );
     }
@@ -327,20 +400,27 @@ class PDFControlPagos {
       totalPagoSemanal += member.capitalMasInteres;
     }
 
-    // En lugar de usar rowSpan, vamos a crear una tabla personalizada
+    // Definir colores para la tabla
+    final headerColor = PdfColor.fromHex('f2f7fa');
+    final subheaderColor = PdfColor.fromHex('f2f7fa');
+    final rowEvenColor = PdfColors.white;
+    final rowOddColor = PdfColors.grey100;
+    final totalRowColor = PdfColor.fromHex('f2f7fa');
+    final borderColor = PdfColors.blue800;
+
     return pw.Column(
       children: [
-        // Primera fila
+        // Primera fila - Encabezados principales
         pw.Row(
           children: [
             // Columna No.
             pw.Expanded(
               flex: 30,
               child: pw.Container(
-                height: 40, // Altura suficiente para 2 filas
+                height: 40,
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                  color: PdfColors.grey300,
+                  border: pw.Border.all(color: borderColor, width: 0.5),
+                  color: headerColor,
                 ),
                 child: pw.Center(
                   child: pw.Text(
@@ -348,6 +428,7 @@ class PDFControlPagos {
                     style: pw.TextStyle(
                       fontSize: 6,
                       fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
                     ),
                   ),
                 ),
@@ -355,12 +436,12 @@ class PDFControlPagos {
             ),
             // Columna NOMBRE DE INTEGRANTES
             pw.Expanded(
-              flex: 200, // Más ancha
+              flex: 170,
               child: pw.Container(
-                height: 40, // Altura suficiente para 2 filas
+                height: 40,
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                  color: PdfColors.grey300,
+                  border: pw.Border.all(color: borderColor, width: 0.5),
+                  color: headerColor,
                 ),
                 child: pw.Center(
                   child: pw.Text(
@@ -368,6 +449,7 @@ class PDFControlPagos {
                     style: pw.TextStyle(
                       fontSize: 6,
                       fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
                     ),
                   ),
                 ),
@@ -375,12 +457,12 @@ class PDFControlPagos {
             ),
             // Columna MONTO AUTORIZADO
             pw.Expanded(
-              flex: 70, // Más pequeña
+              flex: 50,
               child: pw.Container(
-                height: 40, // Altura suficiente para 2 filas
+                height: 40,
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                  color: PdfColors.grey300,
+                  border: pw.Border.all(color: borderColor, width: 0.5),
+                  color: headerColor,
                 ),
                 child: pw.Center(
                   child: pw.Text(
@@ -389,6 +471,7 @@ class PDFControlPagos {
                     style: pw.TextStyle(
                       fontSize: 6,
                       fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
                     ),
                   ),
                 ),
@@ -396,12 +479,12 @@ class PDFControlPagos {
             ),
             // Columna PAGO SEMANAL
             pw.Expanded(
-              flex: 70, // Más pequeña
+              flex: 50,
               child: pw.Container(
-                height: 40, // Altura suficiente para 2 filas
+                height: 40,
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                  color: PdfColors.grey300,
+                  border: pw.Border.all(color: borderColor, width: 0.5),
+                  color: headerColor,
                 ),
                 child: pw.Center(
                   child: pw.Text(
@@ -410,6 +493,7 @@ class PDFControlPagos {
                     style: pw.TextStyle(
                       fontSize: 6,
                       fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
                     ),
                   ),
                 ),
@@ -425,9 +509,8 @@ class PDFControlPagos {
                     pw.Container(
                       height: 20,
                       decoration: pw.BoxDecoration(
-                        border:
-                            pw.Border.all(color: PdfColors.black, width: 0.5),
-                        color: PdfColors.grey300,
+                        border: pw.Border.all(color: borderColor, width: 0.5),
+                        color: headerColor,
                       ),
                       child: pw.Center(
                         child: pw.Text(
@@ -436,11 +519,12 @@ class PDFControlPagos {
                           style: pw.TextStyle(
                             fontSize: 5,
                             fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
                           ),
                         ),
                       ),
                     ),
-                    // Segunda fila - Split "PAGO SOLIDARIO" into two columns
+                    // Segunda fila - PAGO SOLIDARIO dividido en dos columnas
                     pw.Row(
                       children: [
                         // Left column: "PAGO"
@@ -449,9 +533,9 @@ class PDFControlPagos {
                           child: pw.Container(
                             height: 20,
                             decoration: pw.BoxDecoration(
-                              border: pw.Border.all(
-                                  color: PdfColors.black, width: 0.5),
-                              color: PdfColors.grey300,
+                              border:
+                                  pw.Border.all(color: borderColor, width: 0.5),
+                              color: subheaderColor,
                             ),
                             child: pw.Center(
                               child: pw.Text(
@@ -460,6 +544,7 @@ class PDFControlPagos {
                                 style: pw.TextStyle(
                                   fontSize: 4,
                                   fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blue900,
                                 ),
                               ),
                             ),
@@ -471,9 +556,9 @@ class PDFControlPagos {
                           child: pw.Container(
                             height: 20,
                             decoration: pw.BoxDecoration(
-                              border: pw.Border.all(
-                                  color: PdfColors.black, width: 0.5),
-                              color: PdfColors.grey300,
+                              border:
+                                  pw.Border.all(color: borderColor, width: 0.5),
+                              color: subheaderColor,
                             ),
                             child: pw.Center(
                               child: pw.Text(
@@ -482,6 +567,7 @@ class PDFControlPagos {
                                 style: pw.TextStyle(
                                   fontSize: 4,
                                   fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.blue900,
                                 ),
                               ),
                             ),
@@ -495,21 +581,24 @@ class PDFControlPagos {
           ],
         ),
 
-        // Filas de datos
-        for (var member in credito.clientesMontosInd)
+        // Filas de datos - usando el loop original en lugar del método _buildMemberRow
+        for (var memberIndex = 0;
+            memberIndex < credito.clientesMontosInd.length;
+            memberIndex++)
           pw.Row(
             children: [
               // No.
               pw.Expanded(
                 flex: 30,
                 child: pw.Container(
-                  height: 24,
+                  height: 20,
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                    border: pw.Border.all(color: borderColor, width: 0.5),
+                    color: memberIndex % 2 == 0 ? rowEvenColor : rowOddColor,
                   ),
                   child: pw.Center(
                     child: pw.Text(
-                      '${credito.clientesMontosInd.indexOf(member) + 1}-',
+                      '${memberIndex + 1}-',
                       style: pw.TextStyle(fontSize: 6),
                     ),
                   ),
@@ -517,31 +606,33 @@ class PDFControlPagos {
               ),
               // Nombre
               pw.Expanded(
-                flex: 200,
+                flex: 170,
                 child: pw.Container(
-                  height: 24,
+                  height: 20,
                   padding: const pw.EdgeInsets.symmetric(horizontal: 4),
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                    border: pw.Border.all(color: borderColor, width: 0.5),
+                    color: memberIndex % 2 == 0 ? rowEvenColor : rowOddColor,
                   ),
                   alignment: pw.Alignment.centerLeft,
                   child: pw.Text(
-                    member.nombreCompleto,
+                    credito.clientesMontosInd[memberIndex].nombreCompleto,
                     style: pw.TextStyle(fontSize: 6),
                   ),
                 ),
               ),
               // Monto Autorizado
               pw.Expanded(
-                flex: 70,
+                flex: 50,
                 child: pw.Container(
-                  height: 24,
+                  height: 20,
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                    border: pw.Border.all(color: borderColor, width: 0.5),
+                    color: memberIndex % 2 == 0 ? rowEvenColor : rowOddColor,
                   ),
                   child: pw.Center(
                     child: pw.Text(
-                      '\$${NumberFormat("#,##0.00").format(member.capitalIndividual)}',
+                      '\$${NumberFormat("#,##0.00").format(credito.clientesMontosInd[memberIndex].capitalIndividual)}',
                       style: pw.TextStyle(fontSize: 6),
                     ),
                   ),
@@ -549,15 +640,16 @@ class PDFControlPagos {
               ),
               // Pago Semanal
               pw.Expanded(
-                flex: 70,
+                flex: 50,
                 child: pw.Container(
-                  height: 24,
+                  height: 20,
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.black, width: 0.5),
+                    border: pw.Border.all(color: borderColor, width: 0.5),
+                    color: memberIndex % 2 == 0 ? rowEvenColor : rowOddColor,
                   ),
                   child: pw.Center(
                     child: pw.Text(
-                      '\$${NumberFormat("#,##0.00").format(member.capitalMasInteres)}',
+                      '\$${NumberFormat("#,##0.00").format(credito.clientesMontosInd[memberIndex].capitalMasInteres)}',
                       style: pw.TextStyle(fontSize: 6),
                     ),
                   ),
@@ -573,40 +665,32 @@ class PDFControlPagos {
                       pw.Expanded(
                         flex: 1,
                         child: pw.Container(
-                          height: 24,
+                          height: 20,
                           padding: const pw.EdgeInsets.all(2),
                           decoration: pw.BoxDecoration(
-                            border: pw.Border.all(
-                                color: PdfColors.black, width: 0.5),
+                            border:
+                                pw.Border.all(color: borderColor, width: 0.5),
+                            color: memberIndex % 2 == 0
+                                ? rowEvenColor
+                                : rowOddColor,
                           ),
-                          child: pw.Container(
-                            decoration: pw.BoxDecoration(
-                              borderRadius: pw.BorderRadius.circular(4),
-                              border: pw.Border.all(
-                                  color: mediumGrey.shade(0.3), width: 0.5),
-                              color: PdfColors.white,
-                            ),
-                          ),
+                          child: pw.Container(),
                         ),
                       ),
                       // Right cell for "SOLIDARIO" column
                       pw.Expanded(
                         flex: 1,
                         child: pw.Container(
-                          height: 24,
+                          height: 20,
                           padding: const pw.EdgeInsets.all(2),
                           decoration: pw.BoxDecoration(
-                            border: pw.Border.all(
-                                color: PdfColors.black, width: 0.5),
+                            border:
+                                pw.Border.all(color: borderColor, width: 0.5),
+                            color: memberIndex % 2 == 0
+                                ? rowEvenColor
+                                : rowOddColor,
                           ),
-                          child: pw.Container(
-                            decoration: pw.BoxDecoration(
-                              borderRadius: pw.BorderRadius.circular(4),
-                              border: pw.Border.all(
-                                  color: mediumGrey.shade(0.3), width: 0.5),
-                              color: PdfColors.white,
-                            ),
-                          ),
+                          child: pw.Container(),
                         ),
                       ),
                     ],
@@ -622,10 +706,10 @@ class PDFControlPagos {
             pw.Expanded(
               flex: 30,
               child: pw.Container(
-                height: 24,
+                height: 20,
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                  color: PdfColors.grey200,
+                  border: pw.Border.all(color: borderColor, width: 0.5),
+                  color: totalRowColor,
                 ),
                 child: pw.Center(
                   child: pw.Text(
@@ -640,13 +724,13 @@ class PDFControlPagos {
             ),
             // Total
             pw.Expanded(
-              flex: 200,
+              flex: 170,
               child: pw.Container(
-                height: 24,
+                height: 20,
                 padding: const pw.EdgeInsets.symmetric(horizontal: 4),
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                  color: PdfColors.grey200,
+                  border: pw.Border.all(color: borderColor, width: 0.5),
+                  color: totalRowColor,
                 ),
                 alignment: pw.Alignment.centerRight,
                 child: pw.Text(
@@ -654,18 +738,19 @@ class PDFControlPagos {
                   style: pw.TextStyle(
                     fontSize: 6,
                     fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue900,
                   ),
                 ),
               ),
             ),
             // Total Monto Autorizado
             pw.Expanded(
-              flex: 70,
+              flex: 50,
               child: pw.Container(
-                height: 24,
+                height: 20,
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                  color: PdfColors.grey200,
+                  border: pw.Border.all(color: borderColor, width: 0.5),
+                  color: totalRowColor,
                 ),
                 child: pw.Center(
                   child: pw.Text(
@@ -673,6 +758,7 @@ class PDFControlPagos {
                     style: pw.TextStyle(
                       fontSize: 6,
                       fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
                     ),
                   ),
                 ),
@@ -680,12 +766,12 @@ class PDFControlPagos {
             ),
             // Total Pago Semanal
             pw.Expanded(
-              flex: 70,
+              flex: 50,
               child: pw.Container(
-                height: 24,
+                height: 20,
                 decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: PdfColors.black, width: 0.5),
-                  color: PdfColors.grey200,
+                  border: pw.Border.all(color: borderColor, width: 0.5),
+                  color: totalRowColor,
                 ),
                 child: pw.Center(
                   child: pw.Text(
@@ -693,13 +779,14 @@ class PDFControlPagos {
                     style: pw.TextStyle(
                       fontSize: 6,
                       fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
                     ),
                   ),
                 ),
               ),
             ),
             // Celdas de pago vacías para totales
-            for (var date in dates)
+            for (var i = 0; i < dates.length; i++)
               pw.Expanded(
                 flex: 70,
                 child: pw.Row(
@@ -708,11 +795,10 @@ class PDFControlPagos {
                     pw.Expanded(
                       flex: 1,
                       child: pw.Container(
-                        height: 24,
+                        height: 20,
                         decoration: pw.BoxDecoration(
-                          border:
-                              pw.Border.all(color: PdfColors.black, width: 0.5),
-                          color: PdfColors.grey200,
+                          border: pw.Border.all(color: borderColor, width: 0.5),
+                          color: totalRowColor,
                         ),
                         child: pw.Center(
                           child: pw.Text(
@@ -729,11 +815,10 @@ class PDFControlPagos {
                     pw.Expanded(
                       flex: 1,
                       child: pw.Container(
-                        height: 24,
+                        height: 20,
                         decoration: pw.BoxDecoration(
-                          border:
-                              pw.Border.all(color: PdfColors.black, width: 0.5),
-                          color: PdfColors.grey200,
+                          border: pw.Border.all(color: borderColor, width: 0.5),
+                          color: totalRowColor,
                         ),
                         child: pw.Center(
                           child: pw.Text(
@@ -806,30 +891,31 @@ class PDFControlPagos {
     );
   }
 
-  static pw.Widget _buildSignatures() {
+  static pw.Widget _buildSignatures(Credito credito) {
+    // Get names for each role
+    final presidentaName = _getPresidenta(credito.clientesMontosInd);
+    final tesoreraName = _getTesorera(credito.clientesMontosInd);
+    final asesorName = credito.asesor;
+
     return pw.Container(
       padding: const pw.EdgeInsets.all(20),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: mediumGrey.shade(0.5), width: 0.5),
-        borderRadius: pw.BorderRadius.circular(8),
-      ),
       child: pw.Column(
         children: [
           pw.Text(
-            'FIRMAS DE CONFORMIDAD',
+            'FIRMAN DE CONFORMIDAD',
             style: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               fontSize: 12,
-              color: primaryColor,
+              color: PdfColor.fromHex('#5162F6'),
             ),
           ),
-          pw.SizedBox(height: 25),
+          pw.SizedBox(height: 50),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
             children: [
-              _signatureLine('PRESIDENTA'),
-              _signatureLine('TESORERA'),
-              _signatureLine('ASESOR'),
+              _signatureLine('PRESIDENTA', presidentaName),
+              _signatureLine('TESORERA', tesoreraName),
+              _signatureLine('ASESOR', asesorName),
             ],
           ),
         ],
@@ -837,7 +923,7 @@ class PDFControlPagos {
     );
   }
 
-  static pw.Widget _signatureLine(String role) {
+  static pw.Widget _signatureLine(String role, String name) {
     return pw.Column(
       children: [
         pw.Container(
@@ -850,6 +936,14 @@ class PDFControlPagos {
           role,
           style: pw.TextStyle(
             fontSize: 10,
+            color: darkGrey,
+          ),
+        ),
+        pw.SizedBox(height: 4),
+        pw.Text(
+          name.toUpperCase(),
+          style: pw.TextStyle(
+            fontSize: 8,
             color: darkGrey,
           ),
         ),

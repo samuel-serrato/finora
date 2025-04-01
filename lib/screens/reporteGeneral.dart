@@ -175,7 +175,7 @@ class ReporteGeneralWidget extends StatelessWidget {
           _buildHeaderCell('Tipo', context),
           _buildHeaderCell('Grupos', context),
           _buildHeaderCell('Folio', context),
-          _buildHeaderCell('ID Ficha', context),
+          //_buildHeaderCell('ID Ficha', context),
           _buildHeaderCell('Pagos', context),
           _buildHeaderCell('Fecha', context),
           _buildHeaderCell('Monto', context),
@@ -241,11 +241,14 @@ class ReporteGeneralWidget extends StatelessWidget {
                       index, allPagosFichaZero, pagoIncompleto, context),
                   alignment: Alignment.center,
                   context: context),
-              _buildBodyCell(reportesInGroup.first.tipoPago, context: context),
-              _buildBodyCell(reportesInGroup.first.grupos, context: context),
-              _buildBodyCell(reportesInGroup.first.folio, context: context),
-              _buildBodyCell(idFicha,
-                  alignment: Alignment.center, context: context),
+              _buildBodyCell(reportesInGroup.first.tipoPago,
+                  context: context, alignment: Alignment.center),
+              _buildBodyCell(reportesInGroup.first.grupos,
+                  context: context, alignment: Alignment.center),
+              _buildBodyCell(reportesInGroup.first.folio,
+                  context: context, alignment: Alignment.center),
+              /*  _buildBodyCell(idFicha,
+                  alignment: Alignment.center, context: context), */
               _buildBodyCell(_buildPagosColumn(reportesInGroup, context),
                   alignment: Alignment.center, context: context),
               _buildBodyCell(
@@ -335,81 +338,84 @@ class ReporteGeneralWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
       ),
       child: MouseRegion(
-    cursor: SystemMouseCursors.click,
-    child: Container(
-      width: 20,
-      height: 20,
-      decoration: BoxDecoration(
-        color: circleColor,
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        (index + 1).toString(),
-        style: TextStyle(
-          fontSize: cellTextSize,
-          fontWeight: FontWeight.w700,
-          color: textColor,
+        cursor: SystemMouseCursors.click,
+        child: Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: circleColor,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            (index + 1).toString(),
+            style: TextStyle(
+              fontSize: cellTextSize,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
         ),
       ),
-    ),
-  ),
     );
   }
 
-  Widget _buildPagosColumn(List<ReporteGeneral> reportes, BuildContext context) {
-  final themeProvider = Provider.of<ThemeProvider>(context);
-  final isDarkMode = themeProvider.isDarkMode;
-  
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: reportes.map((reporte) {
-      // Check if payment is a guarantee
-      bool isGarantia = reporte.garantia == "Si";
-      
-      // Create the payment display with or without the pink highlight
-      Widget paymentDisplay = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-        decoration: isGarantia ? BoxDecoration(
-          color: const Color(0xFFE53888),
-          borderRadius: BorderRadius.circular(10),
-        ) : null,
-        child: Text(
-          currencyFormat.format(reporte.pagoficha),
-          style: TextStyle(
-            fontSize: cellTextSize,
-            // Change text color to white when isGarantia is true
-            color: isGarantia 
-                ? Colors.white 
-                : (isDarkMode ? Colors.white70 : Colors.grey[800]),
+  Widget _buildPagosColumn(
+      List<ReporteGeneral> reportes, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: reportes.map((reporte) {
+        // Check if payment is a guarantee
+        bool isGarantia = reporte.garantia == "Si";
+
+        // Create the payment display with or without the pink highlight
+        Widget paymentDisplay = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          decoration: isGarantia
+              ? BoxDecoration(
+                  color: const Color(0xFFE53888),
+                  borderRadius: BorderRadius.circular(10),
+                )
+              : null,
+          child: Text(
+            currencyFormat.format(reporte.pagoficha),
+            style: TextStyle(
+              fontSize: cellTextSize,
+              // Change text color to white when isGarantia is true
+              color: isGarantia
+                  ? Colors.white
+                  : (isDarkMode ? Colors.white70 : Colors.grey[800]),
+            ),
           ),
-        ),
-      );
-      
-      // Wrap with Tooltip if it's a guarantee
-      return isGarantia 
-        ? Tooltip(
-            message: 'Pago realizado con garantía',
-            decoration: BoxDecoration(
-              color: const Color(0xFFE53888),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            textStyle: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-            preferBelow: true,
-            verticalOffset: 15,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: paymentDisplay,
-            ),
-          )
-        : paymentDisplay;
-    }).toList(),
-  );
-}
+        );
+
+        // Wrap with Tooltip if it's a guarantee
+        return isGarantia
+            ? Tooltip(
+                message: 'Pago realizado con garantía',
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE53888),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                textStyle: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                preferBelow: true,
+                verticalOffset: 15,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: paymentDisplay,
+                ),
+              )
+            : paymentDisplay;
+      }).toList(),
+    );
+  }
 
   Widget _buildSaldoFavor(List<ReporteGeneral> reportes, BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);

@@ -119,6 +119,7 @@ class _nClienteDialogState extends State<nClienteDialog>
     'Actividad Laboral',
     'Credito con otras financieras',
     'Aportaciones del esposo',
+    'Egreso',
     'Otras aportaciones'
   ];
 
@@ -2088,7 +2089,7 @@ class _nClienteDialogState extends State<nClienteDialog>
                           ],
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Por favor, ingrese Entre Calle';
+                              return null;
                             }
                             return null;
                           },
@@ -3556,7 +3557,7 @@ class _nClienteDialogState extends State<nClienteDialog>
     double fontSize = 12.0,
     int? maxLength,
     List<TextInputFormatter>? inputFormatters,
-    bool enabled = true, // Added enabled parameter
+    bool enabled = true,
   }) {
     return TextFormField(
       controller: controller,
@@ -3570,11 +3571,31 @@ class _nClienteDialogState extends State<nClienteDialog>
       ),
       textCapitalization: TextCapitalization.characters,
       validator: validator,
-      enabled: enabled, // Use the enabled parameter
+      enabled: enabled,
       inputFormatters: [
         if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
-        ...(inputFormatters ?? []), // Agrega los formateadores personalizados
+        ...(inputFormatters ?? []),
       ],
+      // Modificación para reordenar el menú contextual
+      contextMenuBuilder:
+          (BuildContext context, EditableTextState editableTextState) {
+        final buttonItems = editableTextState.contextMenuButtonItems;
+
+        List<ContextMenuButtonItem> reorderedItems = [];
+        if (buttonItems.length >= 2) {
+          // Intercambiar Cut y Copy
+          reorderedItems.add(buttonItems[1]); // Copiar
+          reorderedItems.add(buttonItems[0]); // Cortar
+          reorderedItems.addAll(buttonItems.sublist(2));
+        } else {
+          reorderedItems.addAll(buttonItems);
+        }
+
+        return AdaptiveTextSelectionToolbar.buttonItems(
+          anchors: editableTextState.contextMenuAnchors,
+          buttonItems: reorderedItems,
+        );
+      },
     );
   }
 

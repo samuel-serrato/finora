@@ -1284,6 +1284,7 @@ class _InfoCreditoState extends State<InfoCredito> {
 class ClienteMonto {
   final String idamortizacion;
   final String nombreCompleto;
+  final String cargo;
   final double capitalIndividual;
   final double periodoCapital;
   final double periodoInteres;
@@ -1296,6 +1297,7 @@ class ClienteMonto {
   ClienteMonto({
     required this.idamortizacion,
     required this.nombreCompleto,
+    required this.cargo,
     required this.capitalIndividual,
     required this.periodoCapital,
     required this.periodoInteres,
@@ -1310,6 +1312,7 @@ class ClienteMonto {
     return ClienteMonto(
       idamortizacion: json['idamortizacion'],
       nombreCompleto: json['nombreCompleto'],
+      cargo: json['cargo'],
       capitalIndividual: json['capitalIndividual'].toDouble(),
       periodoCapital: json['periodoCapital'].toDouble(),
       periodoInteres: json['periodoInteres'].toDouble(),
@@ -1326,6 +1329,8 @@ class Credito {
   final String idcredito;
   final String idgrupos;
   final String nombreGrupo;
+  final String detalles;
+  final String asesor;
   final String diaPago;
   final int plazo;
   final String tipoPlazo;
@@ -1353,6 +1358,8 @@ class Credito {
     required this.idcredito,
     required this.idgrupos,
     required this.nombreGrupo,
+    required this.detalles,
+    required this.asesor,
     required this.diaPago,
     required this.plazo,
     required this.tipoPlazo,
@@ -1385,6 +1392,8 @@ class Credito {
       idcredito: json['idcredito'] ?? "",
       idgrupos: json['idgrupos'] ?? "",
       nombreGrupo: json['nombreGrupo'] ?? "",
+      detalles: json['detalles'] ?? "",
+      asesor: json['asesor'] ?? "",
       diaPago: json['diaPago'] ?? "",
       plazo: json['plazo'] ?? 0, // Ya es un número, no necesita conversión
       tipoPlazo: json['tipoPlazo'] ?? "",
@@ -5143,13 +5152,23 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
         const SizedBox(height: 15),
         _buildBotonDescarga(
           titulo: 'Descargar Control de Pagos',
-          icono: Icons.picture_as_pdf,
+          icono: Icons.table_chart,
           color: Colors.purple[700]!,
           documento: 'control_pagos',
           onTap: () async {
             try {
-              await PDFControlPagos.generar(
-                  widget.credito); // Usar widget.credito
+              final String? savePath = await FilePicker.platform.saveFile(
+                dialogTitle: 'Guardar Control de Pagos',
+                fileName: 'Control_Pagos_${widget.folio}.pdf',
+                allowedExtensions: ['pdf'],
+                type: FileType.custom,
+              );
+
+              if (savePath != null) {
+                await PDFControlPagos.generar(
+                    context, widget.credito, savePath);
+                await _abrirArchivoGuardado(savePath);
+              }
             } catch (e) {
               _mostrarError('Error al generar PDF: ${e.toString()}');
             }
