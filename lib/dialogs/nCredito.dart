@@ -2110,10 +2110,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       // Aplica redondeo solo al final
       datosParaServidor["clientesMontosInd"].add({
         "iddetallegrupos": idDetalleGrupo,
-        "capitalIndividual": _redondearDecimales(capitalIndividual),
-        "periodoCapital": _redondearDecimales(periodoCapital),
-        "periodoInteres": _redondearDecimales(periodoInteres),
-        "periodoInteresPorcentaje": _redondearDecimales(tasaInteresNumerica),
+        "capitalIndividual": (capitalIndividual),
+        "periodoCapital": (periodoCapital),
+        "periodoInteres": (periodoInteres),
+        "periodoInteresPorcentaje": (tasaInteresNumerica),
         "totalCapital": _redondearDecimales(periodoCapital * pagosTotales),
         "totalIntereses": _redondearDecimales(periodoInteres * pagosTotales),
         "capitalMasInteres":
@@ -2123,7 +2123,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       });
     }
 
-    return _redondearDecimales(datosParaServidor);
+    return (datosParaServidor);
   }
 
   // Función para calcular las fechas de pago semanal con las condiciones corregidas

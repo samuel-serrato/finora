@@ -1,46 +1,88 @@
+import 'package:finora/dialogs/infoCredito.dart';
+
 class PagoSeleccionado {
   final int semana;
   final String tipoPago;
-  double deposito; // Hacerlo mutable si planeas actualizarlo
+  double deposito;
   final String fechaPago;
+  final String idfechaspagos;
+  final String moratorioDesabilitado;
   double? capitalMasInteres;
-  List<Map<String, dynamic>> abonos; // Lista mutable
-  double? saldoFavor; // Campo adicional para saldo a favor
-    final String idfechaspagos; // Cambiar de String? a String
-  String moratorioDesabilitado; // Propiedad con nombre correcto
-  double? moratorio;
-  double? saldoEnContra; // Añadir campo saldoEnContra
+  List<Map<String, dynamic>> abonos;
+  double? saldoFavor;
+  final double moratorio; // Ahora es final y se calcula en el constructor
+  double? saldoEnContra;
+  double? montoAPagar;
 
-  // Constructor actualizado para incluir saldoFavor y saldoEnContra
   PagoSeleccionado({
     required this.semana,
     required this.tipoPago,
     required this.deposito,
-    required this.idfechaspagos, // Hacer required
-    required this.moratorioDesabilitado, // Valor por defecto
-    this.capitalMasInteres,
     required this.fechaPago,
-    required this.saldoFavor, // Inicialización por defecto
-    this.moratorio = 0.0, // Inicialización por defecto
+    required this.idfechaspagos,
+    required this.moratorioDesabilitado,
+    this.capitalMasInteres,
+    this.saldoFavor = 0.0,
+    double? moratorio,
     List<Map<String, dynamic>>? abonos,
-    this.saldoEnContra = 0.0, // Inicialización por defecto
-  }) : abonos = abonos ?? [];
+    this.saldoEnContra = 0.0,
+    this.montoAPagar,
+  })  : abonos = abonos ?? [],
+        // Forzar moratorio a 0 si está deshabilitado
+        moratorio = moratorioDesabilitado == "Si" ? 0.0 : (moratorio ?? 0.0);
 
-  // Nuevo campo para monto a pagar
-  double? montoAPagar;
+  // Factory method para crear desde un Pago
+  factory PagoSeleccionado.fromPago(Pago pago) {
+    return PagoSeleccionado(
+      semana: pago.semana,
+      tipoPago: pago.tipoPago,
+      deposito: pago.deposito ?? 0.0,
+      fechaPago: pago.fechaPago ?? DateTime.now().toIso8601String(),
+      idfechaspagos: pago.idfechaspagos ?? '',
+      moratorioDesabilitado: pago.moratorioDesabilitado,
+      capitalMasInteres: pago.capitalMasInteres,
+      saldoFavor: pago.saldoFavor ?? 0.0,
+      moratorio: pago.moratorios?.moratorios ?? 0.0, // Fuente original
+      abonos: pago.abonos,
+      saldoEnContra: pago.saldoEnContra ?? 0.0,
+      montoAPagar: pago.capitalMasInteres,
+    );
+  }
 
-  // Método toJson actualizado para incluir saldoFavor y saldoEnContra
+  // Método para actualizar el depósito y recálculos relacionados
+  void actualizarDeposito(double nuevoDeposito) {
+    deposito = nuevoDeposito;
+    _recalcularSaldos();
+  }
+
+  // Método privado para recálculo de saldos
+  void _recalcularSaldos() {
+    double totalPagado = deposito;
+    double totalDeuda = (capitalMasInteres ?? 0.0) + moratorio;
+
+    if (totalPagado > totalDeuda) {
+      saldoFavor = totalPagado - totalDeuda;
+      saldoEnContra = 0.0;
+    } else {
+      saldoFavor = 0.0;
+      saldoEnContra = totalDeuda - totalPagado;
+    }
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'semana': semana,
       'tipoPago': tipoPago,
       'deposito': deposito,
-      'fechaPago': fechaPago, // Convertir la fecha a ISO
-      'abonos': abonos,
-      'saldoFavor': saldoFavor, // Agregar saldoFavor al JSON
+      'fechaPago': fechaPago,
+      'idfechaspagos': idfechaspagos,
+      'moratorioDesabilitado': moratorioDesabilitado,
       'capitalMasInteres': capitalMasInteres,
+      'saldoFavor': saldoFavor,
       'moratorio': moratorio,
-      'saldoEnContra': saldoEnContra, // Agregar saldoEnContra al JSON
+      'saldoEnContra': saldoEnContra,
+      'abonos': abonos,
+      'montoAPagar': montoAPagar,
     };
   }
 }

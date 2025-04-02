@@ -389,17 +389,31 @@ class _InfoCreditoState extends State<InfoCredito> {
       }
 
       // ===== Lógica para "Monto Parcial" =====
+      // Dentro de la sección "Monto Parcial"
       if (pagoActual.tipoPago?.toLowerCase() == 'monto parcial') {
         double totalDepositado = pagoActual.deposito ?? 0.0;
+
+        // Calcular moratorio permitido (0 si está deshabilitado)
+        double moratorioPermitido = pagoActual.moratorioDesabilitado == "Si"
+            ? 0.0
+            : (pagoActual.moratorio ?? 0.0);
+
         double capitalPendiente = pagoActual.capitalMasInteres! - paidCapital;
-        double moratorioPendiente = pagoActual.moratorio! - paidMoratorio;
+        double moratorioPendiente =
+            moratorioPermitido - paidMoratorio; // Usar moratorioPermitido
 
         // Aplicar a capital primero
         double aplicadoCapital = totalDepositado.clamp(0.0, capitalPendiente);
         double remanente = totalDepositado - aplicadoCapital;
 
-        // Aplicar remanente a moratorios
-        double aplicadoMoratorio = remanente.clamp(0.0, moratorioPendiente);
+        double aplicadoMoratorio = 0.0;
+
+        // Solo aplicar moratorios si están habilitados
+        if (pagoActual.moratorioDesabilitado != "Si") {
+          double remanente = totalDepositado - aplicadoCapital;
+          aplicadoMoratorio = remanente.clamp(0.0, moratorioPendiente);
+        }
+
         double saldofavor =
             (totalDepositado - (aplicadoCapital + aplicadoMoratorio))
                 .clamp(0.0, double.infinity);
@@ -413,7 +427,7 @@ class _InfoCreditoState extends State<InfoCredito> {
           "moratorio": _redondear(aplicadoMoratorio),
           "saldofavor": _redondear(saldofavor),
         });
-        continue; // Saltar al siguiente pago
+        continue;
       }
 
       // ===== Lógica para "En Abonos" =====
@@ -1608,16 +1622,18 @@ class _PaginaControlState extends State<PaginaControl> {
 
   void _actualizarProviderConPagos(List<Pago> pagos) {
     final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
-    // En _actualizarProviderConPagos
     pagosProvider.cargarPagos(pagos.map((pago) {
-      // Recalcular antes de enviar al provider
-      _recalcularSaldos(pago);
+      _recalcularSaldos(pago); // Asegurar recálculo antes de enviar
 
       return PagoSeleccionado(
         moratorioDesabilitado: pago.moratorioDesabilitado,
         semana: pago.semana,
         tipoPago: pago.tipoPago,
         deposito: pago.deposito ?? 0.0,
+        // Añadir esta condición para el moratorio
+        moratorio: pago.moratorioDesabilitado == "Si"
+            ? 0.0
+            : pago.moratorios?.moratorios ?? 0.0,
         saldoFavor: pago.saldoFavor ?? 0.0,
         saldoEnContra: pago.saldoEnContra ?? 0.0,
         abonos: pago.abonos ?? [],
@@ -1775,6 +1791,66 @@ class _PaginaControlState extends State<PaginaControl> {
     } catch (e) {
       return 'Fecha inválida';
     }
+  }
+
+  Future<void> _eliminarPago(
+      BuildContext context, Pago pago, Map<String, dynamic> abono) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    final themeProvider = Provider.of<ThemeProvider>(context,
+        listen: false); // Obtén el ThemeProvider
+    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+        title: Text('Confirmar eliminación'),
+        content: Text('¿Estás seguro de eliminar este pago?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              try {
+                final url =
+                    'http://$baseUrl/api/v1/pagos/${abono["idpagos"]}/${pago.idfechaspagos}';
+                print('URL enviada: $url');
+
+                final response = await http.delete(
+                  Uri.parse(url),
+                  headers: {'tokenauth': token},
+                );
+
+                print(
+                    'Respuesta del servidor: ${response.statusCode} - ${response.body}');
+
+                if (response.statusCode == 200) {
+                  setState(() {
+                    pago.abonos.removeWhere(
+                        (a) => a['idfechaspago'] == abono['idfechaspago']);
+                    _recalcularSaldos(pago);
+                  });
+                  await recargarPagos();
+                  print('Pago eliminado correctamente.');
+                } else {
+                  _mostrarDialogoError('Error al eliminar: ${response.body}');
+                  print('Error al eliminar: ${response.body}');
+                }
+              } catch (e) {
+                _mostrarDialogoError('Error: $e');
+                print('Error: $e');
+              }
+            },
+            child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+          )
+        ],
+      ),
+    );
   }
 
   @override
@@ -2797,6 +2873,27 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   ],
                                                                 ),
                                                               ),
+                                                              if (widget
+                                                                      .tipoUsuario ==
+                                                                  'Admin')
+                                                                IconButton(
+                                                                  icon: Icon(
+                                                                      Icons
+                                                                          .delete_outline,
+                                                                      size: 16),
+                                                                  color: Colors
+                                                                      .red,
+                                                                  onPressed:
+                                                                      () {
+                                                                    Navigator.of(
+                                                                            context)
+                                                                        .pop();
+                                                                    _eliminarPago(
+                                                                        context,
+                                                                        pago,
+                                                                        abono);
+                                                                  },
+                                                                ),
                                                             ],
                                                           ),
                                                         ),
@@ -3281,6 +3378,22 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                             : Colors.grey[600],
                                                                       ),
                                                                     ),
+                                                                    if (widget
+                                                                            .tipoUsuario ==
+                                                                        'Admin')
+                                                                      IconButton(
+                                                                        icon: Icon(
+                                                                            Icons
+                                                                                .delete_outline,
+                                                                            size:
+                                                                                16),
+                                                                        color: Colors
+                                                                            .red,
+                                                                        onPressed: () => _eliminarPago(
+                                                                            context,
+                                                                            pago,
+                                                                            abono),
+                                                                      ),
                                                                     SizedBox(
                                                                         height:
                                                                             6),
@@ -3447,17 +3560,53 @@ class _PaginaControlState extends State<PaginaControl> {
                                                               const EdgeInsets
                                                                   .only(
                                                                   top: 4.0),
-                                                          child: Text(
-                                                            'Pagado: ${formatearFecha(abono["fechaDeposito"])}',
-                                                            // Mostrar la fecha de depósito
-                                                            style: TextStyle(
-                                                              fontSize: 10,
-                                                              color: isDarkMode
-                                                                  ? Colors
-                                                                      .grey[300]
-                                                                  : Colors.grey[
-                                                                      700],
-                                                            ),
+                                                          child: Column(
+                                                            children: [
+                                                              //PAGADO DE COMPLETO
+                                                              Text(
+                                                                'Pagado: ${formatearFecha(abono["fechaDeposito"])}',
+                                                                // Mostrar la fecha de depósito
+                                                                style:
+                                                                    TextStyle(
+                                                                  fontSize: 10,
+                                                                  color: isDarkMode
+                                                                      ? Colors.grey[
+                                                                          300]
+                                                                      : Colors.grey[
+                                                                          700],
+                                                                ),
+                                                              ),
+                                                              // Botón de eliminar para Admin
+                                                              if (widget
+                                                                      .tipoUsuario ==
+                                                                  'Admin')
+                                                                Padding(
+                                                                  padding:
+                                                                      EdgeInsets
+                                                                          .only(
+                                                                              top: 4),
+                                                                  child: Row(
+                                                                    mainAxisAlignment:
+                                                                        MainAxisAlignment
+                                                                            .center,
+                                                                    children: [
+                                                                      IconButton(
+                                                                        icon: Icon(
+                                                                            Icons
+                                                                                .delete_outline,
+                                                                            size:
+                                                                                16),
+                                                                        color: Colors
+                                                                            .red,
+                                                                        onPressed: () => _eliminarPago(
+                                                                            context,
+                                                                            pago,
+                                                                            abono),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ),
+                                                            ],
                                                           ),
                                                         );
                                                       }).toList(),
@@ -3618,84 +3767,86 @@ class _PaginaControlState extends State<PaginaControl> {
                                                   ),
                                                 ),
                                               ),
-                                              if (pago.moratorios!
+                                              //QUITAR PARA QUE NO SALGA AL "PAGARSE"
+                                              /*  if (pago.moratorios!
                                                           .semanasDeRetraso >
                                                       0 ||
                                                   pago.moratorios!
                                                           .diferenciaEnDias >
-                                                      0)
-                                                PopupMenuButton<int>(
-                                                  // El resto del código del PopupMenuButton permanece igual
-                                                  tooltip:
-                                                      'Mostrar información',
-                                                  color: isDarkMode
-                                                      ? Colors.grey[800]
-                                                      : Colors.white,
-                                                  icon: Icon(
-                                                    Icons.info_outline,
-                                                    size: 16,
-                                                    color:
-                                                        pago.moratorioDesabilitado ==
-                                                                "Si"
-                                                            ? Colors.grey
-                                                            : Color(0xFF5162F6),
-                                                  ),
-                                                  offset: Offset(0, 40),
-                                                  itemBuilder:
-                                                      (BuildContext context) =>
-                                                          [
-                                                    PopupMenuItem(
-                                                      enabled: false,
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          // Título de moratorios
-                                                          Text("Moratorios",
-                                                              style: TextStyle(
-                                                                fontSize: 14,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                color: isDarkMode
-                                                                    ? Colors
-                                                                        .white
-                                                                    : Colors
-                                                                        .black,
-                                                              )),
-                                                          SizedBox(height: 8),
+                                                      0) */
+                                              PopupMenuButton<int>(
+                                                // El resto del código del PopupMenuButton permanece igual
+                                                tooltip: 'Mostrar información',
+                                                color: isDarkMode
+                                                    ? Colors.grey[800]
+                                                    : Colors.white,
+                                                icon: Icon(
+                                                  Icons.info_outline,
+                                                  size: 16,
+                                                  color:
+                                                      pago.moratorioDesabilitado ==
+                                                              "Si"
+                                                          ? Colors.grey
+                                                          : Color(0xFF5162F6),
+                                                ),
+                                                offset: Offset(0, 40),
+                                                itemBuilder:
+                                                    (BuildContext context) => [
+                                                  PopupMenuItem(
+                                                    enabled: false,
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        // Título de moratorios
+                                                        Text("Moratorios",
+                                                            style: TextStyle(
+                                                              fontSize: 14,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black,
+                                                            )),
+                                                        SizedBox(height: 8),
 
-                                                          // Información de cálculo
-                                                          if (pago.moratorios!
-                                                                  .semanasDeRetraso >
-                                                              0)
-                                                            _buildPopupItem(
-                                                                "Semanas de retraso:",
-                                                                "${pago.moratorios!.semanasDeRetraso}"),
-
-                                                          if (pago.moratorios!
-                                                                  .diferenciaEnDias >
-                                                              0)
-                                                            _buildPopupItem(
-                                                                "Días de retraso:",
-                                                                "${pago.moratorios!.diferenciaEnDias}"),
-
+                                                        // Información de cálculo
+                                                        if (pago.moratorios!
+                                                                .semanasDeRetraso >
+                                                            0)
                                                           _buildPopupItem(
-                                                              "Monto calculado:",
-                                                              "\$${formatearNumero(pago.moratorios!.moratorios)}",
-                                                              extraStyle:
-                                                                  pago.moratorioDesabilitado ==
-                                                                          "Si"
-                                                                      ? TextStyle(
-                                                                          color:
-                                                                              Colors.black,
-                                                                        )
-                                                                      : null),
+                                                              "Semanas de retraso:",
+                                                              "${pago.moratorios!.semanasDeRetraso}"),
 
-                                                          /* _buildPopupItem(
+                                                        if (pago.moratorios!
+                                                                .diferenciaEnDias >
+                                                            0)
+                                                          _buildPopupItem(
+                                                              "Días de retraso:",
+                                                              "${pago.moratorios!.diferenciaEnDias}"),
+
+                                                        _buildPopupItem(
+                                                            "Monto calculado:",
+                                                            "\$${formatearNumero(pago.moratorios!.moratorios)}",
+                                                            extraStyle:
+                                                                pago.moratorioDesabilitado ==
+                                                                        "Si"
+                                                                    ? TextStyle(
+                                                                        color: Colors
+                                                                            .black,
+                                                                      )
+                                                                    : null),
+
+                                                        _buildPopupItem(
+                                                            "Monto Total:",
+                                                            "\$${formatearNumero(pago.moratorios!.montoTotal)}"),
+
+                                                        /* _buildPopupItem(
                                                               "Monto aplicado:",
                                                               pago.moratorioDesabilitado ==
                                                                       "Si"
@@ -3703,144 +3854,142 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                   : "\$${formatearNumero(pago.moratorios!.moratorios)}",
                                                               isApplied: true), */
 
-                                                          // Mensaje de moratorios
-                                                          if (pago
-                                                              .moratorios!
-                                                              .mensaje
-                                                              .isNotEmpty)
-                                                            Padding(
-                                                              padding: EdgeInsets
-                                                                  .only(
-                                                                      top: 8,
-                                                                      bottom:
-                                                                          8),
-                                                              child: Text(
-                                                                pago.moratorios!
-                                                                    .mensaje,
-                                                                style:
-                                                                    TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: isDarkMode
-                                                                      ? Colors.grey[
-                                                                          400]
-                                                                      : Colors.grey[
-                                                                          700],
-                                                                  fontStyle:
-                                                                      FontStyle
-                                                                          .italic,
+                                                        // Mensaje de moratorios
+                                                        if (pago.moratorios!
+                                                            .mensaje.isNotEmpty)
+                                                          Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                                    top: 8,
+                                                                    bottom: 8),
+                                                            child: Text(
+                                                              pago.moratorios!
+                                                                  .mensaje,
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: isDarkMode
+                                                                    ? Colors.grey[
+                                                                        400]
+                                                                    : Colors.grey[
+                                                                        700],
+                                                                fontStyle:
+                                                                    FontStyle
+                                                                        .italic,
+                                                              ),
+                                                            ),
+                                                          ),
+
+                                                        SizedBox(height: 12),
+
+                                                        if (pago.moratorioDesabilitado ==
+                                                                "Si" &&
+                                                            tipoUsuario !=
+                                                                'Admin')
+                                                          Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                                    bottom: 8),
+                                                            child: Row(
+                                                              children: [
+                                                                Icon(
+                                                                  Icons
+                                                                      .info_outline,
+                                                                  size: 14,
+                                                                  color: Colors
+                                                                      .red,
                                                                 ),
-                                                              ),
-                                                            ),
-
-                                                          SizedBox(height: 12),
-
-                                                          if (pago.moratorioDesabilitado ==
-                                                                  "Si" &&
-                                                              tipoUsuario !=
-                                                                  'Admin')
-                                                            Padding(
-                                                              padding: EdgeInsets
-                                                                  .only(
-                                                                      bottom:
-                                                                          8),
-                                                              child: Row(
-                                                                children: [
-                                                                  Icon(
-                                                                    Icons
-                                                                        .info_outline,
-                                                                    size: 14,
-                                                                    color: Colors
-                                                                        .red,
-                                                                  ),
-                                                                  SizedBox(
-                                                                      width: 6),
-                                                                  Text(
-                                                                    "Moratorios deshabilitados",
-                                                                    style: TextStyle(
-                                                                        fontSize:
-                                                                            12,
-                                                                        color: Colors.red[
-                                                                            700],
-                                                                        fontWeight:
-                                                                            FontWeight.w500),
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ),
-
-                                                          // Checkbox de deshabilitar (solo para admin)
-                                                          if (tipoUsuario ==
-                                                              'Admin')
-                                                            StatefulBuilder(
-                                                              builder: (BuildContext
-                                                                      context,
-                                                                  StateSetter
-                                                                      setState) {
-                                                                bool
-                                                                    deshabilitado =
-                                                                    pago.moratorioDesabilitado ==
-                                                                        "Si";
-                                                                return CheckboxListTile(
-                                                                  title: Text(
-                                                                    "Deshabilitar moratorios",
-                                                                    style:
-                                                                        TextStyle(
+                                                                SizedBox(
+                                                                    width: 6),
+                                                                Text(
+                                                                  "Moratorios deshabilitados",
+                                                                  style: TextStyle(
                                                                       fontSize:
                                                                           12,
-                                                                      color: isDarkMode
-                                                                          ? Colors
-                                                                              .white
-                                                                          : Colors
-                                                                              .black,
-                                                                    ),
-                                                                  ),
-                                                                  value:
-                                                                      deshabilitado,
-                                                                  onChanged:
-                                                                      (bool?
-                                                                          value) {
-                                                                    setState(
-                                                                        () {
-                                                                      deshabilitado =
-                                                                          value ??
-                                                                              false;
-                                                                      pago.moratorioDesabilitado = deshabilitado
-                                                                          ? "Si"
-                                                                          : "No";
-
-                                                                      // Recálculo forzado
-                                                                      _recalcularSaldos(
-                                                                          pago);
-
-                                                                      Provider.of<PagosProvider>(
-                                                                              context,
-                                                                              listen:
-                                                                                  false)
-                                                                          .actualizarPago(
-                                                                              pago.toPagoSeleccionado());
-                                                                    });
-                                                                  },
-                                                                  controlAffinity:
-                                                                      ListTileControlAffinity
-                                                                          .leading,
-                                                                  contentPadding:
-                                                                      EdgeInsets
-                                                                          .zero,
-                                                                  activeColor:
-                                                                      Color(
-                                                                          0xFF5162F6),
-                                                                  checkColor:
-                                                                      Colors
-                                                                          .white,
-                                                                  dense: true,
-                                                                );
-                                                              },
+                                                                      color: Colors
+                                                                              .red[
+                                                                          700],
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w500),
+                                                                ),
+                                                              ],
                                                             ),
-                                                        ],
-                                                      ),
+                                                          ),
+
+                                                        // Checkbox de deshabilitar (solo para admin)
+                                                        if (tipoUsuario ==
+                                                                'Admin' &&
+                                                            _puedeEditarPago(
+                                                                pago))
+                                                          StatefulBuilder(
+                                                            builder: (BuildContext
+                                                                    context,
+                                                                StateSetter
+                                                                    setState) {
+                                                              bool
+                                                                  deshabilitado =
+                                                                  pago.moratorioDesabilitado ==
+                                                                      "Si";
+                                                              return CheckboxListTile(
+                                                                title: Text(
+                                                                  "Deshabilitar moratorios",
+                                                                  style:
+                                                                      TextStyle(
+                                                                    fontSize:
+                                                                        12,
+                                                                    color: isDarkMode
+                                                                        ? Colors
+                                                                            .white
+                                                                        : Colors
+                                                                            .black,
+                                                                  ),
+                                                                ),
+                                                                value:
+                                                                    deshabilitado,
+                                                                onChanged:
+                                                                    (bool?
+                                                                        value) {
+                                                                  setState(() {
+                                                                    deshabilitado =
+                                                                        value ??
+                                                                            false;
+                                                                    pago.moratorioDesabilitado =
+                                                                        deshabilitado
+                                                                            ? "Si"
+                                                                            : "No";
+
+                                                                    // Recálculo forzado
+                                                                    _recalcularSaldos(
+                                                                        pago);
+
+                                                                    Provider.of<PagosProvider>(
+                                                                            context,
+                                                                            listen:
+                                                                                false)
+                                                                        .actualizarPago(
+                                                                            pago.toPagoSeleccionado());
+                                                                  });
+                                                                },
+                                                                controlAffinity:
+                                                                    ListTileControlAffinity
+                                                                        .leading,
+                                                                contentPadding:
+                                                                    EdgeInsets
+                                                                        .zero,
+                                                                activeColor: Color(
+                                                                    0xFF5162F6),
+                                                                checkColor:
+                                                                    Colors
+                                                                        .white,
+                                                                dense: true,
+                                                              );
+                                                            },
+                                                          ),
+                                                      ],
                                                     ),
-                                                  ],
-                                                ),
+                                                  ),
+                                                ],
+                                              ),
                                             ],
                                           ),
                                 flex: 18,
@@ -3895,10 +4044,12 @@ class _PaginaControlState extends State<PaginaControl> {
     double montoPagado = pago.abonos
         .fold(0.0, (total, abono) => total + (abono['deposito'] ?? 0.0));
 
-    double totalDeuda = (pago.capitalMasInteres ?? 0.0) +
-        (pago.moratorioDesabilitado == "Si"
-            ? 0.0
-            : (pago.moratorios?.moratorios ?? 0.0));
+    // Calcular deuda sin moratorios si están deshabilitados
+    double totalDeuda = pago.capitalMasInteres ?? 0.0;
+
+    if (pago.moratorioDesabilitado != "Si") {
+      totalDeuda += pago.moratorios?.moratorios ?? 0.0;
+    }
 
     pago.saldoEnContra = (totalDeuda - montoPagado).clamp(0, double.infinity);
     pago.saldoFavor = (montoPagado - totalDeuda).clamp(0, double.infinity);
@@ -4239,6 +4390,18 @@ class _AbonosDialogState extends State<AbonosDialog> {
     bool isDateButtonEnabled =
         (moratorioDesabilitado == "Si" || (moratorios ?? 0) == 0);
 
+    String _formatearFecha(dynamic fecha) {
+      try {
+        if (fecha is String) {
+          final parsedDate = DateTime.parse(fecha);
+          return DateFormat('dd/MM/yyyy').format(parsedDate);
+        }
+        return 'Fecha inválida';
+      } catch (e) {
+        return 'Fecha inválida';
+      }
+    }
+
     // Colores adaptados según el modo
     final Color primaryColor = Color(0xFF5162F6);
     final Color? backgroundColor = isDarkMode ? Colors.grey[900] : Colors.white;
@@ -4471,8 +4634,9 @@ class _AbonosDialogState extends State<AbonosDialog> {
                                   setState(() {
                                     abonos.add({
                                       'deposito': montoPorAbono,
-                                      'fechaDeposito': DateFormat('dd/MM/yyyy')
-                                          .format(fechaPago), // Formato con /
+                                      // CAMBIA ESTA LÍNEA: Usar formato ISO en lugar de dd/MM/yyyy
+                                      'fechaDeposito': fechaPago
+                                          .toIso8601String(), // Formato correcto para DateTime.parse
                                     });
                                     montoPorAbono = 0.0;
                                     montoController.clear();
@@ -4515,7 +4679,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                         ),
                         child: ListTile(
                           title: Text(
-                            "Monto: \$${abonos[index]['deposito']} - Fecha: ${abonos[index]['fechaDeposito']}", // Muestra directamente el valor guardado
+                            "Monto: \$${abonos[index]['deposito']} - Fecha: ${_formatearFecha(abonos[index]['fechaDeposito'])}",
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -5229,13 +5393,13 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
         ),
         const SizedBox(height: 15), // Add space
         // --- NEW BUTTON ---
-        _buildBotonDescarga(
+        /*     _buildBotonDescarga(
           titulo: 'Generar Ficha de Pago',
           icono: Icons.receipt_long, // Example icon
           color: Colors.orange[800]!, // Example color
           documento: 'ficha_pago', // Unique identifier for loading state
           onTap: _generarFichaPagoSemanal, // Link to the new function
-        ),
+        ), */
       ],
     );
   }
