@@ -9,6 +9,7 @@ import 'package:finora/providers/user_data_provider.dart';
 import 'package:finora/widgets/cambiar_contraseña.dart';
 import 'package:flutter/material.dart';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -36,10 +37,15 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
   bool _isUploading = false;
   bool _isSaving = false;
 
+  // Agrega estas variables nuevas
+  List<CuentaBancaria> _cuentasBancarias = [];
+  bool _loadingCuentas = false;
+
   @override
   void initState() {
     super.initState();
     _loadSavedLogos();
+    _fetchCuentasBancarias(); // Agregar esta línea
   }
 
   // Cargar los logos guardados previamente
@@ -52,7 +58,6 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     });
   }
 
-  @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final scaleProvider = Provider.of<ScaleProvider>(context);
@@ -60,17 +65,23 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     final isDarkMode = themeProvider.isDarkMode;
     final size = MediaQuery.of(context).size;
 
+    // Definir tamaños más grandes
+    final width = size.width * 0.80; // Usar 90% del ancho disponible
+    final height = size.height * 0.85; // Usar 85% del alto disponible
+
     return AlertDialog(
       backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
       elevation: 10,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       contentPadding: EdgeInsets.zero,
+      // Reducir los márgenes internos para maximizar el espacio utilizable
       insetPadding: EdgeInsets.symmetric(
-        horizontal: size.width * 0.12,
-        vertical: size.height * 0.12,
+        horizontal: size.width * 0.05,
+        vertical: size.height * 0.05,
       ),
       content: Container(
-        width: size.width * 0.75,
+        width: width,
+        height: height, // Añadir altura explícita
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -87,6 +98,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                       _buildFinancialInfoBlock(
                           context), // Nuevo bloque agregado aquí
                       _buildUserSection(context),
+
                       SizedBox(height: 15),
                       _buildSection(context, title: 'Apariencia', items: [
                         _buildSwitchItem(
@@ -108,6 +120,19 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                           ],
                           isExpandable: true),
                       SizedBox(height: 15),
+                      _buildSection(
+                        context,
+                        title: 'Personalización',
+                        items: [
+                          _buildLogoUploader(context),
+                        ],
+                        isExpandable: true,
+                        enabled:
+                            userData.tipoUsuario == 'Admin', // Nueva validación
+                      ),
+
+                      SizedBox(height: 15),
+                      _buildBankAccountsSection(context), // Agregar esta línea
 
                       /* _buildSection(context, title: 'Notificaciones', items: [
                         _buildSwitchItem(
@@ -124,17 +149,6 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                         ),
                       ]),
                       SizedBox(height: 15), */
-                      _buildSection(
-                        context,
-                        title: 'Personalización',
-                        items: [
-                          _buildLogoUploader(context),
-                        ],
-                        isExpandable: true,
-                        enabled:
-                            userData.tipoUsuario == 'Admin', // Nueva validación
-                      ),
-                      SizedBox(height: 15),
                     ],
                   ),
                 ),
@@ -762,23 +776,19 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: title == 'Zoom'
-                                  ? Colors.blue.withOpacity(0.1)
-                                  : Colors.orange.withOpacity(0.1),
+                              color: _getIconColor(title)
+                                  .withOpacity(0.1), // Función modificada
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
-                              title == 'Zoom' ? Icons.zoom_in : Icons.image,
-                              color:
-                                  title == 'Zoom' ? Colors.blue : Colors.orange,
+                              _getSectionIcon(title), // Función nueva
+                              color: _getIconColor(title), // Función modificada
                               size: 18,
                             ),
                           ),
                           SizedBox(width: 14),
                           Text(
-                            title == 'Zoom'
-                                ? 'Nivel de zoom'
-                                : 'Imagen de la financiera',
+                            title, // MOSTRAR EL TÍTULO REAL DE LA SECCIÓN
                             style: TextStyle(
                               color: isDarkMode ? Colors.white : Colors.black,
                               fontSize: 14,
@@ -808,6 +818,32 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
         ),
       ],
     );
+  }
+
+  IconData _getSectionIcon(String title) {
+    switch (title) {
+      case 'Zoom':
+        return Icons.zoom_in;
+      case 'Cuentas Bancarias':
+        return Icons.account_balance; // Icono nuevo
+      case 'Personalización':
+        return Icons.image;
+      default:
+        return Icons.settings;
+    }
+  }
+
+  Color _getIconColor(String title) {
+    switch (title) {
+      case 'Zoom':
+        return Colors.blue;
+      case 'Cuentas Bancarias':
+        return Colors.green; // Color nuevo
+      case 'Personalización':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
   }
 
 // Nuevo método para mensaje de deshabilitado
@@ -1201,5 +1237,807 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       _tempColorLogoPath = null;
       _tempWhiteLogoPath = null;
     });
+  }
+
+  Future<void> _fetchCuentasBancarias() async {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    setState(() => _loadingCuentas = true);
+
+    try {
+      final response = await http.get(
+        Uri.parse(
+            'http://$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}'),
+        headers: {'tokenauth': token},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        _cuentasBancarias =
+            data.map((item) => CuentaBancaria.fromJson(item)).toList();
+      }
+    } catch (e) {
+      print('Error fetching cuentas: $e');
+    } finally {
+      setState(() => _loadingCuentas = false);
+    }
+  }
+
+  void _showAddCuentaDialog() {
+    final TextEditingController nombreController = TextEditingController();
+    final TextEditingController numeroController = TextEditingController();
+    String selectedBanco = 'Santander';
+
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+          title: Row(
+            children: [
+              Icon(Icons.account_balance, color: Color(0xFF5162F6)),
+              SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  'Nueva Cuenta Bancaria',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF5162F6),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+          content: Container(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nombreController,
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Nombre de la cuenta',
+                    labelStyle: TextStyle(
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                    prefixIcon: Icon(Icons.label, color: Color(0xFF5162F6)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          BorderSide(color: Color(0xFF5162F6), width: 2),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color:
+                            isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+                      ),
+                    ),
+                    fillColor: isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                    filled: true,
+                  ),
+                ),
+                SizedBox(height: 15),
+                TextField(
+                  controller: numeroController,
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Número de cuenta',
+                    labelStyle: TextStyle(
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                    prefixIcon: Icon(Icons.numbers, color: Color(0xFF5162F6)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          BorderSide(color: Color(0xFF5162F6), width: 2),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color:
+                            isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+                      ),
+                    ),
+                    fillColor: isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                    filled: true,
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter
+                        .digitsOnly, // Solo permite dígitos
+                    LengthLimitingTextInputFormatter(
+                        16), // Limita a 16 caracteres
+                  ],
+                ),
+                SizedBox(height: 15),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    color: isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                  ),
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      canvasColor:
+                          isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: selectedBanco,
+                      decoration: InputDecoration(
+                        labelText: 'Selecciona un banco',
+                        labelStyle: TextStyle(
+                          color:
+                              isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                        prefixIcon:
+                            Icon(Icons.business, color: Color(0xFF5162F6)),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                      dropdownColor:
+                          isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      items: [
+                        "BBVA",
+                        "Santander",
+                        "Banorte",
+                        "HSBC",
+                        "Banamex",
+                        "Scotiabank",
+                        "Bancoppel",
+                        "Banco Azteca"
+                      ].map((String banco) {
+                        return DropdownMenuItem<String>(
+                          value: banco,
+                          child: Text(
+                            banco,
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) => selectedBanco = value!,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nombreController.text.isNotEmpty &&
+                    numeroController.text.isNotEmpty) {
+                  await _addCuentaBancaria(
+                    nombreController.text,
+                    numeroController.text,
+                    selectedBanco, // Solo se envía el nombre del banco
+                  );
+                  Navigator.pop(context);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Por favor completa todos los campos'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF5162F6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _addCuentaBancaria(
+      String nombre, String numero, String banco) async {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    try {
+      // Crear el cuerpo del request
+      final requestBody = {
+        'idfinanciera': userData.idfinanciera,
+        'nombreCuenta': nombre,
+        'numeroCuenta': numero,
+        'nombreBanco': banco,
+      };
+
+      // Imprimir lo que se va a enviar
+      print('Datos enviados al servidor:');
+      print('URL: http://$baseUrl/api/v1/financiera/cuentasbanco');
+      print('Headers:');
+      print('  tokenauth: $token');
+      print('  Content-Type: application/json');
+      print('Body:');
+      print(jsonEncode(requestBody));
+
+      final response = await http.post(
+        Uri.parse('http://$baseUrl/api/v1/financiera/cuentasbanco'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      print('Status code: ${response.statusCode}'); // Log del status
+      print(
+          'Response body: ${response.body}'); // Log del cuerpo de la respuesta
+
+      if (response.statusCode == 201) {
+        _fetchCuentasBancarias();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cuenta agregada exitosamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        // Manejar otros códigos de estado (ej. 400, 500)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error del servidor: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error adding cuenta: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildCuentaItem(BuildContext context, CuentaBancaria cuenta) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final formattedDate = DateFormat('dd/MM/yyyy').format(cuenta.fCreacion);
+
+    return ListTile(
+      leading: Image.network(
+        'http://$baseUrl/imagenes/bancos/${cuenta.rutaBanco}',
+        width: 70,
+        height: 40,
+        errorBuilder: (context, error, stackTrace) =>
+            Icon(Icons.account_balance),
+      ),
+      title: Text(cuenta.nombreCuenta),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Banco: ${cuenta.nombreBanco}'),
+          Text('Número: ${cuenta.numeroCuenta}'),
+          Text('Creada: ${DateFormat('dd/MM/yyyy').format(cuenta.fCreacion)}'),
+        ],
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.edit, color: Colors.blue),
+            onPressed: () => _showEditCuentaDialog(cuenta),
+          ),
+          IconButton(
+            icon: Icon(Icons.delete, color: Colors.red),
+            onPressed: () => _confirmDelete(cuenta.numeroCuenta),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBankAccountsSection(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final userData = Provider.of<UserDataProvider>(context); // Obtener userData
+
+    return _buildSection(
+      context,
+      title: 'Cuentas Bancarias',
+      items: [
+        _loadingCuentas
+            ? Center(child: CircularProgressIndicator())
+            : _cuentasBancarias.isEmpty
+                ? Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'No hay cuentas registradas',
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: _cuentasBancarias
+                        .map((cuenta) => _buildCuentaItem(context, cuenta))
+                        .toList(),
+                  ),
+        Padding(
+          padding: EdgeInsets.all(16),
+          child: ElevatedButton.icon(
+            onPressed: userData.tipoUsuario == 'Admin'
+                ? _showAddCuentaDialog
+                : null, // Deshabilitar si no es Admin
+            icon: Icon(
+              Icons.add,
+              size: 20,
+              color: Colors.white,
+            ),
+            label: Text('Agregar Nueva Cuenta'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Color(0xFF5162F6),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+      ],
+      isExpandable: true,
+      enabled: userData.tipoUsuario == 'Admin', // Solo habilitado para Admin
+    );
+  }
+
+  void _confirmDelete(String numeroCuenta) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirmar eliminación'),
+        content:
+            Text('¿Estás seguro de que quieres eliminar esta cuenta bancaria?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar', style: TextStyle(color: Colors.grey[700])),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Cierra el diálogo
+              _deleteCuenta(numeroCuenta); // Ejecuta la eliminación
+            },
+            child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+          )
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteCuenta(String numeroCuenta) async {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    try {
+      final url =
+          'http://$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroCuenta';
+
+      print('Enviando DELETE a: $url'); // Log de la URL
+      print('Token usado: $token'); // Log del token
+
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: {'tokenauth': token},
+      );
+
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        _fetchCuentasBancarias(); // Actualizar la lista
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cuenta eliminada exitosamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al eliminar: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error eliminando cuenta: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showEditCuentaDialog(CuentaBancaria cuenta) {
+    _showCuentaDialog(
+      isEditing: true,
+      cuentaOriginal: cuenta,
+      nombre: cuenta.nombreCuenta,
+      numero: cuenta.numeroCuenta,
+      banco: cuenta.nombreBanco,
+    );
+  }
+
+  void _showCuentaDialog({
+    bool isEditing = false,
+    CuentaBancaria? cuentaOriginal,
+    String? nombre,
+    String? numero,
+    String? banco,
+  }) {
+    final TextEditingController nombreController =
+        TextEditingController(text: nombre);
+    final TextEditingController numeroController =
+        TextEditingController(text: numero);
+    String selectedBanco = banco ?? 'Santander';
+
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+          title: Row(
+            children: [
+              Icon(Icons.account_balance, color: Color(0xFF5162F6)),
+              SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  isEditing
+                      ? 'Editar Cuenta Bancaria'
+                      : 'Nueva Cuenta Bancaria',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF5162F6),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+          content: Container(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nombreController,
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Nombre de la cuenta',
+                    labelStyle: TextStyle(
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                    prefixIcon: Icon(Icons.label, color: Color(0xFF5162F6)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          BorderSide(color: Color(0xFF5162F6), width: 2),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color:
+                            isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+                      ),
+                    ),
+                    fillColor: isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                    filled: true,
+                  ),
+                ),
+                SizedBox(height: 15),
+                TextField(
+                  controller: numeroController,
+                  enabled: true,
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Número de cuenta',
+                    labelStyle: TextStyle(
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                    prefixIcon: Icon(Icons.numbers, color: Color(0xFF5162F6)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          BorderSide(color: Color(0xFF5162F6), width: 2),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(
+                        color:
+                            isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+                      ),
+                    ),
+                    fillColor: isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                    filled: true,
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(16),
+                  ],
+                ),
+                SizedBox(height: 15),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    color: isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                  ),
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      canvasColor:
+                          isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: selectedBanco,
+                      decoration: InputDecoration(
+                        labelText: 'Selecciona un banco',
+                        labelStyle: TextStyle(
+                          color:
+                              isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                        prefixIcon:
+                            Icon(Icons.business, color: Color(0xFF5162F6)),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                      dropdownColor:
+                          isDarkMode ? Color(0xFF2D2D2D) : Colors.white,
+                      style: TextStyle(
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      items: [
+                        "BBVA",
+                        "Santander",
+                        "Banorte",
+                        "HSBC",
+                        "Banamex",
+                        "Scotiabank",
+                        "Bancoppel",
+                        "Banco Azteca"
+                      ].map((String banco) {
+                        return DropdownMenuItem<String>(
+                          value: banco,
+                          child: Text(
+                            banco,
+                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.black,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) => selectedBanco = value!,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancelar',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nombreController.text.isNotEmpty &&
+                    numeroController.text.isNotEmpty) {
+                  if (isEditing) {
+                    await _editCuentaBancaria(
+                      cuentaOriginal!.numeroCuenta,
+                      nombreController.text,
+                      numeroController.text,
+                      selectedBanco,
+                    );
+                  } else {
+                    await _addCuentaBancaria(
+                      nombreController.text,
+                      numeroController.text,
+                      selectedBanco,
+                    );
+                  }
+                  Navigator.pop(context);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Por favor completa todos los campos'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF5162F6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: Text(isEditing ? 'Actualizar' : 'Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _editCuentaBancaria(
+      String numeroOriginal, String nombre, String numero, String banco) async {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    try {
+      final requestBody = {
+        'nombreCuenta': nombre,
+        'cuentaNueva': numero,
+        'nombreBanco': banco,
+      };
+
+      // Imprimir datos que se enviarán
+      print('⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻');
+      print('EDITANDO CUENTA BANCARIA');
+      print(
+          'URL: http://$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroOriginal');
+      print('Headers:');
+      print('  tokenauth: $token');
+      print('  Content-Type: application/json');
+      print('Body enviado:');
+      print(jsonEncode(requestBody));
+      print('Número original: $numeroOriginal');
+
+      final response = await http.put(
+        Uri.parse(
+            'http://$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroOriginal'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      // Imprimir respuesta
+      print('⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻');
+      print('RESPUESTA DEL SERVIDOR');
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        _fetchCuentasBancarias();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cuenta actualizada exitosamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻');
+      print('ERROR EN LA SOLICITUD');
+      print('Error editing cuenta: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
+
+class CuentaBancaria {
+  final String idfinanciera;
+  final String nombreCuenta;
+  final String numeroCuenta;
+  final String nombreBanco;
+  final String rutaBanco;
+  final DateTime fCreacion;
+
+  CuentaBancaria({
+    required this.idfinanciera,
+    required this.nombreCuenta,
+    required this.numeroCuenta,
+    required this.nombreBanco,
+    required this.rutaBanco,
+    required this.fCreacion,
+  });
+
+  factory CuentaBancaria.fromJson(Map<String, dynamic> json) {
+    return CuentaBancaria(
+      idfinanciera: json['idfinanciera'],
+      nombreCuenta: json['nombreCuenta'],
+      numeroCuenta: json['numeroCuenta'],
+      nombreBanco: json['nombreBanco'],
+      rutaBanco: json['rutaBanco'],
+      fCreacion: DateTime.parse(json['fCreacion']),
+    );
   }
 }

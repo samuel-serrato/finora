@@ -5393,13 +5393,13 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
         ),
         const SizedBox(height: 15), // Add space
         // --- NEW BUTTON ---
-        /*     _buildBotonDescarga(
-          titulo: 'Generar Ficha de Pago',
+        _buildBotonDescarga(
+          titulo: 'Descargar Ficha de Pago',
           icono: Icons.receipt_long, // Example icon
-          color: Colors.orange[800]!, // Example color
+          color: Colors.orange[900]!, // Example color
           documento: 'ficha_pago', // Unique identifier for loading state
           onTap: _generarFichaPagoSemanal, // Link to the new function
-        ), */
+        ),
       ],
     );
   }

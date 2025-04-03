@@ -290,8 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 text: TextSpan(
                                   children: [
                                     TextSpan(
-                                      text:
-                                          'Finora v1.0.0  |  Desarrollado por ',
+                                      text: 'Finora  |  Desarrollado por ',
                                       style: TextStyle(
                                         color: isDarkMode
                                             ? Colors.grey[400]

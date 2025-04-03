@@ -129,7 +129,7 @@ class _nClienteDialogState extends State<nClienteDialog>
     "Santander",
     "Banorte",
     "HSBC",
-    "Citibanamex",
+    "Banamex",
     "Scotiabank",
     "Bancoppel",
     "Banco Azteca"
@@ -2354,12 +2354,11 @@ class _nClienteDialogState extends State<nClienteDialog>
                   onChanged: (bool? value) {
                     setState(() {
                       _noCuentaBancaria = value ?? false;
+                      // Resetear a null cuando se (des)marca
+                      _nombreBanco = null;
                       if (_noCuentaBancaria) {
-                        _nombreBanco = '';
                         _numCuentaController.clear();
                         _numTarjetaController.clear();
-                      } else {
-                        _nombreBanco = '';
                       }
                     });
                   },
@@ -2371,17 +2370,20 @@ class _nClienteDialogState extends State<nClienteDialog>
                 if (!_noCuentaBancaria) ...[
                   // Dropdown para selección de banco
                   _buildDropdown(
-                    value: _nombreBanco == 'No asignado' ? null : _nombreBanco,
+                    value: _nombreBanco, // Usar directamente el valor
                     hint: 'Seleccione un Banco',
-                    items:
-                        _bancos.where((item) => item != 'No asignado').toList(),
+                    items: _bancos
+                        .where((item) =>
+                            item != 'No asignado') // Excluir 'No asignado'
+                        .toList(),
                     onChanged: (value) {
                       setState(() {
-                        _nombreBanco = value ?? 'No asignado';
+                        _nombreBanco = value; // Asignar directamente
                       });
                     },
                     validator: (value) {
                       if (value == null) {
+                        // Validar que no sea null
                         return 'Por favor seleccione un banco';
                       }
                       return null;
