@@ -211,14 +211,16 @@ class PDFFichaPagoSemanal {
                     border: pw.Border.all(color: mediumGrey, width: 0.5),
                     boxShadow: [/*...*/],
                   ),
-                  padding: const pw.EdgeInsets.all(12),
+                  padding: const pw.EdgeInsets.all(
+                      12), // Aumentado para mejor espaciado
                   child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    crossAxisAlignment: pw.CrossAxisAlignment
+                        .stretch, // Cambio a stretch para mejor alineación
                     children: [
                       pw.Container(
                         width: double.infinity,
                         padding: const pw.EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
+                            horizontal: 12, vertical: 10), // Ajustado
                         decoration: pw.BoxDecoration(
                           color: accentColor,
                           borderRadius: pw.BorderRadius.circular(4),
@@ -229,29 +231,38 @@ class PDFFichaPagoSemanal {
                           textAlign: pw.TextAlign.center,
                         ),
                       ),
-                      pw.SizedBox(height: 10),
-                      // Primera fila de información
+                      pw.SizedBox(
+                          height: 16), // Aumentado para mejor separación
+                      // Primera fila de información con Expanded para controlar mejor el ancho
                       pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
                         children: [
-                          _buildInfoItem('Nombre del Grupo',
-                              credito.nombreGrupo, labelStyle, dataStyle),
-                          _buildInfoItem(
-                              'Pago ${credito.tipoPlazo}',
-                              currencyFormat.format(credito.pagoCuota ?? 0.0),
-                              labelStyle,
-                              dataStyle),
+                          pw.Expanded(
+                            child: _buildInfoItem('Nombre del Grupo',
+                                credito.nombreGrupo, labelStyle, dataStyle),
+                          ),
+                          pw.SizedBox(width: 20), // Separación entre columnas
+                          pw.Expanded(
+                            child: _buildInfoItem(
+                                'Pago ${credito.tipoPlazo}',
+                                currencyFormat.format(credito.pagoCuota ?? 0.0),
+                                labelStyle,
+                                dataStyle),
+                          ),
                         ],
                       ),
-                      pw.SizedBox(height: 15),
+                      pw.SizedBox(height: 16),
                       // Segunda fila con fechas
                       pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
                         children: [
-                          _buildInfoItem('Fecha de Inicio',
-                              fechaInicioFormateada, labelStyle, dataStyle),
-                          _buildInfoItem('Fecha de Término', fechaFinFormateada,
-                              labelStyle, dataStyle),
+                          pw.Expanded(
+                            child: _buildInfoItem('Fecha de Inicio',
+                                fechaInicioFormateada, labelStyle, dataStyle),
+                          ),
+                          pw.SizedBox(width: 20), // Separación entre columnas
+                          pw.Expanded(
+                            child: _buildInfoItem('Fecha de Término',
+                                fechaFinFormateada, labelStyle, dataStyle),
+                          ),
                         ],
                       ),
                     ],
@@ -304,17 +315,24 @@ class PDFFichaPagoSemanal {
   static pw.Widget _buildInfoItem(String title, String value,
       pw.TextStyle labelStyle, pw.TextStyle dataStyle) {
     return pw.Column(
+      crossAxisAlignment:
+          pw.CrossAxisAlignment.start, // Alineación a la izquierda
       children: [
         pw.Text(title, style: labelStyle),
-        pw.SizedBox(height: 5),
+        pw.SizedBox(height: 6),
         pw.Container(
-          padding: const pw.EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+          width: double.infinity, // Ancho completo disponible
+          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: pw.BoxDecoration(
             color: PdfColors.white,
             borderRadius: pw.BorderRadius.circular(4),
             border: pw.Border.all(color: mediumGrey, width: 0.5),
           ),
-          child: pw.Text(value, style: dataStyle),
+          child: pw.Text(
+            value,
+            style: dataStyle,
+            textAlign: pw.TextAlign.center, // Centrado del texto
+          ),
         ),
       ],
     );
@@ -332,13 +350,13 @@ class PDFFichaPagoSemanal {
         color: lightGrey,
         borderRadius: pw.BorderRadius.circular(8),
         border: pw.Border.all(color: mediumGrey, width: 0.5),
-        boxShadow: [
+        /* boxShadow: [
           pw.BoxShadow(
             color: PdfColors.grey300,
             offset: const PdfPoint(0, 2),
             blurRadius: 3,
           ),
-        ],
+        ], */
       ),
       margin: const pw.EdgeInsets.only(bottom: 15),
       padding: const pw.EdgeInsets.all(12),
@@ -400,6 +418,22 @@ class PDFFichaPagoSemanal {
     );
   }
 
+    static String _formatCardNumber(String number) {
+  // Elimina cualquier espacio existente
+  final cleanNumber = number.replaceAll(' ', '');
+  
+  // Agrega un espacio cada 4 caracteres
+  final buffer = StringBuffer();
+  for (int i = 0; i < cleanNumber.length; i++) {
+    if (i > 0 && i % 4 == 0) {
+      buffer.write(' ');
+    }
+    buffer.write(cleanNumber[i]);
+  }
+  
+  return buffer.toString();
+}
+
   static pw.Widget _buildCuentaCard(
     CuentaBancaria cuenta,
     Uint8List? logo,
@@ -455,8 +489,11 @@ class PDFFichaPagoSemanal {
               _buildCardItem('Nombre del Titular:', cuenta.nombreCuenta,
                   labelStyle, dataStyle),
               pw.SizedBox(height: 5),
-              _buildCardItem('Número de Tarjeta:', cuenta.numeroCuenta,
-                  labelStyle, dataStyle),
+              _buildCardItem(
+                  'Número de Tarjeta:',
+                  _formatCardNumber(cuenta.numeroCuenta),
+                  labelStyle,
+                  dataStyle),
               pw.SizedBox(height: 5),
               // Como lo indicaste, he dejado comentada la línea de fecha de creación
               // _buildCardItem('Creación:', formattedDate, labelStyle, dataStyle),
