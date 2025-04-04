@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:finora/ip.dart';
 import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
-import 'package:finora/widgets/downloadUpdate.dart';
+import 'package:finora/utils/localVersion.dart';
+import 'package:finora/widgets/DownloadProgressDialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:finora/navigation_rail.dart';
@@ -14,10 +16,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Añadido SharedPreferences
+import 'package:package_info_plus/package_info_plus.dart';
 import 'constants/routes.dart';
-import 'package:http/http.dart' as http; // Añade esto al inicio
+import 'package:http/http.dart' as http;
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -30,6 +33,8 @@ class ScaleProvider extends ChangeNotifier {
   double get scaleFactor => _scaleFactor;
 
   Future<void> loadSavedScale() async {
+    // Aquí sigue usando SharedPreferences si quieres mantener el scale guardado
+    // pero la versión ya no se guarda ahí.
     final prefs = await SharedPreferences.getInstance();
     _scaleFactor = prefs.getDouble(_scaleFactorKey) ?? _scaleFactor;
     notifyListeners();
@@ -43,6 +48,7 @@ class ScaleProvider extends ChangeNotifier {
   }
 }
 
+/// Compara versiones (se asume formato X.Y.Z)
 bool isNewVersionAvailable(String localVersion, String remoteVersion) {
   List<int> local = localVersion.split('.').map((e) => int.parse(e)).toList();
   List<int> remote = remoteVersion.split('.').map((e) => int.parse(e)).toList();
@@ -57,59 +63,53 @@ bool isNewVersionAvailable(String localVersion, String remoteVersion) {
   return false;
 }
 
+/// Muestra el diálogo de actualización
 void showUpdateDialog(
     BuildContext context, String newVersion, String downloadUrl) {
   showDialog(
     context: context,
     barrierDismissible: false,
     builder: (context) {
+      final isDarkMode = Provider.of<ThemeProvider>(context).isDarkMode;
       final width = MediaQuery.of(context).size.width * 0.3;
       final height = MediaQuery.of(context).size.height * 0.35;
 
       return Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 8,
-        backgroundColor: Colors.white,
+        backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
         child: Container(
           width: width,
           padding: const EdgeInsets.all(24),
-          constraints: BoxConstraints(
-            maxHeight: height,
-            minHeight: 150,
-            minWidth: 300,
-          ),
+          constraints:
+              BoxConstraints(maxHeight: height, minHeight: 150, minWidth: 300),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Icono de actualización
-              const Icon(
+              Icon(
                 Icons.cloud_download_outlined,
-                color: Colors.blueAccent,
+                color: isDarkMode ? Colors.blueAccent : Colors.blueAccent,
                 size: 70,
               ),
               const SizedBox(height: 10),
-
-              // Título
-              const Text(
+              Text(
                 'Nueva actualización disponible',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: isDarkMode ? Colors.white : Colors.black,
                 ),
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 12),
-
-              // Versión
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.blueAccent.withOpacity(0.1),
+                  color: isDarkMode
+                      ? Colors.blueAccent.withOpacity(0.1)
+                      : Colors.blueAccent.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
@@ -117,46 +117,45 @@ void showUpdateDialog(
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: Colors.blueAccent.shade700,
+                    color: isDarkMode
+                        ? Colors.blueAccent.shade200
+                        : Colors.blueAccent.shade700,
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // Botones
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey.shade700,
+                      foregroundColor:
+                          isDarkMode ? Colors.grey[400] : Colors.grey[700],
                     ),
                     child: const Text('Más tarde'),
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pop(
-                          context); // Cierra el diálogo de actualización
+                      Navigator.pop(context);
                       showDialog(
                         context: context,
                         barrierDismissible: false,
                         builder: (context) => DownloadProgressDialog(
                           downloadUrl:
                               'http://$baseUrl/descargar' + downloadUrl,
-                          version: newVersion, // Pasar la versión
+                          version: newVersion,
                         ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
+                      backgroundColor:
+                          isDarkMode ? Colors.blueAccent : Colors.blueAccent,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text('Actualizar'),
                   ),
@@ -170,9 +169,9 @@ void showUpdateDialog(
   );
 }
 
+/// Verifica la versión de la app consultando el API y compara con la versión local
 Future<void> checkAppVersion() async {
   try {
-    final prefs = await SharedPreferences.getInstance();
     final response = await http.get(
       Uri.parse('http://$baseUrl/api/v1/buscar/version'),
       headers: {'Accept': 'application/json'},
@@ -182,7 +181,7 @@ Future<void> checkAppVersion() async {
       final data = jsonDecode(response.body);
       final remoteVersion = data['version'] as String;
       final downloadUrl = data['downloadUrl'] as String;
-      final localVersion = prefs.getString('version') ?? '1.0.0';
+      final localVersion = await getLocalVersion();
 
       if (isNewVersionAvailable(localVersion, remoteVersion)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -209,12 +208,9 @@ void main() async {
 
   // Configuración de escala
   double systemScale = await windowManager.getDevicePixelRatio();
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-
-  // Establecer versión por defecto
-  if (!prefs.containsKey('version')) {
-    await prefs.setString('version', '1.0.0');
-  }
+  // Ya no se usa SharedPreferences para guardar la versión,
+  // pero seguimos usándolo para la escala
+  final prefs = await SharedPreferences.getInstance();
 
   double savedScale = prefs.getDouble('scale_factor') ?? 0.0;
   double initialScale = savedScale > 0.0
@@ -300,9 +296,8 @@ class MyApp extends StatelessWidget {
           onGenerateRoute: (settings) {
             if (settings.name == AppRoutes.navigation) {
               return MaterialPageRoute(
-                builder: (context) => NavigationScreen(
-                  scaleFactor: scaleProvider.scaleFactor,
-                ),
+                builder: (context) =>
+                    NavigationScreen(scaleFactor: scaleProvider.scaleFactor),
               );
             }
             return _errorRoute();

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:finora/dialogs/configuracion.dart';
+import 'package:finora/main.dart';
 import 'package:finora/models/image_data.dart';
 import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/theme_provider.dart';
@@ -8,9 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:finora/constants/routes.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+
+import 'utils/localVersion.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final bool isDarkMode;
@@ -585,8 +589,7 @@ void _showAboutDialog(BuildContext context) {
           height: height,
           padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color:
-                isDarkMode ? Colors.grey[800] : Colors.white, // Color dinámico
+            color: isDarkMode ? Colors.grey[900] : Colors.white,
             borderRadius: BorderRadius.circular(16),
           ),
           alignment: Alignment.center,
@@ -610,25 +613,105 @@ void _showAboutDialog(BuildContext context) {
                       'Desarrollado por CODX',
                       style: TextStyle(
                         fontSize: 14,
-                        color: isDarkMode
-                            ? Colors.white
-                            : Colors.grey[700], // Color dinámico
+                        color: isDarkMode ? Colors.white : Colors.grey[700],
                       ),
                     ),
                     SizedBox(height: 18),
                     Divider(
-                      color: isDarkMode
-                          ? Colors.grey[600]
-                          : Colors.grey[300], // Color dinámico
+                      color: isDarkMode ? Colors.grey[600] : Colors.grey[300],
                       height: 1,
                     ),
                     SizedBox(height: 12),
-                    Text(
-                      'Versión 1.0.0',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF5162F6)),
+                    FutureBuilder<String>(
+                      future: getLocalVersion(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return CircularProgressIndicator();
+                        } else if (snapshot.hasError) {
+                          return Text(
+                            'Versión N/A',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: isDarkMode
+                                  ? Colors.blueAccent
+                                  : Color(0xFF5162F6),
+                            ),
+                          );
+                        } else {
+                          final version = snapshot.data ?? 'N/A';
+                          return Column(
+                            children: [
+                              Text(
+                                'Versión $version',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDarkMode
+                                      ? Colors.blueAccent
+                                      : Color(0xFF5162F6),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Botón para buscar actualizaciones
+                              TextButton.icon(
+                                onPressed: () async {
+                                  // Muestra el CircularProgressIndicator con un pequeño delay
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) {
+                                      return Dialog(
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              CircularProgressIndicator(),
+                                              const SizedBox(width: 16),
+                                              Text(
+                                                  'Buscando actualizaciones...'),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+
+                                  // Espera medio segundo antes de buscar la actualización
+                                  await Future.delayed(
+                                      Duration(milliseconds: 500));
+                                  Navigator.pop(
+                                      context); // Cierra el diálogo de progreso
+
+                                  // Llama a la función de verificación de versión
+                                  await checkAppVersion();
+                                },
+                                icon: Icon(Icons.system_update_alt_rounded,
+                                    color: isDarkMode
+                                        ? Colors.blueAccent
+                                        : Color(0xFF5162F6)),
+                                label: Text(
+                                  'Buscar actualizaciones',
+                                  style: TextStyle(
+                                    color: isDarkMode
+                                        ? Colors.blueAccent
+                                        : Color(0xFF5162F6),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 4),
+                                  minimumSize: Size(0, 0),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -644,9 +727,7 @@ void _showAboutDialog(BuildContext context) {
                 child: Text(
                   'Cerrar',
                   style: TextStyle(
-                    color: isDarkMode
-                        ? Colors.white
-                        : Colors.grey[700], // Color dinámico
+                    color: isDarkMode ? Colors.white : Colors.grey[700],
                     fontSize: 14,
                   ),
                 ),

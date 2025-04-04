@@ -13,6 +13,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../utils/localVersion.dart';
+
 void main() {
   runApp(MaterialApp(
     home: LoginScreen(),
@@ -286,39 +288,51 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              RichText(
-                                text: TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: 'Finora  |  Desarrollado por ',
-                                      style: TextStyle(
-                                        color: isDarkMode
-                                            ? Colors.grey[400]
-                                            : Colors.grey[700],
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                              FutureBuilder<String>(
+                                future:
+                                    getLocalVersion(), // Función que obtiene la versión
+                                builder: (context, snapshot) {
+                                  String finoraText = 'Finora';
+                                  if (snapshot.connectionState ==
+                                          ConnectionState.done &&
+                                      snapshot.hasData) {
+                                    finoraText = 'Finora v${snapshot.data}';
+                                  }
+                                  return RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text:
+                                              '$finoraText  |  Desarrollado por ',
+                                          style: TextStyle(
+                                            color: isDarkMode
+                                                ? Colors.grey[400]
+                                                : Colors.grey[700],
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: 'CODX',
+                                          style: TextStyle(
+                                            color: isDarkMode
+                                                ? Colors.grey[400]
+                                                : Colors.grey[700],
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          recognizer: TapGestureRecognizer()
+                                            ..onTap = _launchURL,
+                                        ),
+                                      ],
                                     ),
-                                    TextSpan(
-                                      text: 'CODX',
-                                      style: TextStyle(
-                                        color: isDarkMode
-                                            ? Colors.grey[400]
-                                            : Colors.grey[700],
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      recognizer: TapGestureRecognizer()
-                                        ..onTap = _launchURL,
-                                    ),
-                                  ],
-                                ),
+                                  );
+                                },
                               ),
-
                               const SizedBox(
                                   height: 4), // Espaciado entre líneas
                               Text(
-                                '© ${DateTime.now().year} Todos los derechos reservados.', // Derechos de autor en una línea aparte
+                                '© ${DateTime.now().year} Todos los derechos reservados.',
                                 style: TextStyle(
                                   color: isDarkMode
                                       ? Colors.grey[500]
@@ -330,7 +344,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                           ),
                         ),
-                      ),
+                      )
                     ],
                   ),
                 ),
