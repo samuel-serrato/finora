@@ -953,17 +953,20 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         SizedBox(width: 10), // Espaciado entre los dropdowns
 
                       // Dropdown de Plazos
+                      // Modificar el dropdown de garantías para incluir la opción "Sin garantía"
                       Flexible(
-                        flex: tasaInteresMensualSeleccionada == 0.0
-                            ? 2
-                            : 1, // Si se selecciona "Otro", ocupa menos espacio
+                        flex: tasaInteresMensualSeleccionada == 0.0 ? 2 : 1,
                         child: Container(
                           height: 50,
                           child: _buildDropdown(
                             context: context,
                             value: garantia,
                             hint: 'Garantía',
-                            items: ["5%", "10%"],
+                            items: [
+                              "Sin garantía",
+                              "5%",
+                              "10%"
+                            ], // Añadido "Sin garantía" como primera opción
                             onChanged: (value) => setState(() {
                               garantia = value;
                             }),
@@ -1386,6 +1389,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         calcularFechaTermino(fechaInicio, frecuenciaPago!, plazoNumerico);
 
     double calcularMontoGarantia(String garantiaTexto, double montoAutorizado) {
+      if (garantiaTexto == "Sin garantía") {
+        return 0.0; // Si es "Sin garantía", retorna 0
+      }
+
       RegExp regex = RegExp(r'(\d+(\.\d+)?)'); // Extrae números del texto
       Match? match = regex.firstMatch(garantiaTexto);
 
@@ -2058,13 +2065,21 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         .firstWhere((grupo) => grupo.nombreGrupo == selectedGrupo)
         .idgrupos;
 
+    // En la función generarDatosParaServidor()
+    String valorGarantia;
+    if (garantiaTexto == "Sin garantía") {
+      valorGarantia = "0%"; // Convertir "Sin garantía" a "0%"
+    } else {
+      valorGarantia = garantiaTexto!;
+    }
+
     // Generar la estructura principal
     final Map<String, dynamic> datosParaServidor = {
       "idgrupos": idGrupoSeleccionado,
       "ti_mensual": tasaInteres,
       "plazo": plazoNumerico,
       "frecuenciaPago": frecuenciaPagoTexto,
-      "garantia": garantiaTexto,
+      "garantia": valorGarantia,
       "interesGlobal": _redondearDecimales(interesGlobal), // <- Aplicado aquí
       "montoTotal": _redondearDecimales(obtenerMontoReal(montoController.text)),
       "interesTotal": _redondearDecimales(interesTotal),

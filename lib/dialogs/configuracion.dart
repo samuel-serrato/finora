@@ -918,17 +918,20 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     final userData = Provider.of<UserDataProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    // Buscar el logo principal (usaremos el logo a color)
-    final logo = userData.imagenes
-        .where((img) => img.tipoImagen == 'logoColor')
-        .firstOrNull;
+    // Buscar el logo según el modo de tema
+    final logo = userData.imagenes.where((img) {
+      return isDarkMode
+          ? img.tipoImagen == 'logoBlanco'
+          : img.tipoImagen == 'logoColor';
+    }).firstOrNull;
+
     final logoUrl = logo != null
         ? 'http://$baseUrl/imagenes/subidas/${logo.rutaImagen}'
         : null;
 
     return Container(
       decoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[800] : Colors.white,
+        color: isDarkMode ? Colors.grey[900] : Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
@@ -1053,15 +1056,27 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                     isDarkMode: isDarkMode,
                   ),
                 ),
-                icon:
-                    Icon(Icons.lock_reset, size: 18, color: Color(0xFF5162F6)),
-                label: Text('Cambiar contraseña'),
+                icon: Icon(
+                  Icons.lock_reset,
+                  size: 18,
+                  color: isDarkMode ? Colors.white : Color(0xFF5162F6),
+                ),
+                label: Text(
+                  'Cambiar contraseña',
+                  style: TextStyle(
+                    color: isDarkMode ? Colors.white : Color(0xFF5162F6),
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Color(0xFF5162F6),
+                  backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+                  foregroundColor:
+                      isDarkMode ? Colors.white : Color(0xFF5162F6),
                   side: BorderSide(
-                      color: Color(0xFF5162F6),
-                      width: 0.7), // Añadido borde azul
+                    color: Color(0xFF5162F6),
+                    width: 0.7,
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
               ),
             ],

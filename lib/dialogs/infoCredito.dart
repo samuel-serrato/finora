@@ -876,8 +876,15 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                 "${creditoData!.ti_mensual ?? 0.0}%"),
                                             _buildDetailRow('Interés M. Monto',
                                                 "\$${formatearNumero((creditoData!.montoTotal ?? 0.0) * (creditoData!.ti_mensual ?? 0.0) / 100)}"),
-                                            _buildDetailRow('Garantía',
-                                                "\$${creditoData!.garantia ?? 0.0}"),
+                                            _buildDetailRow(
+                                                'Garantía',
+                                                (creditoData!.garantia == 0 ||
+                                                        creditoData!.garantia ==
+                                                            "0%" ||
+                                                        creditoData!.garantia ==
+                                                            "0.0")
+                                                    ? "Sin garantía"
+                                                    : "${creditoData!.garantia}"),
                                             _buildDetailRow('Garantía Monto',
                                                 "\$${creditoData!.montoGarantia ?? 0.0}"),
                                             _buildDetailRow(

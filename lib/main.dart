@@ -223,6 +223,9 @@ void main() async {
         screenSize.width * initialScale, screenSize.height * initialScale));
   }
 
+  // Centrar la ventana en la pantalla
+  await windowManager.center();
+
   // Verificar versión antes de iniciar la app
   await checkAppVersion();
 
