@@ -188,6 +188,34 @@ class _InfoClienteState extends State<InfoCliente> {
     }
   }
 
+  // Función simplificada para formatear la fecha de yyyy/mm/dd a dd/mm/yyyy
+  String _formatearFecha(String fechaStr) {
+    try {
+      // Verificar si el formato es yyyy/mm/dd
+      if (RegExp(r'^\d{4}/\d{2}/\d{2}$').hasMatch(fechaStr)) {
+        // Dividir la fecha en sus componentes
+        List<String> partes = fechaStr.split('/');
+
+        // Reorganizar al formato dd/mm/yyyy
+        return '${partes[2]}/${partes[1]}/${partes[0]}';
+      }
+      // Si ya está en formato dd/mm/yyyy, devolverlo tal cual
+      else if (RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(fechaStr)) {
+        return fechaStr;
+      }
+      // Alternativamente, podemos usar DateFormat si necesitamos más precisión
+      else {
+        // Parsear la fecha en formato yyyy/mm/dd
+        final fecha = DateTime.parse(fechaStr.replaceAll('/', '-'));
+        // Formatear a dd/mm/yyyy
+        return DateFormat('dd/MM/yyyy').format(fecha);
+      }
+    } catch (e) {
+      // En caso de error, devolver un mensaje o la fecha original
+      return 'Fecha inválida';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider =
@@ -250,8 +278,8 @@ class _InfoClienteState extends State<InfoCliente> {
                                   'ID:', clienteData!['idclientes']), */
                               _buildDetailRowIG('',
                                   '${clienteData!['nombres']} ${clienteData!['apellidoP']} ${clienteData!['apellidoM']}'),
-                              _buildDetailRowIG(
-                                  'Fecha de Nac:', clienteData!['fechaNac']),
+                              _buildDetailRowIG('Fecha Nac:',
+                                  _formatearFecha(clienteData!['fechaNac'])),
                               _buildDetailRowIG('Tipo Cliente:',
                                   clienteData!['tipo_cliente']),
                               _buildDetailRowIG('Sexo:', clienteData!['sexo']),
@@ -413,10 +441,10 @@ class _InfoClienteState extends State<InfoCliente> {
                                                         'RFC:',
                                                         adicional['rfc'],
                                                         isDarkMode),
-                                                    _buildDetailRow(
+                                                    /*   _buildDetailRow(
                                                         'Fecha de Creación:',
                                                         adicional['fCreacion'],
-                                                        isDarkMode),
+                                                        isDarkMode), */
                                                     SizedBox(height: 16),
                                                   ],
                                               ],
@@ -711,8 +739,8 @@ class _InfoClienteState extends State<InfoCliente> {
                         'Descripción:', ingreso['descripcion'], isDarkMode),
                     _buildDetailRow(
                         'Monto Semanal:', montoFormateado, isDarkMode),
-                    _buildDetailRow(
-                        'Fecha Creación:', ingreso['fCreacion'], isDarkMode),
+                    /*  _buildDetailRow(
+                        'Fecha Creación:', ingreso['fCreacion'], isDarkMode), */
                   ],
                 ),
               );
@@ -859,25 +887,49 @@ class _InfoClienteState extends State<InfoCliente> {
                         ),
                       ],
                     ),
-                    if (referencia['domicilio_ref'] is List &&
-                        referencia['domicilio_ref'].isNotEmpty)
-                      for (var domicilio in referencia['domicilio_ref']) ...[
-                        _buildAddresses(domicilio, isDarkMode),
-                        SizedBox(height: 16),
-                      ]
-                    else
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          'No hay domicilio para esta referencia',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDarkMode
-                                ? Colors.white
-                                : Colors.grey, // Texto oscuro o claro
-                          ),
-                        ),
-                      ),
+                    // Determinar si hay al menos un domicilio válido
+                    Builder(
+                      builder: (context) {
+                        // Verificamos si hay algún domicilio válido
+                        bool hayDomicilioValido = false;
+                        if (referencia['domicilio_ref'] is List &&
+                            referencia['domicilio_ref'].isNotEmpty) {
+                          for (var domicilio in referencia['domicilio_ref']) {
+                            if (!_isDomicilioEmpty(domicilio)) {
+                              hayDomicilioValido = true;
+                              break;
+                            }
+                          }
+                        }
+
+                        // Si hay al menos un domicilio válido, mostramos solo los domicilios válidos
+                        if (hayDomicilioValido) {
+                          return Column(
+                            children: (referencia['domicilio_ref'] as List)
+                                .where((domicilio) =>
+                                    !_isDomicilioEmpty(domicilio))
+                                .map<Widget>((domicilio) =>
+                                    _buildAddresses(domicilio, isDarkMode))
+                                .toList(),
+                          );
+                        }
+                        // Si no hay domicilios válidos, mostramos el mensaje una sola vez
+                        else {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Esta referencia no cuenta con domicilio',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isDarkMode
+                                    ? Colors.white
+                                    : Colors.grey, // Texto oscuro o claro
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
                   ],
                 ),
               );
@@ -917,6 +969,8 @@ class _InfoClienteState extends State<InfoCliente> {
   }
 
   Widget _buildAddresses(Map<String, dynamic> domicilio, bool isDarkMode) {
+
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -924,60 +978,91 @@ class _InfoClienteState extends State<InfoCliente> {
           children: [
             SizedBox(height: 8),
             Expanded(
-              child: _buildDetailRow(
-                  'Tipo Domicilio:', domicilio['tipo_domicilio'], isDarkMode),
+              child: _buildDetailRow('Tipo Domicilio:',
+                  _getValidatedValue(domicilio['tipo_domicilio']), isDarkMode),
+            ),
+            Expanded(
+              child: _buildDetailRow('Propietario:',
+                  _getValidatedValue(domicilio['nombre_propietario']), isDarkMode),
             ),
             Expanded(
               child: _buildDetailRow(
-                  'Propietario:', domicilio['nombre_propietario'], isDarkMode),
-            ),
-            Expanded(
-              child: _buildDetailRow(
-                  'Parentesco:', domicilio['parentesco'], isDarkMode),
+                  'Parentesco:', _getValidatedValue(domicilio['parentesco']), isDarkMode),
             ),
           ],
         ),
         Row(
           children: [
             Expanded(
-                child:
-                    _buildDetailRow('Calle:', domicilio['calle'], isDarkMode)),
+                child: _buildDetailRow(
+                    'Calle:', _getValidatedValue(domicilio['calle']), isDarkMode)),
             Expanded(
                 child: _buildDetailRow(
-                    'Número Ext:', domicilio['nExt'], isDarkMode)),
+                    'Número Ext:', _getValidatedValue(domicilio['nExt']), isDarkMode)),
             Expanded(
                 child: _buildDetailRow(
-                    'Número Int:', domicilio['nInt'], isDarkMode)),
+                    'Número Int:', _getValidatedValue(domicilio['nInt']), isDarkMode)),
           ],
         ),
         Row(
           children: [
             Expanded(
                 child: _buildDetailRow(
-                    'Colonia:', domicilio['colonia'], isDarkMode)),
+                    'Colonia:', _getValidatedValue(domicilio['colonia']), isDarkMode)),
             Expanded(
                 child: _buildDetailRow(
-                    'Estado:', domicilio['estado'], isDarkMode)),
+                    'Estado:', _getValidatedValue(domicilio['estado']), isDarkMode)),
             Expanded(
-                child: _buildDetailRow(
-                    'Municipio:', domicilio['municipio'], isDarkMode)),
+                child: _buildDetailRow('Municipio:',
+                    _getValidatedValue(domicilio['municipio']), isDarkMode)),
           ],
         ),
         Row(
           children: [
             Expanded(
                 child: _buildDetailRow(
-                    'Código Postal:', domicilio['cp'], isDarkMode)),
+                    'Código Postal:', _getValidatedValue(domicilio['cp']), isDarkMode)),
             Expanded(
-                child: _buildDetailRow(
-                    'Entre Calles:', domicilio['entreCalle'], isDarkMode)),
+                child: _buildDetailRow('Entre Calles:',
+                    _getValidatedValue(domicilio['entreCalle']), isDarkMode)),
             Expanded(
                 child: _buildDetailRow('Tiempo Viviendo:',
-                    domicilio['tiempoViviendo'], isDarkMode)),
+                    _getValidatedValue(domicilio['tiempoViviendo']), isDarkMode)),
           ],
         ),
       ],
     );
+  }
+
+// Función para verificar si un domicilio está vacío (todos sus campos relevantes son null o vacíos)
+  bool _isDomicilioEmpty(Map<String, dynamic> domicilio) {
+    // Lista de los campos que representan información esencial del domicilio
+    final camposDomicilio = [
+      'tipo_domicilio',
+      'nombre_propietario',
+      'parentesco',
+      'calle',
+      'nExt',
+      'nInt',
+      'colonia',
+      'estado',
+      'municipio',
+      'cp',
+      'entreCalle',
+      'tiempoViviendo'
+    ];
+
+    // Verifica cada campo
+    bool todosVacios = true;
+    for (var campo in camposDomicilio) {
+      if (domicilio[campo] != null &&
+          domicilio[campo].toString().trim().isNotEmpty) {
+        todosVacios = false;
+        break; // Si al menos un campo tiene valor, el domicilio no está vacío
+      }
+    }
+
+    return todosVacios; // Si todos los campos están vacíos o son null
   }
 
   // Helper method to handle null and empty values

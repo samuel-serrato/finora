@@ -132,7 +132,8 @@ class _nClienteDialogState extends State<nClienteDialog>
     "Banamex",
     "Scotiabank",
     "Bancoppel",
-    "Banco Azteca"
+    "Banco Azteca",
+    "Inbursa",
   ];
 
   // Mapa para asociar tipos con sus respectivos IDs
@@ -1526,27 +1527,6 @@ class _nClienteDialogState extends State<nClienteDialog>
       return _referenciasFormKey.currentState?.validate() ?? false;
     }
     return false;
-  }
-
-  void _mostrarDialogoErrorFecha() {
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Error'),
-          content: Text('Por favor, selecciona una fecha de nacimiento.'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Cerrar el diálogo
-              },
-              child: Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   // Función que crea cada paso con el círculo y el texto
@@ -3663,103 +3643,147 @@ class _nClienteDialogState extends State<nClienteDialog>
     );
   }
 
-  // El widget para el campo de fecha
-  Widget _buildFechaNacimientoField() {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final isDarkMode = themeProvider.isDarkMode;
+ // El widget para el campo de fecha
+Widget _buildFechaNacimientoField() {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () async {
-          DateTime? pickedDate = await showDatePicker(
-            context: context,
-            initialDate: selectedDate ?? DateTime.now(),
-            firstDate: DateTime(1900),
-            lastDate: DateTime.now(),
-            locale: const Locale('es', 'ES'),
-            builder: (BuildContext context, Widget? child) {
-              return Theme(
-                data: isDarkMode
-                    ? ThemeData.dark().copyWith(
-                        colorScheme: ColorScheme.dark().copyWith(
-                          primary: const Color(0xFF5162F6),
-                          surface: const Color(0xFF303030),
-                          onSurface: Colors.white,
-                        ),
-                        dialogBackgroundColor:
-                            const Color.fromARGB(255, 43, 43, 43),
-                      )
-                    : ThemeData.light().copyWith(
-                        primaryColor: Colors.white,
-                        colorScheme: ColorScheme.fromSwatch().copyWith(
-                          primary: const Color(0xFF5162F6),
-                        ),
-                      ),
-                child: child!,
-              );
-            },
-          );
-          if (pickedDate != null) {
-            setState(() {
-              selectedDate = pickedDate;
-              _fechaController.text =
-                  DateFormat('dd/MM/yyyy').format(selectedDate!);
-            });
-          }
-        },
-        child: AbsorbPointer(
-          child: TextFormField(
-            controller: _fechaController,
-            style: TextStyle(
-              fontSize: 12,
-              color: isDarkMode ? Colors.white : Colors.black87,
-            ),
-            decoration: InputDecoration(
-              labelText: 'Fecha de Nacimiento',
-              labelStyle: TextStyle(
-                fontSize: 12,
-                color: isDarkMode ? Colors.white70 : Colors.black,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: isDarkMode ? Colors.grey[600]! : Colors.grey[400]!,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: isDarkMode ? Colors.grey[500]! : Colors.grey[600]!,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: Colors.grey, // Cambiado de azul a gris
-                ),
-              ),
-              hintText: 'Selecciona una fecha',
-              hintStyle: TextStyle(
-                fontSize: 12,
-                color: isDarkMode ? Colors.white70 : Colors.black38,
-              ),
-              fillColor: isDarkMode
-                  ? const Color.fromARGB(255, 48, 48, 48)
-                  : Colors.white,
-              filled: true,
-            ),
-            validator: (value) {
-              if (selectedDate == null) {
-                return 'Por favor, selecciona una fecha de nacimiento';
-              }
-              return null;
-            },
+  return Row(
+    children: [
+      Expanded(
+        child: TextFormField(
+          controller: _fechaController,
+          style: TextStyle(
+            fontSize: 12,
+            color: isDarkMode ? Colors.white : Colors.black87,
           ),
+          decoration: InputDecoration(
+            labelText: 'Fecha de Nacimiento',
+            labelStyle: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.white70 : Colors.black,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: isDarkMode ? Colors.grey[600]! : Colors.grey[400]!,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: isDarkMode ? Colors.grey[500]! : Colors.grey[600]!,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(
+                color: Colors.grey,
+              ),
+            ),
+            hintText: 'dd/mm/yyyy',
+            hintStyle: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.white70 : Colors.black38,
+            ),
+            fillColor: isDarkMode
+                ? const Color.fromARGB(255, 48, 48, 48)
+                : Colors.white,
+            filled: true,
+            prefixIcon: IconButton(
+              icon: Icon(
+                Icons.calendar_today,
+                color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                size: 20,
+              ),
+              onPressed: () async {
+                DateTime? pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: selectedDate ?? DateTime.now(),
+                  firstDate: DateTime(1900),
+                  lastDate: DateTime.now(),
+                  locale: const Locale('es', 'ES'),
+                  builder: (BuildContext context, Widget? child) {
+                    return Theme(
+                      data: isDarkMode
+                          ? ThemeData.dark().copyWith(
+                              colorScheme: ColorScheme.dark().copyWith(
+                                primary: const Color(0xFF5162F6),
+                                surface: const Color(0xFF303030),
+                                onSurface: Colors.white,
+                              ),
+                              dialogBackgroundColor:
+                                  const Color.fromARGB(255, 43, 43, 43),
+                            )
+                          : ThemeData.light().copyWith(
+                              primaryColor: Colors.white,
+                              colorScheme: ColorScheme.fromSwatch().copyWith(
+                                primary: const Color(0xFF5162F6),
+                              ),
+                            ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (pickedDate != null) {
+                  setState(() {
+                    selectedDate = pickedDate;
+                    _fechaController.text =
+                        DateFormat('dd/MM/yyyy').format(selectedDate!);
+                  });
+                }
+              },
+            ),
+          ),
+          keyboardType: TextInputType.datetime,
+          onChanged: (value) {
+            // Validar y formatear la fecha mientras el usuario escribe
+            if (value.isNotEmpty) {
+              try {
+                // Intentar parsear la fecha ingresada manualmente
+                final inputFormat = DateFormat('dd/MM/yyyy');
+                final parsedDate = inputFormat.parseStrict(value);
+                
+                // Si es válida, actualizar selectedDate
+                setState(() {
+                  selectedDate = parsedDate;
+                });
+              } catch (e) {
+                // La fecha no es válida todavía, pero no hacemos nada
+                // porque el usuario podría estar en medio de la entrada
+              }
+            }
+          },
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Por favor, ingresa una fecha de nacimiento';
+            }
+            
+            try {
+              // Validar formato de fecha
+              final inputFormat = DateFormat('dd/MM/yyyy');
+              final parsedDate = inputFormat.parseStrict(value);
+              
+              // Verificar que la fecha no sea futura
+              if (parsedDate.isAfter(DateTime.now())) {
+                return 'La fecha no puede ser en el futuro';
+              }
+              
+              // Verificar que la fecha no sea muy antigua
+              if (parsedDate.isBefore(DateTime(1900))) {
+                return 'La fecha no puede ser anterior a 1900';
+              }
+              
+              return null;
+            } catch (e) {
+              return 'Formato de fecha inválido. Usa dd/mm/yyyy';
+            }
+          },
         ),
       ),
-    );
-  }
+    ],
+  );
+}
 
   void _agregarCliente() async {
     setState(() {
