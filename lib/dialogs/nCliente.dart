@@ -142,7 +142,8 @@ class _nClienteDialogState extends State<nClienteDialog>
     'Actividad Laboral': 2,
     'Credito con otras financieras': 3,
     'Aportaciones del esposo': 4,
-    'Otras aportaciones': 5
+    'Otras aportaciones': 5,
+    'Egreso': 6
   };
 
   final List<String> tiposDomicilio = [
@@ -218,6 +219,33 @@ class _nClienteDialogState extends State<nClienteDialog>
       fetchClienteData();
     } else {
       _isLoading = false; // Si no estamos editando, cambia el estado de carga
+    }
+  }
+
+  String _formatearFecha(String fechaStr) {
+    try {
+      // Verificar si el formato es yyyy/mm/dd
+      if (RegExp(r'^\d{4}/\d{2}/\d{2}$').hasMatch(fechaStr)) {
+        // Dividir la fecha en sus componentes
+        List<String> partes = fechaStr.split('/');
+
+        // Reorganizar al formato dd/mm/yyyy
+        return '${partes[2]}/${partes[1]}/${partes[0]}';
+      }
+      // Si ya está en formato dd/mm/yyyy, devolverlo tal cual
+      else if (RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(fechaStr)) {
+        return fechaStr;
+      }
+      // Alternativamente, podemos usar DateFormat si necesitamos más precisión
+      else {
+        // Parsear la fecha en formato yyyy/mm/dd
+        final fecha = DateTime.parse(fechaStr.replaceAll('/', '-'));
+        // Formatear a dd/mm/yyyy
+        return DateFormat('dd/MM/yyyy').format(fecha);
+      }
+    } catch (e) {
+      // En caso de error, devolver un mensaje o la fecha original
+      return 'Fecha inválida';
     }
   }
 
@@ -461,7 +489,8 @@ class _nClienteDialogState extends State<nClienteDialog>
 
           // Información adicional del cliente
           selectedECivil = clienteData['eCivil'] ?? '';
-          _fechaController.text = clienteData['fechaNac'] ?? '';
+          _fechaController.text =
+              _formatearFecha(clienteData['fechaNac'] ?? '');
 
           // Si hay una fecha válida, establece también el selectedDate
           if (clienteData['fechaNac'] != null &&
@@ -2350,15 +2379,18 @@ class _nClienteDialogState extends State<nClienteDialog>
                 if (!_noCuentaBancaria) ...[
                   // Dropdown para selección de banco
                   _buildDropdown(
-                    value: _nombreBanco, // Usar directamente el valor
+                    value: (_nombreBanco != null &&
+                            _nombreBanco != "" &&
+                            _bancos.contains(_nombreBanco) &&
+                            _nombreBanco != 'No asignado')
+                        ? _nombreBanco
+                        : null,
                     hint: 'Seleccione un Banco',
-                    items: _bancos
-                        .where((item) =>
-                            item != 'No asignado') // Excluir 'No asignado'
-                        .toList(),
+                    items:
+                        _bancos.where((item) => item != 'No asignado').toList(),
                     onChanged: (value) {
                       setState(() {
-                        _nombreBanco = value; // Asignar directamente
+                        _nombreBanco = value;
                       });
                     },
                     validator: (value) {
@@ -3643,147 +3675,147 @@ class _nClienteDialogState extends State<nClienteDialog>
     );
   }
 
- // El widget para el campo de fecha
-Widget _buildFechaNacimientoField() {
-  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-  final isDarkMode = themeProvider.isDarkMode;
+  // El widget para el campo de fecha
+  Widget _buildFechaNacimientoField() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
 
-  return Row(
-    children: [
-      Expanded(
-        child: TextFormField(
-          controller: _fechaController,
-          style: TextStyle(
-            fontSize: 12,
-            color: isDarkMode ? Colors.white : Colors.black87,
-          ),
-          decoration: InputDecoration(
-            labelText: 'Fecha de Nacimiento',
-            labelStyle: TextStyle(
+    return Row(
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: _fechaController,
+            style: TextStyle(
               fontSize: 12,
-              color: isDarkMode ? Colors.white70 : Colors.black,
+              color: isDarkMode ? Colors.white : Colors.black87,
             ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: isDarkMode ? Colors.grey[600]! : Colors.grey[400]!,
+            decoration: InputDecoration(
+              labelText: 'Fecha de Nacimiento',
+              labelStyle: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.white70 : Colors.black,
               ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: isDarkMode ? Colors.grey[500]! : Colors.grey[600]!,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDarkMode ? Colors.grey[600]! : Colors.grey[400]!,
+                ),
               ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(
-                color: Colors.grey,
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: isDarkMode ? Colors.grey[500]! : Colors.grey[600]!,
+                ),
               ),
-            ),
-            hintText: 'dd/mm/yyyy',
-            hintStyle: TextStyle(
-              fontSize: 12,
-              color: isDarkMode ? Colors.white70 : Colors.black38,
-            ),
-            fillColor: isDarkMode
-                ? const Color.fromARGB(255, 48, 48, 48)
-                : Colors.white,
-            filled: true,
-            prefixIcon: IconButton(
-              icon: Icon(
-                Icons.calendar_today,
-                color: isDarkMode ? Colors.white70 : Colors.grey[600],
-                size: 20,
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: Colors.grey,
+                ),
               ),
-              onPressed: () async {
-                DateTime? pickedDate = await showDatePicker(
-                  context: context,
-                  initialDate: selectedDate ?? DateTime.now(),
-                  firstDate: DateTime(1900),
-                  lastDate: DateTime.now(),
-                  locale: const Locale('es', 'ES'),
-                  builder: (BuildContext context, Widget? child) {
-                    return Theme(
-                      data: isDarkMode
-                          ? ThemeData.dark().copyWith(
-                              colorScheme: ColorScheme.dark().copyWith(
-                                primary: const Color(0xFF5162F6),
-                                surface: const Color(0xFF303030),
-                                onSurface: Colors.white,
+              hintText: 'dd/mm/yyyy',
+              hintStyle: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.white70 : Colors.black38,
+              ),
+              fillColor: isDarkMode
+                  ? const Color.fromARGB(255, 48, 48, 48)
+                  : Colors.white,
+              filled: true,
+              prefixIcon: IconButton(
+                icon: Icon(
+                  Icons.calendar_today,
+                  color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                  size: 20,
+                ),
+                onPressed: () async {
+                  DateTime? pickedDate = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate ?? DateTime.now(),
+                    firstDate: DateTime(1900),
+                    lastDate: DateTime.now(),
+                    locale: const Locale('es', 'ES'),
+                    builder: (BuildContext context, Widget? child) {
+                      return Theme(
+                        data: isDarkMode
+                            ? ThemeData.dark().copyWith(
+                                colorScheme: ColorScheme.dark().copyWith(
+                                  primary: const Color(0xFF5162F6),
+                                  surface: const Color(0xFF303030),
+                                  onSurface: Colors.white,
+                                ),
+                                dialogBackgroundColor:
+                                    const Color.fromARGB(255, 43, 43, 43),
+                              )
+                            : ThemeData.light().copyWith(
+                                primaryColor: Colors.white,
+                                colorScheme: ColorScheme.fromSwatch().copyWith(
+                                  primary: const Color(0xFF5162F6),
+                                ),
                               ),
-                              dialogBackgroundColor:
-                                  const Color.fromARGB(255, 43, 43, 43),
-                            )
-                          : ThemeData.light().copyWith(
-                              primaryColor: Colors.white,
-                              colorScheme: ColorScheme.fromSwatch().copyWith(
-                                primary: const Color(0xFF5162F6),
-                              ),
-                            ),
-                      child: child!,
-                    );
-                  },
-                );
-                if (pickedDate != null) {
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (pickedDate != null) {
+                    setState(() {
+                      selectedDate = pickedDate;
+                      _fechaController.text =
+                          DateFormat('dd/MM/yyyy').format(selectedDate!);
+                    });
+                  }
+                },
+              ),
+            ),
+            keyboardType: TextInputType.datetime,
+            onChanged: (value) {
+              // Validar y formatear la fecha mientras el usuario escribe
+              if (value.isNotEmpty) {
+                try {
+                  // Intentar parsear la fecha ingresada manualmente
+                  final inputFormat = DateFormat('dd/MM/yyyy');
+                  final parsedDate = inputFormat.parseStrict(value);
+
+                  // Si es válida, actualizar selectedDate
                   setState(() {
-                    selectedDate = pickedDate;
-                    _fechaController.text =
-                        DateFormat('dd/MM/yyyy').format(selectedDate!);
+                    selectedDate = parsedDate;
                   });
+                } catch (e) {
+                  // La fecha no es válida todavía, pero no hacemos nada
+                  // porque el usuario podría estar en medio de la entrada
                 }
-              },
-            ),
-          ),
-          keyboardType: TextInputType.datetime,
-          onChanged: (value) {
-            // Validar y formatear la fecha mientras el usuario escribe
-            if (value.isNotEmpty) {
+              }
+            },
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor, ingresa una fecha de nacimiento';
+              }
+
               try {
-                // Intentar parsear la fecha ingresada manualmente
+                // Validar formato de fecha
                 final inputFormat = DateFormat('dd/MM/yyyy');
                 final parsedDate = inputFormat.parseStrict(value);
-                
-                // Si es válida, actualizar selectedDate
-                setState(() {
-                  selectedDate = parsedDate;
-                });
+
+                // Verificar que la fecha no sea futura
+                if (parsedDate.isAfter(DateTime.now())) {
+                  return 'La fecha no puede ser en el futuro';
+                }
+
+                // Verificar que la fecha no sea muy antigua
+                if (parsedDate.isBefore(DateTime(1900))) {
+                  return 'La fecha no puede ser anterior a 1900';
+                }
+
+                return null;
               } catch (e) {
-                // La fecha no es válida todavía, pero no hacemos nada
-                // porque el usuario podría estar en medio de la entrada
+                return 'Formato de fecha inválido. Usa dd/mm/yyyy';
               }
-            }
-          },
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Por favor, ingresa una fecha de nacimiento';
-            }
-            
-            try {
-              // Validar formato de fecha
-              final inputFormat = DateFormat('dd/MM/yyyy');
-              final parsedDate = inputFormat.parseStrict(value);
-              
-              // Verificar que la fecha no sea futura
-              if (parsedDate.isAfter(DateTime.now())) {
-                return 'La fecha no puede ser en el futuro';
-              }
-              
-              // Verificar que la fecha no sea muy antigua
-              if (parsedDate.isBefore(DateTime(1900))) {
-                return 'La fecha no puede ser anterior a 1900';
-              }
-              
-              return null;
-            } catch (e) {
-              return 'Formato de fecha inválido. Usa dd/mm/yyyy';
-            }
-          },
+            },
+          ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   void _agregarCliente() async {
     setState(() {
