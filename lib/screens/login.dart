@@ -93,9 +93,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      print('Realizando petición a: http://$baseUrl/api/v1/auth/login');
+      print('Realizando petición a: $baseUrl/api/v1/auth/login');
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/auth/login'),
+        Uri.parse('$baseUrl/api/v1/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'usuario': _usernameController.text,
@@ -181,8 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
             'No se pudo conectar al servidor. Por favor verifica tu conexión a internet e intenta nuevamente.';
       } else {
         errorMessage = e.toString().replaceAll('Exception: ', '');
-        if (errorMessage.contains('http://') ||
-            errorMessage.contains('address =')) {
+        if (errorMessage.contains('') || errorMessage.contains('address =')) {
           errorMessage = 'Error de conexión. Por favor intenta más tarde.';
         }
       }

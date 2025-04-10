@@ -75,7 +75,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
         final response = await http.get(
           Uri.parse(
-              'http://$baseUrl/api/v1/clientes?limit=12&page=$page'), // Parámetros de paginación
+              '$baseUrl/api/v1/clientes?limit=12&page=$page'), // Parámetros de paginación
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -314,7 +314,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
 
       final response = await http.get(
         Uri.parse(
-            'http://$baseUrl/api/v1/clientes/$query?limit=12&page=$page'), // Añade parámetros de paginación
+            '$baseUrl/api/v1/clientes/$query?limit=12&page=$page'), // Añade parámetros de paginación
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -531,7 +531,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
         final token = prefs.getString('tokenauth') ?? '';
 
         final response = await http.delete(
-          Uri.parse('http://$baseUrl/api/v1/clientes/$idCliente'),
+          Uri.parse('$baseUrl/api/v1/clientes/$idCliente'),
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',

@@ -99,7 +99,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/usuarios/tipo/campo'),
+        Uri.parse('$baseUrl/api/v1/usuarios/tipo/campo'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -175,7 +175,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
+        Uri.parse('$baseUrl/api/v1/clientes/$query'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -626,7 +626,7 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/grupos'),
+        Uri.parse('$baseUrl/api/v1/grupos'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -727,24 +727,41 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
+      // Creamos el cuerpo de la solicitud antes de enviarlo
+      final requestBody = {
+        'idgrupos': idGrupo,
+        'clientes': _selectedPersons
+            .map((persona) => {
+                  'idclientes': persona['idclientes'],
+                  'nomCargo':
+                      _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
+                })
+            .toList(),
+        'idusuarios': _selectedUsuario?.idusuarios,
+      };
+
+      // Imprimimos los datos en la consola
+      print('==== DATOS A ENVIAR ====');
+      print('URL: $baseUrl/api/v1/grupodetalles/');
+      print(
+          'Headers: tokenauth=${token.substring(0, 10)}... (truncado por seguridad)');
+      print('Body: ${json.encode(requestBody)}');
+      print('=======================');
+
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
+        Uri.parse('$baseUrl/api/v1/grupodetalles/'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
         },
-        body: json.encode({
-          'idgrupos': idGrupo,
-          'clientes': _selectedPersons
-              .map((persona) => {
-                    'idclientes': persona['idclientes'],
-                    'nomCargo':
-                        _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
-                  })
-              .toList(),
-          'idusuarios': _selectedUsuario?.idusuarios, // Agregar esta línea
-        }),
+        body: json.encode(requestBody),
       );
+
+      // También podemos imprimir la respuesta
+      print('==== RESPUESTA RECIBIDA ====');
+      print('Status code: ${response.statusCode}');
+      print('Body: ${response.body}');
+      print('===========================');
 
       if (!mounted) return false;
 
@@ -795,11 +812,13 @@ class _nGrupoDialogState extends State<nGrupoDialog>
           _handleResponseError(response);
         }
       } catch (parseError) {
+        print('Error al parsear la respuesta: $parseError');
         _handleResponseError(response);
       }
 
       return false;
     } catch (e) {
+      print('Excepción capturada: $e');
       if (mounted && !_dialogShown) {
         _mostrarDialogo(
           title: 'Error',

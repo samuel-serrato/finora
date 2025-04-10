@@ -81,7 +81,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
           '${usuarioController.text}.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}';
 
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/usuarios'),
+        Uri.parse('$baseUrl/api/v1/usuarios'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',

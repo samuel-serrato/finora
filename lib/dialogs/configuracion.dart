@@ -230,7 +230,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
                                 child: Image.network(
-                                  'http://$baseUrl/imagenes/subidas/${colorLogo.rutaImagen}',
+                                  '$baseUrl/imagenes/subidas/${colorLogo.rutaImagen}',
                                   fit: BoxFit.contain,
                                   width: double.infinity,
                                   height: double.infinity,
@@ -375,7 +375,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
                                 child: Image.network(
-                                  'http://$baseUrl/imagenes/subidas/${whiteLogo.rutaImagen}',
+                                  '$baseUrl/imagenes/subidas/${whiteLogo.rutaImagen}',
                                   fit: BoxFit.contain,
                                   width: double.infinity,
                                   height: double.infinity,
@@ -925,9 +925,8 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
           : img.tipoImagen == 'logoColor';
     }).firstOrNull;
 
-    final logoUrl = logo != null
-        ? 'http://$baseUrl/imagenes/subidas/${logo.rutaImagen}'
-        : null;
+    final logoUrl =
+        logo != null ? '$baseUrl/imagenes/subidas/${logo.rutaImagen}' : null;
 
     return Container(
       decoration: BoxDecoration(
@@ -1179,7 +1178,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       // 1. Crear solicitud
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://$baseUrl/api/v1/imagenes/subir/logo'),
+        Uri.parse('$baseUrl/api/v1/imagenes/subir/logo'),
       );
 
       // Agregar token al header
@@ -1264,7 +1263,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     try {
       final response = await http.get(
         Uri.parse(
-            'http://$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}'),
+            '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}'),
         headers: {'tokenauth': token},
       );
 
@@ -1508,7 +1507,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
 
       // Imprimir lo que se va a enviar
       print('Datos enviados al servidor:');
-      print('URL: http://$baseUrl/api/v1/financiera/cuentasbanco');
+      print('URL: $baseUrl/api/v1/financiera/cuentasbanco');
       print('Headers:');
       print('  tokenauth: $token');
       print('  Content-Type: application/json');
@@ -1516,7 +1515,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       print(jsonEncode(requestBody));
 
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/financiera/cuentasbanco'),
+        Uri.parse('$baseUrl/api/v1/financiera/cuentasbanco'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -1563,7 +1562,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
 
     return ListTile(
       leading: Image.network(
-        'http://$baseUrl/imagenes/bancos/${cuenta.rutaBanco}',
+        '$baseUrl/imagenes/bancos/${cuenta.rutaBanco}',
         width: 70,
         height: 40,
         errorBuilder: (context, error, stackTrace) =>
@@ -1678,7 +1677,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
 
     try {
       final url =
-          'http://$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroCuenta';
+          '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroCuenta';
 
       print('Enviando DELETE a: $url'); // Log de la URL
       print('Token usado: $token'); // Log del token
@@ -1974,7 +1973,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       print('⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻');
       print('EDITANDO CUENTA BANCARIA');
       print(
-          'URL: http://$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroOriginal');
+          'URL: $baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroOriginal');
       print('Headers:');
       print('  tokenauth: $token');
       print('  Content-Type: application/json');
@@ -1984,7 +1983,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
 
       final response = await http.put(
         Uri.parse(
-            'http://$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroOriginal'),
+            '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroOriginal'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',

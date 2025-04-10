@@ -101,7 +101,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
-      final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
+      final url = '$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -371,7 +371,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
+        Uri.parse('$baseUrl/api/v1/clientes/$query'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -464,7 +464,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.put(
-        Uri.parse('http://$baseUrl/api/v1/grupos/${widget.idGrupo}'),
+        Uri.parse('$baseUrl/api/v1/grupos/${widget.idGrupo}'),
         headers: {'Content-Type': 'application/json', 'tokenauth': token},
         body: json.encode({
           "nombreGrupo": nombreGrupoController.text,
@@ -561,7 +561,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
       if (nuevosMiembros.isEmpty) return true; // No hay miembros nuevos
 
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/grupodetalles/'),
+        Uri.parse('$baseUrl/api/v1/grupodetalles/'),
         headers: {'Content-Type': 'application/json', 'tokenauth': token},
         body: json.encode({
           'idgrupos': idGrupo,
@@ -833,7 +833,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     try {
       for (String idCliente in _clientesEliminados) {
         final response = await http.delete(
-          Uri.parse('http://$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente'),
+          Uri.parse('$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente'),
           headers: {'tokenauth': token},
         );
 
@@ -897,8 +897,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     print('Actualizando cargo: $idGrupo, $idCliente, $nuevoCargo'); // Log
     try {
       final response = await http.put(
-        Uri.parse(
-            'http://$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente'),
+        Uri.parse('$baseUrl/api/v1/grupodetalles/cargo/$idGrupo/$idCliente'),
         headers: {'Content-Type': 'application/json', 'tokenauth': token},
         body: json.encode({'nomCargo': nuevoCargo}),
       );

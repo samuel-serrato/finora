@@ -59,7 +59,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/usuarios/${widget.idUsuario}'),
+        Uri.parse('$baseUrl/api/v1/usuarios/${widget.idUsuario}'),
         headers: {'tokenauth': token},
       );
 
@@ -129,7 +129,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
           'flutter: [_editarUsuario] Token obtenido: ${token.isNotEmpty ? "****" : "VACÍO"}');
 
       // URL CORREGIDA CON IDUSUARIO
-      final url = 'http://$baseUrl/api/v1/usuarios/${widget.idUsuario}';
+      final url = '$baseUrl/api/v1/usuarios/${widget.idUsuario}';
       print('flutter: [_editarUsuario] URL: $url');
 
       // Modificación aquí: Combina el usuario con un punto y el nombre de la financiera sin espacios

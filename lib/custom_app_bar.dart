@@ -37,7 +37,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     try {
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/auth/logout'),
+        Uri.parse('$baseUrl/api/v1/auth/logout'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -252,7 +252,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             width: 120,
                             height: 40,
                             child: Image.network(
-                              'http://$baseUrl/imagenes/subidas/${logoImage.rutaImagen}',
+                              '$baseUrl/imagenes/subidas/${logoImage.rutaImagen}',
                               fit: BoxFit.contain,
                               loadingBuilder:
                                   (context, child, loadingProgress) {

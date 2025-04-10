@@ -21,7 +21,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:finora/models/reporte_general.dart'; // Importación correcta de modelos
 
 class ReportesScreen extends StatefulWidget {
-
   const ReportesScreen();
 
   @override
@@ -94,7 +93,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
           selectedReportType == 'Reporte Contable' ? 'contable' : 'general';
 
       final url = Uri.parse(
-        'http://$baseUrl/api/v1/formato/reporte/$tipoReporte/datos?inicio=$fechaInicio&final=$fechaFin',
+        '$baseUrl/api/v1/formato/reporte/$tipoReporte/datos?inicio=$fechaInicio&final=$fechaFin',
       );
 
       final response = await http.get(
@@ -335,12 +334,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
       backgroundColor:
           isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
       appBar: CustomAppBar(
-        isDarkMode: isDarkMode,
-        toggleDarkMode: (value) {
-          themeProvider.toggleDarkMode(value); // Cambia el tema
-        },
-        title: 'Reportes Financieros'
-      ),
+          isDarkMode: isDarkMode,
+          toggleDarkMode: (value) {
+            themeProvider.toggleDarkMode(value); // Cambia el tema
+          },
+          title: 'Reportes Financieros'),
       body: Column(
         children: [
           _buildFilterRow(),
@@ -404,82 +402,86 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Widget _buildErrorDisplay() {
-  // Simplified generic error message instead of showing technical details
-  String displayMessage = 'Error de conexión. Por favor, intente nuevamente.';
-  
-  // If there's a specific error message that doesn't contain sensitive info, use it
-  if (errorMessage != null) {
-    // Check for common errors and provide user-friendly messages
-    if (errorMessage!.contains('Connection reset by peer') || 
-        errorMessage!.contains('SocketException') ||
-        errorMessage!.contains('ClientException')) {
-      displayMessage = 'Error de conexión con el servidor. Verifique su red e intente nuevamente.';
-    } else if (errorMessage!.contains('timeout')) {
-      displayMessage = 'La solicitud ha tardado demasiado. Por favor, intente nuevamente.';
-    } else if (errorMessage!.contains('404')) {
-      displayMessage = 'No se encontró el recurso solicitado.';
-    } else if (errorMessage!.contains('500')) {
-      displayMessage = 'Error interno del servidor. Por favor, inténtelo más tarde.';
-    }
-    
-    // Try to extract a user-friendly message if it exists in JSON format
-    try {
-      final regexp = RegExp(r'"Message"\s*:\s*"([^"]+)"');
-      final match = regexp.firstMatch(errorMessage!);
-      if (match != null && match.groupCount >= 1) {
-        String potentialMessage = match.group(1) ?? '';
-        // Only use the extracted message if it doesn't contain sensitive information
-        if (!potentialMessage.contains('http://') && 
-            !potentialMessage.contains('https://') &&
-            !potentialMessage.contains('192.168.') &&
-            !potentialMessage.contains('/api/')) {
-          displayMessage = potentialMessage;
-        }
+    // Simplified generic error message instead of showing technical details
+    String displayMessage = 'Error de conexión. Por favor, intente nuevamente.';
+
+    // If there's a specific error message that doesn't contain sensitive info, use it
+    if (errorMessage != null) {
+      // Check for common errors and provide user-friendly messages
+      if (errorMessage!.contains('Connection reset by peer') ||
+          errorMessage!.contains('SocketException') ||
+          errorMessage!.contains('ClientException')) {
+        displayMessage =
+            'Error de conexión con el servidor. Verifique su red e intente nuevamente.';
+      } else if (errorMessage!.contains('timeout')) {
+        displayMessage =
+            'La solicitud ha tardado demasiado. Por favor, intente nuevamente.';
+      } else if (errorMessage!.contains('404')) {
+        displayMessage = 'No se encontró el recurso solicitado.';
+      } else if (errorMessage!.contains('500')) {
+        displayMessage =
+            'Error interno del servidor. Por favor, inténtelo más tarde.';
       }
-    } catch (e) {
-      // If parsing fails, keep the generic message
+
+      // Try to extract a user-friendly message if it exists in JSON format
+      try {
+        final regexp = RegExp(r'"Message"\s*:\s*"([^"]+)"');
+        final match = regexp.firstMatch(errorMessage!);
+        if (match != null && match.groupCount >= 1) {
+          String potentialMessage = match.group(1) ?? '';
+          // Only use the extracted message if it doesn't contain sensitive information
+          if (!potentialMessage.contains('') &&
+              !potentialMessage.contains('https://') &&
+              !potentialMessage.contains('192.168.') &&
+              !potentialMessage.contains('/api/')) {
+            displayMessage = potentialMessage;
+          }
+        }
+      } catch (e) {
+        // If parsing fails, keep the generic message
+      }
     }
-  }
-  
-  return Center(
-    child: Container(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 50, color: Colors.red),
-          const SizedBox(height: 20),
-          Text(
-            displayMessage,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 25),
-          ElevatedButton(
-            onPressed: () => setState(() {
-              hasError = false;
-              hasGenerated = false;
-            }),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              backgroundColor: const Color(0xFF5162F6),
-            ),
-            child: const Text(
-              'Reintentar',
-              style: TextStyle(
+
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 50, color: Colors.red),
+            const SizedBox(height: 20),
+            Text(
+              displayMessage,
+              style: const TextStyle(
                 fontSize: 16,
-                color: Colors.white,
+                fontWeight: FontWeight.w500,
               ),
+              textAlign: TextAlign.center,
             ),
-          )
-        ],
+            const SizedBox(height: 25),
+            ElevatedButton(
+              onPressed: () => setState(() {
+                hasError = false;
+                hasGenerated = false;
+              }),
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                backgroundColor: const Color(0xFF5162F6),
+              ),
+              child: const Text(
+                'Reintentar',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+            )
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildFilterRow() {
     final themeProvider =
@@ -882,8 +884,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
           return;
         }
 
-        final pdfHelper = PDFExportHelperContable(
-            listaReportesContable.first, currencyFormat, selectedReportType, context);
+        final pdfHelper = PDFExportHelperContable(listaReportesContable.first,
+            currencyFormat, selectedReportType, context);
 
         final pdfDocument = await pdfHelper.generatePDF();
         final bytes = await pdfDocument.save();

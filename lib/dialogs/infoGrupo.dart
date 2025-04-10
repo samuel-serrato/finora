@@ -76,7 +76,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}'),
+        Uri.parse('$baseUrl/api/v1/grupodetalles/${widget.idGrupo}'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -170,7 +170,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
 
       final nombreCodificado = Uri.encodeComponent(nombreGrupo.trim());
       final uri = Uri.parse(
-          'http://$baseUrl/api/v1/grupodetalles/historial/$nombreCodificado');
+          '$baseUrl/api/v1/grupodetalles/historial/$nombreCodificado');
 
       print('Iniciando petición de historial para grupo: $nombreGrupo');
 
@@ -375,7 +375,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
 
         final response = await http.get(
           Uri.parse(
-              'http://$baseUrl/api/v1/grupodetalles'), // Add pagination parameters
+              '$baseUrl/api/v1/grupodetalles'), // Add pagination parameters
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',

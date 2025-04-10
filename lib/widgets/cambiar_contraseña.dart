@@ -46,7 +46,7 @@ class _CambiarPasswordDialogState extends State<CambiarPasswordDialog> {
       print('flutter: Token obtenido: ${token.isNotEmpty ? "****" : "VACÍO"}');
 
       final url =
-          'http://$baseUrl/api/v1/usuarios/recuperar/password/${widget.idUsuario}';
+          '$baseUrl/api/v1/usuarios/recuperar/password/${widget.idUsuario}';
       print('flutter: URL de petición: $url');
 
       final response = await http.put(

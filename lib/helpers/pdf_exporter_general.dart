@@ -29,7 +29,7 @@ class ExportHelperGeneral {
   // Reemplaza _loadLogoFile con este nuevo método para cargar desde URL
   static Future<Uint8List?> _loadNetworkImage(String? imageUrl) async {
     if (imageUrl == null || imageUrl.isEmpty) return null;
-    
+
     try {
       final response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode == 200) {
@@ -65,15 +65,14 @@ class ExportHelperGeneral {
       // Obtener datos del provider
       final userData = Provider.of<UserDataProvider>(context, listen: false);
 
-        
       // Buscar el logo a color
       final logoColor = userData.imagenes
           .where((img) => img.tipoImagen == 'logoColor')
           .firstOrNull;
-      
+
       // Construir URL completa
-      final logoUrl = logoColor != null 
-          ? 'http://$baseUrl/imagenes/subidas/${logoColor.rutaImagen}'
+      final logoUrl = logoColor != null
+          ? '$baseUrl/imagenes/subidas/${logoColor.rutaImagen}'
           : null;
 
       // Cargar logos

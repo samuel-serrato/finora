@@ -73,7 +73,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
         final response = await http.get(
           Uri.parse(
-              'http://$baseUrl/api/v1/creditos?limit=12&page=$page'), // Add pagination parameters
+              '$baseUrl/api/v1/creditos?limit=12&page=$page'), // Add pagination parameters
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
       final response = await http.get(
         Uri.parse(
-            'http://$baseUrl/api/v1/creditos/$query?limit=12&page=$page'), // Add pagination parameters
+            '$baseUrl/api/v1/creditos/$query?limit=12&page=$page'), // Add pagination parameters
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -1037,7 +1037,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.delete(
-        Uri.parse('http://$baseUrl/api/v1/creditos/$idCredito'),
+        Uri.parse('$baseUrl/api/v1/creditos/$idCredito'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',

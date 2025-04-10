@@ -12,8 +12,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
-
-
   const HomeScreen({
     Key? key,
   }) : super(key: key);
@@ -83,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      final Uri url = Uri.parse('http://$baseUrl/api/v1/home');
+      final Uri url = Uri.parse('$baseUrl/api/v1/home');
 
       print('🔄 Iniciando solicitud a: ${url.toString()}');
       print(
@@ -366,12 +364,11 @@ class _HomeScreenState extends State<HomeScreen> {
           : const Color(0xFFF7F8FA), // Fondo dinámico
       body: content(),
       appBar: CustomAppBar(
-        isDarkMode: isDarkMode,
-        toggleDarkMode: (value) {
-          themeProvider.toggleDarkMode(value); // Cambia el tema
-        },
-        title: 'Home'
-      ),
+          isDarkMode: isDarkMode,
+          toggleDarkMode: (value) {
+            themeProvider.toggleDarkMode(value); // Cambia el tema
+          },
+          title: 'Home'),
     );
   }
 
@@ -395,8 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final themeProvider =
         Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
-        final userData = Provider.of<UserDataProvider>(context, listen: false);
-
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
 
     return Card(
       elevation: 5,

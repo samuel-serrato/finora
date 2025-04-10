@@ -52,7 +52,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/usuarios/${widget.idUsuario}'),
+        Uri.parse('$baseUrl/api/v1/usuarios/${widget.idUsuario}'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',

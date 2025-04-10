@@ -99,7 +99,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
-      final url = 'http://$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
+      final url = '$baseUrl/api/v1/grupodetalles/${widget.idGrupo}';
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -320,7 +320,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/clientes/$query'),
+        Uri.parse('$baseUrl/api/v1/clientes/$query'),
         headers: {'tokenauth': token},
       );
 
@@ -365,7 +365,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       print('Sending data: $data'); // Debugging
 
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/grupos/renovacion'),
+        Uri.parse('$baseUrl/api/v1/grupos/renovacion'),
         headers: {
           'Content-Type': 'application/json',
           'tokenauth': token,
@@ -470,7 +470,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       print('Sending members: $requestBody'); // Debugging
 
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/grupodetalles/renovacion'),
+        Uri.parse('$baseUrl/api/v1/grupodetalles/renovacion'),
         headers: {
           'Content-Type': 'application/json',
           'tokenauth': token,

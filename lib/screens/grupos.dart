@@ -76,7 +76,7 @@ class _GruposScreenState extends State<GruposScreen> {
 
         final response = await http.get(
           Uri.parse(
-              'http://$baseUrl/api/v1/grupodetalles?limit=12&page=$page'), // Add pagination parameters
+              '$baseUrl/api/v1/grupodetalles?limit=12&page=$page'), // Add pagination parameters
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -220,7 +220,7 @@ class _GruposScreenState extends State<GruposScreen> {
 
       final response = await http.get(
         Uri.parse(
-            'http://$baseUrl/api/v1/grupodetalles/$query?limit=12&page=$page'), // Add pagination parameters
+            '$baseUrl/api/v1/grupodetalles/$query?limit=12&page=$page'), // Add pagination parameters
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -1012,7 +1012,7 @@ class _GruposScreenState extends State<GruposScreen> {
 
     try {
       // 1. Obtener la lista de clientes asociados al grupo
-      final urlClientes = 'http://$baseUrl/api/v1/grupodetalles/$idGrupo';
+      final urlClientes = '$baseUrl/api/v1/grupodetalles/$idGrupo';
       print('[ELIMINAR GRUPO] URL para obtener clientes: $urlClientes');
 
       final responseClientes = await http.get(
@@ -1042,7 +1042,7 @@ class _GruposScreenState extends State<GruposScreen> {
           for (var cliente in clientes) {
             final idCliente = cliente['idclientes'];
             final urlEliminarCliente =
-                'http://$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente';
+                '$baseUrl/api/v1/grupodetalles/$idGrupo/$idCliente';
             print(
                 '[ELIMINAR GRUPO] URL para eliminar cliente: $urlEliminarCliente');
 
@@ -1145,7 +1145,7 @@ class _GruposScreenState extends State<GruposScreen> {
         }
 
         // 3. Eliminar el grupo
-        final urlEliminarGrupo = 'http://$baseUrl/api/v1/grupos/$idGrupo';
+        final urlEliminarGrupo = '$baseUrl/api/v1/grupos/$idGrupo';
         print('[ELIMINAR GRUPO] URL para eliminar grupo: $urlEliminarGrupo');
 
         final responseEliminarGrupo = await http.delete(

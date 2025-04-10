@@ -57,7 +57,7 @@ class _InfoClienteState extends State<InfoCliente> {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse('http://$baseUrl/api/v1/clientes/${widget.idCliente}'),
+        Uri.parse('$baseUrl/api/v1/clientes/${widget.idCliente}'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -969,8 +969,6 @@ class _InfoClienteState extends State<InfoCliente> {
   }
 
   Widget _buildAddresses(Map<String, dynamic> domicilio, bool isDarkMode) {
-
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -982,36 +980,38 @@ class _InfoClienteState extends State<InfoCliente> {
                   _getValidatedValue(domicilio['tipo_domicilio']), isDarkMode),
             ),
             Expanded(
-              child: _buildDetailRow('Propietario:',
-                  _getValidatedValue(domicilio['nombre_propietario']), isDarkMode),
-            ),
-            Expanded(
               child: _buildDetailRow(
-                  'Parentesco:', _getValidatedValue(domicilio['parentesco']), isDarkMode),
+                  'Propietario:',
+                  _getValidatedValue(domicilio['nombre_propietario']),
+                  isDarkMode),
+            ),
+            Expanded(
+              child: _buildDetailRow('Parentesco:',
+                  _getValidatedValue(domicilio['parentesco']), isDarkMode),
             ),
           ],
         ),
         Row(
           children: [
             Expanded(
-                child: _buildDetailRow(
-                    'Calle:', _getValidatedValue(domicilio['calle']), isDarkMode)),
+                child: _buildDetailRow('Calle:',
+                    _getValidatedValue(domicilio['calle']), isDarkMode)),
             Expanded(
-                child: _buildDetailRow(
-                    'Número Ext:', _getValidatedValue(domicilio['nExt']), isDarkMode)),
+                child: _buildDetailRow('Número Ext:',
+                    _getValidatedValue(domicilio['nExt']), isDarkMode)),
             Expanded(
-                child: _buildDetailRow(
-                    'Número Int:', _getValidatedValue(domicilio['nInt']), isDarkMode)),
+                child: _buildDetailRow('Número Int:',
+                    _getValidatedValue(domicilio['nInt']), isDarkMode)),
           ],
         ),
         Row(
           children: [
             Expanded(
-                child: _buildDetailRow(
-                    'Colonia:', _getValidatedValue(domicilio['colonia']), isDarkMode)),
+                child: _buildDetailRow('Colonia:',
+                    _getValidatedValue(domicilio['colonia']), isDarkMode)),
             Expanded(
-                child: _buildDetailRow(
-                    'Estado:', _getValidatedValue(domicilio['estado']), isDarkMode)),
+                child: _buildDetailRow('Estado:',
+                    _getValidatedValue(domicilio['estado']), isDarkMode)),
             Expanded(
                 child: _buildDetailRow('Municipio:',
                     _getValidatedValue(domicilio['municipio']), isDarkMode)),
@@ -1020,14 +1020,16 @@ class _InfoClienteState extends State<InfoCliente> {
         Row(
           children: [
             Expanded(
-                child: _buildDetailRow(
-                    'Código Postal:', _getValidatedValue(domicilio['cp']), isDarkMode)),
+                child: _buildDetailRow('Código Postal:',
+                    _getValidatedValue(domicilio['cp']), isDarkMode)),
             Expanded(
                 child: _buildDetailRow('Entre Calles:',
                     _getValidatedValue(domicilio['entreCalle']), isDarkMode)),
             Expanded(
-                child: _buildDetailRow('Tiempo Viviendo:',
-                    _getValidatedValue(domicilio['tiempoViviendo']), isDarkMode)),
+                child: _buildDetailRow(
+                    'Tiempo Viviendo:',
+                    _getValidatedValue(domicilio['tiempoViviendo']),
+                    isDarkMode)),
           ],
         ),
       ],

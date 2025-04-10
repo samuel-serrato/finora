@@ -75,7 +75,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
 
         final response = await http.get(
           Uri.parse(
-              'http://$baseUrl/api/v1/usuarios?limit=12&page=$page'), // Add pagination parameters
+              '$baseUrl/api/v1/usuarios?limit=12&page=$page'), // Add pagination parameters
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -220,7 +220,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
 
       final response = await http.get(
         Uri.parse(
-            'http://$baseUrl/api/v1/usuarios/$query?limit=12&page=$page'), // Add pagination parameters
+            '$baseUrl/api/v1/usuarios/$query?limit=12&page=$page'), // Add pagination parameters
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -500,7 +500,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.delete(
-        Uri.parse('http://$baseUrl/api/v1/usuarios/$idUsuario'),
+        Uri.parse('$baseUrl/api/v1/usuarios/$idUsuario'),
         headers: {'tokenauth': token},
       ).timeout(Duration(seconds: 10));
 

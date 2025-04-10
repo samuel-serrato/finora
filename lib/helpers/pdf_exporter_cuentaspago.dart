@@ -61,7 +61,7 @@ class PDFFichaPagoSemanal {
       try {
         final response = await http.get(
           Uri.parse(
-              'http://$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}'),
+              '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}'),
           headers: {'tokenauth': token},
         );
 
@@ -77,7 +77,7 @@ class PDFFichaPagoSemanal {
       // 2. Cargar imágenes de los bancos
       List<Uint8List?> cuentaLogos = [];
       for (var cuenta in cuentasBancarias) {
-        final imageUrl = 'http://$baseUrl/imagenes/bancos/${cuenta.rutaBanco}';
+        final imageUrl = '$baseUrl/imagenes/bancos/${cuenta.rutaBanco}';
         cuentaLogos.add(await _loadNetworkImage(imageUrl));
       }
 
@@ -115,7 +115,7 @@ class PDFFichaPagoSemanal {
           .firstOrNull;
 
       final moneyFacilLogoUrl = logoColorInfo != null
-          ? 'http://$baseUrl/imagenes/subidas/${logoColorInfo.rutaImagen}'
+          ? '$baseUrl/imagenes/subidas/${logoColorInfo.rutaImagen}'
           : null;
 
       final moneyFacilLogoBytes = await _loadNetworkImage(moneyFacilLogoUrl);
@@ -418,21 +418,21 @@ class PDFFichaPagoSemanal {
     );
   }
 
-    static String _formatCardNumber(String number) {
-  // Elimina cualquier espacio existente
-  final cleanNumber = number.replaceAll(' ', '');
-  
-  // Agrega un espacio cada 4 caracteres
-  final buffer = StringBuffer();
-  for (int i = 0; i < cleanNumber.length; i++) {
-    if (i > 0 && i % 4 == 0) {
-      buffer.write(' ');
+  static String _formatCardNumber(String number) {
+    // Elimina cualquier espacio existente
+    final cleanNumber = number.replaceAll(' ', '');
+
+    // Agrega un espacio cada 4 caracteres
+    final buffer = StringBuffer();
+    for (int i = 0; i < cleanNumber.length; i++) {
+      if (i > 0 && i % 4 == 0) {
+        buffer.write(' ');
+      }
+      buffer.write(cleanNumber[i]);
     }
-    buffer.write(cleanNumber[i]);
+
+    return buffer.toString();
   }
-  
-  return buffer.toString();
-}
 
   static pw.Widget _buildCuentaCard(
     CuentaBancaria cuenta,

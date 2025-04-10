@@ -142,8 +142,7 @@ void showUpdateDialog(
                         context: context,
                         barrierDismissible: false,
                         builder: (context) => DownloadProgressDialog(
-                          downloadUrl:
-                              'http://$baseUrl/descargar' + downloadUrl,
+                          downloadUrl: '$baseUrl/descargar' + downloadUrl,
                           version: newVersion,
                         ),
                       );
@@ -173,7 +172,7 @@ void showUpdateDialog(
 Future<void> checkAppVersion() async {
   try {
     final response = await http.get(
-      Uri.parse('http://$baseUrl/api/v1/buscar/version'),
+      Uri.parse('$baseUrl/api/v1/buscar/version'),
       headers: {'Accept': 'application/json'},
     );
 

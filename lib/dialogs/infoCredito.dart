@@ -81,7 +81,7 @@ class _InfoCreditoState extends State<InfoCredito> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
-      final url = 'http://$baseUrl/api/v1/creditos/${widget.folio}';
+      final url = '$baseUrl/api/v1/creditos/${widget.folio}';
       final response = await http.get(
         Uri.parse(url),
         headers: {'tokenauth': token},
@@ -540,7 +540,7 @@ class _InfoCreditoState extends State<InfoCredito> {
       }
 
       final response = await http.post(
-        Uri.parse('http://$baseUrl/api/v1/pagos'),
+        Uri.parse('$baseUrl/api/v1/pagos'),
         headers: {'Content-Type': 'application/json', 'tokenauth': token},
         body: json.encode(pagosJson),
       );
@@ -637,8 +637,7 @@ class _InfoCreditoState extends State<InfoCredito> {
   Future<bool> _actualizarMoratorioServidor(
       String idfechaspagos, String estado, String token) async {
     try {
-      final url =
-          'http://$baseUrl/api/v1/pagos/permiso/moratorio/$idfechaspagos';
+      final url = '$baseUrl/api/v1/pagos/permiso/moratorio/$idfechaspagos';
       final body = json.encode({'moratorioDesabilitado': estado});
 
       // Debug: Imprimir datos a enviar
@@ -673,8 +672,7 @@ class _InfoCreditoState extends State<InfoCredito> {
         final moratorioDesabilitado = cambio["moratorioDesabilitado"];
         // Enviar a endpoint específico con ID en la URL
         final response = await http.put(
-          Uri.parse(
-              'http://$baseUrl/api/v1/pagos/permiso/moratorio/$idfechaspagos'),
+          Uri.parse('$baseUrl/api/v1/pagos/permiso/moratorio/$idfechaspagos'),
           headers: {'Content-Type': 'application/json', 'tokenauth': token},
           body: json.encode({"moratorioDesabilitado": moratorioDesabilitado}),
         );
@@ -716,7 +714,7 @@ class _InfoCreditoState extends State<InfoCredito> {
       {bool esError = false}) {
     // Reemplazar la IP si está en el mensaje
     mensaje = mensaje.replaceAll(
-        RegExp(r'http://\d+\.\d+\.\d+\.\d+:\d+/\S*'), '[URL Oculta]');
+        RegExp(r'\d+\.\d+\.\d+\.\d+:\d+/\S*'), '[URL Oculta]');
 
     showDialog(
       barrierDismissible: false,
@@ -1529,8 +1527,7 @@ class _PaginaControlState extends State<PaginaControl> {
       }
 
       final response = await http.get(
-        Uri.parse(
-            'http://$baseUrl/api/v1/creditos/calendario/${widget.idCredito}'),
+        Uri.parse('$baseUrl/api/v1/creditos/calendario/${widget.idCredito}'),
         headers: {'tokenauth': token, 'Content-Type': 'application/json'},
       );
 
@@ -1825,7 +1822,7 @@ class _PaginaControlState extends State<PaginaControl> {
 
               try {
                 final url =
-                    'http://$baseUrl/api/v1/pagos/${abono["idpagos"]}/${pago.idfechaspagos}';
+                    '$baseUrl/api/v1/pagos/${abono["idpagos"]}/${pago.idfechaspagos}';
                 print('URL enviada: $url');
 
                 final response = await http.delete(
@@ -4808,8 +4805,8 @@ class PaginaIntegrantes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Sort the list by capitalIndividual in descending order
-    final sortedClientesMontosInd = List<ClienteMonto>.from(clientesMontosInd)
-      ..sort((a, b) => b.capitalIndividual.compareTo(a.capitalIndividual));
+/*     final sortedClientesMontosInd = List<ClienteMonto>.from(clientesMontosInd)
+      ..sort((a, b) => b.capitalIndividual.compareTo(a.capitalIndividual)); */
 
     final themeProvider = Provider.of<ThemeProvider>(context,
         listen: false); // Obtén el ThemeProvider
@@ -4885,7 +4882,7 @@ class PaginaIntegrantes extends StatelessWidget {
     double sumCapitalMasInteres = 0;
     double sumTotal = 0;
 
-    for (var cliente in sortedClientesMontosInd) {
+    for (var cliente in clientesMontosInd) {
       sumCapitalIndividual += cliente.capitalIndividual;
       sumPeriodoCapital += cliente.periodoCapital;
       sumPeriodoInteres += cliente.periodoInteres;
@@ -4928,7 +4925,7 @@ class PaginaIntegrantes extends StatelessWidget {
                     ),
                   ),
                   // Cuerpo de la tabla: Lista de datos (Rows)
-                  for (var cliente in sortedClientesMontosInd)
+                  for (var cliente in clientesMontosInd)
                     Row(
                       children: [
                         _buildDataCell(cliente.nombreCompleto),
@@ -5030,7 +5027,7 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
 
       final response = await http.get(
         Uri.parse(
-          'http://$baseUrl/api/v1/formato/'
+          '$baseUrl/api/v1/formato/'
           '${documento.toLowerCase()}/'
           '${widget.tipo.toLowerCase()}/'
           '${widget.folio.toUpperCase()}',

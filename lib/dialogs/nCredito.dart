@@ -218,7 +218,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
   // Actualiza el método enviarCredito
   Future<void> enviarCredito(Map<String, dynamic> datos) async {
-    final String url = 'http://$baseUrl/api/v1/creditos';
+    final String url = '$baseUrl/api/v1/creditos';
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -432,7 +432,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         final token = prefs.getString('tokenauth') ?? '';
 
         final response = await http.get(
-          Uri.parse('http://$baseUrl/api/v1/grupodetalles'),
+          Uri.parse('$baseUrl/api/v1/grupodetalles'),
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',

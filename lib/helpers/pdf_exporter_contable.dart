@@ -20,8 +20,11 @@ class PDFExportHelperContable {
   final BuildContext context; // Nuevo parámetro
 
   PDFExportHelperContable(
-      this.reporteData, this.currencyFormat, this.selectedReportType,     this.context, // Contexto añadido
-);
+    this.reporteData,
+    this.currencyFormat,
+    this.selectedReportType,
+    this.context, // Contexto añadido
+  );
 
   // Función para cargar assets
   Future<Uint8List> _loadAsset(String path) async {
@@ -32,7 +35,7 @@ class PDFExportHelperContable {
   // Nuevo método para cargar desde URL
   Future<Uint8List?> _loadNetworkImage(String? imageUrl) async {
     if (imageUrl == null || imageUrl.isEmpty) return null;
-    
+
     try {
       final response = await http.get(Uri.parse(imageUrl));
       if (response.statusCode == 200) {
@@ -47,23 +50,22 @@ class PDFExportHelperContable {
   Future<pw.Document> generatePDF() async {
     final pdf = pw.Document();
 
-     // Obtener datos del provider
+    // Obtener datos del provider
     final userData = Provider.of<UserDataProvider>(context, listen: false);
-    
+
     // Buscar el logo a color
     final logoColor = userData.imagenes
         .where((img) => img.tipoImagen == 'logoColor')
         .firstOrNull;
-    
+
     // Construir URL completa
-    final logoUrl = logoColor != null 
-        ? 'http://$baseUrl/imagenes/subidas/${logoColor.rutaImagen}'
+    final logoUrl = logoColor != null
+        ? '$baseUrl/imagenes/subidas/${logoColor.rutaImagen}'
         : null;
 
     // Cargar logos
     final financieraLogo = await _loadNetworkImage(logoUrl);
     final finoraLogo = await _loadAsset('assets/finora_hzt.png');
-
 
     pdf.addPage(
       pw.MultiPage(

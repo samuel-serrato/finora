@@ -97,7 +97,7 @@ class PDFControlPagos {
           .firstOrNull;
       // Construir URL completa
       final logoUrl = logoColor != null
-          ? 'http://$baseUrl/imagenes/subidas/${logoColor.rutaImagen}'
+          ? '$baseUrl/imagenes/subidas/${logoColor.rutaImagen}'
           : null;
       // Cargar logos
       final financieraLogo = await _loadNetworkImage(logoUrl);
