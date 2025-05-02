@@ -221,6 +221,12 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     final String url = '$baseUrl/api/v1/creditos';
 
     try {
+      // Imprimir los datos antes de enviar
+      print('══════════════ DATOS A ENVIAR ══════════════');
+      print('URL: $url');
+      print('Datos: ${jsonEncode(datos)}');
+      print('══════════════════════════════════════════');
+
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
@@ -2131,8 +2137,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         "periodoInteresPorcentaje": (tasaInteresNumerica),
         "totalCapital": _redondearDecimales(periodoCapital * pagosTotales),
         "totalIntereses": _redondearDecimales(periodoInteres * pagosTotales),
-        "capitalMasInteres":
-            _redondearDecimales(periodoCapital + periodoInteres),
+        "capitalMasInteres": (periodoCapital + periodoInteres),
         "pagoTotal": _redondearDecimales(
             (periodoCapital * pagosTotales) + (periodoInteres * pagosTotales)),
       });
