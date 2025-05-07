@@ -21,6 +21,10 @@
 //const String baseUrl = '201.113.61.40:80';
 
 //SERVIDOR FINORA TEST 3=
-const String baseUrl = 'http://201.113.99.74:80';
+//const String baseUrl = 'http://201.113.99.74:80';
 
+//SERVIDOR FINORA TEST 4=
+//const String baseUrl = 'http://finoraxcodx.duckdns.org';
 
+//SERVIDOR FINORA TEST 5 SSL=
+const String baseUrl = 'https://finoraxcodx.duckdns.org';
