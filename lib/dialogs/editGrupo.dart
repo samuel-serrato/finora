@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finora/models/usuarios.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -63,6 +64,11 @@ class _editGrupoDialogState extends State<editGrupoDialog>
   bool _dialogShown = false; // Evitar mostrar múltiples diálogos de error
   Set<String> originalMemberIds = {};
 
+  Usuario? _selectedUsuario; // En lugar de 'late Usuario? _selectedUsuario'
+  List<Usuario> _usuarios = [];
+  bool _cargandoUsuarios = false;
+  bool _isLoadingUsuarios = true; // Nueva variable de estado
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +79,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
       });
     });
     fetchGrupoData(); // Llamar a la función para obtener los datos del grupo
+    obtenerUsuarios(); // Agregar esta línea para cargar los usuarios
 
     print('Grupo seleccionado: ${widget.idGrupo}');
   }
@@ -146,6 +153,11 @@ class _editGrupoDialogState extends State<editGrupoDialog>
           }
         });
 
+        // Llamar a _setInitialAsesor después de cargar los datos del grupo
+        if (_usuarios.isNotEmpty) {
+          _setInitialAsesor();
+        }
+
         print('Clientes actuales del grupo:');
         for (var cliente in clientesActuales) {
           print(
@@ -205,6 +217,111 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     } finally {
       if (mounted && _isLoading) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> obtenerUsuarios() async {
+    setState(() => _isLoadingUsuarios = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/usuarios/tipo/campo'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _usuarios = data.map((item) => Usuario.fromJson(item)).toList();
+        });
+
+        // Llamar a _setInitialAsesor después de cargar los usuarios
+        if (grupoData.isNotEmpty) {
+          _setInitialAsesor();
+        }
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false, // Elimina todas las rutas anteriores
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return;
+          }
+        } catch (parseError) {
+          print('Error parseando respuesta: $parseError');
+        }
+      }
+    } catch (e) {
+      print('Error obteniendo usuarios: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingUsuarios = false);
+      }
+    }
+  }
+
+  void _setInitialAsesor() {
+    if (grupoData['asesor'] != null && _usuarios.isNotEmpty) {
+      // Buscar por ID si está disponible
+      if (grupoData['idusuario'] != null) {
+        Usuario? foundUsuario = _usuarios.firstWhere(
+          (usuario) => usuario.idusuarios == grupoData['idusuario'],
+          orElse: () => null!,
+        );
+        if (foundUsuario != null) {
+          setState(() => _selectedUsuario = foundUsuario);
+          return;
+        }
+      }
+
+      // Fallback a búsqueda por nombre
+      Usuario? foundUsuario = _usuarios.firstWhere(
+        (usuario) => usuario.nombreCompleto == grupoData['asesor'],
+        orElse: () => null!,
+      );
+      if (foundUsuario != null) {
+        setState(() => _selectedUsuario = foundUsuario);
       }
     }
   }
@@ -447,6 +564,56 @@ class _editGrupoDialogState extends State<editGrupoDialog>
     ).then((_) => _dialogShown = false);
   }
 
+  Future<void> actualizarAsesor(String idGrupo, String idUsuario) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/v1/grupodetalles/$idGrupo'),
+        headers: {'Content-Type': 'application/json', 'tokenauth': token},
+        body: json.encode({"idusuarios": idUsuario}),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        // 1. Actualizar el estado local del grupo editado
+        setState(() {
+          grupoData['idusuario'] = idUsuario;
+          grupoData['asesor'] = _usuarios
+              .firstWhere((u) => u.idusuarios == idUsuario)
+              .nombreCompleto;
+        });
+
+        // 2. Notificar a la pantalla principal para refrescar
+        widget.onGrupoEditado();
+
+        if (mounted) {
+          /* ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Asesor actualizado correctamente'),
+              backgroundColor: Colors.green,
+            ),
+          ); */
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        final mensajeError =
+            errorData['error']?['message'] ?? 'Error desconocido';
+
+        if (mounted) {
+          mostrarDialogoError('Error al actualizar asesor: $mensajeError');
+        }
+      }
+    } catch (e) {
+      _handleNetworkError(e);
+      if (mounted) {
+        mostrarDialogoError('Error de conexión al actualizar asesor');
+      }
+    }
+  }
+
   Future<void> enviarGrupo() async {
     if (!mounted) return;
 
@@ -478,12 +645,12 @@ class _editGrupoDialogState extends State<editGrupoDialog>
       if (response.statusCode == 200) {
         widget.onGrupoEditado();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          /* ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Grupo actualizado correctamente'),
               backgroundColor: Colors.green,
             ),
-          );
+          ); */
         }
       } else {
         try {
@@ -573,8 +740,7 @@ class _editGrupoDialogState extends State<editGrupoDialog>
                         persona['idclientes'] ?? 'Miembro'],
                   })
               .toList(),
-          'idusuarios':
-              grupoData['idusuario'] ?? '6KNV796U0O', // Ajustar según tu lógica
+          'idusuarios': grupoData['idusuario'], // Ajustar según tu lógica
         }),
       );
 
@@ -799,22 +965,26 @@ class _editGrupoDialogState extends State<editGrupoDialog>
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
-      // Actualizar datos básicos del grupo
+      // 1. Actualizar datos básicos del grupo
       await enviarGrupo();
 
-      // Eliminar miembros removidos
+      // 2. Actualizar asesor si hubo cambios
+      final String? idAsesorOriginal = grupoData['idusuario'];
+      final String? nuevoIdAsesor = _selectedUsuario?.idusuarios;
+
+      if (nuevoIdAsesor != null && nuevoIdAsesor != idAsesorOriginal) {
+        await actualizarAsesor(widget.idGrupo, nuevoIdAsesor);
+      }
+
+      // 3. Resto del proceso (miembros, etc.)
       await eliminarClienteGrupo(widget.idGrupo, token);
-
-      // Actualizar cargos de miembros existentes
       verificarCambios();
-
-      // Agregar nuevos miembros
       final success = await _enviarMiembros(widget.idGrupo);
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Grupo y miembros actualizados correctamente'),
+            content: Text('Grupo actualizado correctamente'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1203,7 +1373,23 @@ class _editGrupoDialogState extends State<editGrupoDialog>
                       }
                       return null;
                     },
-                  )
+                  ),
+                  SizedBox(height: verticalSpacing),
+                  _buildUsuarioDropdown(
+                    context: context,
+                    value: _selectedUsuario,
+                    hint: 'Seleccionar Asesor',
+                    usuarios: _usuarios,
+                    onChanged: (Usuario? newValue) {
+                      setState(() => _selectedUsuario = newValue);
+                    },
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Seleccione un asesor';
+                      }
+                      return null;
+                    },
+                  ),
                 ],
               ),
             ),
@@ -1628,6 +1814,65 @@ Widget _buildDropdown({
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide(color: borderColor),
       ),
+    ),
+    style: TextStyle(fontSize: fontSize, color: textColor),
+    dropdownColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
+    icon: Icon(Icons.arrow_drop_down, color: iconColor),
+  );
+}
+
+Widget _buildUsuarioDropdown({
+  required Usuario? value,
+  required String hint,
+  required List<Usuario> usuarios,
+  required BuildContext context,
+  required void Function(Usuario?) onChanged,
+  double fontSize = 12.0,
+  String? Function(Usuario?)? validator,
+}) {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
+
+  // Colores adaptados según el tema
+  final Color textColor = isDarkMode ? Colors.white : Colors.black;
+  final Color borderColor = isDarkMode ? Colors.grey.shade400 : Colors.black;
+  final Color enabledBorderColor =
+      isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
+  final Color iconColor = isDarkMode ? Colors.white70 : Colors.black87;
+
+  return DropdownButtonFormField<Usuario>(
+    value: value,
+    hint: Text(
+      hint,
+      style: TextStyle(fontSize: fontSize, color: textColor),
+    ),
+    items: usuarios.map((usuario) {
+      return DropdownMenuItem<Usuario>(
+        value: usuario,
+        child: Text(
+          usuario.nombreCompleto,
+          style: TextStyle(fontSize: fontSize, color: textColor),
+        ),
+      );
+    }).toList(),
+    onChanged: onChanged,
+    validator: validator,
+    decoration: InputDecoration(
+      labelText: value != null ? hint : null,
+      labelStyle: TextStyle(color: textColor),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: enabledBorderColor),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: borderColor),
+      ),
+      prefixIcon: Icon(Icons.person, color: iconColor),
     ),
     style: TextStyle(fontSize: fontSize, color: textColor),
     dropdownColor: isDarkMode ? Colors.grey.shade800 : Colors.white,

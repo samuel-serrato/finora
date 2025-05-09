@@ -228,6 +228,8 @@ void main() async {
   // Verificar versión antes de iniciar la app
   await checkAppVersion();
 
+  //await initBaseUrl(); // carga la IP previa guardada
+
   runApp(
     MultiProvider(
       providers: [

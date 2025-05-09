@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finora/models/usuarios.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1693,30 +1694,4 @@ Widget _buildDropdown({
     dropdownColor: isDarkMode ? Colors.grey.shade800 : Colors.white,
     icon: Icon(Icons.arrow_drop_down, color: iconColor),
   );
-}
-
-class Usuario {
-  final String idusuarios;
-  final String usuario;
-  final String tipoUsuario;
-  final String nombreCompleto;
-  final String fCreacion;
-
-  Usuario({
-    required this.idusuarios,
-    required this.usuario,
-    required this.tipoUsuario,
-    required this.nombreCompleto,
-    required this.fCreacion,
-  });
-
-  factory Usuario.fromJson(Map<String, dynamic> json) {
-    return Usuario(
-      idusuarios: json['idusuarios'],
-      usuario: json['usuario'],
-      tipoUsuario: json['tipoUsuario'],
-      nombreCompleto: json['nombreCompleto'],
-      fCreacion: json['fCreacion'],
-    );
-  }
 }

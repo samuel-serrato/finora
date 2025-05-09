@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:finora/models/usuarios.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/widgets/pagination.dart';
 import 'package:flutter/material.dart';
@@ -1018,40 +1019,6 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
           },
         );
       },
-    );
-  }
-}
-
-class Usuario {
-  final String idusuarios;
-  final String usuario;
-  final String tipoUsuario;
-  final String nombreCompleto;
-  final String email;
-  final List<String> roles;
-  final String fCreacion;
-
-  Usuario({
-    required this.idusuarios,
-    required this.usuario,
-    required this.tipoUsuario,
-    required this.nombreCompleto,
-    required this.email,
-    required this.roles,
-    required this.fCreacion,
-  });
-
-  factory Usuario.fromJson(Map<String, dynamic> json) {
-    return Usuario(
-      idusuarios: json['idusuarios'],
-      usuario: json['usuario'],
-      tipoUsuario: json['tipoUsuario'],
-      nombreCompleto: json['nombreCompleto'],
-      email: json['email'] == null || json['email'].trim().isEmpty
-          ? 'No asignado'
-          : json['email'],
-      roles: List<String>.from(json['roles']),
-      fCreacion: json['fCreacion'],
     );
   }
 }

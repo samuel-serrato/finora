@@ -649,6 +649,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
                               _buildDetailRowIG('Tipo:', grupoData!.tipoGrupo),
                               _buildDetailRowIG(
                                   'Detalles:', grupoData!.detalles),
+                              _buildDetailRowIG('Asesor:', grupoData!.asesor),
                               _buildDetailRowIG('Estado:', grupoData!.estado),
                               _buildDetailRowIG('Folio del Crédito:',
                                   grupoData!.folio ?? 'No asignado'),

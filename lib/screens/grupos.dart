@@ -67,6 +67,7 @@ class _GruposScreenState extends State<GruposScreen> {
       currentPage = page; // Update current page
     });
 
+    _timer?.cancel(); // Cancela cualquier timer existente
     bool dialogShown = false;
 
     Future<void> fetchData() async {
@@ -1325,7 +1326,7 @@ class Grupo {
   final String tipoGrupo;
   final String nombreGrupo;
   final String detalles;
-  final String asesor;
+  String asesor;
   final String fCreacion;
   final String estado; // Agregamos el campo 'estado'
 
