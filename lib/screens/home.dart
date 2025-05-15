@@ -553,14 +553,14 @@ class _HomeScreenState extends State<HomeScreen> {
           color: const Color(0xFF6BC950),
         ),
         _buildStatCard(
-          title: 'Grupos Individuales',
-          value: homeData!.gruposIndGrupos.first.grupos_individuales ?? '0',
+          title: 'Créditos Individuales',
+          value: homeData!.gruposIndGrupos.first.creditos_individuales ?? '0',
           icon: Icons.person,
           color: const Color(0xFF4ECDC4),
         ),
         _buildStatCard(
-          title: 'Grupos Grupales',
-          value: homeData!.gruposIndGrupos.first.grupos_grupales ?? '0',
+          title: 'Créditos Grupales',
+          value: homeData!.gruposIndGrupos.first.creditos_grupales ?? '0',
           icon: Icons.group,
           color: const Color(0xFF4ECDC4),
         ),
@@ -690,15 +690,15 @@ class CreditosActFin {
 
 class GruposIndGrupos {
   final int total_grupos;
-  final String? grupos_individuales;
-  final String? grupos_grupales;
+  final String? creditos_individuales;
+  final String? creditos_grupales;
   final String? grupos_activos;
   final String? grupos_finalizados;
 
   GruposIndGrupos({
     required this.total_grupos,
-    required this.grupos_individuales,
-    required this.grupos_grupales,
+    required this.creditos_individuales,
+    required this.creditos_grupales,
     required this.grupos_activos,
     required this.grupos_finalizados,
   });
@@ -706,8 +706,8 @@ class GruposIndGrupos {
   factory GruposIndGrupos.fromJson(Map<String, dynamic> json) {
     return GruposIndGrupos(
       total_grupos: json['total_grupos'] ?? 0,
-      grupos_individuales: json['grupos_individuales']?.toString() ?? '0',
-      grupos_grupales: json['grupos_grupales']?.toString() ?? '0',
+      creditos_individuales: json['creditos_individuales']?.toString() ?? '0',
+      creditos_grupales: json['creditos_grupales']?.toString() ?? '0',
       grupos_activos: json['grupos_activos']?.toString() ?? '0',
       grupos_finalizados: json['grupos_finalizados']?.toString() ?? '0',
     );

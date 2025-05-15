@@ -441,6 +441,10 @@ class _InfoClienteState extends State<InfoCliente> {
                                                         'RFC:',
                                                         adicional['rfc'],
                                                         isDarkMode),
+                                                    _buildDetailRow(
+                                                        'Clv Elector:',
+                                                        adicional['clvElector'],
+                                                        isDarkMode),
                                                     /*   _buildDetailRow(
                                                         'Fecha de Creación:',
                                                         adicional['fCreacion'],
