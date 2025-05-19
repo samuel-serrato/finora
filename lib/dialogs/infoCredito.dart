@@ -5051,10 +5051,16 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
         if (!mounted) return;
 
         if (savePath != null) {
-          final file = File(savePath);
+          // Asegurarnos de que la ruta termine en ".docx"
+          String finalPath = savePath.toLowerCase().endsWith('.docx')
+              ? savePath
+              : '$savePath.docx';
+
+          final file = File(finalPath);
           await file.writeAsBytes(response.bodyBytes);
+
           if (!mounted) return;
-          await _abrirArchivoGuardado(savePath);
+          await _abrirArchivoGuardado(finalPath);
         }
       } else {
         try {
