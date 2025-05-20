@@ -3,35 +3,35 @@ import 'package:finora/models/image_data.dart';
 import 'package:flutter/material.dart';
 
 class UserDataProvider extends ChangeNotifier {
-  String _nombreFinanciera = '';
+  String _nombreNegocio = '';
   List<ImageData> _imagenes = []; // Cambia a List<ImageData>
   String _nombreUsuario = '';
   String _tipoUsuario = '';
-  String _idfinanciera = '';
+  String _idnegocio = '';
   String _idusuario = '';
 
   // Getters
-  String get nombreFinanciera => _nombreFinanciera;
+  String get nombreNegocio => _nombreNegocio;
   List<ImageData> get imagenes => _imagenes; // Cambia el tipo de retorno
   String get nombreUsuario => _nombreUsuario;
   String get tipoUsuario => _tipoUsuario;
-  String get idfinanciera => _idfinanciera;
+  String get idnegocio => _idnegocio;
   String get idusuario => _idusuario;
 
   // Setters
   void setUserData({
-    required String nombreFinanciera,
+    required String nombreNegocio,
     required List<ImageData> imagenes, // Cambia el tipo del parámetro
     required String nombreUsuario,
     required String tipoUsuario,
-    required String idfinanciera,
+    required String idnegocio,
     required String idusuario,
   }) {
-    _nombreFinanciera = nombreFinanciera;
+    _nombreNegocio = nombreNegocio;
     _imagenes = imagenes;
     _nombreUsuario = nombreUsuario;
     _tipoUsuario = tipoUsuario;
-    _idfinanciera = idfinanciera;
+    _idnegocio = idnegocio;
     _idusuario = idusuario;
     notifyListeners(); // Notifica a los listeners que los datos han cambiado
   }

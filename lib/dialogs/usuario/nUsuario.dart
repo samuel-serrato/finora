@@ -78,7 +78,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
 
       // Modificación aquí: Combina el usuario con un punto y el nombre de la financiera sin espacios
       final usuarioCompleto =
-          '${usuarioController.text}.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}';
+          '${usuarioController.text}.${userData.nombreNegocio.toLowerCase().replaceAll(' ', '')}';
 
       final response = await http.post(
         Uri.parse('$baseUrl/api/v1/usuarios'),
@@ -92,7 +92,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
           'nombreCompleto': nombreCompletoController.text,
           'email': emailController.text,
           'password': passwordController.text,
-          'idfinanciera': userData.idfinanciera
+          'idnegocio': userData.idnegocio
         }),
       );
 
@@ -375,7 +375,7 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
                                             Flexible(
                                               flex: 3,
                                               child: Text(
-                                                '.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}',
+                                                '.${userData.nombreNegocio.toLowerCase().replaceAll(' ', '')}',
                                                 style: TextStyle(
                                                   color: secondaryTextColor,
                                                   fontSize: 12,

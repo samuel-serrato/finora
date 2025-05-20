@@ -70,7 +70,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
         if (data is List && data.isNotEmpty) {
           final usuarioData = data[0];
 
-          // Aquí agregas el código para quitar el .nombreFinanciera
+          // Aquí agregas el código para quitar el .nombreNegocio
           String usuario = usuarioData['usuario'];
           if (usuario.contains('.')) {
             usuario = usuario.split('.')[0];
@@ -134,7 +134,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
 
       // Modificación aquí: Combina el usuario con un punto y el nombre de la financiera sin espacios
       final usuarioCompleto =
-          '${usuarioController.text}.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}';
+          '${usuarioController.text}.${userData.nombreNegocio.toLowerCase().replaceAll(' ', '')}';
 
       // BODY ACTUALIZADO (sin password)
       final requestBody = {
@@ -447,7 +447,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
                                             Flexible(
                                               flex: 3,
                                               child: Text(
-                                                '.${userData.nombreFinanciera.toLowerCase().replaceAll(' ', '')}',
+                                                '.${userData.nombreNegocio.toLowerCase().replaceAll(' ', '')}',
                                                 style: TextStyle(
                                                   color: secondaryTextColor,
                                                   fontSize: 12,

@@ -36,6 +36,8 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
   String? _whiteLogoImagePath;
   bool _isUploading = false;
   bool _isSaving = false;
+  double _roundingThreshold = 0.5;
+
 
   // Agrega estas variables nuevas
   List<CuentaBancaria> _cuentasBancarias = [];
@@ -56,6 +58,130 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       _colorLogoImagePath = logoProvider.colorLogoPath;
       _whiteLogoImagePath = logoProvider.whiteLogoPath;
     });
+  }
+
+  // Nueva función genérica para construir items de configuración
+  Widget _buildConfigItem(
+    BuildContext context, {
+    required String title,
+    String? subtitle,
+    IconData? leadingIcon,
+    Widget?
+        leadingWidget, // Para casos donde un IconData no es suficiente (ej. Imagen)
+    Color? iconColor, // Color para el icono y su fondo
+    Widget? trailing, // El widget que va al final (Switch, Button, etc.)
+    VoidCallback? onTap,
+    EdgeInsetsGeometry? padding,
+    bool enabled = true,
+    TextStyle? titleStyle,
+    TextStyle? subtitleStyle,
+  }) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Determinar el color del ícono por defecto si no se provee
+    final effectiveIconColor = iconColor ?? Color(0xFF5162F6);
+
+    Widget leadingContent;
+    if (leadingWidget != null) {
+      leadingContent = leadingWidget;
+    } else if (leadingIcon != null) {
+      leadingContent = Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: enabled
+              ? effectiveIconColor.withOpacity(0.1)
+              : Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          leadingIcon,
+          color: enabled ? effectiveIconColor : Colors.grey,
+          size: 18,
+        ),
+      );
+    } else {
+      // Si no hay ícono ni widget líder, dejamos un espacio para mantener la alineación
+      leadingContent = SizedBox(width: 14); // Ajusta este valor si es necesario
+    }
+
+    Widget titleWidget = Text(
+      title,
+      style: titleStyle ??
+          TextStyle(
+            color: enabled
+                ? (isDarkMode ? Colors.white : Colors.black)
+                : Colors.grey,
+            fontSize: 14,
+            fontWeight: FontWeight.w500, // Un poco más de peso para el título
+          ),
+    );
+
+    Widget? subtitleWidget = subtitle != null
+        ? Text(
+            subtitle,
+            style: subtitleStyle ??
+                TextStyle(
+                  color: enabled
+                      ? (isDarkMode ? Colors.grey[400] : Colors.grey[600])
+                      : Colors.grey[700],
+                  fontSize: 12,
+                ),
+          )
+        : null;
+
+    // Widget principal que contiene todo
+    Widget itemContent = Row(
+      children: [
+        leadingContent,
+        SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment
+                .center, // Centrar verticalmente si hay subtítulo
+            children: [
+              titleWidget,
+              if (subtitleWidget != null) ...[
+                SizedBox(height: 2), // Pequeño espacio entre título y subtítulo
+                subtitleWidget,
+              ],
+            ],
+          ),
+        ),
+        if (trailing != null) trailing,
+      ],
+    );
+
+    // Envolver en IgnorePointer y Opacity si no está habilitado
+    // Envolver en InkWell si hay onTap
+    Widget finalWidget = Padding(
+      padding: padding ??
+          const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+      child: itemContent,
+    );
+
+    if (onTap != null) {
+      finalWidget = InkWell(
+        onTap: enabled ? onTap : null,
+        child: finalWidget,
+        borderRadius: BorderRadius.circular(
+            8), // Para que el ripple effect coincida con el contenedor
+      );
+    }
+
+    if (!enabled) {
+      return IgnorePointer(
+        ignoring: !enabled,
+        child: Opacity(
+          opacity: 0.5, // Atenuar visualmente
+          child: finalWidget,
+        ),
+      );
+    }
+
+    return finalWidget;
   }
 
   Widget build(BuildContext context) {
@@ -81,85 +207,158 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       ),
       content: Container(
         width: width,
-        height: height, // Añadir altura explícita
+        height: height,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             _buildHeader(context),
-            Flexible(
+            Expanded(
               child: SingleChildScrollView(
                 physics: BouncingScrollPhysics(),
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildFinancialInfoBlock(
-                          context), // Nuevo bloque agregado aquí
+                      _buildFinancialInfoBlock(context),
                       _buildUserSection(context),
-
-                      SizedBox(height: 15),
-                      _buildSection(context, title: 'Apariencia', items: [
-                        _buildSwitchItem(
-                          context,
-                          title: 'Modo oscuro',
-                          value: isDarkMode,
-                          onChanged: (value) {
-                            themeProvider.toggleDarkMode(value);
-                          },
-                          icon: Icons.dark_mode,
-                          iconColor: Colors.purple,
-                        ),
-                      ]),
-                      SizedBox(height: 15),
-                      _buildSection(context,
-                          title: 'Zoom',
-                          items: [
-                            _buildZoomSlider(context, scaleProvider),
-                          ],
-                          isExpandable: true),
                       SizedBox(height: 15),
                       _buildSection(
                         context,
-                        title: 'Personalización',
+                        title: 'Apariencia',
                         items: [
-                          _buildLogoUploader(context),
+                          _buildConfigItem(
+                            context,
+                            title: 'Modo oscuro',
+                            leadingIcon: Icons.dark_mode,
+                            iconColor: Colors.purple,
+                            trailing: Transform.scale(
+                              scale: 0.8,
+                              child: Switch.adaptive(
+                                value: isDarkMode,
+                                onChanged: (value) {
+                                  themeProvider.toggleDarkMode(value);
+                                },
+                                activeColor: Color(0xFF5162F6),
+                              ),
+                            ),
+                          ),
                         ],
-                        isExpandable: true,
-                        enabled:
-                            userData.tipoUsuario == 'Admin', // Nueva validación
                       ),
-
                       SizedBox(height: 15),
-                      _buildBankAccountsSection(context), // Agregar esta línea
-
-                      /* _buildSection(context, title: 'Notificaciones', items: [
-                        _buildSwitchItem(
-                          context,
-                          title: 'Activar notificaciones',
-                          value: notificationsEnabled,
-                          onChanged: (value) {
-                            setState(() {
-                              notificationsEnabled = value;
-                            });
-                          },
-                          icon: Icons.notifications,
-                          iconColor: Colors.red,
-                        ),
-                      ]),
-                      SizedBox(height: 15), */
+                      _buildSection(
+                        context,
+                        title: 'Zoom',
+                        items: [_buildZoomSlider(context, scaleProvider)],
+                        isExpandable: true,
+                      ),
+                      SizedBox(height: 15),
+                      _buildSection(
+                        context,
+                        title: 'Personalizar logo',
+                        items: [_buildLogoUploader(context)],
+                        isExpandable: true,
+                        enabled: userData.tipoUsuario == 'Admin',
+                      ),
+                      SizedBox(height: 15),
+                      _buildBankAccountsSection(context),
+                      SizedBox(height: 15),
+                      _buildSection(
+                        context,
+                        title: 'Opciones de Redondeo',
+                        items: [_buildRoundingSelector(context)],
+                        isExpandable: true,
+                        enabled: userData.tipoUsuario == 'Admin',
+                      ),
                     ],
                   ),
                 ),
               ),
             ),
-            _buildFooter(context),
+            _buildFooter(context), // Este queda fijo abajo
           ],
         ),
       ),
     );
   }
+
+ Widget _buildRoundingSelector(BuildContext context) {
+  final List<double> options = [0.1, 0.25, 0.5, 0.6, 0.75, 0.8, 0.9];
+  final theme = Theme.of(context);
+  
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 12.0),
+    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+    decoration: BoxDecoration(
+      //color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(16.0),
+      
+    ),
+    child: Row(
+      children: [
+        Icon(
+          Icons.rounded_corner,
+          size: 22.0,
+          color: Color(0xFF5162F6),
+        ),
+        const SizedBox(width: 12.0),
+        Expanded(
+          child: Text(
+            'Redondear desde',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+          decoration: BoxDecoration(
+            color: Color(0xFF5162F6).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<double>(
+              value: _roundingThreshold,
+              icon: Icon(
+                Icons.arrow_drop_down_rounded,
+                color: Color(0xFF5162F6),
+              ),
+              borderRadius: BorderRadius.circular(12),
+              elevation: 4,
+              isDense: true,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF404FD2),
+              ),
+              dropdownColor: Color(0xFFD4D6EA),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _roundingThreshold = value;
+                  });
+                }
+              },
+              items: options.map((value) {
+                return DropdownMenuItem<double>(
+                  value: value,
+                  child: Text(
+                    '≥ ${value.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 15.0,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
 
   Widget _buildLogoUploader(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -732,18 +931,41 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     required String title,
     required List<Widget> items,
     bool isExpandable = false,
-    bool enabled = true, // Nuevo parámetro
+    bool enabled = true,
+    EdgeInsetsGeometry?
+        tilePadding, // Nuevo parámetro para controlar el padding del tile
+    double?
+        titleIconSize, // Nuevo parámetro para el tamaño del icono en el título
+    double?
+        titleIconContainerSize, // Nuevo parámetro para el tamaño del contenedor del icono
+    TextStyle?
+        sectionTitleTextStyle, // Nuevo para el estilo del texto del título de la sección
   }) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
-    final userData = Provider.of<UserDataProvider>(context); // Nuevo
+    final userData = Provider.of<UserDataProvider>(context);
+
+    // Valores por defecto si no se proporcionan los nuevos parámetros
+    final effectiveTilePadding = tilePadding ??
+        EdgeInsets.symmetric(
+            horizontal: 16.0, vertical: 0.0); // Reducir vertical
+    final effectiveTitleIconSize =
+        titleIconSize ?? 16.0; // Ligeramente más pequeño
+    final effectiveTitleIconContainerSize =
+        titleIconContainerSize ?? 28.0; // Ligeramente más pequeño
+    final effectiveSectionTitleTextStyle = sectionTitleTextStyle ??
+        TextStyle(
+          color: isDarkMode ? Colors.white : Colors.black,
+          fontSize: 14, // Podrías querer unificar este tamaño
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+        /* Padding(
+          padding: const EdgeInsets.only(
+              left: 8.0, bottom: 8.0, top: 4.0), // Añadí un top padding pequeño
           child: Text(
             title.toUpperCase(),
             style: TextStyle(
@@ -753,7 +975,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
               letterSpacing: 0.5,
             ),
           ),
-        ),
+        ), */
         Container(
           decoration: BoxDecoration(
             color: isDarkMode ? Colors.grey[800] : Colors.grey[50],
@@ -765,55 +987,57 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
           ),
           child: isExpandable
               ? IgnorePointer(
-                  ignoring: !enabled, // Deshabilita la interacción
+                  ignoring: !enabled,
                   child: Opacity(
                     opacity: enabled ? 1.0 : 0.6,
                     child: ExpansionTile(
                       onExpansionChanged: enabled ? (value) {} : null,
+                      // Aquí aplicamos los nuevos parámetros y valores reducidos
+                      tilePadding:
+                          effectiveTilePadding, // Usar el padding efectivo
                       title: Row(
                         children: [
                           Container(
-                            width: 32,
-                            height: 32,
+                            width:
+                                effectiveTitleIconContainerSize, // Usar tamaño de contenedor efectivo
+                            height:
+                                effectiveTitleIconContainerSize, // Usar tamaño de contenedor efectivo
                             decoration: BoxDecoration(
-                              color: _getIconColor(title)
-                                  .withOpacity(0.1), // Función modificada
+                              color: _getIconColor(title).withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Icon(
-                              _getSectionIcon(title), // Función nueva
-                              color: _getIconColor(title), // Función modificada
-                              size: 18,
+                              _getSectionIcon(title),
+                              color: _getIconColor(title),
+                              size:
+                                  effectiveTitleIconSize, // Usar tamaño de icono efectivo
                             ),
                           ),
-                          SizedBox(width: 14),
+                          SizedBox(
+                              width: 12), // Reducir un poco si es necesario
                           Text(
-                            title, // MOSTRAR EL TÍTULO REAL DE LA SECCIÓN
-                            style: TextStyle(
-                              color: isDarkMode ? Colors.white : Colors.black,
-                              fontSize: 14,
-                            ),
+                            title,
+                            style:
+                                effectiveSectionTitleTextStyle, // Usar estilo de texto efectivo
                           ),
                         ],
                       ),
-                      children: enabled
-                          ? items
-                          : [_buildDisabledMessage()], // Mensaje si no es Admin
-                      tilePadding: EdgeInsets.symmetric(
-                          horizontal: 16.0, vertical: 12.0),
+                      children: enabled ? items : [_buildDisabledMessage()],
                       trailing: Icon(
+                        // El trailing también afecta la altura si es muy grande
                         Icons.arrow_drop_down,
+                        size: 20, // Puedes ajustar el tamaño del trailing icon
                         color: enabled
                             ? (isDarkMode ? Colors.grey[400] : Colors.grey[600])
-                            : Colors
-                                .grey, // Color diferente si está deshabilitado
+                            : Colors.grey,
                       ),
                     ),
                   ),
                 )
               : Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: items,
+                  children:
+                      items, // Para secciones no expandibles, el padding se maneja en _buildConfigItem
                 ),
         ),
       ],
@@ -824,9 +1048,9 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     switch (title) {
       case 'Zoom':
         return Icons.zoom_in;
-      case 'Cuentas Bancarias':
+      case 'Cuentas bancarias':
         return Icons.account_balance; // Icono nuevo
-      case 'Personalización':
+      case 'Personalizar logo':
         return Icons.image;
       default:
         return Icons.settings;
@@ -837,9 +1061,9 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     switch (title) {
       case 'Zoom':
         return Colors.blue;
-      case 'Cuentas Bancarias':
+      case 'Cuentas bancarias':
         return Colors.green; // Color nuevo
-      case 'Personalización':
+      case 'Personalizar logo':
         return Colors.orange;
       default:
         return Colors.grey;
@@ -858,57 +1082,6 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
           fontSize: 14,
           fontStyle: FontStyle.italic,
         ),
-      ),
-    );
-  }
-
-  Widget _buildSwitchItem(
-    BuildContext context, {
-    required String title,
-    required bool value,
-    required Function(bool) onChanged,
-    required IconData icon,
-    required Color iconColor,
-  }) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 18,
-            ),
-          ),
-          SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                color: isDarkMode ? Colors.white : Colors.black,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          Transform.scale(
-            scale: 0.8,
-            child: Switch.adaptive(
-              value: value,
-              onChanged: onChanged,
-              activeColor: Color(0xFF5162F6),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -974,7 +1147,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    userData.nombreFinanciera,
+                    userData.nombreNegocio,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -1007,78 +1180,40 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       context,
       title: 'Usuario',
       items: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.person,
-                  color: Colors.green,
-                  size: 18,
-                ),
+        _buildConfigItem(
+          context,
+          title: userData.nombreUsuario,
+          subtitle: userData.tipoUsuario,
+          leadingIcon: Icons.person,
+          iconColor: Colors.green,
+          trailing: ElevatedButton.icon(
+            onPressed: () => showDialog(
+              context: context,
+              builder: (context) => CambiarPasswordDialog(
+                idUsuario: userData.idusuario,
+                isDarkMode: isDarkMode,
               ),
-              SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userData.nombreUsuario,
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      userData.tipoUsuario,
-                      style: TextStyle(
-                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+            icon: Icon(
+              Icons.lock_reset,
+              size: 18,
+              color: isDarkMode ? Colors.white : Color(0xFF5162F6),
+            ),
+            label: Text(
+              'Cambiar contraseña',
+              style: TextStyle(
+                color: isDarkMode ? Colors.white : Color(0xFF5162F6),
               ),
-              ElevatedButton.icon(
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (context) => CambiarPasswordDialog(
-                    idUsuario: userData.idusuario,
-                    isDarkMode: isDarkMode,
-                  ),
-                ),
-                icon: Icon(
-                  Icons.lock_reset,
-                  size: 18,
-                  color: isDarkMode ? Colors.white : Color(0xFF5162F6),
-                ),
-                label: Text(
-                  'Cambiar contraseña',
-                  style: TextStyle(
-                    color: isDarkMode ? Colors.white : Color(0xFF5162F6),
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
-                  foregroundColor:
-                      isDarkMode ? Colors.white : Color(0xFF5162F6),
-                  side: BorderSide(
-                    color: Color(0xFF5162F6),
-                    width: 0.7,
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+              foregroundColor: isDarkMode ? Colors.white : Color(0xFF5162F6),
+              side: BorderSide(
+                color: Color(0xFF5162F6),
+                width: 0.7,
               ),
-            ],
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
           ),
         ),
       ],
@@ -1199,7 +1334,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       // 3. Adjuntar campos
       request.fields.addAll({
         'tipoImagen': tipoLogo,
-        'idfinanciera': userData.idfinanciera,
+        'idnegocio': userData.idnegocio,
       });
 
       // 4. Imprimir detalles de la solicitud
@@ -1263,7 +1398,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     try {
       final response = await http.get(
         Uri.parse(
-            '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}'),
+            '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idnegocio}'),
         headers: {'tokenauth': token},
       );
 
@@ -1499,7 +1634,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     try {
       // Crear el cuerpo del request
       final requestBody = {
-        'idfinanciera': userData.idfinanciera,
+        'idnegocio': userData.idnegocio,
         'nombreCuenta': nombre,
         'numeroCuenta': numero,
         'nombreBanco': banco,
@@ -1600,7 +1735,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
 
     return _buildSection(
       context,
-      title: 'Cuentas Bancarias',
+      title: 'Cuentas bancarias',
       items: [
         _loadingCuentas
             ? Center(child: CircularProgressIndicator())
@@ -1677,7 +1812,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
 
     try {
       final url =
-          '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroCuenta';
+          '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idnegocio}/$numeroCuenta';
 
       print('Enviando DELETE a: $url'); // Log de la URL
       print('Token usado: $token'); // Log del token
@@ -1973,7 +2108,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       print('⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻⎻');
       print('EDITANDO CUENTA BANCARIA');
       print(
-          'URL: $baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroOriginal');
+          'URL: $baseUrl/api/v1/financiera/cuentasbanco/${userData.idnegocio}/$numeroOriginal');
       print('Headers:');
       print('  tokenauth: $token');
       print('  Content-Type: application/json');
@@ -1983,7 +2118,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
 
       final response = await http.put(
         Uri.parse(
-            '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}/$numeroOriginal'),
+            '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idnegocio}/$numeroOriginal'),
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -2028,7 +2163,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
 }
 
 class CuentaBancaria {
-  final String idfinanciera;
+  final String idnegocio;
   final String nombreCuenta;
   final String numeroCuenta;
   final String nombreBanco;
@@ -2036,7 +2171,7 @@ class CuentaBancaria {
   final DateTime fCreacion;
 
   CuentaBancaria({
-    required this.idfinanciera,
+    required this.idnegocio,
     required this.nombreCuenta,
     required this.numeroCuenta,
     required this.nombreBanco,
@@ -2046,7 +2181,7 @@ class CuentaBancaria {
 
   factory CuentaBancaria.fromJson(Map<String, dynamic> json) {
     return CuentaBancaria(
-      idfinanciera: json['idfinanciera'],
+      idnegocio: json['idnegocio'],
       nombreCuenta: json['nombreCuenta'],
       numeroCuenta: json['numeroCuenta'],
       nombreBanco: json['nombreBanco'],

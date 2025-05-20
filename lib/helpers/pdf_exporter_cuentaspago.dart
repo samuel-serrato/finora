@@ -61,7 +61,7 @@ class PDFFichaPagoSemanal {
       try {
         final response = await http.get(
           Uri.parse(
-              '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idfinanciera}'),
+              '$baseUrl/api/v1/financiera/cuentasbanco/${userData.idnegocio}'),
           headers: {'tokenauth': token},
         );
 

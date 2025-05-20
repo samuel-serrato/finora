@@ -45,6 +45,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   final tasaInteresController = TextEditingController();
   final plazoController = TextEditingController();
 
+  // En la parte superior de tu clase, declara las variables
+double pagoTotal = 0.0;  // Agregar como variable de clase
+double montoGarantia = 0.0;  // Agregar como variable de clase
+
   // Datos para los integrantes y sus montos individuales
   List<Cliente> integrantes = [];
 
@@ -1351,9 +1355,9 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     double capitalPago = 0.0;
     double interesPago = 0.0;
     double interesPorcentaje = 0.0;
-    double pagoTotal = 0.0;
     interesTotal = 0.0;
     interesGlobal = ((tasaInteresMensualCalculada / 4) * plazoNumerico);
+    int? pagosTotales;
 
     print('interesGlobal print: $interesGlobal');
 
@@ -1365,14 +1369,14 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     frecuenciaPagoTexto = frecuenciaPago ?? "No especificada";
 
     if (frecuenciaPago == "Semanal") {
-      int pagosTotales = plazoNumerico;
+      pagosTotales = plazoNumerico;
       capitalPago = (monto / pagosTotales);
       interesPago = (monto * (tasaInteresMensualCalculada / 4 / 100));
       interesPorcentaje = (tasaInteresMensualCalculada / 4);
       interesTotal = (interesPago * pagosTotales);
       pagoTotal = (capitalPago + interesPago);
     } else if (frecuenciaPago == "Quincenal") {
-      int pagosTotales = plazoNumerico * 2;
+      pagosTotales = plazoNumerico * 2;
       capitalPago = (monto / pagosTotales);
       interesPago = (monto * (tasaInteresMensualCalculada / 2 / 100));
       interesPorcentaje = (tasaInteresMensualCalculada / 2);
@@ -1380,7 +1384,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       pagoTotal = (capitalPago + interesPago);
     }
 
-    totalARecuperar = (monto + interesTotal);
+    totalARecuperar = (_redondearDecimales(pagoTotal) * pagosTotales);
 
     print('capitalL: $capitalPago');
     print('interesPAGOo: $interesPago');
@@ -1410,7 +1414,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       return 0.0; // Si no hay un número en la garantía, asumimos 0
     }
 
-    double montoGarantia = calcularMontoGarantia(garantiaTexto!, monto);
+     montoGarantia = calcularMontoGarantia(garantiaTexto!, monto);
 
     void imprimirDatosGenerales() {
       print("=== Datos Generales ===");
@@ -1803,7 +1807,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                           (capitalSemanal * pagosTotales);
                                       final totalIntereses =
                                           (interesSemanal * pagosTotales);
-                                      final pagoTotal = _redondearDecimales(
+                                      final pagoTotal = (
                                           totalCapital + totalIntereses);
 
                                       return DataRow(cells: [
@@ -2088,6 +2092,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       "garantia": valorGarantia,
       "interesGlobal": (interesGlobal), // <- Aplicado aquí
       "montoTotal": (obtenerMontoReal(montoController.text)),
+      "pagoCuota": (_redondearDecimales(pagoTotal)),
+      "montoGarantia": (montoGarantia),
       "interesTotal": (interesTotal),
       "montoMasInteres": (totalARecuperar),
       "diaPago": diaPago,
@@ -2138,7 +2144,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         "totalCapital": (periodoCapital * pagosTotales),
         "totalIntereses": (periodoInteres * pagosTotales),
         "capitalMasInteres": (periodoCapital + periodoInteres),
-        "pagoTotal": _redondearDecimales(
+        "pagoTotal": (
             (periodoCapital * pagosTotales) + (periodoInteres * pagosTotales)),
       });
     }

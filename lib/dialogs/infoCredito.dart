@@ -1011,13 +1011,17 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                     children: [
                                                       _buildSectionTitle(
                                                           'Integrantes'),
-                                                      SizedBox(height: 12),
+                                                      SizedBox(height: 0),
                                                       PaginaIntegrantes(
                                                         clientesMontosInd:
                                                             creditoData!
                                                                 .clientesMontosInd,
                                                         tipoPlazo: creditoData!
                                                             .tipoPlazo,
+                                                        pagoCuota: creditoData!
+                                                            .pagoCuota,
+                                                        plazo:
+                                                            creditoData!.plazo,
                                                       ),
                                                     ],
                                                   ),
@@ -2036,7 +2040,7 @@ class _PaginaControlState extends State<PaginaControl> {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.only(top: 20),
+                padding: const EdgeInsets.only(top: 0),
                 child: Container(
                   height: 40,
                   decoration: BoxDecoration(
@@ -4790,11 +4794,15 @@ class _AbonosDialogState extends State<AbonosDialog> {
 class PaginaIntegrantes extends StatelessWidget {
   final List<ClienteMonto> clientesMontosInd;
   final String tipoPlazo;
+  final double pagoCuota;
+  final int plazo;
 
   const PaginaIntegrantes({
     Key? key,
     required this.clientesMontosInd,
     required this.tipoPlazo,
+    required this.pagoCuota,
+    required this.plazo,
   }) : super(key: key);
 
   String formatearNumero(double numero) {
@@ -4892,6 +4900,8 @@ class PaginaIntegrantes extends StatelessWidget {
       sumTotal += cliente.total;
     }
 
+    final sumTotalRedondeado = pagoCuota * plazo;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: LayoutBuilder(
@@ -4949,9 +4959,9 @@ class PaginaIntegrantes extends StatelessWidget {
                     height: 40,
                     decoration: BoxDecoration(
                       color: totalRowColor, // Fondo de la fila de totales
-                      borderRadius: BorderRadius.all(
-                        Radius.circular(12),
-                      ),
+                      borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20)),
                     ),
                     child: Row(
                       children: [
@@ -4969,6 +4979,32 @@ class PaginaIntegrantes extends StatelessWidget {
                         _buildTotalCell(
                             "\$${formatearNumero(sumCapitalMasInteres)}"),
                         _buildTotalCell("\$${formatearNumero(sumTotal)}"),
+                      ],
+                    ),
+                  ),
+                  // Nueva fila de Redondeado (con mismo color que totales)
+                  Container(
+                    height: 40,
+                    margin: EdgeInsets.only(top: 0), // Espacio entre las filas
+                    decoration: BoxDecoration(
+                      color:
+                          totalRowColor, // Mismo color que la fila de totales
+                      borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(20),
+                          bottomRight: Radius.circular(20)),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildTotalCell("Redondeado"),
+                        _buildTotalCell(
+                            ""), // Celdas vacías para mantener alineación
+                        _buildTotalCell(""),
+                        _buildTotalCell(""),
+                        _buildTotalCell(""),
+                        _buildTotalCell(""),
+                        _buildTotalCell("\$${formatearNumero(pagoCuota)}"),
+                        _buildTotalCell(
+                            "\$${formatearNumero(sumTotalRedondeado)}"),
                       ],
                     ),
                   ),
