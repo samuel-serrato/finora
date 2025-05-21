@@ -361,10 +361,10 @@ class _InfoCreditoState extends State<InfoCredito> {
           "idfechaspagos": pagoActual.idfechaspagos,
           "fechaPago": pagoActual.fechaPago,
           "tipoPago": "Garantia",
-          "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0),
-          "deposito": _redondear(aplicadoCapital),
-          "moratorio": _redondear(aplicadoMoratorio),
-          "saldofavor": _redondear(saldofavor),
+          "montoaPagar": (pagoActual.capitalMasInteres ?? 0.0),
+          "deposito": (aplicadoCapital),
+          "moratorio": (aplicadoMoratorio),
+          "saldofavor": (saldofavor),
         });
         continue;
       }
@@ -379,11 +379,11 @@ class _InfoCreditoState extends State<InfoCredito> {
           "idfechaspagos": pagoActual.idfechaspagos,
           "fechaPago": formatearFechaJSON(pagoActual.fechaPago),
           "tipoPago": "Completo",
-          "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0),
-          "deposito": _redondear(deposito),
-          "moratorio": _redondear(
+          "montoaPagar": (pagoActual.capitalMasInteres ?? 0.0),
+          "deposito": (deposito),
+          "moratorio": (
               0.0), // En "Completo", el moratorio se incluye en el depósito total
-          "saldofavor": _redondear(saldofavor),
+          "saldofavor": (saldofavor),
         });
         continue; // Saltar al siguiente pago
       }
@@ -422,10 +422,10 @@ class _InfoCreditoState extends State<InfoCredito> {
           "idfechaspagos": pagoActual.idfechaspagos,
           "fechaPago": pagoActual.fechaPago,
           "tipoPago": "Monto Parcial",
-          "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0),
-          "deposito": _redondear(aplicadoCapital),
-          "moratorio": _redondear(aplicadoMoratorio),
-          "saldofavor": _redondear(saldofavor),
+          "montoaPagar": (pagoActual.capitalMasInteres ?? 0.0),
+          "deposito": (aplicadoCapital),
+          "moratorio": (aplicadoMoratorio),
+          "saldofavor": (saldofavor),
         });
         continue;
       }
@@ -469,10 +469,10 @@ class _InfoCreditoState extends State<InfoCredito> {
           "idfechaspagos": pagoActual.idfechaspagos,
           "fechaPago": fechaPagoAbono, // <-- Fecha de depósito
           "tipoPago": "En Abonos",
-          "montoaPagar": _redondear(pagoActual.capitalMasInteres ?? 0.0),
-          "deposito": _redondear(aplicadoCapital),
-          "moratorio": _redondear(aplicadoMoratorio),
-          "saldofavor": _redondear(saldofavor),
+          "montoaPagar": (pagoActual.capitalMasInteres ?? 0.0),
+          "deposito": (aplicadoCapital),
+          "moratorio": (aplicadoMoratorio),
+          "saldofavor": (saldofavor),
         });
 
         // Actualizar acumulados
