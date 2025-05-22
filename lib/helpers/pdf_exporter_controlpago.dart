@@ -397,8 +397,9 @@ class PDFControlPagos {
 
     for (var member in credito.clientesMontosInd) {
       totalMontoAutorizado += member.capitalIndividual;
-      totalPagoSemanal += member.capitalMasInteres;
     }
+
+    totalPagoSemanal += credito.pagoCuota;
 
     // Definir colores para la tabla
     final headerColor = PdfColor.fromHex('f2f7fa');

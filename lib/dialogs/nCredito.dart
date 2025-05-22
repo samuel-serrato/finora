@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/providers/user_data_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -46,8 +47,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   final plazoController = TextEditingController();
 
   // En la parte superior de tu clase, declara las variables
-double pagoTotal = 0.0;  // Agregar como variable de clase
-double montoGarantia = 0.0;  // Agregar como variable de clase
+  double pagoTotal = 0.0; // Agregar como variable de clase
+  double montoGarantia = 0.0; // Agregar como variable de clase
 
   // Datos para los integrantes y sus montos individuales
   List<Cliente> integrantes = [];
@@ -1384,7 +1385,7 @@ double montoGarantia = 0.0;  // Agregar como variable de clase
       pagoTotal = (capitalPago + interesPago);
     }
 
-    totalARecuperar = (_redondearDecimales(pagoTotal) * pagosTotales);
+    totalARecuperar = (redondearDecimales(pagoTotal, context) * pagosTotales);
 
     print('capitalL: $capitalPago');
     print('interesPAGOo: $interesPago');
@@ -1414,7 +1415,7 @@ double montoGarantia = 0.0;  // Agregar como variable de clase
       return 0.0; // Si no hay un número en la garantía, asumimos 0
     }
 
-     montoGarantia = calcularMontoGarantia(garantiaTexto!, monto);
+    montoGarantia = calcularMontoGarantia(garantiaTexto!, monto);
 
     void imprimirDatosGenerales() {
       print("=== Datos Generales ===");
@@ -1679,7 +1680,7 @@ double montoGarantia = 0.0;  // Agregar como variable de clase
                                   : frecuenciaPago == "Quincenal"
                                       ? 'Pago Quincenal: '
                                       : '',
-                              '\$${formatearNumero(_redondearDecimales(pagoTotal))}',
+                              '\$${formatearNumero(redondearDecimales(pagoTotal, context))}',
                             ),
                             _infoRow('Interés Total: ',
                                 '\$${formatearNumero(interesTotal)}'),
@@ -1807,8 +1808,8 @@ double montoGarantia = 0.0;  // Agregar como variable de clase
                                           (capitalSemanal * pagosTotales);
                                       final totalIntereses =
                                           (interesSemanal * pagosTotales);
-                                      final pagoTotal = (
-                                          totalCapital + totalIntereses);
+                                      final pagoTotal =
+                                          (totalCapital + totalIntereses);
 
                                       return DataRow(cells: [
                                         DataCell(Text(
@@ -2041,29 +2042,29 @@ double montoGarantia = 0.0;  // Agregar como variable de clase
     );
   }
 
-  dynamic _redondearDecimales(dynamic valor) {
+  dynamic redondearDecimales(dynamic valor, BuildContext context) {
+    final userData = Provider.of<UserDataProvider>(context, listen: false);
+    final double umbralRedondeo = userData.redondeo;
+
     if (valor is double) {
-      // Verificar si el valor es un entero (con una pequeña tolerancia)
       if ((valor - valor.truncateToDouble()).abs() < 0.000001) {
-        return valor
-            .truncateToDouble(); // Mantener si es entero (ej: 176.0 → 176.0)
+        return valor.truncateToDouble();
       } else {
-        // Obtener la parte decimal
         double parteDecimal = valor - valor.truncateToDouble();
 
-        if (parteDecimal >= 0.5) {
-          return valor.ceilToDouble(); // Redondear hacia arriba si es >= 0.5
+        if (parteDecimal >= umbralRedondeo) {
+          return valor.ceilToDouble();
         } else {
-          return valor.floorToDouble(); // Redondear hacia abajo si es < 0.5
+          return valor.floorToDouble();
         }
       }
     } else if (valor is int) {
-      return valor.toDouble(); // Convertir enteros a double para consistencia
+      return valor.toDouble();
     } else if (valor is List) {
-      return valor.map((e) => _redondearDecimales(e)).toList();
+      return valor.map((e) => redondearDecimales(e, context)).toList();
     } else if (valor is Map) {
       return valor.map<String, dynamic>(
-        (key, value) => MapEntry(key, _redondearDecimales(value)),
+        (key, value) => MapEntry(key, redondearDecimales(value, context)),
       );
     }
     return valor;
@@ -2092,7 +2093,7 @@ double montoGarantia = 0.0;  // Agregar como variable de clase
       "garantia": valorGarantia,
       "interesGlobal": (interesGlobal), // <- Aplicado aquí
       "montoTotal": (obtenerMontoReal(montoController.text)),
-      "pagoCuota": (_redondearDecimales(pagoTotal)),
+      "pagoCuota": (redondearDecimales(pagoTotal, context)),
       "montoGarantia": (montoGarantia),
       "interesTotal": (interesTotal),
       "montoMasInteres": (totalARecuperar),
@@ -2144,8 +2145,8 @@ double montoGarantia = 0.0;  // Agregar como variable de clase
         "totalCapital": (periodoCapital * pagosTotales),
         "totalIntereses": (periodoInteres * pagosTotales),
         "capitalMasInteres": (periodoCapital + periodoInteres),
-        "pagoTotal": (
-            (periodoCapital * pagosTotales) + (periodoInteres * pagosTotales)),
+        "pagoTotal":
+            ((periodoCapital * pagosTotales) + (periodoInteres * pagosTotales)),
       });
     }
 

@@ -36,18 +36,26 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
   String? _whiteLogoImagePath;
   bool _isUploading = false;
   bool _isSaving = false;
-  double _roundingThreshold = 0.5;
-
+  double? _roundingThreshold;
 
   // Agrega estas variables nuevas
   List<CuentaBancaria> _cuentasBancarias = [];
   bool _loadingCuentas = false;
 
-  @override
   void initState() {
     super.initState();
+
+    // Espera a que el contexto esté listo y asigna el valor inicial
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userData = Provider.of<UserDataProvider>(context, listen: false);
+      setState(() {
+        _roundingThreshold =
+            userData.redondeo ?? 0.5; // Valor por defecto si es null
+      });
+    });
+
     _loadSavedLogos();
-    _fetchCuentasBancarias(); // Agregar esta línea
+    _fetchCuentasBancarias();
   }
 
   // Cargar los logos guardados previamente
@@ -265,7 +273,22 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                       _buildSection(
                         context,
                         title: 'Opciones de Redondeo',
-                        items: [_buildRoundingSelector(context)],
+                        items: [
+                          FutureBuilder<Widget>(
+                            future: _buildRoundingSelector(context),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                    child: CircularProgressIndicator());
+                              } else if (snapshot.hasError) {
+                                return Text('Error: ${snapshot.error}');
+                              } else {
+                                return snapshot.data ?? SizedBox.shrink();
+                              }
+                            },
+                          ),
+                        ],
                         isExpandable: true,
                         enabled: userData.tipoUsuario == 'Admin',
                       ),
@@ -281,84 +304,156 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     );
   }
 
- Widget _buildRoundingSelector(BuildContext context) {
-  final List<double> options = [0.1, 0.25, 0.5, 0.6, 0.75, 0.8, 0.9];
-  final theme = Theme.of(context);
-  
-  return Container(
-    margin: const EdgeInsets.symmetric(vertical: 12.0),
-    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-    decoration: BoxDecoration(
-      //color: theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(16.0),
-      
-    ),
-    child: Row(
+  Future<Widget> _buildRoundingSelector(BuildContext context) async {
+    final List<double> options = [0.1, 0.25, 0.3, 0.5, 0.6, 0.75, 0.8, 0.9];
+    final theme = Theme.of(context);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    if (_roundingThreshold == null) {
+      // Mientras carga el valor inicial, muestra un CircularProgress o similar
+      return Center(child: CircularProgressIndicator());
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(
-          Icons.rounded_corner,
-          size: 22.0,
-          color: Color(0xFF5162F6),
-        ),
-        const SizedBox(width: 12.0),
-        Expanded(
-          child: Text(
-            'Redondear desde',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
-          ),
-        ),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 12.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           decoration: BoxDecoration(
-            color: Color(0xFF5162F6).withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: BorderRadius.circular(16.0),
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<double>(
-              value: _roundingThreshold,
-              icon: Icon(
-                Icons.arrow_drop_down_rounded,
+          child: Row(
+            children: [
+              Icon(
+                Icons.rounded_corner,
+                size: 22.0,
                 color: Color(0xFF5162F6),
               ),
-              borderRadius: BorderRadius.circular(12),
-              elevation: 4,
-              isDense: true,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF404FD2),
+              const SizedBox(width: 12.0),
+              Expanded(
+                child: Text(
+                  'Redondear desde',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
               ),
-              dropdownColor: Color(0xFFD4D6EA),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _roundingThreshold = value;
-                  });
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+                decoration: BoxDecoration(
+                  color: Color(0xFF5162F6).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<double>(
+                    value: _roundingThreshold,
+                    icon: Icon(
+                      Icons.arrow_drop_down_rounded,
+                      color: Color(0xFF5162F6),
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    elevation: 4,
+                    isDense: true,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF404FD2),
+                    ),
+                    dropdownColor: Color(0xFFD4D6EA),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _roundingThreshold = value;
+                        });
+                      }
+                    },
+                    items: options.map((value) {
+                      return DropdownMenuItem<double>(
+                        value: value,
+                        child: Text(
+                          '≥ ${value.toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 15.0),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                try {
+                  final url =
+                      Uri.parse('$baseUrl/api/v1/configuracion/redondeo');
+                  final response = await http.put(
+                    url,
+                    headers: {
+                      'tokenauth': token,
+                      'Content-Type': 'application/json',
+                    },
+                    body: jsonEncode({"redondeo": _roundingThreshold}),
+                  );
+
+                  if (response.statusCode == 200) {
+                    if (!mounted) return;
+
+                    // Actualizar el provider aquí:
+                    final userDataProvider =
+                        Provider.of<UserDataProvider>(context, listen: false);
+                    userDataProvider.actualizarRedondeo(_roundingThreshold!);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('Redondeo guardado correctamente.')),
+                    );
+                  } else {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content:
+                              Text('Error al guardar: ${response.statusCode}')),
+                    );
+                  }
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error de red: $e')),
+                  );
                 }
               },
-              items: options.map((value) {
-                return DropdownMenuItem<double>(
-                  value: value,
-                  child: Text(
-                    '≥ ${value.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 15.0,
-                    ),
-                  ),
-                );
-              }).toList(),
+              icon: Icon(
+                Icons.save,
+                color: isDarkMode ? Colors.grey[400] : Colors.white,
+              ),
+              label: Text('Guardar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF5162F6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0, vertical: 14.0),
+              ),
             ),
           ),
         ),
+        SizedBox(height: 10),
       ],
-    ),
-  );
-}
-
-
+    );
+  }
 
   Widget _buildLogoUploader(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);

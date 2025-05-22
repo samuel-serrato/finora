@@ -9,6 +9,7 @@ class UserDataProvider extends ChangeNotifier {
   String _tipoUsuario = '';
   String _idnegocio = '';
   String _idusuario = '';
+  double _redondeo = 0;
 
   // Getters
   String get nombreNegocio => _nombreNegocio;
@@ -17,6 +18,7 @@ class UserDataProvider extends ChangeNotifier {
   String get tipoUsuario => _tipoUsuario;
   String get idnegocio => _idnegocio;
   String get idusuario => _idusuario;
+  double get redondeo => _redondeo;
 
   // Setters
   void setUserData({
@@ -26,6 +28,7 @@ class UserDataProvider extends ChangeNotifier {
     required String tipoUsuario,
     required String idnegocio,
     required String idusuario,
+    required double redondeo,
   }) {
     _nombreNegocio = nombreNegocio;
     _imagenes = imagenes;
@@ -33,6 +36,7 @@ class UserDataProvider extends ChangeNotifier {
     _tipoUsuario = tipoUsuario;
     _idnegocio = idnegocio;
     _idusuario = idusuario;
+    _redondeo = redondeo;
     notifyListeners(); // Notifica a los listeners que los datos han cambiado
   }
 
@@ -77,5 +81,10 @@ class UserDataProvider extends ChangeNotifier {
     }
     // Puedes añadir más campos según sea necesario
     notifyListeners(); // Notifica a los listeners que los datos han cambiado
+  }
+
+  void actualizarRedondeo(double nuevoRedondeo) {
+    _redondeo = nuevoRedondeo;
+    notifyListeners();
   }
 }
