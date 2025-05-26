@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:finora/dialogs/infoCredito.dart';
+import 'package:finora/models/cliente_monto.dart';
+import 'package:finora/models/credito.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -46,11 +48,14 @@ class PDFControlPagos {
   static Future<void> generar(
       BuildContext context, Credito credito, String savePath) async {
     try {
-      // 1. Validar permisos
+      // Currency Formatter
+      final currencyFormat =
+          NumberFormat.currency(locale: 'es_MX', symbol: '\$');
+      /* // 1. Validar permisos
       final status = await Permission.storage.request();
       if (!status.isGranted) {
         throw 'Se requieren permisos de almacenamiento';
-      }
+      } */
 
       // 2. Validar formato de fechas
       if (!credito.fechasIniciofin.contains(' - ')) {
@@ -120,12 +125,13 @@ class PDFControlPagos {
           footer: (context) => _buildFooter(context),
           build: (context) => [
             pw.SizedBox(height: 15),
-            _buildGroupInfo(credito, sectionTitleStyle),
+            _buildGroupInfo(credito, sectionTitleStyle, fechaInicioFormateada,
+                fechaFinFormateada, currencyFormat),
             pw.SizedBox(height: 15),
             _buildLoanInfo(credito, sectionTitleStyle, fechaInicioFormateada,
-                fechaFinFormateada),
+                fechaFinFormateada, currencyFormat),
             pw.SizedBox(height: 25),
-            ..._buildPaymentTables(fechas, credito),
+            ..._buildPaymentTables(fechas, credito, currencyFormat),
             pw.SizedBox(height: 30),
             _buildSignatures(credito),
           ],
@@ -204,7 +210,13 @@ class PDFControlPagos {
   }
 
   static pw.Widget _buildGroupInfo(
-      Credito credito, pw.TextStyle sectionTitleStyle) {
+      Credito credito,
+      pw.TextStyle sectionTitleStyle,
+      String fechaInicioFormateada, // <- Añadir parámetros
+      String fechaFinFormateada, // <- aquí
+      final currencyFormat) {
+    final format = NumberFormat("#,##0.00");
+
     return pw.Container(
       padding: const pw.EdgeInsets.all(15),
       decoration: pw.BoxDecoration(
@@ -232,6 +244,9 @@ class PDFControlPagos {
           pw.SizedBox(height: 8),
           pw.Row(children: [
             _buildInfoColumn('NOMBRE DEL ASESOR', credito.asesor, flex: 2),
+            _buildInfoColumn(
+                'MONTO TOTAL', '${currencyFormat.format(credito.montoTotal)}',
+                flex: 2),
           ]),
         ],
       ),
@@ -265,8 +280,8 @@ class PDFControlPagos {
       Credito credito,
       pw.TextStyle sectionTitleStyle,
       String fechaInicioFormateada, // <- Añadir parámetros
-      String fechaFinFormateada // <- aquí
-      ) {
+      String fechaFinFormateada, // <- aquí
+      final currencyFormat) {
     final format = NumberFormat("#,##0.00");
     final partesFecha = credito.fechasIniciofin.split(' - ');
 
@@ -284,13 +299,18 @@ class PDFControlPagos {
           pw.Row(children: [
             _buildInfoColumn('DÍA DE PAGO', credito.diaPago, flex: 1),
             _buildInfoColumn('PLAZO', '${credito.plazo} SEMANAS', flex: 1),
+            _buildInfoColumn(
+                'MONTO FICHA', '${currencyFormat.format(credito.pagoCuota)}',
+                flex: 1),
           ]),
           pw.SizedBox(height: 8),
           pw.Row(children: [
             _buildInfoColumn('MONTO DESEMBOLSADO',
-                '\$${format.format(credito.montoDesembolsado)}',
+                '${currencyFormat.format(credito.montoDesembolsado)}',
                 flex: 1),
-            _buildInfoColumn('TASA DE INTERÉS SEMANAL', '${credito.ti_semanal}',
+            _buildInfoColumn('GARANTÍA', '${credito.garantia}', flex: 1),
+            _buildInfoColumn('GARANTÍA MONTO',
+                '${currencyFormat.format(credito.montoGarantia)}',
                 flex: 1),
           ]),
           pw.SizedBox(height: 8),
@@ -300,12 +320,18 @@ class PDFControlPagos {
                 flex: 1),
             _buildInfoColumn('TASA DE INTERÉS MENSUAL', '${credito.ti_mensual}',
                 flex: 1),
+            _buildInfoColumn('INTERÉS TOTAL',
+                '${currencyFormat.format(credito.interesTotal)}',
+                flex: 1),
           ]),
           pw.SizedBox(height: 8),
           pw.Row(children: [
             _buildInfoColumn('FECHA INICIO DE CONTRATO', fechaInicioFormateada,
                 flex: 1),
             _buildInfoColumn('FECHA TÉRMINO DE CONTRATO', fechaFinFormateada,
+                flex: 1),
+            _buildInfoColumn('MONTO A RECUPERAR',
+                '${currencyFormat.format(credito.montoMasInteres)}',
                 flex: 1),
           ]),
         ],
@@ -342,7 +368,7 @@ class PDFControlPagos {
   }
 
   static List<pw.Widget> _buildPaymentTables(
-      List<DateTime> dates, Credito credito) {
+      List<DateTime> dates, Credito credito, final currencyFormat) {
     final blocks = _splitDates(dates, 4);
     final widgets = <pw.Widget>[];
 
@@ -377,7 +403,7 @@ class PDFControlPagos {
           ),
           child: pw.Column(
             children: [
-              _paymentTable(blocks[i], credito, startWeek),
+              _paymentTable(blocks[i], credito, startWeek, currencyFormat),
               if (i < blocks.length - 1) pw.SizedBox(height: 15), // Espaciado
             ],
           ),
@@ -390,16 +416,18 @@ class PDFControlPagos {
 
   // Modify the _paymentTable function to split "PAGO SOLIDARIO" into two columns
   static pw.Widget _paymentTable(
-      List<DateTime> dates, Credito credito, int startWeek) {
+      List<DateTime> dates, Credito credito, int startWeek,
+      final currencyFormat
+      ) {
     // Calcular totales
     double totalMontoAutorizado = 0;
-    double totalPagoSemanal = 0;
+    //double totalPagoSemanal = 0;
 
     for (var member in credito.clientesMontosInd) {
       totalMontoAutorizado += member.capitalIndividual;
     }
 
-    totalPagoSemanal += credito.pagoCuota;
+    //totalPagoSemanal += credito.pagoCuota;
 
     // Definir colores para la tabla
     final headerColor = PdfColor.fromHex('f2f7fa');
@@ -633,7 +661,7 @@ class PDFControlPagos {
                   ),
                   child: pw.Center(
                     child: pw.Text(
-                      '\$${NumberFormat("#,##0.00").format(credito.clientesMontosInd[memberIndex].capitalIndividual)}',
+                      '${currencyFormat.format(credito.clientesMontosInd[memberIndex].capitalIndividual)}',
                       style: pw.TextStyle(fontSize: 6),
                     ),
                   ),
@@ -650,7 +678,7 @@ class PDFControlPagos {
                   ),
                   child: pw.Center(
                     child: pw.Text(
-                      '\$${NumberFormat("#,##0.00").format(credito.clientesMontosInd[memberIndex].capitalMasInteres)}',
+                      '${currencyFormat.format(credito.clientesMontosInd[memberIndex].capitalMasInteres)}',
                       style: pw.TextStyle(fontSize: 6),
                     ),
                   ),
@@ -755,7 +783,7 @@ class PDFControlPagos {
                 ),
                 child: pw.Center(
                   child: pw.Text(
-                    '\$${NumberFormat("#,##0.00").format(totalMontoAutorizado)}',
+                    '${currencyFormat.format(totalMontoAutorizado)}',
                     style: pw.TextStyle(
                       fontSize: 6,
                       fontWeight: pw.FontWeight.bold,
@@ -776,7 +804,7 @@ class PDFControlPagos {
                 ),
                 child: pw.Center(
                   child: pw.Text(
-                    '\$${NumberFormat("#,##0.00").format(totalPagoSemanal)}',
+                    '${currencyFormat.format(credito.pagoCuota)}',
                     style: pw.TextStyle(
                       fontSize: 6,
                       fontWeight: pw.FontWeight.bold,

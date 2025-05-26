@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:finora/dialogs/configuracion.dart';
+import 'package:finora/models/credito.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/date_symbol_data_local.dart';
@@ -18,7 +19,7 @@ import 'package:finora/providers/user_data_provider.dart';
 import 'package:finora/ip.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // For baseUrl
 
-class PDFFichaPagoSemanal {
+class PDFCuentasPago {
   // Define some consistent brand colors
   static const PdfColor primaryColor =
       PdfColor.fromInt(0xFF5162F6); // Matching Finora blue
@@ -81,11 +82,11 @@ class PDFFichaPagoSemanal {
         cuentaLogos.add(await _loadNetworkImage(imageUrl));
       }
 
-      // 1. Check Permissions
+     /*  // 1. Check Permissions
       final status = await Permission.storage.request();
       if (!status.isGranted) {
         throw 'Storage permissions are required to save the PDF.';
-      }
+      } */
 
       // 2. Validate and Parse Dates
       if (!credito.fechasIniciofin.contains(' - ')) {

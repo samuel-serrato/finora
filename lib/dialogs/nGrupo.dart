@@ -1053,14 +1053,13 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                 color: Color(0xFF5162F6),
                 borderRadius: BorderRadius.all(Radius.circular(20))),
             width: 250,
-            height: 500,
             padding: EdgeInsets.symmetric(
                 vertical: 20, horizontal: 10), // Espaciado vertical
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 // Paso 1
-                _buildPasoItem(1, "Informacion del grupo", pasoActual == 1),
+                _buildPasoItem(1, "Información del grupo", pasoActual == 1),
                 SizedBox(height: 20),
 
                 // Paso 2
@@ -1204,13 +1203,12 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                 color: backgroundMenuColor,
                 borderRadius: BorderRadius.all(Radius.circular(20))),
             width: 250,
-            height: 500,
             padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 // Paso 1
-                _buildPasoItem(1, "Informacion del grupo", pasoActual == 1),
+                _buildPasoItem(1, "Información del grupo", pasoActual == 1),
                 SizedBox(height: 20),
 
                 // Paso 2

@@ -107,14 +107,6 @@ class ReporteGeneralWidget extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /*   Text(
-              'Reporte Contable Financiero',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: primaryColor,
-                    fontSize: 14,
-                  ),
-            ), */
               Row(
                 children: [
                   Text(
@@ -157,16 +149,12 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
   }
 
-  // Modificar todos los métodos para que acepten el contexto
+  // Header modificado para incluir las dos columnas de moratorios
   Widget _buildDataTableHeader(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    // Implementa el resto del código del header aquí
-    // Asegúrate de usar isDarkMode para adaptar los colores
-
     return Container(
-      // Usa colores adecuados para modo oscuro
       color: primaryColor,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       child: Row(
@@ -174,15 +162,15 @@ class ReporteGeneralWidget extends StatelessWidget {
           _buildHeaderCell('#', context),
           _buildHeaderCell('Tipo', context),
           _buildHeaderCell('Grupos', context),
-          _buildHeaderCell('Folio', context),
-          //_buildHeaderCell('ID Ficha', context),
           _buildHeaderCell('Pagos', context),
           _buildHeaderCell('Fecha', context),
           _buildHeaderCell('Monto', context),
           _buildHeaderCell('Capital', context),
           _buildHeaderCell('Interés', context),
           _buildHeaderCell('Saldo Favor', context),
-          _buildHeaderCell('Moratorios', context),
+          // Columnas de moratorios separadas
+          _buildHeaderCell('Moratorios\nGenerados', context),
+          _buildHeaderCell('Moratorios\nPagados', context),
         ],
       ),
     );
@@ -245,10 +233,6 @@ class ReporteGeneralWidget extends StatelessWidget {
                   context: context, alignment: Alignment.center),
               _buildBodyCell(reportesInGroup.first.grupos,
                   context: context, alignment: Alignment.center),
-              _buildBodyCell(reportesInGroup.first.folio,
-                  context: context, alignment: Alignment.center),
-              /*  _buildBodyCell(idFicha,
-                  alignment: Alignment.center, context: context), */
               _buildBodyCell(_buildPagosColumn(reportesInGroup, context),
                   alignment: Alignment.center, context: context),
               _buildBodyCell(
@@ -269,7 +253,11 @@ class ReporteGeneralWidget extends StatelessWidget {
                   context: context),
               _buildBodyCell(_buildSaldoFavor(reportesInGroup, context),
                   alignment: Alignment.center, context: context),
-              _buildBodyCell(_buildMoratorios(reportesInGroup, context),
+              // Moratorios Generados
+              _buildBodyCell(_buildMoratoriosGenerados(reportesInGroup, context),
+                  alignment: Alignment.center, context: context),
+              // Moratorios Pagados
+              _buildBodyCell(_buildMoratoriosPagados(reportesInGroup, context),
                   alignment: Alignment.center, context: context),
             ],
           ),
@@ -284,8 +272,7 @@ class ReporteGeneralWidget extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    return Flexible(
-      fit: FlexFit.tight,
+    return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8),
         alignment: alignment,
@@ -433,21 +420,50 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildMoratorios(List<ReporteGeneral> reportes, BuildContext context) {
+  // Nueva función para Moratorios Generados
+  Widget _buildMoratoriosGenerados(List<ReporteGeneral> reportes, BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    final moratorios = reportes.first.moratorios;
-    final color = moratorios > 0
+    // Aquí debes obtener el valor de moratorios generados desde tu modelo
+    // Asumiendo que tienes un campo moratoriosGenerados en tu modelo
+    final moratoriosGenerados = reportes.first.moratorios; // O el campo correspondiente
+    final color = moratoriosGenerados > 0
         ? (isDarkMode ? Colors.red.shade300 : Colors.red)
         : (isDarkMode ? Colors.white70 : Colors.grey[800]);
 
-    return Text(
-      currencyFormat.format(moratorios),
-      style: TextStyle(
-        fontSize: cellTextSize,
-        color: color,
-        fontWeight: moratorios > 0 ? FontWeight.bold : FontWeight.normal,
+    return Container(
+      child: Text(
+        currencyFormat.format(moratoriosGenerados),
+        style: TextStyle(
+          fontSize: cellTextSize,
+          color: color,
+          fontWeight: moratoriosGenerados > 0 ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  // Nueva función para Moratorios Pagados
+  Widget _buildMoratoriosPagados(List<ReporteGeneral> reportes, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Aquí debes obtener el valor de moratorios pagados desde tu modelo
+    // Asumiendo que tienes un campo moratoriosPagados en tu modelo
+    final moratoriosPagados = 0.0; // Reemplaza con el campo correspondiente de tu modelo
+    final color = moratoriosPagados > 0
+        ? (isDarkMode ? Colors.green.shade300 : Colors.green)
+        : (isDarkMode ? Colors.white70 : Colors.grey[800]);
+
+    return Container(
+      child: Text(
+        currencyFormat.format(moratoriosPagados),
+        style: TextStyle(
+          fontSize: cellTextSize,
+          color: color,
+          fontWeight: moratoriosPagados > 0 ? FontWeight.bold : FontWeight.normal,
+        ),
       ),
     );
   }
@@ -458,12 +474,14 @@ class ReporteGeneralWidget extends StatelessWidget {
         _buildTotalsRow(
           'Totales',
           [
-            (value: reporteData!.totalPagoficha, column: 5),
-            (value: reporteData!.totalFicha, column: 7),
-            (value: reporteData!.totalCapital, column: 8),
-            (value: reporteData!.totalInteres, column: 9),
-            (value: reporteData!.totalSaldoFavor, column: 10),
-            (value: reporteData!.saldoMoratorio, column: 11),
+            (value: reporteData!.totalPagoficha, column: 3),
+            (value: reporteData!.totalFicha, column: 5),
+            (value: reporteData!.totalCapital, column: 6),
+            (value: reporteData!.totalInteres, column: 7),
+            (value: reporteData!.totalSaldoFavor, column: 8),
+            // Totales para las nuevas columnas de moratorios
+            (value: reporteData!.saldoMoratorio, column: 9), // Moratorios Generados
+            (value: 0.0, column: 10), // Moratorios Pagados - reemplaza con el campo correcto
           ],
         ),
       ],
@@ -576,11 +594,13 @@ class ReporteGeneralWidget extends StatelessWidget {
 
   Widget _buildTotalsRow(
       String label, List<({double value, int column})> values) {
-    List<Widget> cells = List.generate(12, (_) => Expanded(child: Container()));
+    // Ahora necesitamos 12 columnas en lugar de 10
+    List<Widget> cells = List.generate(11, (_) => Expanded(child: Container()));
 
     cells[0] = Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
@@ -593,22 +613,22 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
 
     for (final val in values) {
-      cells[val.column] = Flexible(
-        fit: FlexFit.tight,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          alignment: Alignment.center,
-          child: Text(
-            currencyFormat.format(val.value),
-            style: TextStyle(
-              fontSize: cellTextSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+        cells[val.column] = Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+            alignment: Alignment.center,
+            child: Text(
+              currencyFormat.format(val.value),
+              style: TextStyle(
+                fontSize: cellTextSize,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ),
-        ),
-      );
-    }
+        );
+      }
+    
 
     return Container(
       color: const Color(0xFF5162F6),

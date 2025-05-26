@@ -33,12 +33,20 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  final TextEditingController _ipController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _loadRememberedUser();
+    //  _loadBaseUrl();
   }
 
+/*   Future<void> _loadBaseUrl() async {
+    await initBaseUrl();
+    _ipController.text = baseUrl;
+  }
+ */
   Future<void> _loadRememberedUser() async {
     final prefs = await SharedPreferences.getInstance();
     final savedUser = prefs.getString('rememberedUser');
@@ -272,6 +280,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             passwordController: _passwordController,
                             onLogin: _handleLogin,
                             rememberMe: _rememberMe,
+                            ipController: _ipController,
                             onRememberMeChanged: (value) {
                               setState(() {
                                 _rememberMe = value;
@@ -528,6 +537,7 @@ class LoginForm extends StatefulWidget {
   final VoidCallback onLogin;
   final bool rememberMe;
   final ValueChanged<bool> onRememberMeChanged;
+  final TextEditingController ipController;
 
   const LoginForm({
     Key? key,
@@ -536,6 +546,7 @@ class LoginForm extends StatefulWidget {
     required this.onLogin,
     required this.rememberMe,
     required this.onRememberMeChanged,
+    required this.ipController,
   }) : super(key: key);
 
   @override
@@ -654,6 +665,60 @@ class _LoginFormState extends State<LoginForm> {
             ),
           ],
         ),
+        /*  const SizedBox(height: 20.0),
+        Text(
+          "Servidor (IP o dominio):",
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: isDarkMode ? Colors.white70 : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8.0),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: widget.ipController,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.language),
+                  hintText: "https://tuservidor.com",
+                  filled: true,
+                  fillColor: isDarkMode ? Colors.grey[850] : Colors.grey[200],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5162F6),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () async {
+                await updateBaseUrl(widget.ipController.text.trim());
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'Servidor actualizado: ${widget.ipController.text.trim()}'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.save, size: 16, color: Colors.white),
+              label: const Text(
+                "Guardar IP",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ), */
         const SizedBox(height: 40.0),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -759,3 +824,4 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 }
+

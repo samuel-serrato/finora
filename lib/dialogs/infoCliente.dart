@@ -349,42 +349,44 @@ class _InfoClienteState extends State<InfoCliente> {
                                                 ),
                                               ],
                                             ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                if (clienteData!['cuentabanco']
-                                                    is List)
-                                                  for (var cuenta
-                                                      in clienteData![
-                                                          'cuentabanco']) ...[
-                                                    _buildDetailRow(
-                                                        'Banco:',
-                                                        _getValidatedValue(
-                                                            cuenta[
-                                                                'nombreBanco']),
-                                                        isDarkMode),
-                                                    _buildDetailRow(
-                                                        'Núm. de Cuenta:',
-                                                        _getValidatedValue(
-                                                            cuenta[
-                                                                'numCuenta']),
-                                                        isDarkMode),
-                                                    _buildDetailRow(
-                                                        'CLABE Interbancaria:',
-                                                        _getValidatedValue(
-                                                            cuenta[
-                                                                'clbIntBanc']),
-                                                        isDarkMode),
-                                                    _buildDetailRow(
-                                                        'Núm. de Tarjeta:',
-                                                        _getValidatedValue(
-                                                            cuenta[
-                                                                'numTarjeta']),
-                                                        isDarkMode),
-                                                    SizedBox(height: 16),
-                                                  ],
-                                              ],
+                                            child: SingleChildScrollView(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  if (clienteData!['cuentabanco']
+                                                      is List)
+                                                    for (var cuenta
+                                                        in clienteData![
+                                                            'cuentabanco']) ...[
+                                                      _buildDetailRow(
+                                                          'Banco:',
+                                                          _getValidatedValue(
+                                                              cuenta[
+                                                                  'nombreBanco']),
+                                                          isDarkMode),
+                                                      _buildDetailRow(
+                                                          'Núm. de Cuenta:',
+                                                          _getValidatedValue(
+                                                              cuenta[
+                                                                  'numCuenta']),
+                                                          isDarkMode),
+                                                      _buildDetailRow(
+                                                          'CLABE Interbancaria:',
+                                                          _getValidatedValue(
+                                                              cuenta[
+                                                                  'clbIntBanc']),
+                                                          isDarkMode),
+                                                      _buildDetailRow(
+                                                          'Núm. de Tarjeta:',
+                                                          _getValidatedValue(
+                                                              cuenta[
+                                                                  'numTarjeta']),
+                                                          isDarkMode),
+                                                      SizedBox(height: 16),
+                                                    ],
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ],

@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'package:finora/helpers/pdf_exporter_controlpago.dart';
 import 'package:finora/helpers/pdf_exporter_cuentaspago.dart';
+import 'package:finora/helpers/pdf_resumen_credito.dart';
+import 'package:finora/models/cliente_monto.dart';
+import 'package:finora/models/credito.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -880,7 +883,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                       'Tipo',
                                                       creditoData!.tipoPlazo ??
                                                           'No disponible'),
-                                                  _buildDetailRow('Monto Total',
+                                                  _buildDetailRow(
+                                                      'Monto Autorizado',
                                                       "\$${formatearNumero(creditoData!.montoTotal ?? 0.0)}"),
                                                   _buildDetailRow(
                                                       'Interés Mensual',
@@ -1046,6 +1050,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                             .pagoCuota,
                                                         plazo:
                                                             creditoData!.plazo,
+                                                        garantia: creditoData!
+                                                            .garantia,
                                                       ),
                                                     ],
                                                   ),
@@ -1333,148 +1339,6 @@ class _InfoCreditoState extends State<InfoCredito> {
         title,
         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
-    );
-  }
-}
-
-class ClienteMonto {
-  final String idamortizacion;
-  final String nombreCompleto;
-  final String cargo;
-  final double capitalIndividual;
-  final double periodoCapital;
-  final double periodoInteres;
-  final double totalCapital;
-  final double totalIntereses;
-  final double periodoInteresPorcentaje;
-  final double capitalMasInteres;
-  final double total;
-
-  ClienteMonto({
-    required this.idamortizacion,
-    required this.nombreCompleto,
-    required this.cargo,
-    required this.capitalIndividual,
-    required this.periodoCapital,
-    required this.periodoInteres,
-    required this.totalCapital,
-    required this.totalIntereses,
-    required this.periodoInteresPorcentaje,
-    required this.capitalMasInteres,
-    required this.total,
-  });
-
-  factory ClienteMonto.fromJson(Map<String, dynamic> json) {
-    return ClienteMonto(
-      idamortizacion: json['idamortizacion'],
-      nombreCompleto: json['nombreCompleto'],
-      cargo: json['cargo'],
-      capitalIndividual: json['capitalIndividual'].toDouble(),
-      periodoCapital: json['periodoCapital'].toDouble(),
-      periodoInteres: json['periodoInteres'].toDouble(),
-      totalCapital: json['totalCapital'].toDouble(),
-      totalIntereses: json['interesTotal'].toDouble(),
-      periodoInteresPorcentaje: json['periodoInteresPorcentaje'].toDouble(),
-      capitalMasInteres: json['capitalMasInteres'].toDouble(),
-      total: json['total'].toDouble(),
-    );
-  }
-}
-
-class Credito {
-  final String idcredito;
-  final String idgrupos;
-  final String nombreGrupo;
-  final String detalles;
-  final String asesor;
-  final String diaPago;
-  final int plazo;
-  final String tipoPlazo;
-  final String tipo;
-  final double ti_mensual;
-  final String ti_semanal;
-  final String folio;
-  final String garantia;
-  final double montoGarantia;
-  final double montoDesembolsado;
-  final double interesGlobal;
-  final double semanalCapital; // Nuevo campo
-  final double semanalInteres; // Nuevo campo
-  final double montoTotal;
-  final double interesTotal;
-  final double montoMasInteres;
-  final double pagoCuota;
-  final String numPago;
-  final String fechasIniciofin;
-  final String estado;
-  final String fCreacion;
-  final List<ClienteMonto> clientesMontosInd;
-
-  Credito({
-    required this.idcredito,
-    required this.idgrupos,
-    required this.nombreGrupo,
-    required this.detalles,
-    required this.asesor,
-    required this.diaPago,
-    required this.plazo,
-    required this.tipoPlazo,
-    required this.tipo,
-    required this.ti_mensual,
-    required this.ti_semanal,
-    required this.folio,
-    required this.garantia,
-    required this.montoGarantia,
-    required this.montoDesembolsado,
-    required this.interesGlobal,
-    required this.semanalCapital, // Nuevo campo
-    required this.semanalInteres, // Nuevo campo
-    required this.montoTotal,
-    required this.interesTotal,
-    required this.montoMasInteres,
-    required this.pagoCuota,
-    required this.numPago,
-    required this.fechasIniciofin,
-    required this.estado,
-    required this.fCreacion,
-    required this.clientesMontosInd,
-  });
-
-  factory Credito.fromJson(Map<String, dynamic> json) {
-    //print("Procesando JSON: $json");
-    //print("Campo plazo: ${json['plazo']}");
-    //print("Campo numPago: ${json['numPago']}");
-    return Credito(
-      idcredito: json['idcredito'] ?? "",
-      idgrupos: json['idgrupos'] ?? "",
-      nombreGrupo: json['nombreGrupo'] ?? "",
-      detalles: json['detalles'] ?? "",
-      asesor: json['asesor'] ?? "",
-      diaPago: json['diaPago'] ?? "",
-      plazo: json['plazo'] ?? 0, // Ya es un número, no necesita conversión
-      tipoPlazo: json['tipoPlazo'] ?? "",
-      tipo: json['tipo'] ?? "",
-      ti_mensual: (json['ti_mensual'] as num?)?.toDouble() ?? 0.0,
-      ti_semanal: json['ti_semanal'] ?? "",
-      folio: json['folio'] ?? "",
-      garantia: json['garantia'] ?? "",
-      montoGarantia: (json['montoGarantia'] as num?)?.toDouble() ?? 0.0,
-      montoDesembolsado: (json['montoDesembolsado'] as num?)?.toDouble() ?? 0.0,
-      interesGlobal: (json['interesGlobal'] as num?)?.toDouble() ?? 0.0,
-      semanalCapital: (json['semanalCapital'] as num?)?.toDouble() ?? 0.0,
-      semanalInteres: (json['semanalInteres'] as num?)?.toDouble() ?? 0.0,
-      montoTotal: (json['montoTotal'] as num?)?.toDouble() ?? 0.0,
-      interesTotal: (json['interesTotal'] as num?)?.toDouble() ?? 0.0,
-      montoMasInteres: (json['montoMasInteres'] as num?)?.toDouble() ?? 0.0,
-      pagoCuota: (json['pagoCuota'] as num?)?.toDouble() ?? 0.0,
-      numPago: json['numPago'] ?? "", // Este es un texto
-      fechasIniciofin: json['fechasIniciofin'] ?? "",
-      estado:
-          json['estado_credito']?['esatado'] ?? "", // Manejo del objeto anidado
-      fCreacion: json['fCreacion'] ?? "",
-      clientesMontosInd: (json['clientesMontosInd'] as List? ?? [])
-          .map((e) => ClienteMonto.fromJson(e))
-          .toList(),
     );
   }
 }
@@ -3339,8 +3203,8 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                       : Colors.grey[
                                                                           700],
                                                                 ),
-                                                                prefixText:
-                                                                    '\$', // Mostrar el símbolo "$" dentro del campo
+                                                            /*     prefixText:
+                                                                    '\$', // Mostrar el símbolo "$" dentro del campo */
                                                                 prefixStyle:
                                                                     TextStyle(
                                                                   fontSize: 14,
@@ -3749,7 +3613,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                 ),
 
                                 // En la clase _PaginaControlState (dentro del método build):
-                                _buildTableCell(
+                                /*  _buildTableCell(
                                   esPago1
                                       ? "-"
                                       : (pago.saldoEnContra != null &&
@@ -3757,6 +3621,16 @@ class _PaginaControlState extends State<PaginaControl> {
                                           ? pago.moratorioDesabilitado == "Si"
                                               ? "-" // Mostrar "-" si están deshabilitados
                                               : "\$${formatearNumero(pago.saldoEnContra!)}"
+                                          : "-",
+                                  flex: 18,
+                                ), */
+
+                                _buildTableCell(
+                                  esPago1
+                                      ? "-"
+                                      : (pago.saldoEnContra != null &&
+                                              pago.saldoEnContra! > 0.0)
+                                          ? "\$${formatearNumero(pago.saldoEnContra!)}" // Mostrar siempre el valor
                                           : "-",
                                   flex: 18,
                                 ),
@@ -4840,6 +4714,7 @@ class PaginaIntegrantes extends StatelessWidget {
   final String tipoPlazo;
   final double pagoCuota;
   final int plazo;
+  final String garantia;
 
   const PaginaIntegrantes({
     Key? key,
@@ -4847,6 +4722,7 @@ class PaginaIntegrantes extends StatelessWidget {
     required this.tipoPlazo,
     required this.pagoCuota,
     required this.plazo,
+    required this.garantia,
   }) : super(key: key);
 
   String formatearNumero(double numero) {
@@ -4887,7 +4763,7 @@ class PaginaIntegrantes extends StatelessWidget {
     Widget _buildHeaderCell(String text) {
       return Expanded(
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(4.0),
           child:
               Text(text, style: headerTextStyle, textAlign: TextAlign.center),
         ),
@@ -4925,8 +4801,16 @@ class PaginaIntegrantes extends StatelessWidget {
     final interesColumnText =
         tipoPlazo == 'Semanal' ? 'Interés Sem.' : 'Interés Qna.';
 
-    // Sumar las columnas numéricas
+    // Convertir garantía de String a decimal (por ejemplo: "10%" -> 0.10)
+    final garantiaDecimal =
+        double.tryParse(garantia.replaceAll('%', '').trim()) ?? 0.0;
+    final factorDesembolso = 1 - garantiaDecimal / 100;
+
+    print('factorDesembolso: $factorDesembolso');
+
+    // Inicializar sumatorias
     double sumCapitalIndividual = 0;
+    double sumMontoDesembolsado = 0;
     double sumPeriodoCapital = 0;
     double sumPeriodoInteres = 0;
     double sumTotalCapital = 0;
@@ -4935,7 +4819,11 @@ class PaginaIntegrantes extends StatelessWidget {
     double sumTotal = 0;
 
     for (var cliente in clientesMontosInd) {
+      final montoDesembolsadoIndividual =
+          cliente.capitalIndividual * factorDesembolso;
+
       sumCapitalIndividual += cliente.capitalIndividual;
+      sumMontoDesembolsado += montoDesembolsadoIndividual;
       sumPeriodoCapital += cliente.periodoCapital;
       sumPeriodoInteres += cliente.periodoInteres;
       sumTotalCapital += cliente.totalCapital;
@@ -4960,7 +4848,7 @@ class PaginaIntegrantes extends StatelessWidget {
                 children: [
                   // Encabezado de la tabla (como un Row con fondo y bordes redondeados)
                   Container(
-                    height: 40,
+                    height: 50,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: Color(0xFF5162F6), // Fondo del encabezado
@@ -4968,7 +4856,8 @@ class PaginaIntegrantes extends StatelessWidget {
                     child: Row(
                       children: [
                         _buildHeaderCell("Nombre"),
-                        _buildHeaderCell("M. Individual"),
+                        _buildHeaderCell("Autorizado"),
+                        _buildHeaderCell("Desembolsado"), // Nueva columna
                         _buildHeaderCell(capitalColumnText),
                         _buildHeaderCell(interesColumnText),
                         _buildHeaderCell("Total Capital"),
@@ -4986,6 +4875,8 @@ class PaginaIntegrantes extends StatelessWidget {
                         _buildDataCell(
                             "\$${formatearNumero(cliente.capitalIndividual)}"),
                         _buildDataCell(
+                            "\$${formatearNumero(cliente.capitalIndividual * factorDesembolso)}"),
+                        _buildDataCell(
                             "\$${formatearNumero(cliente.periodoCapital)}"),
                         _buildDataCell(
                             "\$${formatearNumero(cliente.periodoInteres)}"),
@@ -5002,16 +4893,22 @@ class PaginaIntegrantes extends StatelessWidget {
                   Container(
                     height: 40,
                     decoration: BoxDecoration(
-                      color: totalRowColor, // Fondo de la fila de totales
-                      borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20)),
+                      color: totalRowColor,
+                      borderRadius: (pagoCuota != sumCapitalMasInteres)
+                          ? BorderRadius.only(
+                              topLeft: Radius.circular(12),
+                              topRight: Radius.circular(12),
+                            )
+                          : BorderRadius.circular(
+                              12), // Todos los bordes redondeados
                     ),
                     child: Row(
                       children: [
                         _buildTotalCell("Totales"),
                         _buildTotalCell(
                             "\$${formatearNumero(sumCapitalIndividual)}"),
+                        _buildTotalCell(
+                            "\$${formatearNumero(sumMontoDesembolsado)}"), // Nueva celda total
                         _buildTotalCell(
                             "\$${formatearNumero(sumPeriodoCapital)}"),
                         _buildTotalCell(
@@ -5026,9 +4923,7 @@ class PaginaIntegrantes extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Nueva fila de Redondeado (con mismo color que totales)
-
-                  // Mostrar solo si pagoCuota != sumCapitalMasInteres
+                  // Mostrar la fila "Redondeado" solo si corresponde
                   if (pagoCuota != sumCapitalMasInteres)
                     Container(
                       height: 40,
@@ -5044,6 +4939,8 @@ class PaginaIntegrantes extends StatelessWidget {
                         children: [
                           _buildTotalCell("Redondeado"),
                           _buildTotalCell(""),
+                          _buildTotalCell(
+                              ""), // Celda vacía para la nueva columna
                           _buildTotalCell(""),
                           _buildTotalCell(""),
                           _buildTotalCell(""),
@@ -5247,12 +5144,37 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
       if (!mounted || savePath == null) return;
 
       // Pass context and credito object to the new generator
-      await PDFFichaPagoSemanal.generar(context, widget.credito, savePath);
+      await PDFCuentasPago.generar(context, widget.credito, savePath);
       if (!mounted) return;
       await _abrirArchivoGuardado(savePath);
     } catch (e) {
       if (mounted)
         _mostrarError('Error al generar Ficha de Pago: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _documentoDescargando = null);
+    }
+  }
+
+  Future<void> _generarResumenCredito() async {
+    setState(() => _documentoDescargando = 'resumen_credito');
+
+    try {
+      final String? savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Guardar Resumen de Crédito',
+        fileName: 'Resumen_Credito_${widget.folio}.pdf',
+        allowedExtensions: ['pdf'],
+        type: FileType.custom,
+      );
+
+      if (!mounted || savePath == null) return;
+
+      await PDFResumenCredito.generar(context, widget.credito, savePath);
+      if (!mounted) return;
+      await _abrirArchivoGuardado(savePath);
+    } catch (e) {
+      if (mounted) {
+        _mostrarError('Error al generar Resumen de Crédito: ${e.toString()}');
+      }
     } finally {
       if (mounted) setState(() => _documentoDescargando = null);
     }
@@ -5491,6 +5413,14 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
           color: Colors.orange[900]!, // Example color
           documento: 'ficha_pago', // Unique identifier for loading state
           onTap: _generarFichaPagoSemanal, // Link to the new function
+        ),
+        const SizedBox(height: 15),
+        _buildBotonDescarga(
+          titulo: 'Descargar Resumen de Crédito',
+          icono: Icons.picture_as_pdf_rounded,
+          color: Colors.teal[700]!,
+          documento: 'resumen_credito',
+          onTap: _generarResumenCredito,
         ),
       ],
     );

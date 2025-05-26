@@ -1417,12 +1417,17 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
     montoGarantia = calcularMontoGarantia(garantiaTexto!, monto);
 
+    double montoDesembolsadoNumerico = monto - montoGarantia;
+    String montoDesembolsadoFormateado =
+        formatearNumero(montoDesembolsadoNumerico);
+
     void imprimirDatosGenerales() {
       print("=== Datos Generales ===");
       print("Grupo: ${selectedGrupo ?? "No especificado"}");
       print(
           "Duración: ${_formatearFecha(fechaInicio)} - ${_formatearFecha(fechaTerminoCalculada)}");
       print("Monto autorizado: \$${montoAutorizado}");
+      print("Monto Desembolsado: \$${montoDesembolsadoFormateado}");
       print("Tasa de interés mensual: $tasaInteres");
       print("Garantía: $garantiaTexto");
       print("Monto Garantía: \$${formatearNumero(montoGarantia)}");
@@ -1542,162 +1547,168 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     }
 
     return Row(
-      children: [
-        _recuadroPasos(pasoActual),
-        SizedBox(width: 50),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Resumen del Crédito',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 2),
-                  // Sección Datos Generales
-                  Container(
-                    margin: EdgeInsets.symmetric(vertical: 10),
-                    padding: EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          offset: Offset(0, 1),
-                          blurRadius: 3,
-                        ),
-                      ],
-                      borderRadius: BorderRadius.circular(8),
+  children: [
+    _recuadroPasos(pasoActual),
+    SizedBox(width: 50),
+    Expanded(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Resumen del Crédito',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 2),
+              // Sección Datos Generales
+              Container(
+                margin: EdgeInsets.symmetric(vertical: 10),
+                padding: EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      offset: Offset(0, 1),
+                      blurRadius: 3,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  ],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            // Texto 'Datos Generales - ' a la izquierda
-                            Text(
-                              'Datos Generales - ',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
-                            // Grupo alineado a la izquierda
-                            Expanded(
-                              child: Text(
-                                selectedGrupo ?? "No especificado",
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w600),
-                                overflow: TextOverflow
-                                    .ellipsis, // Asegura que el texto largo no rompa el diseño
-                              ),
-                            ),
-                            // Fecha de inicio alineada a la derecha
-                            Text('Duración: '),
-                            Text(
-                              '${_formatearFecha(fechaInicio)}', // Formateo de fecha de inicio
-                              style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w400),
-                            ),
-                            Text(' - '),
-                            Text(
-                              '${_formatearFecha(fechaTerminoCalculada)}', // Formateo de fecha de término
-                              style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w400),
-                            ),
-                          ],
+                        Text(
+                          'Datos Generales - ',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600),
                         ),
-                        Divider(),
-                        // Usar Rows para distribuir los datos en columnas
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow(
-                                'Monto autorizado: ', '\$${montoAutorizado}'),
-                            _infoRow('Tasa de interés mensual: ', tasaInteres!),
-                          ],
+                        Expanded(
+                          child: Text(
+                            selectedGrupo ?? "No especificado",
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow('Garantía: ', garantiaTexto!),
-                            _infoRow(
-                              frecuenciaPago == "Semanal"
-                                  ? 'Interés Semanal: '
-                                  : frecuenciaPago == "Quincenal"
-                                      ? 'Interés Quincenal: '
-                                      : '',
-                              '${(interesPorcentaje).toString()} %',
-                            ),
-                          ],
+                        Text('Duración: '),
+                        Text(
+                          '${_formatearFecha(fechaInicio)}',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w400),
                         ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow('Monto Garantía: ',
-                                '\$${formatearNumero(montoGarantia)}'),
-                            _infoRow('Plazo: ', plazoNumerico.toString()),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow('Interés Global: ',
-                                '${formatearNumero(interesGlobal)}%'),
-                            // Condicional para el "Día de pago"
-                            frecuenciaPago == "Quincenal"
-                                ? _infoRow('Día de pago: ', 'Cada quincena')
-                                : _infoRow('Día de pago: ', diaPago!),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow(
-                                frecuenciaPago == "Semanal"
-                                    ? 'Capital Semanal: '
-                                    : frecuenciaPago == "Quincenal"
-                                        ? 'Capital Quincenal: '
-                                        : '',
-                                '\$${formatearNumero(capitalPago)}'),
-                            _infoRow(
-                                frecuenciaPago == "Semanal"
-                                    ? 'Interés Semanal: '
-                                    : frecuenciaPago == "Quincenal"
-                                        ? 'Interés Quincenal: '
-                                        : '',
-                                '\$${formatearNumero(interesPago)}'),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow(
-                              frecuenciaPago == "Semanal"
-                                  ? 'Pago Semanal: '
-                                  : frecuenciaPago == "Quincenal"
-                                      ? 'Pago Quincenal: '
-                                      : '',
-                              '\$${formatearNumero(redondearDecimales(pagoTotal, context))}',
-                            ),
-                            _infoRow('Interés Total: ',
-                                '\$${formatearNumero(interesTotal)}'),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow(
-                                'Frecuencia de pago: ', frecuenciaPagoTexto!),
-                            _infoRow('Total a Recuperar: ',
-                                '\$${formatearNumero(totalARecuperar)}'),
-                          ],
+                        Text(' - '),
+                        Text(
+                          '${_formatearFecha(fechaTerminoCalculada)}',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w400),
                         ),
                       ],
                     ),
-                  ),
+                    Divider(),
+                    // Usar Rows para distribuir los datos en columnas
+                    // Son 15 items en total. 7 filas de 2 y 1 fila de 1.
+
+                    // Fila 1
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _infoRow('Monto autorizado: ', '\$${montoAutorizado}'),
+                        _infoRow('Monto Desembolsado: ', '\$${montoDesembolsadoFormateado}'), // <-- NUEVO CAMPO
+                      ],
+                    ),
+                    // Fila 2
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _infoRow('Garantía: ', garantiaTexto!),
+                        _infoRow('Tasa de interés mensual: ', tasaInteres!),
+                      ],
+                    ),
+                    // Fila 3
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _infoRow('Monto Garantía: ', '\$${formatearNumero(montoGarantia)}'),
+                        _infoRow(
+                          frecuenciaPago == "Semanal"
+                              ? 'Interés Semanal (%): '
+                              : frecuenciaPago == "Quincenal"
+                                  ? 'Interés Quincenal (%): '
+                                  : 'Interés por Período (%): ',
+                          '${(interesPorcentaje).toStringAsFixed(2)} %',
+                        ),
+                      ],
+                    ),
+                    // Fila 4
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _infoRow('Frecuencia de pago: ', frecuenciaPagoTexto!),
+                         _infoRow('Plazo: ', plazoNumerico.toString()),
+                      ],
+                    ),
+                    // Fila 5
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _infoRow('Interés Global: ', '${formatearNumero(interesGlobal)}%'),
+                        frecuenciaPago == "Quincenal"
+                            ? _infoRow('Día de pago: ', 'Cada quincena')
+                            : _infoRow('Día de pago: ', diaPago ?? "No especificado"),
+                      ],
+                    ),
+                    // Fila 6
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _infoRow(
+                            frecuenciaPago == "Semanal"
+                                ? 'Capital Semanal: '
+                                : frecuenciaPago == "Quincenal"
+                                    ? 'Capital Quincenal: '
+                                    : 'Capital por Período: ',
+                            '\$${formatearNumero(capitalPago)}'),
+                        _infoRow(
+                            frecuenciaPago == "Semanal"
+                                ? 'Interés Semanal (\$): '
+                                : frecuenciaPago == "Quincenal"
+                                    ? 'Interés Quincenal (\$): '
+                                    : 'Interés por Período (\$): ',
+                            '\$${formatearNumero(interesPago)}'),
+                      ],
+                    ),
+                    // Fila 7
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _infoRow(
+                          frecuenciaPago == "Semanal"
+                              ? 'Pago Semanal: '
+                              : frecuenciaPago == "Quincenal"
+                                  ? 'Pago Quincenal: '
+                                  : 'Pago por Período: ',
+                          '\$${formatearNumero(redondearDecimales(pagoTotal, context))}',
+                        ),
+                        _infoRow('Interés Total: ', '\$${formatearNumero(interesTotal)}'),
+                      ],
+                    ),
+                    // Fila 8 (Último item solo a la izquierda)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _infoRow('Total a Recuperar: ', '\$${formatearNumero(totalARecuperar)}'),
+                        Expanded(child: SizedBox()), // Ocupa el espacio restante a la derecha
+                      ],
+                    ),
+                  ],
+                ),
+              ),
 
                   SizedBox(height: 20),
                   // Sección Integrantes y Montos
@@ -2299,7 +2310,6 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         borderRadius: BorderRadius.all(Radius.circular(20)),
       ),
       width: 250,
-      height: 500,
       padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,

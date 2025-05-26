@@ -643,9 +643,9 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                 ),
                               ),
                               SizedBox(height: 8),
-                              _buildDetailRowIG('ID:', grupoData!.idgrupos),
+                              //_buildDetailRowIG('ID:', grupoData!.idgrupos),
                               _buildDetailRowIG(
-                                  'Nombre:', grupoData!.nombreGrupo),
+                                  '', grupoData!.nombreGrupo),
                               _buildDetailRowIG('Tipo:', grupoData!.tipoGrupo),
                               _buildDetailRowIG(
                                   'Detalles:', grupoData!.detalles),
@@ -912,7 +912,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                                 .spaceBetween,
                                                         children: [
                                                           Text(
-                                                            'Grupo: ${historialItem['nombreGrupo']}',
+                                                            '${historialItem['nombreGrupo']}',
                                                             style: TextStyle(
                                                               fontSize: 14,
                                                               fontWeight:

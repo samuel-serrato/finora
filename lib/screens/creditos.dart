@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:finora/models/credito.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
 import 'package:finora/widgets/pagination.dart';
@@ -792,9 +793,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           DataColumn(
               label: Text('Autorizado',
                   style: TextStyle(fontSize: textHeaderTableSize))),
-          DataColumn(
+       /*    DataColumn(
               label: Text('Desembolsado',
-                  style: TextStyle(fontSize: textHeaderTableSize))),
+                  style: TextStyle(fontSize: textHeaderTableSize))), */
           DataColumn(
               label: Text('Interés',
                   style: TextStyle(fontSize: textHeaderTableSize))),
@@ -858,9 +859,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               DataCell(Center(
                   child: Text('\$${formatearNumero(credito.montoTotal)}',
                       style: TextStyle(fontSize: textTableSize)))),
-              DataCell(Center(
+           /*    DataCell(Center(
                   child: Text('\$${formatearNumero(credito.montoDesembolsado)}',
-                      style: TextStyle(fontSize: textTableSize)))),
+                      style: TextStyle(fontSize: textTableSize)))), */
               DataCell(Center(
                   child: Text('${credito.ti_mensual}%',
                       style: TextStyle(fontSize: textTableSize)))),
@@ -877,7 +878,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   child: Text('${credito.numPago}',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
-                  child: Text(credito.estadoCredito.estado,
+                  child: Text(credito.estadoInterno!,
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Container(
                 width: 70,
@@ -934,7 +935,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                               TextButton(
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  _eliminarCredito(credito.idCredito);
+                                  _eliminarCredito(credito.idcredito);
                                 },
                                 child: const Text('Eliminar',
                                     style: TextStyle(color: Colors.red)),
@@ -1175,109 +1176,3 @@ String formatearNumero(double numero) {
   return formatter.format(numero);
 }
 
-class Credito {
-  final String idCredito;
-  final String nombreGrupo;
-  final int plazo;
-  final String tipoPlazo;
-  final String tipo;
-  final double interes;
-  final double montoDesembolsado;
-  final String folio;
-  final String diaPago;
-  final double garantia;
-  final double pagoCuota;
-  final double interesGlobal;
-  final double montoTotal;
-  final double ti_mensual;
-  final String ti_semanal;
-  final double interesTotal;
-  final double montoMasInteres;
-  final String numPago;
-  final String fechasIniciofin;
-  final DateTime fCreacion;
-  final String estado;
-  final EstadoCredito estadoCredito;
-
-  Credito({
-    required this.idCredito,
-    required this.nombreGrupo,
-    required this.plazo,
-    required this.tipoPlazo,
-    required this.tipo,
-    required this.interes,
-    required this.montoDesembolsado,
-    required this.folio,
-    required this.diaPago,
-    required this.garantia,
-    required this.pagoCuota,
-    required this.interesGlobal,
-    required this.montoTotal,
-    required this.ti_mensual,
-    required this.ti_semanal,
-    required this.interesTotal,
-    required this.montoMasInteres,
-    required this.numPago,
-    required this.fechasIniciofin,
-    required this.estadoCredito,
-    required this.estado,
-    required this.fCreacion,
-  });
-
-  factory Credito.fromJson(Map<String, dynamic> json) {
-    return Credito(
-      idCredito: json['idcredito'],
-      nombreGrupo: json['nombreGrupo'],
-      plazo: json['plazo'] is String ? int.parse(json['plazo']) : json['plazo'],
-      tipoPlazo: json['tipoPlazo'],
-      tipo: json['tipo'],
-      interes: json['interesGlobal'].toDouble(),
-      montoDesembolsado: json['montoDesembolsado'].toDouble(),
-      folio: json['folio'],
-      diaPago: json['diaPago'],
-      garantia: double.parse(json['garantia'].replaceAll('%', '')),
-      pagoCuota: json['pagoCuota'].toDouble(),
-      interesGlobal: json['interesGlobal'].toDouble(),
-      ti_mensual: json['ti_mensual'].toDouble(),
-      ti_semanal: json['ti_semanal'],
-      montoTotal: json['montoTotal'].toDouble(),
-      interesTotal: json['interesTotal'].toDouble(),
-      montoMasInteres: json['montoMasInteres'].toDouble(),
-      numPago: json['numPago'],
-      fechasIniciofin: json['fechasIniciofin'],
-      estado: json['estado'],
-      estadoCredito: EstadoCredito.fromJson(json['estado_credito']),
-      fCreacion: DateTime.parse(json['fCreacion']),
-    );
-  }
-}
-
-class EstadoCredito {
-  final double montoTotal;
-  final double moratorios;
-  final int semanasDeRetraso;
-  final int diferenciaEnDias;
-  final String mensaje;
-  final String estado;
-
-  EstadoCredito({
-    required this.montoTotal,
-    required this.moratorios,
-    required this.semanasDeRetraso,
-    required this.diferenciaEnDias,
-    required this.mensaje,
-    required this.estado,
-  });
-
-  factory EstadoCredito.fromJson(Map<String, dynamic> json) {
-    return EstadoCredito(
-      montoTotal: (json['montoTotal'] as num).toDouble(), // Convertir a double
-      moratorios: (json['moratorios'] as num).toDouble(), // Convertir a double
-      semanasDeRetraso: json['semanasDeRetraso'],
-      diferenciaEnDias: json['diferenciaEnDias'],
-      mensaje: json['mensaje'],
-      estado: json[
-          'esatado'], // Nota: el JSON tiene un error de tipografía aquí ("esatado" en lugar de "estado").
-    );
-  }
-}

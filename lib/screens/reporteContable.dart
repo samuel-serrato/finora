@@ -317,39 +317,38 @@ class ReporteContableWidget extends StatelessWidget {
 
   // SECCIÓN: LISTA DE GRUPOS
   Widget _buildGruposList(BuildContext context) {
-  final themeProvider = Provider.of<ThemeProvider>(context);
-  final isDarkMode = themeProvider.isDarkMode;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
 
-  if (reporteData.listaGrupos.isEmpty) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-        
-          Text(
-            'No hay datos para mostrar',
-            style: TextStyle(
-              fontSize: 16,
-              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+    if (reporteData.listaGrupos.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'No hay datos para mostrar',
+              style: TextStyle(
+                fontSize: 16,
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: verticalScrollController,
+      itemCount: reporteData.listaGrupos.length,
+      itemBuilder: (context, index) {
+        final grupo = reporteData.listaGrupos[index];
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          child: _buildGrupoCard(context, grupo),
+        );
+      },
     );
   }
-
-  return ListView.builder(
-    controller: verticalScrollController,
-    itemCount: reporteData.listaGrupos.length,
-    itemBuilder: (context, index) {
-      final grupo = reporteData.listaGrupos[index];
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        child: _buildGrupoCard(context, grupo),
-      );
-    },
-  );
-}
 
   Widget _buildGrupoCard(BuildContext context, ReporteContableGrupo grupo) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -564,6 +563,17 @@ class ReporteContableWidget extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: _buildFinancialInfo(
+                          context,
+                          'Moratorios Generados',
+                          0.0, // o grupo.moratoriosGenerados
+                        ),
+                      ),
+
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -1136,7 +1146,7 @@ class ReporteContableWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: const Color.fromARGB(255, 153, 161, 231),
+                  color: primaryColor,
                 ),
               ),
               Text(
@@ -1144,7 +1154,7 @@ class ReporteContableWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 153, 161, 231),
+                  color: primaryColor,
                 ),
               ),
             ],

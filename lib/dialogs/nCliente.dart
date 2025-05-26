@@ -1615,7 +1615,6 @@ class _nClienteDialogState extends State<nClienteDialog>
                 color: Color(0xFF5162F6),
                 borderRadius: BorderRadius.all(Radius.circular(20))),
             width: 250,
-            height: 500,
             padding: EdgeInsets.symmetric(
                 vertical: 20, horizontal: 10), // Espaciado vertical
             child: Column(
@@ -2331,7 +2330,6 @@ class _nClienteDialogState extends State<nClienteDialog>
             borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
           width: 250,
-          height: 500,
           padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
@@ -2530,7 +2528,6 @@ class _nClienteDialogState extends State<nClienteDialog>
               color: Color(0xFF5162F6),
               borderRadius: BorderRadius.all(Radius.circular(20))),
           width: 250,
-          height: 500,
           padding: EdgeInsets.symmetric(
               vertical: 20, horizontal: 10), // Espaciado vertical
           child: Column(
@@ -2655,7 +2652,6 @@ class _nClienteDialogState extends State<nClienteDialog>
             borderRadius: BorderRadius.all(Radius.circular(20)),
           ),
           width: 250,
-          height: 500,
           padding: EdgeInsets.symmetric(
               vertical: 20, horizontal: 10), // Espaciado vertical
           child: Column(
