@@ -886,6 +886,24 @@ class _nClienteDialogState extends State<nClienteDialog>
       }
     }
 
+    String? fechaFormateada;
+    if (_fechaController.text.isNotEmpty) {
+      try {
+        // Asumiendo que _fechaController.text está en formato DD/MM/YYYY
+        List<String> partes = _fechaController.text.split("/");
+        if (partes.length == 3) {
+          fechaFormateada =
+              "${partes[2]}-${partes[1].padLeft(2, '0')}-${partes[0].padLeft(2, '0')}";
+        } else {
+          fechaFormateada = _fechaController.text;
+        }
+      } catch (e) {
+        fechaFormateada = _fechaController.text;
+      }
+    } else {
+      fechaFormateada = '';
+    }
+
     print('original data dentro de compare $originalData');
 
     // Recolectar datos y verificar si fueron editados
@@ -912,8 +930,8 @@ class _nClienteDialogState extends State<nClienteDialog>
         originalData['email']);
     addFieldToEndpoint(
         "Cliente", "eCivil", selectedECivil ?? '', originalData['eCivil']);
-    addFieldToEndpoint("Cliente", "fechaNac", _fechaController.text ?? '',
-        originalData['fechaNac']);
+    addFieldToEndpoint(
+        "Cliente", "fechaNac", fechaFormateada, originalData['fechaNac']);
     addFieldToEndpoint("Cliente", "nombreConyuge",
         nombreConyugeController.text ?? '', originalData['nombreConyuge']);
     addFieldToEndpoint("Cliente", "telefonoConyuge",
@@ -4261,7 +4279,7 @@ class _nClienteDialogState extends State<nClienteDialog>
     }
   }
 
-  void imprimirDatosCliente() {
+  /* void imprimirDatosCliente() {
     final datosCliente = {
       "InformacionPersonal": {
         "nombres": nombresController.text,
@@ -4332,7 +4350,7 @@ class _nClienteDialogState extends State<nClienteDialog>
     } catch (e) {
       print("Error al convertir a JSON: $e");
     }
-  }
+  } */
 
 // Métodos de ayuda para manejo de errores
   void _handleApiError(http.Response response, String mensajeBase) {

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/widgets/filtros_genericos_widget.dart';
 import 'package:finora/widgets/pagination.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -41,9 +42,18 @@ class _ClientesScreenState extends State<ClientesScreen> {
   String _currentSearchQuery = '';
   bool _isSearching = false;
 
+  String?
+      _sortColumnKey; // Clave de la API para la columna ordenada (ej: 'nombre')
+  bool _sortAscending = true; // true para AZ, false para ZA
+
+  // Variables para filtros
+  Map<String, dynamic> _filtrosActivos = {};
+  late List<ConfiguracionFiltro> _configuracionesFiltros;
+
   @override
   void initState() {
     super.initState();
+    _initializarFiltros();
     obtenerClientes();
   }
 
@@ -53,6 +63,38 @@ class _ClientesScreenState extends State<ClientesScreen> {
     _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _initializarFiltros() {
+    // Define aquí los filtros específicos para Grupos
+    _configuracionesFiltros = [
+      ConfiguracionFiltro(
+        clave: 'tipocliente', // Clave interna que usarás
+        titulo: 'Tipo de Cliente',
+        tipo: TipoFiltro.dropdown,
+        opciones: ['Asalariado', 'Independiente', 'Comerciante', 'Jubilado'],
+      ),
+      ConfiguracionFiltro(
+        clave: 'sexo', // Clave interna
+        titulo: 'Sexo',
+        tipo: TipoFiltro.dropdown,
+        opciones: [
+          'Masculino',
+          'Femenino',
+        ], // Opciones de ejemplo
+      ),
+      // NUEVO FILTRO AGREGADO:
+      ConfiguracionFiltro(
+        clave: 'estado',
+        titulo: 'Estado',
+        tipo: TipoFiltro.dropdown,
+        opciones: [
+          'Disponible',
+          'En Credito',
+          'En Grupo'
+        ], // Se llenará dinámicamente
+      ),
+    ];
   }
 
   final double textHeaderTableSize = 12.0;
@@ -66,16 +108,27 @@ class _ClientesScreenState extends State<ClientesScreen> {
       currentPage = page; // Actualizar página actual
     });
 
+    String sortQuery = '';
+    if (_sortColumnKey != null) {
+      sortQuery = '&$_sortColumnKey=${_sortAscending ? 'AZ' : 'ZA'}';
+    }
+
     bool dialogShown = false;
+
+    _timer?.cancel(); // Cancela cualquier timer existente
 
     Future<void> fetchData() async {
       try {
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('tokenauth') ?? '';
 
+        String filterQuery = _buildFilterQuery();
+        final uri = Uri.parse(
+            '$baseUrl/api/v1/clientes?limit=12&page=$page$sortQuery&$filterQuery');
+        print('Fetching: $uri'); // Para depuración
+
         final response = await http.get(
-          Uri.parse(
-              '$baseUrl/api/v1/clientes?limit=12&page=$page'), // Parámetros de paginación
+          uri,
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -94,7 +147,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
             setState(() {
               listaClientes =
                   data.map((item) => Cliente.fromJson(item)).toList();
-              listaClientes.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
+              //listaClientes.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
 
               isLoading = false;
               errorDeConexion = false;
@@ -292,12 +345,43 @@ class _ClientesScreenState extends State<ClientesScreen> {
     );
   }
 
+  String _buildFilterQuery() {
+    List<String> queryParams = [];
+    _filtrosActivos.forEach((key, value) {
+      if (value != null && value.toString().isNotEmpty) {
+        // Mapea las claves a los parámetros de la API para grupos
+        String apiParam = _mapFilterKeyToApiParam(key);
+        queryParams.add('$apiParam=${Uri.encodeComponent(value.toString())}');
+      }
+    });
+    return queryParams.join('&');
+  }
+
+  String _mapFilterKeyToApiParam(String filterKey) {
+    // IMPORTANTE: Ajusta estos case a los nombres de parámetros que espera tu API de grupos
+    switch (filterKey) {
+      case 'tipoGrupo':
+        return 'tipogrupo'; // Ejemplo: el backend espera 'tipogrupo'
+      case 'estadoGrupo':
+        return 'estado'; // Ejemplo: el backend espera 'estado' o 'estadogrupo'
+      case 'usuarioCampo':
+        return 'asesor'; // AGREGAR ESTA LÍNEA (ajusta el nombre según tu API)
+      default:
+        return filterKey; // Como fallback
+    }
+  }
+
   Future<void> searchClientes(String query, {int page = 1}) async {
-    // <- Añade parámetro page
     if (query.trim().isEmpty) {
-      obtenerClientes();
+      // Si la búsqueda está vacía, llama a obtenerCreditos que ya incluye el sort
+      _isSearching = false;
+      _currentSearchQuery = '';
+      obtenerClientes(
+          page: page); // Usará el _sortColumnKey y _sortAscending actuales
       return;
     }
+    _isSearching = true;
+    _currentSearchQuery = query;
 
     if (!mounted) return;
 
@@ -308,13 +392,23 @@ class _ClientesScreenState extends State<ClientesScreen> {
       currentPage = page; // Actualizar página actual para búsqueda
     });
 
+    String sortQuery = '';
+    if (_sortColumnKey != null) {
+      sortQuery = '&$_sortColumnKey=${_sortAscending ? 'AZ' : 'ZA'}';
+    }
+
+    String filterQuery = _buildFilterQuery();
+    final encodedQuery = Uri.encodeComponent(query);
+    final uri = Uri.parse(
+        '$baseUrl/api/v1/clientes/$encodedQuery?limit=12&page=$page$sortQuery&$filterQuery');
+    print('Searching: $uri'); // Para depuración
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse(
-            '$baseUrl/api/v1/clientes/$query?limit=12&page=$page'), // Añade parámetros de paginación
+        uri,
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -838,20 +932,202 @@ class _ClientesScreenState extends State<ClientesScreen> {
               },
             ),
           ),
-          ElevatedButton(
-            style: ButtonStyle(
-              padding: MaterialStateProperty.all(
-                  EdgeInsets.symmetric(vertical: 15, horizontal: 20)),
-              backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
-              foregroundColor: MaterialStateProperty.all(Colors.white),
-              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          Row(
+            children: [
+              _buildFilterButton(context, isDarkMode),
+              SizedBox(width: 10), // Espaciado
+              ElevatedButton(
+                style: ButtonStyle(
+                  padding: MaterialStateProperty.all(
+                      EdgeInsets.symmetric(vertical: 15, horizontal: 20)),
+                  backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
+                  foregroundColor: MaterialStateProperty.all(Colors.white),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                onPressed: mostrarDialogoAgregarCliente,
+                child: Text('Agregar Clientes'),
               ),
-            ),
-            onPressed: mostrarDialogoAgregarCliente,
-            child: Text('Agregar Clientes'),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(BuildContext context, bool isDarkMode) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        highlightColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+      ),
+      child: PopupMenuButton<String>(
+        constraints: BoxConstraints(minWidth: 300), // Ajusta según necesites
+        offset: Offset(0, 50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: isDarkMode ? Colors.grey[800] : Colors.white,
+        elevation: 8,
+        itemBuilder: (BuildContext context) => [
+          PopupMenuItem<String>(
+            enabled: false, // El contenido maneja la interacción
+            child: _buildFilterContentConWidgetGenerico(context, isDarkMode),
+          ),
+        ],
+        // onSelected no es necesario aquí si el widget interno maneja la lógica
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[700] : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.filter_list,
+                  size: 20, color: isDarkMode ? Colors.white : Colors.black87),
+              SizedBox(width: 6),
+              Text('Filtros',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: isDarkMode ? Colors.white : Colors.black87)),
+              if (_filtrosActivos.isNotEmpty)
+                Container(
+                  margin: EdgeInsets.only(left: 8),
+                  padding: EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                      color: Color(0xFF5162F6),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Text('${_filtrosActivos.length}',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterContentConWidgetGenerico(
+      BuildContext context, bool isDarkMode) {
+    // Asegúrate de que FiltrosGenericosWidgetInline esté bien implementado
+    // y pueda manejar el tema oscuro si es necesario.
+    return FiltrosGenericosWidgetInline(
+      configuraciones: _configuracionesFiltros,
+      valoresIniciales: _filtrosActivos,
+      titulo: 'Filtros de Grupos', // Título específico
+      onAplicar: (filtros) {
+        setState(() {
+          _filtrosActivos = Map<String, dynamic>.from(filtros);
+        });
+        _aplicarFiltros();
+        if (Navigator.canPop(context)) {
+          // Cierra el PopupMenu si está abierto
+          Navigator.of(context).pop();
+        }
+      },
+      onRestablecer: () {
+        setState(() {
+          _filtrosActivos.clear();
+        });
+        _aplicarFiltros();
+        if (Navigator.canPop(context)) {
+          Navigator.of(context).pop();
+        }
+      },
+    );
+  }
+
+  void _aplicarFiltros() {
+    // Vuelve a la página 1 al aplicar filtros
+    setState(() {
+      currentPage = 1;
+    });
+    if (_isSearching && _currentSearchQuery.isNotEmpty) {
+      searchClientes(_currentSearchQuery, page: 1);
+    } else {
+      obtenerClientes(page: 1);
+    }
+  }
+
+  void _onSort(String columnKey) {
+    setState(() {
+      if (_sortColumnKey == columnKey) {
+        // Si es la misma columna, alternar entre ASC -> DESC -> SIN ORDEN
+        if (_sortAscending) {
+          _sortAscending = false; // Cambiar a descendente
+        } else {
+          // Si ya está en descendente, resetear completamente
+          _sortColumnKey = null;
+          _sortAscending = true;
+        }
+      } else {
+        // Si es una columna diferente, establecer nueva columna en ascendente
+        _sortColumnKey = columnKey;
+        _sortAscending = true;
+      }
+      currentPage = 1; // Resetear a la primera página al cambiar el orden
+    });
+
+    // Volver a cargar los datos con el nuevo orden
+    if (_searchController.text.trim().isNotEmpty) {
+      searchClientes(_searchController.text, page: 1);
+    } else {
+      obtenerClientes(page: 1);
+    }
+  }
+
+  DataColumn _buildSortableColumn(String label, String columnKey,
+      {double? width}) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    List<Widget> children = [
+      Text(label, style: TextStyle(fontSize: textHeaderTableSize)),
+      SizedBox(width: 2), // Espacio entre el texto y el icono
+    ];
+
+    // Solo mostrar icono de ordenamiento si esta columna está activa
+    if (_sortColumnKey == columnKey) {
+      children.add(
+        Icon(
+          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 16,
+          color: Colors.white,
+        ),
+      );
+    } else {
+      // Icono sutil para columnas inactivas pero ordenables
+      children.add(
+        Icon(
+          Icons.unfold_more,
+          size: 16,
+          color: Colors.white.withOpacity(0.7),
+        ),
+      );
+    }
+
+    Widget labelWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+
+    return DataColumn(
+      label: SizedBox(
+        width: width,
+        child: InkWell(
+          onTap: () => _onSort(columnKey),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: labelWidget,
+          ),
+        ),
       ),
     );
   }
@@ -915,10 +1191,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                   label: Text('Tipo Cliente',
                                       style: TextStyle(
                                           fontSize: textHeaderTableSize))),
-                              DataColumn(
-                                  label: Text('Nombre',
-                                      style: TextStyle(
-                                          fontSize: textHeaderTableSize))),
+                              _buildSortableColumn(
+                                  'Nombre', 'nombrecompleto'), // Clave API
                               DataColumn(
                                   label: Text('F. Nac',
                                       style: TextStyle(
@@ -935,10 +1209,8 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                   label: Text('Email',
                                       style: TextStyle(
                                           fontSize: textHeaderTableSize))),
-                              DataColumn(
-                                  label: Text('F. Creación',
-                                      style: TextStyle(
-                                          fontSize: textHeaderTableSize))),
+                              _buildSortableColumn(
+                                  'Fecha Creación', 'fCreacion'), // Clave API
                               DataColumn(
                                   label: Text('Estado',
                                       style: TextStyle(

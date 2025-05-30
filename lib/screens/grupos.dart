@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:finora/models/usuarios.dart';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/widgets/filtros_genericos_widget.dart';
 import 'package:finora/widgets/pagination.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -42,10 +44,24 @@ class _GruposScreenState extends State<GruposScreen> {
   String _currentSearchQuery = '';
   bool _isSearching = false;
 
+  String?
+      _sortColumnKey; // Clave de la API para la columna ordenada (ej: 'nombre')
+  bool _sortAscending = true; // true para AZ, false para ZA
+
+  // Variables para filtros
+  Map<String, dynamic> _filtrosActivos = {};
+  late List<ConfiguracionFiltro> _configuracionesFiltros;
+
+  // 1. Agregar estas variables al inicio de la clase _GruposScreenState:
+  List<Usuario> _usuarios = [];
+  bool _isLoadingUsuarios = false;
+
   @override
   void initState() {
     super.initState();
+    _initializarFiltros();
     obtenerGrupos();
+    obtenerUsuariosCampo(); // AGREGAR ESTA LÍNEA
   }
 
   @override
@@ -54,6 +70,148 @@ class _GruposScreenState extends State<GruposScreen> {
     _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _initializarFiltros() {
+    // Define aquí los filtros específicos para Grupos
+    _configuracionesFiltros = [
+      ConfiguracionFiltro(
+        clave: 'tipoGrupo', // Clave interna que usarás
+        titulo: 'Tipo de Grupo',
+        tipo: TipoFiltro.dropdown,
+        opciones: ['Grupal', 'Individual', 'Automotriz', 'Empresarial'],
+      ),
+      ConfiguracionFiltro(
+        clave: 'estadoGrupo', // Clave interna
+        titulo: 'Estado del Grupo',
+        tipo: TipoFiltro.dropdown,
+        opciones: [
+          'Activo',
+          'Disponible',
+          'Liquidado',
+          'Finalizado',
+          'Inactivo'
+        ], // Opciones de ejemplo
+      ),
+      // NUEVO FILTRO AGREGADO:
+      ConfiguracionFiltro(
+        clave: 'usuarioCampo',
+        titulo: 'Asesor',
+        tipo: TipoFiltro.dropdown,
+        opciones: [], // Se llenará dinámicamente
+      ),
+    ];
+  }
+
+// Función para actualizar las opciones del filtro de usuarios
+  void _actualizarOpcionesUsuarios() {
+    final filtroUsuario = _configuracionesFiltros.firstWhere(
+      (config) => config.clave == 'usuarioCampo',
+    );
+
+    // Usar el campo nombreCompleto que viene de la API
+    filtroUsuario.opciones =
+        _usuarios.map((usuario) => usuario.nombreCompleto).toList();
+  }
+
+// 5. Modificar la función obtenerUsuariosCampo() existente:
+  Future<void> obtenerUsuariosCampo() async {
+    setState(() => _isLoadingUsuarios = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/usuarios/tipo/campo'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _usuarios = data.map((item) => Usuario.fromJson(item)).toList();
+          // Actualizar las opciones del filtro después de cargar los usuarios
+          _actualizarOpcionesUsuarios();
+        });
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false,
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error 401 (token expirado)
+          else if (response.statusCode == 401) {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false,
+                );
+              });
+            }
+            return;
+          }
+          // Otros errores
+          else {
+            print('Error ${response.statusCode}: ${errorData.toString()}');
+          }
+        } catch (parseError) {
+          print('Error parseando respuesta: $parseError');
+        }
+      }
+    } catch (e) {
+      print('Error obteniendo usuarios: $e');
+      // Manejar errores de conexión
+      if (mounted) {
+        mostrarDialogoError('Error de conexión al obtener usuarios campo.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingUsuarios = false);
+      }
+    }
   }
 
   final double textHeaderTableSize = 12.0;
@@ -67,17 +225,27 @@ class _GruposScreenState extends State<GruposScreen> {
       currentPage = page; // Update current page
     });
 
-    _timer?.cancel(); // Cancela cualquier timer existente
+    String sortQuery = '';
+    if (_sortColumnKey != null) {
+      sortQuery = '&$_sortColumnKey=${_sortAscending ? 'AZ' : 'ZA'}';
+    }
+
     bool dialogShown = false;
+
+    _timer?.cancel(); // Cancela cualquier timer existente
 
     Future<void> fetchData() async {
       try {
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('tokenauth') ?? '';
 
+        String filterQuery = _buildFilterQuery();
+        final uri = Uri.parse(
+            '$baseUrl/api/v1/grupodetalles?limit=12&page=$page$sortQuery&$filterQuery');
+        print('Fetching: $uri'); // Para depuración
+
         final response = await http.get(
-          Uri.parse(
-              '$baseUrl/api/v1/grupodetalles?limit=12&page=$page'), // Add pagination parameters
+          uri,
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -96,7 +264,7 @@ class _GruposScreenState extends State<GruposScreen> {
             List<dynamic> data = json.decode(response.body);
             setState(() {
               listaGrupos = data.map((item) => Grupo.fromJson(item)).toList();
-              listaGrupos.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
+              // listaGrupos.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
 
               isLoading = false;
               errorDeConexion = false;
@@ -202,9 +370,15 @@ class _GruposScreenState extends State<GruposScreen> {
 
   Future<void> searchGrupos(String query, {int page = 1}) async {
     if (query.trim().isEmpty) {
-      obtenerGrupos();
+      // Si la búsqueda está vacía, llama a obtenerCreditos que ya incluye el sort
+      _isSearching = false;
+      _currentSearchQuery = '';
+      obtenerGrupos(
+          page: page); // Usará el _sortColumnKey y _sortAscending actuales
       return;
     }
+    _isSearching = true;
+    _currentSearchQuery = query;
 
     if (!mounted) return;
 
@@ -212,16 +386,26 @@ class _GruposScreenState extends State<GruposScreen> {
       isLoading = true;
       errorDeConexion = false;
       noGroupsFound = false;
-      currentPage = page; // Update current page for search
+      currentPage = page;
     });
+
+    String sortQuery = '';
+    if (_sortColumnKey != null) {
+      sortQuery = '&$_sortColumnKey=${_sortAscending ? 'AZ' : 'ZA'}';
+    }
+
+    String filterQuery = _buildFilterQuery();
+    final encodedQuery = Uri.encodeComponent(query);
+    final uri = Uri.parse(
+        '$baseUrl/api/v1/grupodetalles/$encodedQuery?limit=12&page=$page$sortQuery&$filterQuery');
+    print('Searching: $uri'); // Para depuración
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse(
-            '$baseUrl/api/v1/grupodetalles/$query?limit=12&page=$page'), // Add pagination parameters
+        uri,
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -494,6 +678,131 @@ class _GruposScreenState extends State<GruposScreen> {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
+  Widget _buildFilterButton(BuildContext context, bool isDarkMode) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        highlightColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+      ),
+      child: PopupMenuButton<String>(
+        constraints: BoxConstraints(minWidth: 300), // Ajusta según necesites
+        offset: Offset(0, 50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        color: isDarkMode ? Colors.grey[800] : Colors.white,
+        elevation: 8,
+        itemBuilder: (BuildContext context) => [
+          PopupMenuItem<String>(
+            enabled: false, // El contenido maneja la interacción
+            child: _buildFilterContentConWidgetGenerico(context, isDarkMode),
+          ),
+        ],
+        // onSelected no es necesario aquí si el widget interno maneja la lógica
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[700] : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.filter_list,
+                  size: 20, color: isDarkMode ? Colors.white : Colors.black87),
+              SizedBox(width: 6),
+              Text('Filtros',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: isDarkMode ? Colors.white : Colors.black87)),
+              if (_filtrosActivos.isNotEmpty)
+                Container(
+                  margin: EdgeInsets.only(left: 8),
+                  padding: EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                      color: Color(0xFF5162F6),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Text('${_filtrosActivos.length}',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterContentConWidgetGenerico(
+      BuildContext context, bool isDarkMode) {
+    // Asegúrate de que FiltrosGenericosWidgetInline esté bien implementado
+    // y pueda manejar el tema oscuro si es necesario.
+    return FiltrosGenericosWidgetInline(
+      configuraciones: _configuracionesFiltros,
+      valoresIniciales: _filtrosActivos,
+      titulo: 'Filtros de Grupos', // Título específico
+      onAplicar: (filtros) {
+        setState(() {
+          _filtrosActivos = Map<String, dynamic>.from(filtros);
+        });
+        _aplicarFiltros();
+        if (Navigator.canPop(context)) {
+          // Cierra el PopupMenu si está abierto
+          Navigator.of(context).pop();
+        }
+      },
+      onRestablecer: () {
+        setState(() {
+          _filtrosActivos.clear();
+        });
+        _aplicarFiltros();
+        if (Navigator.canPop(context)) {
+          Navigator.of(context).pop();
+        }
+      },
+    );
+  }
+
+  void _aplicarFiltros() {
+    // Vuelve a la página 1 al aplicar filtros
+    setState(() {
+      currentPage = 1;
+    });
+    if (_isSearching && _currentSearchQuery.isNotEmpty) {
+      searchGrupos(_currentSearchQuery, page: 1);
+    } else {
+      obtenerGrupos(page: 1);
+    }
+  }
+
+  String _buildFilterQuery() {
+    List<String> queryParams = [];
+    _filtrosActivos.forEach((key, value) {
+      if (value != null && value.toString().isNotEmpty) {
+        // Mapea las claves a los parámetros de la API para grupos
+        String apiParam = _mapFilterKeyToApiParam(key);
+        queryParams.add('$apiParam=${Uri.encodeComponent(value.toString())}');
+      }
+    });
+    return queryParams.join('&');
+  }
+
+  String _mapFilterKeyToApiParam(String filterKey) {
+    // IMPORTANTE: Ajusta estos case a los nombres de parámetros que espera tu API de grupos
+    switch (filterKey) {
+      case 'tipoGrupo':
+        return 'tipogrupo'; // Ejemplo: el backend espera 'tipogrupo'
+      case 'estadoGrupo':
+        return 'estado'; // Ejemplo: el backend espera 'estado' o 'estadogrupo'
+      case 'usuarioCampo':
+        return 'asesor'; // AGREGAR ESTA LÍNEA (ajusta el nombre según tu API)
+      default:
+        return filterKey; // Como fallback
+    }
+  }
+
   Widget _buildPaginationControls(bool isDarkMode) {
     return PaginationWidget(
       currentPage: currentPage,
@@ -686,20 +995,105 @@ class _GruposScreenState extends State<GruposScreen> {
               },
             ),
           ),
-          ElevatedButton(
-            style: ButtonStyle(
-              padding: MaterialStateProperty.all(
-                  EdgeInsets.symmetric(vertical: 15, horizontal: 20)),
-              backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
-              foregroundColor: MaterialStateProperty.all(Colors.white),
-              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          Row(
+            children: [
+              // Botón de Filtros
+              _buildFilterButton(context, isDarkMode),
+              SizedBox(width: 10), // Espaciado
+              // Botón de Agregar Grupo
+              ElevatedButton(
+                style: ButtonStyle(
+                  padding: MaterialStateProperty.all(
+                      EdgeInsets.symmetric(vertical: 15, horizontal: 20)),
+                  backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
+                  foregroundColor: MaterialStateProperty.all(Colors.white),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                onPressed: mostrarDialogAgregarGrupo,
+                child: Text('Agregar Grupo'),
               ),
-            ),
-            onPressed: mostrarDialogAgregarGrupo,
-            child: Text('Agregar Grupo'),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  void _onSort(String columnKey) {
+    setState(() {
+      if (_sortColumnKey == columnKey) {
+        // Si es la misma columna, alternar entre ASC -> DESC -> SIN ORDEN
+        if (_sortAscending) {
+          _sortAscending = false; // Cambiar a descendente
+        } else {
+          // Si ya está en descendente, resetear completamente
+          _sortColumnKey = null;
+          _sortAscending = true;
+        }
+      } else {
+        // Si es una columna diferente, establecer nueva columna en ascendente
+        _sortColumnKey = columnKey;
+        _sortAscending = true;
+      }
+      currentPage = 1; // Resetear a la primera página al cambiar el orden
+    });
+
+    // Volver a cargar los datos con el nuevo orden
+    if (_searchController.text.trim().isNotEmpty) {
+      searchGrupos(_searchController.text, page: 1);
+    } else {
+      obtenerGrupos(page: 1);
+    }
+  }
+
+  DataColumn _buildSortableColumn(String label, String columnKey,
+      {double? width}) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    List<Widget> children = [
+      Text(label, style: TextStyle(fontSize: textHeaderTableSize)),
+      SizedBox(width: 2), // Espacio entre el texto y el icono
+    ];
+
+    // Solo mostrar icono de ordenamiento si esta columna está activa
+    if (_sortColumnKey == columnKey) {
+      children.add(
+        Icon(
+          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 16,
+          color: Colors.white,
+        ),
+      );
+    } else {
+      // Icono sutil para columnas inactivas pero ordenables
+      children.add(
+        Icon(
+          Icons.unfold_more,
+          size: 16,
+          color: Colors.white.withOpacity(0.7),
+        ),
+      );
+    }
+
+    Widget labelWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+
+    return DataColumn(
+      label: SizedBox(
+        width: width,
+        child: InkWell(
+          onTap: () => _onSort(columnKey),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: labelWidget,
+          ),
+        ),
       ),
     );
   }
@@ -766,17 +1160,11 @@ class _GruposScreenState extends State<GruposScreen> {
                             ),
                             columns: [
                               DataColumn(
-                                  label: Text('ID Grupo',
-                                      style: TextStyle(
-                                          fontSize: textHeaderTableSize))),
-                              DataColumn(
                                   label: Text('Tipo Grupo',
                                       style: TextStyle(
                                           fontSize: textHeaderTableSize))),
-                              DataColumn(
-                                  label: Text('Nombre',
-                                      style: TextStyle(
-                                          fontSize: textHeaderTableSize))),
+                              _buildSortableColumn('Nombre',
+                                  'nombregrupo'), // Clave API 
                               DataColumn(
                                   label: Text('Detalles',
                                       style: TextStyle(
@@ -785,10 +1173,9 @@ class _GruposScreenState extends State<GruposScreen> {
                                   label: Text('Asesor',
                                       style: TextStyle(
                                           fontSize: textHeaderTableSize))),
-                              DataColumn(
-                                  label: Text('Fecha Creación',
-                                      style: TextStyle(
-                                          fontSize: textHeaderTableSize))),
+                              _buildSortableColumn('Fecha Creación',
+                                  'fCreacion'), // Clave API
+
                               DataColumn(
                                   label: Text('Estado',
                                       style: TextStyle(
@@ -804,9 +1191,6 @@ class _GruposScreenState extends State<GruposScreen> {
                             rows: gruposFiltrados.map((grupo) {
                               return DataRow(
                                 cells: [
-                                  DataCell(Text(grupo.idgrupos.toString(),
-                                      style:
-                                          TextStyle(fontSize: textTableSize))),
                                   DataCell(Text(grupo.tipoGrupo.toString(),
                                       style:
                                           TextStyle(fontSize: textTableSize))),

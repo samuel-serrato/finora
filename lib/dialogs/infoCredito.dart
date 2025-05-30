@@ -149,7 +149,9 @@ class _InfoCreditoState extends State<InfoCredito> {
           // Otros errores
           else {
             print('Respuesta:${response.body}');
-            _handleError(dialogShown, 'Error: ${response.statusCode}');
+            //_handleError(dialogShown, 'Error: ${response.statusCode}');
+            _handleError(dialogShown,
+                'Ocurrió un error al obtener los datos. Intenta nuevamente más tarde.');
           }
         } catch (parseError) {
           // Si no podemos parsear la respuesta, delegamos al manejador de errores existente
@@ -158,7 +160,9 @@ class _InfoCreditoState extends State<InfoCredito> {
         }
       }
     } catch (e) {
-      _handleError(dialogShown, 'Error: $e');
+      //_handleError(dialogShown, 'Error: $e');
+      _handleError(dialogShown,
+          'Ocurrió un error al obtener los datos. Intenta nuevamente más tarde.');
     }
   }
 
@@ -785,6 +789,23 @@ class _InfoCreditoState extends State<InfoCredito> {
     final width = MediaQuery.of(context).size.width * 0.97;
     final height = MediaQuery.of(context).size.height * 0.93;
 
+    String formatearRangoFechasDdMmYyyy(String rango) {
+      try {
+        final partes = rango.split(' - ');
+        if (partes.length != 2) return rango;
+
+        final inicio = DateTime.parse(partes[0].replaceAll('/', '-'));
+        final fin = DateTime.parse(partes[1].replaceAll('/', '-'));
+
+        String formato(DateTime fecha) =>
+            '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
+
+        return '${formato(inicio)} - ${formato(fin)}';
+      } catch (e) {
+        return rango; // Devuelve el string original si hay error
+      }
+    }
+
     return Dialog(
         backgroundColor:
             isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
@@ -978,6 +999,12 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                     formatearFecha(creditoData
                                                             ?.fCreacion ??
                                                         DateTime.now()),
+                                                  ),
+                                                  _buildDetailRow(
+                                                    'Duración',
+                                                    formatearRangoFechasDdMmYyyy(
+                                                        creditoData!
+                                                            .fechasIniciofin),
                                                   ),
                                                   SizedBox(height: 30),
                                                 ],
@@ -3203,7 +3230,7 @@ class _PaginaControlState extends State<PaginaControl> {
                                                                       : Colors.grey[
                                                                           700],
                                                                 ),
-                                                            /*     prefixText:
+                                                                /*     prefixText:
                                                                     '\$', // Mostrar el símbolo "$" dentro del campo */
                                                                 prefixStyle:
                                                                     TextStyle(

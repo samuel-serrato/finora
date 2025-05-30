@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:finora/models/credito.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
+import 'package:finora/widgets/filtros_genericos_widget.dart';
 import 'package:finora/widgets/pagination.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Para manejar fechas
+import 'package:dropdown_button2/dropdown_button2.dart';
 
 class SeguimientoScreen extends StatefulWidget {
   const SeguimientoScreen();
@@ -43,10 +45,91 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   String _currentSearchQuery = '';
   bool _isSearching = false;
 
+  String?
+      _sortColumnKey; // Clave de la API para la columna ordenada (ej: 'nombre')
+  bool _sortAscending = true; // true para AZ, false para ZA
+
+  // Variables para filtros
+  Map<String, dynamic> _filtrosActivos = {};
+
+  // Configuraciones de filtros
+  late List<ConfiguracionFiltro> _configuracionesFiltros;
+
   @override
   void initState() {
     super.initState();
+    _initializarFiltros();
     obtenerCreditos();
+  }
+
+  void _initializarFiltros() {
+    _configuracionesFiltros = [
+      ConfiguracionFiltro(
+        clave: 'tipoCredito',
+        titulo: 'Tipo de Crédito',
+        tipo: TipoFiltro.dropdown,
+        opciones: ['Grupal', 'Individual', 'Automotriz', 'Empresarial'],
+      ),
+      ConfiguracionFiltro(
+        clave: 'frecuencia',
+        titulo: 'Frecuencia',
+        tipo: TipoFiltro.dropdown,
+        opciones: ['Semanal', 'Quincenal', 'Mensual', 'Bimestral'],
+      ),
+      ConfiguracionFiltro(
+        clave: 'diaPago',
+        titulo: 'Día de Pago',
+        tipo: TipoFiltro.dropdown,
+        opciones: [
+          'Lunes',
+          'Martes',
+          'Miércoles',
+          'Jueves',
+          'Viernes',
+          'Sábado',
+          'Domingo'
+        ],
+      ),
+      ConfiguracionFiltro(
+        clave: 'numeroPago',
+        titulo: 'Número de Pago',
+        tipo: TipoFiltro.dropdown,
+        opciones: [
+          '1',
+          '2',
+          '3',
+          '4',
+          '5',
+          '6',
+          '7',
+          '8',
+          '9',
+          '10',
+          '11',
+          '12',
+          '13',
+          '14',
+          '15',
+          '16',
+          '17',
+          '18',
+          '19',
+          '20'
+        ],
+      ),
+      ConfiguracionFiltro(
+        clave: 'estadopago',
+        titulo: 'Estado de Pago',
+        tipo: TipoFiltro.dropdown,
+        opciones: ['Pagado', 'Pendiente', 'Retraso', 'Desembolso'],
+      ),
+      ConfiguracionFiltro(
+        clave: 'estadocredito',
+        titulo: 'Estado del Crédito',
+        tipo: TipoFiltro.dropdown,
+        opciones: ['Activo', 'Finalizado', 'En mora'],
+      ),
+    ];
   }
 
   @override
@@ -62,8 +145,13 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       isLoading = true;
       errorDeConexion = false;
       noCreditsFound = false;
-      currentPage = page; // Update current page
+      currentPage = page;
     });
+
+    String sortQuery = '';
+    if (_sortColumnKey != null) {
+      sortQuery = '&$_sortColumnKey=${_sortAscending ? 'AZ' : 'ZA'}';
+    }
 
     bool dialogShown = false;
 
@@ -72,9 +160,13 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('tokenauth') ?? '';
 
+        String filterQuery = _buildFilterQuery();
+        final uri = Uri.parse(
+            '$baseUrl/api/v1/creditos?limit=12&page=$page$sortQuery&$filterQuery');
+        print('Fetching: $uri'); // Para depuración
+
         final response = await http.get(
-          Uri.parse(
-              '$baseUrl/api/v1/creditos?limit=12&page=$page'), // Add pagination parameters
+          uri,
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -94,7 +186,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             setState(() {
               listaCreditos =
                   data.map((item) => Credito.fromJson(item)).toList();
-              listaCreditos.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
+              //listaCreditos.sort((a, b) => b.fCreacion.compareTo(a.fCreacion));
 
               isLoading = false;
               errorDeConexion = false;
@@ -201,9 +293,15 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   // Función para buscar créditos según el texto ingresado
   Future<void> searchCreditos(String query, {int page = 1}) async {
     if (query.trim().isEmpty) {
-      obtenerCreditos();
+      // Si la búsqueda está vacía, llama a obtenerCreditos que ya incluye el sort
+      _isSearching = false;
+      _currentSearchQuery = '';
+      obtenerCreditos(
+          page: page); // Usará el _sortColumnKey y _sortAscending actuales
       return;
     }
+    _isSearching = true;
+    _currentSearchQuery = query;
 
     if (!mounted) return;
 
@@ -211,16 +309,26 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       isLoading = true;
       errorDeConexion = false;
       noCreditsFound = false;
-      currentPage = page; // Update current page for search
+      currentPage = page;
     });
+
+    String sortQuery = '';
+    if (_sortColumnKey != null) {
+      sortQuery = '&$_sortColumnKey=${_sortAscending ? 'AZ' : 'ZA'}';
+    }
+
+    String filterQuery = _buildFilterQuery();
+    final encodedQuery = Uri.encodeComponent(query);
+    final uri = Uri.parse(
+        '$baseUrl/api/v1/creditos/$encodedQuery?limit=12&page=$page$sortQuery&$filterQuery');
+    print('Searching: $uri'); // Para depuración
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse(
-            '$baseUrl/api/v1/creditos/$query?limit=12&page=$page'), // Add pagination parameters
+        uri,
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -618,11 +726,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   Widget filaBuscarYAgregar(BuildContext context) {
-    final themeProvider =
-        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
-    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
-
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     double maxWidth = MediaQuery.of(context).size.width * 0.35;
+
     return Padding(
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
       child: Row(
@@ -632,9 +739,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
             height: 40,
             constraints: BoxConstraints(maxWidth: maxWidth),
             decoration: BoxDecoration(
-              color: isDarkMode
-                  ? Colors.grey[800]
-                  : Colors.white, // Fondo dinámico
+              color: isDarkMode ? Colors.grey[800] : Colors.white,
               borderRadius: BorderRadius.circular(20.0),
               boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
             ),
@@ -656,26 +761,21 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                             color: isDarkMode ? Colors.white : Colors.grey),
                         onPressed: () {
                           _searchController.clear();
-                          // Si se borra el texto, se vuelve a cargar la lista completa
                           obtenerCreditos();
                         },
                       )
                     : null,
                 filled: true,
-                fillColor: isDarkMode
-                    ? Colors.grey[800]
-                    : Colors.white, // Fondo dinámico
+                fillColor: isDarkMode ? Colors.grey[800] : Colors.white,
                 hintText: 'Buscar...',
                 hintStyle:
                     TextStyle(color: isDarkMode ? Colors.white70 : Colors.grey),
-
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20.0),
                   borderSide: BorderSide.none,
                 ),
               ),
               onChanged: (value) {
-                // Debounce: esperar 500ms después de dejar de escribir
                 if (_debounceTimer?.isActive ?? false) {
                   _debounceTimer!.cancel();
                 }
@@ -685,22 +785,214 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               },
             ),
           ),
-          ElevatedButton(
-            style: ButtonStyle(
-              padding: MaterialStateProperty.all(
-                  EdgeInsets.symmetric(vertical: 15, horizontal: 20)),
-              backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
-              foregroundColor: MaterialStateProperty.all(Colors.white),
-              shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+
+          // Contenedor para los botones (Filtros y Agregar Crédito)
+          Row(
+            children: [
+              // Botón de Filtros con PopupMenu
+              _buildFilterButton(context, isDarkMode),
+
+              SizedBox(width: 10), // Espaciado entre botones
+
+              // Botón de Agregar Crédito
+              ElevatedButton(
+                style: ButtonStyle(
+                  padding: MaterialStateProperty.all(
+                      EdgeInsets.symmetric(vertical: 15, horizontal: 20)),
+                  backgroundColor: MaterialStateProperty.all(Color(0xFF5162F6)),
+                  foregroundColor: MaterialStateProperty.all(Colors.white),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                onPressed: mostrarDialogAgregarCredito,
+                child: Text('Agregar Crédito'),
               ),
-            ),
-            onPressed: mostrarDialogAgregarCredito,
-            child: Text('Agregar Crédito'),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  // 2. Reemplaza tu método _buildFilterButton actual con este:
+  // 2. Reemplaza tu método _buildFilterButton actual con este (mantiene el estilo PopupMenu):
+  // 2. REEMPLAZA tu método _buildFilterButton con esta versión simplificada:
+// 1. MANTÉN tu método _buildFilterButton exactamente igual (con PopupMenu):
+  Widget _buildFilterButton(BuildContext context, bool isDarkMode) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        highlightColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+      ),
+      child: PopupMenuButton<String>(
+        constraints: BoxConstraints(minWidth: 300),
+        offset: Offset(0, 50),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        color: isDarkMode ? Colors.grey[800] : Colors.white,
+        elevation: 8,
+        itemBuilder: (BuildContext context) => [
+          PopupMenuItem<String>(
+            enabled: false,
+            child: _buildFilterContentConWidgetGenerico(context, isDarkMode),
+          ),
+        ],
+        onSelected: (value) {
+          // Esta función se ejecuta cuando se selecciona algo del menú
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[700] : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8.0)],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.filter_list,
+                size: 20,
+                color: isDarkMode ? Colors.white : Colors.black87,
+              ),
+              SizedBox(width: 6),
+              Text(
+                'Filtros',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+              // Indicador de filtros activos
+              if (_filtrosActivos.isNotEmpty)
+                Container(
+                  margin: EdgeInsets.only(left: 8),
+                  padding: EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF5162F6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_filtrosActivos.length}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+// 2. NUEVO método que usa tu widget genérico DENTRO del PopupMenu:
+  Widget _buildFilterContentConWidgetGenerico(
+      BuildContext context, bool isDarkMode) {
+    return FiltrosGenericosWidgetInline(
+      configuraciones: _configuracionesFiltros,
+      valoresIniciales: _filtrosActivos,
+      titulo: 'Filtros de Créditos',
+      onAplicar: (filtros) {
+        setState(() {
+          _filtrosActivos = Map<String, dynamic>.from(filtros);
+        });
+        _aplicarFiltros();
+        Navigator.of(context).pop(); // Cierra el PopupMenu
+      },
+      onRestablecer: () {
+        setState(() {
+          _filtrosActivos.clear();
+        });
+        _aplicarFiltros();
+        Navigator.of(context).pop(); // Cierra el PopupMenu
+      },
+    );
+  }
+
+  // 4. Método para aplicar filtros
+  void _aplicarFiltros() {
+    if (_isSearching && _currentSearchQuery.isNotEmpty) {
+      searchCreditos(_currentSearchQuery, page: 1);
+    } else {
+      obtenerCreditos(page: 1);
+    }
+  }
+
+  // 5. Actualiza el método _buildFilterQuery para usar los nuevos filtros
+  String _buildFilterQuery() {
+    List<String> queryParams = [];
+
+    _filtrosActivos.forEach((key, value) {
+      if (value != null && value.toString().isNotEmpty) {
+        // Mapea las claves a los parámetros de la API
+        String apiParam = _mapFilterKeyToApiParam(key);
+        queryParams.add('$apiParam=${Uri.encodeComponent(value.toString())}');
+      }
+    });
+
+    return queryParams.join('&');
+  }
+
+  // 6. Método helper para mapear claves de filtros a parámetros de API
+  String _mapFilterKeyToApiParam(String filterKey) {
+    switch (filterKey) {
+      case 'tipoCredito':
+        return 'tipogrupo';
+      case 'frecuencia':
+        return 'frecuencia';
+      case 'diaPago':
+        return 'diapago';
+      case 'numeroPago':
+        return 'numPago';
+      case 'estadoPago':
+        return 'estadoPago';
+      case 'estadoCredito':
+        return 'estadocredito';
+      default:
+        return filterKey;
+    }
+  }
+
+// Método para aplicar filtros actualizado
+  void aplicarFiltros(
+    DateTime? fechaDesde,
+    DateTime? fechaHasta,
+    String? tipoCredito,
+    String? frecuencia,
+    String? diapago,
+    int? numeroPago,
+    String? estadoPago,
+    String? estadoCredito,
+  ) {
+    print('Aplicando filtros de créditos:');
+    print('Fecha desde: ${fechaDesde?.toString()}');
+    print('Fecha hasta: ${fechaHasta?.toString()}');
+    print('Tipo de crédito: $tipoCredito');
+    print('Frecuencia: $frecuencia');
+    print('Día de pago: $diapago');
+    print('Número de pago: $numeroPago');
+    print('Estado de pago: $estadoPago');
+    print('Estado de crédito: $estadoCredito');
+    //print('Búsqueda: $busquedaPorPalabras');
+
+    // Aquí implementarías la lógica para filtrar los créditos
+    // obtenerCreditosFiltrados(fechaDesde, fechaHasta, tipoCredito, frecuencia, diapago, numeroPago, estadoPago, estadoCredito, busquedaPorPalabras);
+    setState(() {
+      currentPage = 1;
+    });
+
+    if (_searchController.text.trim().isNotEmpty) {
+      searchCreditos(_searchController.text);
+    } else {
+      obtenerCreditos();
+    }
   }
 
   void mostrarDialogAgregarCredito() {
@@ -757,69 +1049,158 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     );
   }
 
+  // Función para manejar el clic en el encabezado de la columna
+  // Función para manejar el clic en el encabezado de la columna
+  void _onSort(String columnKey) {
+    setState(() {
+      if (_sortColumnKey == columnKey) {
+        // Si es la misma columna, alternar entre ASC -> DESC -> SIN ORDEN
+        if (_sortAscending) {
+          _sortAscending = false; // Cambiar a descendente
+        } else {
+          // Si ya está en descendente, resetear completamente
+          _sortColumnKey = null;
+          _sortAscending = true;
+        }
+      } else {
+        // Si es una columna diferente, establecer nueva columna en ascendente
+        _sortColumnKey = columnKey;
+        _sortAscending = true;
+      }
+      currentPage = 1; // Resetear a la primera página al cambiar el orden
+    });
+
+    // Volver a cargar los datos con el nuevo orden
+    if (_searchController.text.trim().isNotEmpty) {
+      searchCreditos(_searchController.text, page: 1);
+    } else {
+      obtenerCreditos(page: 1);
+    }
+  }
+
+// Helper para construir los encabezados de columna ordenables
+  DataColumn _buildSortableColumn(String label, String columnKey,
+      {double? width}) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    List<Widget> children = [
+      Text(label, style: TextStyle(fontSize: textHeaderTableSize)),
+      SizedBox(width: 2), // Espacio entre el texto y el icono
+    ];
+
+    // Solo mostrar icono de ordenamiento si esta columna está activa
+    if (_sortColumnKey == columnKey) {
+      children.add(
+        Icon(
+          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 16,
+          color: Colors.white,
+        ),
+      );
+    } else {
+      // Icono sutil para columnas inactivas pero ordenables
+      children.add(
+        Icon(
+          Icons.unfold_more,
+          size: 16,
+          color: Colors.white.withOpacity(0.7),
+        ),
+      );
+    }
+
+    Widget labelWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+
+    return DataColumn(
+      label: SizedBox(
+        width: width,
+        child: InkWell(
+          onTap: () => _onSort(columnKey),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: labelWidget,
+          ),
+        ),
+      ),
+    );
+  }
+
   final double textHeaderTableSize = 12.0;
-  final double textTableSize = 11.0;
+  final double textTableSize = 12.0;
+
   Widget tabla(BuildContext context) {
-    final themeProvider =
-        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
-    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final userData = Provider.of<UserDataProvider>(context, listen: false);
+
+    // Las claves de API para las columnas que SÍ serán ordenables
+    // Asegúrate que coincidan con tu API
 
     return SizedBox(
       width: MediaQuery.of(context).size.width,
       child: DataTable(
         showCheckboxColumn: false,
-        headingRowColor: MaterialStateProperty.resolveWith(
-            (states) => Color(0xFF5162F6)), // Fondo dinámico
-
+        headingRowColor:
+            MaterialStateProperty.resolveWith((states) => Color(0xFF5162F6)),
         columnSpacing: 10,
         headingRowHeight: 50,
         dataRowHeight: 60,
         headingTextStyle: TextStyle(
           fontWeight: FontWeight.bold,
-          color: isDarkMode ? Colors.white : Colors.white, // Texto dinámico
+          color: isDarkMode ? Colors.white : Colors.white,
           fontSize: textHeaderTableSize,
         ),
         columns: [
+          // Columnas NO ordenables
           DataColumn(
               label: Text('Tipo',
                   style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
               label: Text('Frecuencia',
                   style: TextStyle(fontSize: textHeaderTableSize))),
+
+          // Columnas SÍ ordenables
+          _buildSortableColumn('Nombre', 'nombre'), // Clave API: 'nombre'
+          _buildSortableColumn(
+              'Autorizado', 'montoautorizado'), // Clave API: 'montoautorizado'
+
+          _buildSortableColumn(
+              'Interés', 'interes'), // Clave API: 'montorecuperar'
+          _buildSortableColumn(
+              'M. Recuperar', 'montorecuperar'), // Clave API: 'montorecuperar'
+
           DataColumn(
-              label: Text('Nombre',
+              label: Text('Día Pago', // NO ordenable
                   style: TextStyle(fontSize: textHeaderTableSize))),
-          DataColumn(
-              label: Text('Autorizado',
-                  style: TextStyle(fontSize: textHeaderTableSize))),
-       /*    DataColumn(
-              label: Text('Desembolsado',
-                  style: TextStyle(fontSize: textHeaderTableSize))), */
-          DataColumn(
-              label: Text('Interés',
-                  style: TextStyle(fontSize: textHeaderTableSize))),
-          DataColumn(
-              label: Text('M. a Recuperar',
-                  style: TextStyle(fontSize: textHeaderTableSize))),
-          DataColumn(
-              label: Text('Día Pago',
-                  style: TextStyle(fontSize: textHeaderTableSize))),
-          DataColumn(
-              label: Text('Pago Periodo',
-                  style: TextStyle(fontSize: textHeaderTableSize))),
+          _buildSortableColumn(
+              'Monto Ficha', 'pagoperiodo'), // Clave API: 'pagoperiodo'
+
           DataColumn(
               label: Text('Núm de Pago',
                   style: TextStyle(fontSize: textHeaderTableSize))),
           DataColumn(
-              label: Text('Estado Pago',
-                  style: TextStyle(fontSize: textHeaderTableSize))),
-          DataColumn(
+              // Asumimos que 'Estado Pago' no es ordenable según la lista que diste
+              label:
+                  Text('Estado Pago', // NO ordenable (o cámbialo si sí lo es)
+                      style: TextStyle(fontSize: textHeaderTableSize))),
+          // Si 'Estado Pago' SÍ debe ser ordenable, usa:
+          // _buildSortableColumn('Estado Pago', 'estadopago'),
+          /*   DataColumn(
               label: Text('Duración',
-                  style: TextStyle(fontSize: textHeaderTableSize))),
+                  style: TextStyle(fontSize: textHeaderTableSize))), */
+          _buildSortableColumn(
+              'F. Creación', 'fCreacion'), // Clave API: 'montoautorizado'
+
           DataColumn(
-              label: Text('Estado Crédito',
+              // Asumimos que 'Estado Crédito' no es ordenable
+              label: Text(
+                  'Estado Crédito', // NO ordenable (o cámbialo si sí lo es)
                   style: TextStyle(fontSize: textHeaderTableSize))),
+          // Si 'Estado Crédito' SÍ debe ser ordenable, usa:
+          // _buildSortableColumn('Estado Crédito', 'estadocredito'),
           DataColumn(
             label: Text(
               'Acciones',
@@ -859,19 +1240,20 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               DataCell(Center(
                   child: Text('\$${formatearNumero(credito.montoTotal)}',
                       style: TextStyle(fontSize: textTableSize)))),
-           /*    DataCell(Center(
-                  child: Text('\$${formatearNumero(credito.montoDesembolsado)}',
-                      style: TextStyle(fontSize: textTableSize)))), */
               DataCell(Center(
+                  // Interés
                   child: Text('${credito.ti_mensual}%',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
+                  // Monto a Recuperar
                   child: Text('\$${formatearNumero(credito.montoMasInteres)}',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
+                  // Día Pago
                   child: Text('${credito.diaPago}',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
+                  // Pago Periodo
                   child: Text('\$${formatearNumero(credito.pagoCuota)}',
                       style: TextStyle(fontSize: textTableSize)))),
               DataCell(Center(
@@ -880,7 +1262,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
               DataCell(Center(
                   child: Text(credito.estadoInterno!,
                       style: TextStyle(fontSize: textTableSize)))),
-              DataCell(Container(
+              /*   DataCell(Container(
                 width: 70,
                 child: Text(
                   credito.fechasIniciofin,
@@ -889,25 +1271,37 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   maxLines: 2,
                   softWrap: true,
                 ),
-              )),
+              )), */
+              // En tu DataCell
+// En tu DataCell
+              DataCell(
+                Center(
+                  child: Tooltip(
+                    message: DateFormat('yyyy-MM-dd hh:mm a')
+                        .format(credito.fCreacion),
+                    child: Text(
+                      DateFormat('yyyy-MM-dd').format(credito.fCreacion),
+                      style: TextStyle(fontSize: textTableSize),
+                    ),
+                  ),
+                ),
+              ),
               DataCell(
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(
-                        credito.estado, context), // Fondo dinámico
+                    color: _getStatusColor(credito.estado, context),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: _getStatusColor(credito.estado, context)
-                          .withOpacity(0.6), // Borde dinámico
+                          .withOpacity(0.6),
                       width: 1,
                     ),
                   ),
                   child: Text(
                     credito.estado ?? 'N/A',
                     style: TextStyle(
-                      color: _getStatusTextColor(
-                          credito.estado, context), // Texto dinámico
+                      color: _getStatusTextColor(credito.estado, context),
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
@@ -915,9 +1309,14 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 ),
               ),
               DataCell(
-                Row(
-                  children: [
-                    IconButton(
+                Center(
+                  child: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      padding:
+                          EdgeInsets.zero, // <-- elimina el padding interno
+                      iconSize: 20, // <-- ajusta tamaño si quieres más compacto
                       icon:
                           const Icon(Icons.delete_outline, color: Colors.grey),
                       onPressed: () {
@@ -945,9 +1344,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                         );
                       },
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              )
             ],
             color: MaterialStateColor.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
@@ -1175,4 +1574,3 @@ String formatearNumero(double numero) {
   final formatter = NumberFormat("#,##0.00", "en_US");
   return formatter.format(numero);
 }
-

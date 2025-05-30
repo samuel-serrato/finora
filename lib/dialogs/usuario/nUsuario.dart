@@ -49,80 +49,90 @@ class _nUsuarioDialogState extends State<nUsuarioDialog> {
   }
 
   Future<void> _agregarUsuario() async {
-    final userData = Provider.of<UserDataProvider>(context, listen: false);
-    if (!_formKey.currentState!.validate()) return;
+  final userData = Provider.of<UserDataProvider>(context, listen: false);
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorDeConexion = false;
-      _dialogShown = false;
-    });
+  setState(() {
+    _isLoading = true;
+    _errorDeConexion = false;
+    _dialogShown = false;
+  });
 
-    _timer = Timer(Duration(seconds: 10), () {
-      if (!_dialogShown) {
-        setState(() {
-          _isLoading = false;
-          _errorDeConexion = true;
-        });
-        _mostrarDialogo(
-          title: 'Error',
-          message: 'Tiempo de espera agotado. Verifica tu conexión.',
-          isSuccess: false,
-        );
-      }
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-
-      // Modificación aquí: Combina el usuario con un punto y el nombre de la financiera sin espacios
-      final usuarioCompleto =
-          '${usuarioController.text}.${userData.nombreNegocio.toLowerCase().replaceAll(' ', '')}';
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/usuarios'),
-        headers: {
-          'tokenauth': token,
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'usuario': usuarioCompleto,
-          'tipoUsuario': selectedTipoUsuario,
-          'nombreCompleto': nombreCompletoController.text,
-          'email': emailController.text,
-          'password': passwordController.text,
-          'idnegocio': userData.idnegocio
-        }),
-      );
-
-      if (response.statusCode == 201) {
-        widget.onUsuarioAgregado();
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Usuario creado correctamente',
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        _handleResponseError(response);
-      }
-    } catch (e) {
+  _timer = Timer(Duration(seconds: 10), () {
+    if (!_dialogShown) {
+      setState(() {
+        _isLoading = false;
+        _errorDeConexion = true;
+      });
       _mostrarDialogo(
         title: 'Error',
-        message:
-            'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+        message: 'Tiempo de espera agotado. Verifica tu conexión.',
         isSuccess: false,
       );
-    } finally {
-      _timer?.cancel();
-      setState(() => _isLoading = false);
     }
+  });
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    final usuarioCompleto =
+        '${usuarioController.text}.${userData.nombreNegocio.toLowerCase().replaceAll(' ', '')}';
+
+    final data = {
+      'usuario': usuarioCompleto,
+      'tipoUsuario': selectedTipoUsuario,
+      'nombreCompleto': nombreCompletoController.text,
+      'email': emailController.text,
+      'password': passwordController.text,
+      'idnegocio': userData.idnegocio
+    };
+
+    print('Enviando solicitud POST a: $baseUrl/api/v1/usuarios');
+    print('Token: $token');
+    print('Datos enviados: ${json.encode(data)}');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/v1/usuarios'),
+      headers: {
+        'tokenauth': token,
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(data),
+    );
+
+    print('Código de estado recibido: ${response.statusCode}');
+    print('Respuesta del servidor: ${response.body}');
+
+    if (response.statusCode == 201) {
+      widget.onUsuarioAgregado();
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Usuario creado correctamente',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      _handleResponseError(response);
+    }
+  } catch (e) {
+    print('Excepción capturada: $e');
+    _mostrarDialogo(
+      title: 'Error',
+      message:
+          'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
+      isSuccess: false,
+    );
+  } finally {
+    _timer?.cancel();
+    setState(() => _isLoading = false);
   }
+}
+
 
   void _handleResponseError(http.Response response) {
     final responseBody = jsonDecode(response.body);

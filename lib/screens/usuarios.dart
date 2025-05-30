@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:finora/models/usuarios.dart';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/widgets/filtros_genericos_widget.dart';
 import 'package:finora/widgets/pagination.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -42,9 +43,18 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
   String _currentSearchQuery = '';
   bool _isSearching = false;
 
+  String?
+      _sortColumnKey; // Clave de la API para la columna ordenada (ej: 'nombre')
+  bool _sortAscending = true; // true para AZ, false para ZA
+
+  // Variables para filtros
+  Map<String, dynamic> _filtrosActivos = {};
+  late List<ConfiguracionFiltro> _configuracionesFiltros;
+
   @override
   void initState() {
     super.initState();
+    _initializarFiltros();
     obtenerUsuarios();
   }
 
@@ -54,6 +64,37 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
     _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _initializarFiltros() {
+    // Define aquí los filtros específicos para Grupos
+    _configuracionesFiltros = [
+      ConfiguracionFiltro(
+        clave: 'tipoCliente', // Clave interna que usarás
+        titulo: 'Tipo de Cliente',
+        tipo: TipoFiltro.dropdown,
+        opciones: ['Asalariado', 'Independiente', 'Comerciante', 'Jubilado'],
+      ),
+      ConfiguracionFiltro(
+        clave: 'sexo', // Clave interna
+        titulo: 'Sexo',
+        tipo: TipoFiltro.dropdown,
+        opciones: [
+          'Masculino',
+          'Femenino',
+        ], // Opciones de ejemplo
+      ),
+      // NUEVO FILTRO AGREGADO:
+      ConfiguracionFiltro(
+        clave: 'estado',
+        titulo: 'Estado',
+        tipo: TipoFiltro.dropdown,
+        opciones: [
+          'Disponible',
+          'En Credito',
+        ], // Se llenará dinámicamente
+      ),
+    ];
   }
 
   final double textHeaderTableSize = 12.0;
@@ -67,16 +108,27 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
       currentPage = page; // Update current page
     });
 
+    String sortQuery = '';
+    if (_sortColumnKey != null) {
+      sortQuery = '&$_sortColumnKey=${_sortAscending ? 'AZ' : 'ZA'}';
+    }
+
     bool dialogShown = false;
+
+    _timer?.cancel(); // Cancela cualquier timer existente
 
     Future<void> fetchData() async {
       try {
         final prefs = await SharedPreferences.getInstance();
         final token = prefs.getString('tokenauth') ?? '';
 
+        String filterQuery = _buildFilterQuery();
+        final uri = Uri.parse(
+            '$baseUrl/api/v1/clientes?limit=12&page=$page$sortQuery&$filterQuery');
+        print('Fetching: $uri'); // Para depuración
+
         final response = await http.get(
-          Uri.parse(
-              '$baseUrl/api/v1/usuarios?limit=12&page=$page'), // Add pagination parameters
+          uri,
           headers: {
             'tokenauth': token,
             'Content-Type': 'application/json',
@@ -200,11 +252,43 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
     }
   }
 
+  String _buildFilterQuery() {
+    List<String> queryParams = [];
+    _filtrosActivos.forEach((key, value) {
+      if (value != null && value.toString().isNotEmpty) {
+        // Mapea las claves a los parámetros de la API para grupos
+        String apiParam = _mapFilterKeyToApiParam(key);
+        queryParams.add('$apiParam=${Uri.encodeComponent(value.toString())}');
+      }
+    });
+    return queryParams.join('&');
+  }
+
+  String _mapFilterKeyToApiParam(String filterKey) {
+    // IMPORTANTE: Ajusta estos case a los nombres de parámetros que espera tu API de grupos
+    switch (filterKey) {
+      case 'tipoGrupo':
+        return 'tipogrupo'; // Ejemplo: el backend espera 'tipogrupo'
+      case 'estadoGrupo':
+        return 'estado'; // Ejemplo: el backend espera 'estado' o 'estadogrupo'
+      case 'usuarioCampo':
+        return 'asesor'; // AGREGAR ESTA LÍNEA (ajusta el nombre según tu API)
+      default:
+        return filterKey; // Como fallback
+    }
+  }
+
   Future<void> searchUsuarios(String query, {int page = 1}) async {
     if (query.trim().isEmpty) {
-      obtenerUsuarios();
+      // Si la búsqueda está vacía, llama a obtenerCreditos que ya incluye el sort
+      _isSearching = false;
+      _currentSearchQuery = '';
+      obtenerUsuarios(
+          page: page); // Usará el _sortColumnKey y _sortAscending actuales
       return;
     }
+    _isSearching = true;
+    _currentSearchQuery = query;
 
     if (!mounted) return;
 
@@ -212,16 +296,26 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
       isLoading = true;
       errorDeConexion = false;
       noUsersFound = false;
-      currentPage = page; // Update current page for search
+      currentPage = page; // Actualizar página actual para búsqueda
     });
+
+    String sortQuery = '';
+    if (_sortColumnKey != null) {
+      sortQuery = '&$_sortColumnKey=${_sortAscending ? 'AZ' : 'ZA'}';
+    }
+
+    String filterQuery = _buildFilterQuery();
+    final encodedQuery = Uri.encodeComponent(query);
+    final uri = Uri.parse(
+        '$baseUrl/api/v1/usuarios/$encodedQuery?limit=12&page=$page$sortQuery&$filterQuery');
+    print('Searching: $uri'); // Para depuración
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
 
       final response = await http.get(
-        Uri.parse(
-            '$baseUrl/api/v1/usuarios/$query?limit=12&page=$page'), // Add pagination parameters
+        uri,
         headers: {
           'tokenauth': token,
           'Content-Type': 'application/json',
@@ -803,6 +897,82 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
     );
   }
 
+  void _onSort(String columnKey) {
+    setState(() {
+      if (_sortColumnKey == columnKey) {
+        // Si es la misma columna, alternar entre ASC -> DESC -> SIN ORDEN
+        if (_sortAscending) {
+          _sortAscending = false; // Cambiar a descendente
+        } else {
+          // Si ya está en descendente, resetear completamente
+          _sortColumnKey = null;
+          _sortAscending = true;
+        }
+      } else {
+        // Si es una columna diferente, establecer nueva columna en ascendente
+        _sortColumnKey = columnKey;
+        _sortAscending = true;
+      }
+      currentPage = 1; // Resetear a la primera página al cambiar el orden
+    });
+
+    // Volver a cargar los datos con el nuevo orden
+    if (_searchController.text.trim().isNotEmpty) {
+      searchUsuarios(_searchController.text, page: 1);
+    } else {
+      obtenerUsuarios(page: 1);
+    }
+  }
+
+  DataColumn _buildSortableColumn(String label, String columnKey,
+      {double? width}) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    List<Widget> children = [
+      Text(label, style: TextStyle(fontSize: textHeaderTableSize)),
+      SizedBox(width: 2), // Espacio entre el texto y el icono
+    ];
+
+    // Solo mostrar icono de ordenamiento si esta columna está activa
+    if (_sortColumnKey == columnKey) {
+      children.add(
+        Icon(
+          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 16,
+          color: Colors.white,
+        ),
+      );
+    } else {
+      // Icono sutil para columnas inactivas pero ordenables
+      children.add(
+        Icon(
+          Icons.unfold_more,
+          size: 16,
+          color: Colors.white.withOpacity(0.7),
+        ),
+      );
+    }
+
+    Widget labelWidget = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+
+    return DataColumn(
+      label: SizedBox(
+        width: width,
+        child: InkWell(
+          onTap: () => _onSort(columnKey),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: labelWidget,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget tablaUsuarios(BuildContext context) {
     final themeProvider =
         Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
@@ -873,24 +1043,16 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(fontSize: textHeaderTableSize),
                               )),
-                              DataColumn(
-                                  label: Text(
-                                'Nombre Completo',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              )),
+                             _buildSortableColumn(
+                                  'Nombre', 'nombre'), // Clave API
                               DataColumn(
                                   label: Text(
                                 'Email',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(fontSize: textHeaderTableSize),
                               )),
-                              DataColumn(
-                                  label: Text(
-                                'Fecha Creación',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: textHeaderTableSize),
-                              )),
+                            _buildSortableColumn(
+                                  'Fecha Creación', 'fCreacion'), // Clave API
                               DataColumn(
                                 label: Text(
                                   'Acciones',

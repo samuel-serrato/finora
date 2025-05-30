@@ -174,24 +174,48 @@ class _LoginScreenState extends State<LoginScreen> {
           throw Exception('Token no encontrado en los headers');
         }
       } else {
-        final errorMessage = responseBody['Error']?['Message'] ??
-            responseBody['message'] ??
-            'Error desconocido';
+        // CORRECCIÓN 1: Mejorar la extracción del mensaje de error desde el servidor
+        String errorMessage = 'Error desconocido';
+
+        if (responseBody['Error']?['Message'] != null) {
+          String serverMessage = responseBody['Error']['Message'];
+          // Limpiar duplicación si existe
+          if (serverMessage.contains(': Error: ')) {
+            errorMessage = serverMessage.split(': Error: ')[0];
+          } else {
+            errorMessage = serverMessage;
+          }
+        } else if (responseBody['message'] != null) {
+          errorMessage = responseBody['message'];
+        }
+
         print('Error en respuesta del servidor: $errorMessage');
         throw Exception(errorMessage);
       }
     } catch (e) {
       print('Excepción capturada: $e');
 
+      // CORRECCIÓN 2: Mejorar el manejo de errores en el catch
       String errorMessage;
       if (e.toString().contains('SocketException') ||
           e.toString().contains('ClientException') ||
-          e.toString().contains('tiempo de espera')) {
+          e.toString().contains('tiempo de espera') ||
+          e.toString().contains('HandshakeException') ||
+          e.toString().contains('Connection refused')) {
         errorMessage =
             'No se pudo conectar al servidor. Por favor verifica tu conexión a internet e intenta nuevamente.';
       } else {
         errorMessage = e.toString().replaceAll('Exception: ', '');
-        if (errorMessage.contains('') || errorMessage.contains('address =')) {
+
+        // Limpiar mensajes duplicados del servidor (respaldo adicional)
+        if (errorMessage.contains(': Error: ')) {
+          // Si hay duplicación como "mensaje: Error: mensaje", tomar solo la primera parte
+          errorMessage = errorMessage.split(': Error: ')[0];
+        }
+
+        // Solo verificar errores específicos de red/DNS
+        if (errorMessage.contains('Failed host lookup') ||
+            errorMessage.contains('No address associated with hostname')) {
           errorMessage = 'Error de conexión. Por favor intenta más tarde.';
         }
       }
@@ -824,4 +848,3 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 }
-
