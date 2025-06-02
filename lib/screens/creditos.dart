@@ -55,6 +55,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   // Configuraciones de filtros
   late List<ConfiguracionFiltro> _configuracionesFiltros;
 
+  // 1. AGREGAR estas variables al estado de la clase (después de las variables existentes)
+  String? _estadoCreditoSeleccionado =
+      'Activo'; // Para el dropdown independiente - por defecto 'Activo'
+
   @override
   void initState() {
     super.initState();
@@ -123,12 +127,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         tipo: TipoFiltro.dropdown,
         opciones: ['Pagado', 'Pendiente', 'Retraso', 'Desembolso'],
       ),
-      ConfiguracionFiltro(
+      /*    ConfiguracionFiltro(
         clave: 'estadocredito',
         titulo: 'Estado del Crédito',
         tipo: TipoFiltro.dropdown,
         opciones: ['Activo', 'Finalizado', 'En mora'],
-      ),
+      ), */
     ];
   }
 
@@ -789,6 +793,12 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           // Contenedor para los botones (Filtros y Agregar Crédito)
           Row(
             children: [
+              // NUEVO: Dropdown de Estado del Crédito
+
+              _buildEstadoCreditoDropdown(isDarkMode),
+
+              SizedBox(width: 10), // Espaciado entre controles
+
               // Botón de Filtros con PopupMenu
               _buildFilterButton(context, isDarkMode),
 
@@ -816,9 +826,66 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     );
   }
 
-  // 2. Reemplaza tu método _buildFilterButton actual con este:
-  // 2. Reemplaza tu método _buildFilterButton actual con este (mantiene el estilo PopupMenu):
-  // 2. REEMPLAZA tu método _buildFilterButton con esta versión simplificada:
+  // 3. NUEVO método para crear el dropdown de estado del crédito
+  Widget _buildEstadoCreditoDropdown(bool isDarkMode) {
+    return Tooltip(
+      message: 'Filtra los créditos por estado',
+      child: SizedBox(
+        width: 140, // Asegura un ancho finito para evitar el error
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton2<String>(
+            isExpanded: true,
+            value: _estadoCreditoSeleccionado ?? '',
+            style: TextStyle(
+              color: isDarkMode ? Colors.white : Colors.black87,
+              fontSize: 14,
+            ),
+            items: [
+              DropdownMenuItem<String>(
+                value: '',
+                child: Text('Todos'),
+              ),
+              ...['Activo', 'Finalizado', 'En mora'].map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+            ],
+            onChanged: (String? newValue) {
+              setState(() {
+                _estadoCreditoSeleccionado = newValue;
+              });
+              _aplicarFiltros();
+            },
+            buttonStyleData: ButtonStyleData(
+              height: 36,
+              padding: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[700] : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 8.0)
+                ],
+              ),
+            ),
+            dropdownStyleData: DropdownStyleData(
+              offset: const Offset(0, -5), // (x, y)
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.grey[800] : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            iconStyleData: const IconStyleData(
+              icon: Icon(Icons.keyboard_arrow_down_rounded),
+              iconSize: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 // 1. MANTÉN tu método _buildFilterButton exactamente igual (con PopupMenu):
   Widget _buildFilterButton(BuildContext context, bool isDarkMode) {
     return Theme(
@@ -937,6 +1004,13 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
       }
     });
 
+    // Agregar el estado del crédito del dropdown separado
+    if (_estadoCreditoSeleccionado != null &&
+        _estadoCreditoSeleccionado!.isNotEmpty) {
+      queryParams.add(
+          'estadocredito=${Uri.encodeComponent(_estadoCreditoSeleccionado!)}');
+    }
+
     return queryParams.join('&');
   }
 
@@ -957,41 +1031,6 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         return 'estadocredito';
       default:
         return filterKey;
-    }
-  }
-
-// Método para aplicar filtros actualizado
-  void aplicarFiltros(
-    DateTime? fechaDesde,
-    DateTime? fechaHasta,
-    String? tipoCredito,
-    String? frecuencia,
-    String? diapago,
-    int? numeroPago,
-    String? estadoPago,
-    String? estadoCredito,
-  ) {
-    print('Aplicando filtros de créditos:');
-    print('Fecha desde: ${fechaDesde?.toString()}');
-    print('Fecha hasta: ${fechaHasta?.toString()}');
-    print('Tipo de crédito: $tipoCredito');
-    print('Frecuencia: $frecuencia');
-    print('Día de pago: $diapago');
-    print('Número de pago: $numeroPago');
-    print('Estado de pago: $estadoPago');
-    print('Estado de crédito: $estadoCredito');
-    //print('Búsqueda: $busquedaPorPalabras');
-
-    // Aquí implementarías la lógica para filtrar los créditos
-    // obtenerCreditosFiltrados(fechaDesde, fechaHasta, tipoCredito, frecuencia, diapago, numeroPago, estadoPago, estadoCredito, busquedaPorPalabras);
-    setState(() {
-      currentPage = 1;
-    });
-
-    if (_searchController.text.trim().isNotEmpty) {
-      searchCreditos(_searchController.text);
-    } else {
-      obtenerCreditos();
     }
   }
 

@@ -124,7 +124,7 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
 
         String filterQuery = _buildFilterQuery();
         final uri = Uri.parse(
-            '$baseUrl/api/v1/clientes?limit=12&page=$page$sortQuery&$filterQuery');
+            '$baseUrl/api/v1/usuarios?limit=12&page=$page$sortQuery&$filterQuery');
         print('Fetching: $uri'); // Para depuración
 
         final response = await http.get(

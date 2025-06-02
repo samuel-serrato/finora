@@ -164,7 +164,8 @@ class ReporteGeneralWidget extends StatelessWidget {
           _buildHeaderCell('Grupos', context),
           _buildHeaderCell('Pagos', context),
           _buildHeaderCell('Fecha', context),
-          _buildHeaderCell('Monto', context),
+          _buildHeaderCell('Monto Ficha', context),
+          _buildHeaderCell('Saldo Contra', context),
           _buildHeaderCell('Capital', context),
           _buildHeaderCell('Interés', context),
           _buildHeaderCell('Saldo Favor', context),
@@ -243,6 +244,8 @@ class ReporteGeneralWidget extends StatelessWidget {
                   currencyFormat.format(reportesInGroup.first.montoficha),
                   alignment: Alignment.center,
                   context: context),
+              _buildBodyCell(_buildSaldoContra(reportesInGroup, context),
+                  alignment: Alignment.center, context: context),
               _buildBodyCell(
                   currencyFormat.format(reportesInGroup.first.capitalsemanal),
                   alignment: Alignment.center,
@@ -254,8 +257,10 @@ class ReporteGeneralWidget extends StatelessWidget {
               _buildBodyCell(_buildSaldoFavor(reportesInGroup, context),
                   alignment: Alignment.center, context: context),
               // Moratorios Generados
-              _buildBodyCell(_buildMoratoriosGenerados(reportesInGroup, context),
-                  alignment: Alignment.center, context: context),
+              _buildBodyCell(
+                  _buildMoratoriosGenerados(reportesInGroup, context),
+                  alignment: Alignment.center,
+                  context: context),
               // Moratorios Pagados
               _buildBodyCell(_buildMoratoriosPagados(reportesInGroup, context),
                   alignment: Alignment.center, context: context),
@@ -265,6 +270,37 @@ class ReporteGeneralWidget extends StatelessWidget {
       }).toList(),
     );
   }
+
+  // Método para calcular el saldo en contra
+  Widget _buildSaldoContra(List<ReporteGeneral> reportesInGroup, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    // Obtener el monto de la ficha (debería ser el mismo para todos los reportes del grupo)
+    final double montoFicha = reportesInGroup.first.montoficha;
+    
+    // Sumar todos los pagos realizados en el grupo
+    final double totalPagos = reportesInGroup.fold(0.0, (sum, reporte) => sum + reporte.pagoficha);
+    
+    // Calcular el saldo en contra (diferencia entre monto y pagos)
+    final double saldoContra = montoFicha - totalPagos;
+    
+    // Si el saldo en contra es negativo o cero, no mostrar nada o mostrar 0
+    final String displayValue = saldoContra > 0 ? currencyFormat.format(saldoContra) : currencyFormat.format(0.0);
+    
+    return Text(
+      displayValue,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: cellTextSize,
+        color: saldoContra > 0 
+            ? (isDarkMode ? Colors.red[300] : Colors.red[700]) // Color rojo para saldo pendiente
+            : (isDarkMode ? Colors.white70 : Colors.grey[800]), // Color verde para saldo completo
+        fontWeight: saldoContra > 0 ? FontWeight.w600 : FontWeight.normal,
+      ),
+    );
+  }
+
 
   Widget _buildBodyCell(dynamic content,
       {Alignment alignment = Alignment.centerLeft,
@@ -421,13 +457,15 @@ class ReporteGeneralWidget extends StatelessWidget {
   }
 
   // Nueva función para Moratorios Generados
-  Widget _buildMoratoriosGenerados(List<ReporteGeneral> reportes, BuildContext context) {
+  Widget _buildMoratoriosGenerados(
+      List<ReporteGeneral> reportes, BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
     // Aquí debes obtener el valor de moratorios generados desde tu modelo
     // Asumiendo que tienes un campo moratoriosGenerados en tu modelo
-    final moratoriosGenerados = reportes.first.moratorios; // O el campo correspondiente
+    final moratoriosGenerados =
+        reportes.first.moratorios; // O el campo correspondiente
     final color = moratoriosGenerados > 0
         ? (isDarkMode ? Colors.red.shade300 : Colors.red)
         : (isDarkMode ? Colors.white70 : Colors.grey[800]);
@@ -438,20 +476,23 @@ class ReporteGeneralWidget extends StatelessWidget {
         style: TextStyle(
           fontSize: cellTextSize,
           color: color,
-          fontWeight: moratoriosGenerados > 0 ? FontWeight.bold : FontWeight.normal,
+          fontWeight:
+              moratoriosGenerados > 0 ? FontWeight.bold : FontWeight.normal,
         ),
       ),
     );
   }
 
   // Nueva función para Moratorios Pagados
-  Widget _buildMoratoriosPagados(List<ReporteGeneral> reportes, BuildContext context) {
+  Widget _buildMoratoriosPagados(
+      List<ReporteGeneral> reportes, BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
     // Aquí debes obtener el valor de moratorios pagados desde tu modelo
     // Asumiendo que tienes un campo moratoriosPagados en tu modelo
-    final moratoriosPagados = 0.0; // Reemplaza con el campo correspondiente de tu modelo
+    final moratoriosPagados =
+        0.0; // Reemplaza con el campo correspondiente de tu modelo
     final color = moratoriosPagados > 0
         ? (isDarkMode ? Colors.green.shade300 : Colors.green)
         : (isDarkMode ? Colors.white70 : Colors.grey[800]);
@@ -462,31 +503,59 @@ class ReporteGeneralWidget extends StatelessWidget {
         style: TextStyle(
           fontSize: cellTextSize,
           color: color,
-          fontWeight: moratoriosPagados > 0 ? FontWeight.bold : FontWeight.normal,
+          fontWeight:
+              moratoriosPagados > 0 ? FontWeight.bold : FontWeight.normal,
         ),
       ),
     );
   }
 
-  Widget _buildTotalsWidget() {
-    return Column(
-      children: [
-        _buildTotalsRow(
-          'Totales',
-          [
-            (value: reporteData!.totalPagoficha, column: 3),
-            (value: reporteData!.totalFicha, column: 5),
-            (value: reporteData!.totalCapital, column: 6),
-            (value: reporteData!.totalInteres, column: 7),
-            (value: reporteData!.totalSaldoFavor, column: 8),
-            // Totales para las nuevas columnas de moratorios
-            (value: reporteData!.saldoMoratorio, column: 9), // Moratorios Generados
-            (value: 0.0, column: 10), // Moratorios Pagados - reemplaza con el campo correcto
-          ],
-        ),
-      ],
-    );
+  // En el método _buildTotalsWidget(), actualiza la lista de valores para incluir el saldo en contra:
+
+Widget _buildTotalsWidget() {
+  // Calcular el total de saldos en contra
+  double totalSaldoContra = 0.0;
+  
+  // Agrupar reportes por idficha para calcular saldo en contra de cada grupo
+  final groupedReportes = groupBy(listaReportes, (r) => r.idficha);
+  
+  for (final group in groupedReportes.entries) {
+    final reportesInGroup = group.value;
+    final double montoFicha = reportesInGroup.first.montoficha;
+    final double totalPagos = reportesInGroup.fold(0.0, (sum, reporte) => sum + reporte.pagoficha);
+    final double saldoContra = montoFicha - totalPagos;
+    
+    // Solo sumar si el saldo en contra es positivo
+    if (saldoContra > 0) {
+      totalSaldoContra += saldoContra;
+    }
   }
+
+  return Column(
+    children: [
+      _buildTotalsRow(
+        'Totales',
+        [
+          (value: reporteData!.totalPagoficha, column: 3),
+          (value: reporteData!.totalFicha, column: 5),
+          (value: totalSaldoContra, column: 6), // ← AQUÍ está el saldo en contra total
+          (value: reporteData!.totalCapital, column: 7),
+          (value: reporteData!.totalInteres, column: 8),
+          (value: reporteData!.totalSaldoFavor, column: 9),
+          // Totales para las nuevas columnas de moratorios
+          (
+            value: reporteData!.saldoMoratorio,
+            column: 10
+          ), // Moratorios Generados
+          (
+            value: 0.0,
+            column: 11
+          ), // Moratorios Pagados - reemplaza con el campo correcto
+        ],
+      ),
+    ],
+  );
+}
 
   Widget _buildTotalsIdealWidget() {
     return Container(
@@ -595,7 +664,7 @@ class ReporteGeneralWidget extends StatelessWidget {
   Widget _buildTotalsRow(
       String label, List<({double value, int column})> values) {
     // Ahora necesitamos 12 columnas en lugar de 10
-    List<Widget> cells = List.generate(11, (_) => Expanded(child: Container()));
+    List<Widget> cells = List.generate(12, (_) => Expanded(child: Container()));
 
     cells[0] = Expanded(
       child: Container(
@@ -613,22 +682,21 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
 
     for (final val in values) {
-        cells[val.column] = Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            alignment: Alignment.center,
-            child: Text(
-              currencyFormat.format(val.value),
-              style: TextStyle(
-                fontSize: cellTextSize,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+      cells[val.column] = Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          alignment: Alignment.center,
+          child: Text(
+            currencyFormat.format(val.value),
+            style: TextStyle(
+              fontSize: cellTextSize,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
-        );
-      }
-    
+        ),
+      );
+    }
 
     return Container(
       color: const Color(0xFF5162F6),
