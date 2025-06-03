@@ -14,6 +14,9 @@ class PagoSeleccionado {
   double? saldoEnContra;
   double? montoAPagar;
 
+  // Nuevo campo: lista de pagos moratorios
+  final List<Map<String, dynamic>> pagosMoratorios; // <--- AÑADIDO
+
   PagoSeleccionado({
     required this.semana,
     required this.tipoPago,
@@ -27,8 +30,10 @@ class PagoSeleccionado {
     List<Map<String, dynamic>>? abonos,
     this.saldoEnContra = 0.0,
     this.montoAPagar,
+    List<Map<String, dynamic>>? pagosMoratorios, // <--- AÑADIDO
   })  : abonos = abonos ?? [],
         // Forzar moratorio a 0 si está deshabilitado
+        pagosMoratorios = pagosMoratorios ?? [], // <--- INICIALIZACIÓN
         moratorio = moratorioDesabilitado == "Si" ? 0.0 : (moratorio ?? 0.0);
 
   // Factory method para crear desde un Pago
@@ -46,6 +51,8 @@ class PagoSeleccionado {
       abonos: pago.abonos,
       saldoEnContra: pago.saldoEnContra ?? 0.0,
       montoAPagar: pago.capitalMasInteres,
+      // Carga los pagos moratorios desde el objeto Pago
+      pagosMoratorios: pago.pagosMoratorios, // <--- AÑADIDO
     );
   }
 

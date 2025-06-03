@@ -166,13 +166,20 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
 
       if (response.statusCode == 200) {
         // Después de una edición exitosa
-        final userDataProvider =
-            Provider.of<UserDataProvider>(context, listen: false);
-        userDataProvider.actualizarDatosUsuario(
-          nombreCompleto: nombreCompletoController.text,
-          tipoUsuario: selectedTipoUsuario,
-          // Puedes añadir más campos si es necesario
-        );
+        // Verificar si el usuario editado es el mismo que está en la sesión actual
+        final userDataProvider = Provider.of<UserDataProvider>(context, listen: false);
+        
+        // Comparar el ID del usuario editado con el ID del usuario actual
+        if (widget.idUsuario.toString() == userDataProvider.idusuario.toString()) {
+          print('flutter: [_editarUsuario] Actualizando provider - es la sesión actual');
+          userDataProvider.actualizarDatosUsuario(
+            nombreCompleto: nombreCompletoController.text,
+            tipoUsuario: selectedTipoUsuario,
+            // Puedes añadir más campos si es necesario
+          );
+        } else {
+          print('flutter: [_editarUsuario] No se actualiza provider - no es la sesión actual');
+        }
         // Debería ser 200 en lugar de 201 para actualización
         print('flutter: [_editarUsuario] Edición exitosa');
         widget.onUsuarioEditado();
@@ -180,7 +187,7 @@ class _editUsuarioDialogState extends State<editUsuarioDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Usuario creado correctamente',
+              'Usuario actualizado correctamente',
               style: TextStyle(color: Colors.white),
             ),
             backgroundColor: Colors.green,
