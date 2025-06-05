@@ -1033,7 +1033,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                       ? null
                                       : plazoController.text,
                                   hint: 'Elige plazo',
-                                  items: ["4"],
+                                  items: ["8"],
                                   onChanged: (value) {
                                     // Función siempre presente
                                     setState(() {
@@ -1357,7 +1357,14 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     double interesPago = 0.0;
     double interesPorcentaje = 0.0;
     interesTotal = 0.0;
+   interesGlobal = 0.0; // Inicializar
+if (frecuenciaPago == "Semanal") {
     interesGlobal = ((tasaInteresMensualCalculada / 4) * plazoNumerico);
+} else if (frecuenciaPago == "Quincenal") {
+    // ANTES: No estaba explícito, pero implícitamente relacionado con la tasa / 2
+    // AHORA: Aseguramos que es correcto
+    interesGlobal = ((tasaInteresMensualCalculada / 2) * plazoNumerico);
+}
     int? pagosTotales;
 
     print('interesGlobal print: $interesGlobal');
@@ -1369,21 +1376,24 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     garantiaTexto = garantia ?? "No especificada";
     frecuenciaPagoTexto = frecuenciaPago ?? "No especificada";
 
-    if (frecuenciaPago == "Semanal") {
-      pagosTotales = plazoNumerico;
-      capitalPago = (monto / pagosTotales);
-      interesPago = (monto * (tasaInteresMensualCalculada / 4 / 100));
-      interesPorcentaje = (tasaInteresMensualCalculada / 4);
-      interesTotal = (interesPago * pagosTotales);
-      pagoTotal = (capitalPago + interesPago);
-    } else if (frecuenciaPago == "Quincenal") {
-      pagosTotales = plazoNumerico * 2;
-      capitalPago = (monto / pagosTotales);
-      interesPago = (monto * (tasaInteresMensualCalculada / 2 / 100));
-      interesPorcentaje = (tasaInteresMensualCalculada / 2);
-      interesTotal = (interesPago * pagosTotales);
-      pagoTotal = (capitalPago + interesPago);
-    }
+    // Alrededor de la línea 1010
+if (frecuenciaPago == "Semanal") {
+  pagosTotales = plazoNumerico; // Correcto para semanal
+  capitalPago = (monto / pagosTotales);
+  interesPago = (monto * (tasaInteresMensualCalculada / 4 / 100));
+  interesPorcentaje = (tasaInteresMensualCalculada / 4);
+  interesTotal = (interesPago * pagosTotales);
+  pagoTotal = (capitalPago + interesPago);
+} else if (frecuenciaPago == "Quincenal") {
+  // ANTES: pagosTotales = plazoNumerico * 2;
+  pagosTotales = plazoNumerico; // <-- CAMBIO CLAVE: Si plazoNumerico es 8 (quincenas), hay 8 pagos.
+  capitalPago = (monto / pagosTotales);
+  // La tasa de interés mensual se divide entre 2 para obtener la tasa quincenal
+  interesPago = (monto * (tasaInteresMensualCalculada / 2 / 100));
+  interesPorcentaje = (tasaInteresMensualCalculada / 2);
+  interesTotal = (interesPago * pagosTotales);
+  pagoTotal = (capitalPago + interesPago);
+}
 
     totalARecuperar = (redondearDecimales(pagoTotal, context) * pagosTotales);
 
@@ -1483,68 +1493,82 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       print(jsonOutput);
     }
 
-    void imprimirCalendarioDePagosEnJSON() {
-      List<Map<String, dynamic>> calendarioDePagos = [];
+      void imprimirCalendarioDePagosEnJSON() {
+    List<Map<String, dynamic>> calendarioDePagos = [];
+    
+    // Semana 0 (Fecha de inicio)
+    calendarioDePagos.add({
+      "pago": 0,
+      "fecha": _formatearFecha(fechaInicio),
+      "capital": 0.00,
+      "interes": 0.00,
+      "pagoTotal": 0.00,
+      "pagado": 0.00,
+      "restante": totalARecuperar,
+    });
 
-      // Semana 0 (Fecha de inicio)
-      calendarioDePagos.add({
-        "pago": 0,
-        "fecha": _formatearFecha(fechaInicio),
-        "capital": 0.00,
-        "interes": 0.00,
-        "pagoTotal": 0.00,
-        "pagado": 0.00,
-        "restante": totalARecuperar,
-      });
-
-      // Generar pagos
-      int pagosTotales =
-          frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
-      for (int index = 0; index < pagosTotales; index++) {
-        DateTime fechaPago;
-        if (frecuenciaPago == "Semanal") {
-          fechaPago = fechaInicio.add(Duration(days: (index + 1) * 7));
-        } else {
-          final fechasDePago = calcularFechasDePago(fechaInicio);
+    // Generar pagos
+    int pagosTotalesLoop = // Renombrar para evitar confusión con la variable de clase 'pagosTotales' si la hubiera
+        frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico; // Usar directamente plazoNumerico para quincenal
+        
+    for (int index = 0; index < pagosTotalesLoop; index++) {
+      DateTime fechaPago; // Declarada aquí
+      
+      if (frecuenciaPago == "Semanal") {
+        fechaPago = fechaInicio.add(Duration(days: (index + 1) * 7));
+      } else { // Quincenal
+        final fechasDePago = calcularFechasDePago(fechaInicio, plazoNumerico);
+        if (index < fechasDePago.length) {
           fechaPago = DateTime.parse(fechasDePago[index]);
+        } else {
+          // ESTA RAMA ES EL PROBLEMA SI NO SE ASIGNA fechaPago
+          print("Error en imprimirCalendarioDePagosEnJSON: Inconsistencia en la generación de fechas. Índice $index fuera de rango para fechasDePago (longitud: ${fechasDePago.length}). Usando fecha actual como fallback.");
+          fechaPago = DateTime.now(); // <-- ASIGNAR UN VALOR DE FALLBACK
         }
-
-        double capitalGrupal =
-            integrantes.fold<double>(0.0, (suma, integrante) {
-          final montoIndividual =
-              montosIndividuales[integrante.idclientes] ?? 0.0;
-          return suma + (montoIndividual / pagosTotales);
-        });
-
-        double interesGrupal =
-            integrantes.fold<double>(0.0, (suma, integrante) {
-          final montoIndividual =
-              montosIndividuales[integrante.idclientes] ?? 0.0;
-          return suma +
-              (montoIndividual *
-                  (tasaInteresMensualCalculada /
-                      (frecuenciaPago == "Semanal" ? 4 : 2) /
-                      100));
-        });
-
-        double pagoGrupal = capitalGrupal + interesGrupal;
-        double totalPagado = pagoGrupal * (index + 1);
-        double totalRestante = totalARecuperar - totalPagado;
-
-        calendarioDePagos.add({
-          "pago": index + 1,
-          "fecha": _formatearFecha(fechaPago),
-          "capital": capitalGrupal,
-          "interes": interesGrupal,
-          "pagoTotal": pagoGrupal,
-          "pagado": totalPagado,
-          "restante": totalRestante,
-        });
       }
 
-      // Imprimir en consola como JSON
-      print(calendarioDePagos);
+      double capitalGrupal =
+          integrantes.fold<double>(0.0, (suma, integrante) {
+        final montoIndividual =
+            montosIndividuales[integrante.idclientes] ?? 0.0;
+        return suma + (montoIndividual / pagosTotalesLoop); // Usar pagosTotalesLoop
+      });
+
+      double interesGrupal =
+          integrantes.fold<double>(0.0, (suma, integrante) {
+        final montoIndividual =
+            montosIndividuales[integrante.idclientes] ?? 0.0;
+        return suma +
+            (montoIndividual *
+                (tasaInteresMensualCalculada /
+                    (frecuenciaPago == "Semanal" ? 4 : 2) /
+                    100));
+      });
+
+      double pagoGrupal = capitalGrupal + interesGrupal;
+      double totalPagado = pagoGrupal * (index + 1);
+      double totalRestante = totalARecuperar - totalPagado;
+
+      calendarioDePagos.add({
+        "pago": index + 1,
+        "fecha": _formatearFecha(fechaPago), // Ahora fechaPago siempre está asignada
+        "capital": capitalGrupal,
+        "interes": interesGrupal,
+        "pagoTotal": pagoGrupal,
+        "pagado": totalPagado,
+        "restante": totalRestante,
+      });
     }
+
+    // Imprimir en consola como JSON
+    print("=== JSON del Calendario de Pagos (desde imprimirCalendarioDePagosEnJSON) ===");
+    try {
+        print(jsonEncode(calendarioDePagos));
+    } catch (e) {
+        print("Error al codificar calendarioDePagos a JSON: $e");
+        print("Datos del calendario: $calendarioDePagos");
+    }
+  }
 
     return Row(
   children: [
@@ -1801,9 +1825,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                                   integrante.idclientes] ??
                                               0.0;
                                       final pagosTotales =
-                                          (frecuenciaPago == "Semanal")
-                                              ? plazoNumerico
-                                              : plazoNumerico * 2;
+                                  (frecuenciaPago == "Semanal")
+                                      ? plazoNumerico
+                                      // ANTES: : plazoNumerico * 2;
+                                      : plazoNumerico; // <-- CAMBIO
 
                                       final capitalSemanal =
                                           (montoIndividual / pagosTotales);
@@ -1946,28 +1971,37 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                 ),
                                 // Generar filas con fechas de pago semanal
                                 ...List.generate(
-                                  frecuenciaPago == "Semanal"
-                                      ? plazoNumerico
-                                      : plazoNumerico *
-                                          2, // Si es semanal, usamos la cantidad de pagos semanales, si es quincenal, los multiplicamos por 2.
-                                  (index) {
-                                    DateTime fechaPago;
+                          frecuenciaPago == "Semanal"
+                              ? plazoNumerico
+                              // ANTES: : plazoNumerico * 2,
+                              : plazoNumerico, // <-- CAMBIO
+                          (index) {
+                            DateTime fechaPago;
                                     if (frecuenciaPago == "Semanal") {
                                       // Si es semanal, el primer pago es la siguiente semana
                                       fechaPago = fechaInicio
                                           .add(Duration(days: (index + 1) * 7));
-                                    } else {
-                                      // Si es quincenal, utilizamos las fechas calculadas con las quincenas
-                                      final fechasDePago =
-                                          calcularFechasDePago(fechaInicio);
-                                      fechaPago =
-                                          DateTime.parse(fechasDePago[index]);
-                                    }
+                                     } else {
+                                  // Si es quincenal, utilizamos las fechas calculadas con las quincenas
+                                  // ANTES: final fechasDePago = calcularFechasDePago(fechaInicio);
+                                  final fechasDePago = calcularFechasDePago(fechaInicio, plazoNumerico); // <-- CAMBIO: Pasar plazoNumerico
+                                  // Aquí es donde ocurría el error, asegúrate que fechasDePago tenga suficientes elementos.
+                                  // Si plazoNumerico es 8, y calcularFechasDePago ahora genera 8 fechas,
+                                  // y el List.generate itera 8 veces (index de 0 a 7), esto debería estar bien.
+                                  if (index < fechasDePago.length) { // Añadir una comprobación de seguridad
+                                    fechaPago = DateTime.parse(fechasDePago[index]);
+                                  } else {
+                                    // Manejar el caso donde no hay suficientes fechas, aunque no debería ocurrir con el fix
+                                    print("Error: Faltan fechas de pago para el índice $index");
+                                    fechaPago = DateTime.now(); // Fallback, o lanzar un error más descriptivo
+                                  }
+                                }
 
-                                    final pagosTotales =
-                                        frecuenciaPago == "Semanal"
-                                            ? plazoNumerico
-                                            : plazoNumerico * 2;
+                                     final pagosTotales =
+                                frecuenciaPago == "Semanal"
+                                    ? plazoNumerico
+                                    // ANTES: : plazoNumerico * 2;
+                                    : plazoNumerico; // <-- CAMBIO
 
                                     double capitalGrupal =
                                         (integrantes.fold<double>(
@@ -2010,7 +2044,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                     imprimirDatosGenerales();
                                     imprimirIntegrantesYMontosEnJSON();
                                     imprimirCalendarioDePagosEnJSON();
-                                    print(generarDatosParaServidor());
+                                    print('datos para servidor: ${generarDatosParaServidor()}');
                                     return DataRow(
                                       cells: [
                                         DataCell(Text('${index + 1}',
@@ -2114,50 +2148,77 @@ class _nCreditoDialogState extends State<nCreditoDialog>
           [] // Este arreglo se llenará con los datos individuales
     };
 
+      // Determinar el número correcto de pagos para el bucle
+    int numeroDePagosParaServidor = 0;
+    if (frecuenciaPagoTexto == "Semanal") {
+      numeroDePagosParaServidor = plazoNumerico;
+    } else if (frecuenciaPagoTexto == "Quincenal") {
+      numeroDePagosParaServidor = plazoNumerico; // Si plazoNumerico es 8, son 8 pagos
+    }
+
     // Generar las fechas de pago
     int pagosTotales =
-        frecuenciaPago == "Semanal" ? plazoNumerico : plazoNumerico * 2;
+    frecuenciaPago == "Semanal"
+        ? plazoNumerico
+        // ANTES: : plazoNumerico * 2;
+        : plazoNumerico; // <-- CAMBIO
 
-// Añadir el pago 0 con la fecha inicial
-    datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaInicio));
+datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaInicio)); // Pago 0
 
-    for (int index = 0; index < pagosTotales; index++) {
+ if (frecuenciaPagoTexto == "Semanal") {
+      for (int i = 0; i < numeroDePagosParaServidor; i++) { // Usa numeroDePagosParaServidor
+        DateTime fechaPago = fechaInicio.add(Duration(days: (i + 1) * 7));
+        datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaPago));
+      }
+    } else if (frecuenciaPagoTexto == "Quincenal") {
+      // Usar la misma lógica consistente de calcularFechasDePago
+      // que ya está corregida para tomar numeroDePagosQuincenales (que es plazoNumerico)
+      List<String> fechasQuincenalesISO = calcularFechasDePago(fechaInicio, numeroDePagosParaServidor); // numeroDePagosParaServidor será 8
+      for (String fechaStr in fechasQuincenalesISO) {
+        // calcularFechasDePago ya devuelve yyyy-MM-dd, así que no es necesario formatear de nuevo
+        datosParaServidor["fechasPago"].add(fechaStr);
+      }
+    }
+
+
+   /*  for (int index = 0; index < pagosTotales; index++) {
       DateTime fechaPago = frecuenciaPago == "Semanal"
           ? fechaInicio.add(Duration(days: (index + 1) * 7))
           : fechaInicio
               .add(Duration(days: (index + 1) * 15)); // Ejemplo para quincenal
 
       datosParaServidor["fechasPago"].add(_formatearFechaServidor(fechaPago));
-    }
+    } */
 
-    // Generar los montos individuales
-    // Generar los montos individuales CON REDONDEO
+     // Generar los montos individuales
+    // La variable 'pagosTotales' usada aquí debe ser la misma que 'numeroDePagosParaServidor'
+    int pagosTotalesCalculoIndividual = numeroDePagosParaServidor;
+
     for (var integrante in integrantes) {
       String idDetalleGrupo = integrante.iddetallegrupos;
       double capitalIndividual =
           montosIndividuales[integrante.idclientes] ?? 0.0;
 
-      double periodoCapital =
-          (capitalIndividual / pagosTotales); // <- Sin redondear aquí
+      // Usa pagosTotalesCalculoIndividual para consistencia
+      double periodoCapital = (capitalIndividual / pagosTotalesCalculoIndividual); 
       double tasaInteresNumerica =
           double.tryParse(tasaInteres!.replaceAll('%', '')) ?? 0.0;
       double periodoInteres = capitalIndividual *
           (tasaInteresMensualCalculada /
-              (frecuenciaPago == "Semanal" ? 4 : 2) /
+              (frecuenciaPagoTexto == "Semanal" ? 4 : 2) / // Usa frecuenciaPagoTexto
               100);
 
-      // Aplica redondeo solo al final
       datosParaServidor["clientesMontosInd"].add({
         "iddetallegrupos": idDetalleGrupo,
         "capitalIndividual": (capitalIndividual),
         "periodoCapital": (periodoCapital),
         "periodoInteres": (periodoInteres),
         "periodoInteresPorcentaje": (tasaInteresNumerica),
-        "totalCapital": (periodoCapital * pagosTotales),
-        "totalIntereses": (periodoInteres * pagosTotales),
+        // Usa pagosTotalesCalculoIndividual
+        "totalCapital": (periodoCapital * pagosTotalesCalculoIndividual),
+        "totalIntereses": (periodoInteres * pagosTotalesCalculoIndividual),
         "capitalMasInteres": (periodoCapital + periodoInteres),
-        "pagoTotal":
-            ((periodoCapital * pagosTotales) + (periodoInteres * pagosTotales)),
+        "pagoTotal": ((periodoCapital * pagosTotalesCalculoIndividual) + (periodoInteres * pagosTotalesCalculoIndividual)),
       });
     }
 
@@ -2192,25 +2253,39 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   }
 
 // Función para calcular las fechas de pago quincenales con las condiciones corregidas
-  List<String> calcularFechasDePago(DateTime fechaInicio) {
-    List<String> fechasDePago = [];
-    DateTime primerPago = _calcularPrimerPago(fechaInicio);
+// Alrededor de la línea 1530
+// ANTES: List<String> calcularFechasDePago(DateTime fechaInicio) {
+List<String> calcularFechasDePago(DateTime fechaInicio, int numeroDePagosQuincenales) { // <-- CAMBIO: Añadir parámetro
+  List<String> fechasDePago = [];
+  DateTime primerPago = _calcularPrimerPago(fechaInicio);
 
-    for (int i = 0; i < 8; i++) {
-      // Usamos el formato ISO para las fechas (yyyy-MM-dd) antes de almacenarlas
-      fechasDePago
-          .add(primerPago.toIso8601String().substring(0, 10)); // "yyyy-MM-dd"
+  // ANTES: for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < numeroDePagosQuincenales; i++) { // <-- CAMBIO: Usar el parámetro
+    fechasDePago
+        .add(primerPago.toIso8601String().substring(0, 10));
 
-      if (primerPago.day == 30 ||
-          (primerPago.month == 2 && primerPago.day == 28)) {
-        primerPago = _siguienteQuincena(primerPago, 15);
-      } else {
-        primerPago = _siguienteQuincena(primerPago, 30);
-      }
+    // Lógica para la siguiente quincena:
+    // Si el día actual es 15, el siguiente será 30 (o fin de mes para febrero)
+    // Si el día actual es 30 (o fin de mes), el siguiente será 15 del próximo mes.
+    if (primerPago.day == 15) {
+        // Siguiente es el 30 del mes actual (o fin de mes)
+        if (primerPago.month == 2) { // Febrero
+            bool esBisiesto = (primerPago.year % 4 == 0 && primerPago.year % 100 != 0) || (primerPago.year % 400 == 0);
+            primerPago = DateTime(primerPago.year, primerPago.month, esBisiesto ? 29 : 28);
+        } else if ([4, 6, 9, 11].contains(primerPago.month)) { // Meses con 30 días
+            primerPago = DateTime(primerPago.year, primerPago.month, 30);
+        } else { // Meses con 31 días
+            primerPago = DateTime(primerPago.year, primerPago.month, 30);
+        }
+    } else {
+        // Siguiente es el 15 del próximo mes
+        int siguienteMes = primerPago.month == 12 ? 1 : primerPago.month + 1;
+        int siguienteAno = primerPago.month == 12 ? primerPago.year + 1 : primerPago.year;
+        primerPago = DateTime(siguienteAno, siguienteMes, 15);
     }
-
-    return fechasDePago;
   }
+  return fechasDePago;
+}
 
 // Función para calcular el primer pago (quincenal)
   DateTime _calcularPrimerPago(DateTime fechaInicio) {
