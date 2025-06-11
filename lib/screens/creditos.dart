@@ -1423,114 +1423,110 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
 
               // Reemplaza el DataCell actual del periodoPagoActual con este código:
               DataCell(
-                Center(
-                  child: Row(
+  Center(
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '${credito.periodoPagoActual}',
+          style: TextStyle(fontSize: textTableSize),
+        ),
+        SizedBox(
+          width: 30,
+          height: 30,
+          child: PopupMenuButton<int>(
+            // MODIFICADO: El color del fondo del popup
+            color: isDarkMode ? Colors.grey[800] : Colors.white, 
+            tooltip: 'Mostrar información',
+            splashRadius: 8,
+            icon: Icon(
+              Icons.info_outline,
+              size: 12,
+              // Esto ya lo tenías bien
+              color: isDarkMode ? Colors.white70 : Colors.grey[600],
+            ),
+            padding: EdgeInsets.zero,
+            constraints: BoxConstraints(
+              minWidth: 250,
+              maxWidth: 350,
+            ),
+            offset: Offset(0, 50),
+            // MODIFICADO: Pasamos la variable isDarkMode al builder
+            itemBuilder: (context) => [
+              PopupMenuItem<int>(
+                enabled: false,
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxWidth: 320,
+                    maxHeight: 300,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${credito.periodoPagoActual}',
-                        style: TextStyle(fontSize: textTableSize),
+                        'Cronograma de Pagos',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          // MODIFICADO: Color del título
+                          color: isDarkMode ? Colors.blue[300] : Colors.blue[800],
+                        ),
                       ),
-                      SizedBox(
-                        width: 30, // Controla el ancho del área clickable
-                        height: 30, // Controla el alto del área clickable
-                        child: PopupMenuButton<int>(
-                            color: Colors.white,
-                            tooltip: 'Mostrar información',
-                            splashRadius:
-                                8, // Radio muy pequeño del efecto hover
-                            icon: Icon(
-                              Icons.info_outline,
-                              size: 12,
-                              color: isDarkMode
-                                  ? Colors.white70
-                                  : Colors.grey[600],
+                      Text(
+                        'Pagados: ${credito.numPago}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          // MODIFICADO: Color del subtítulo
+                          color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                        ),
+                      ),
+                      Divider(
+                        height: 16,
+                        // MODIFICADO: Color del divisor
+                        color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                      ),
+                      Flexible(
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxHeight: 320,
+                          ),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              // MODIFICADO: Pasamos isDarkMode a la función que construye los items
+                              children: _buildPagosMenuItems(credito, isDarkMode),
                             ),
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints(
-                              minWidth: 250,
-                              maxWidth: 350,
-                            ),
-                            offset: Offset(0, 50),
-                            itemBuilder: (context) => [
-                                  PopupMenuItem<int>(
-                                    enabled: false,
-                                    child: Container(
-                                      constraints: BoxConstraints(
-                                        maxWidth: 320,
-                                        maxHeight: 300,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            'Cronograma de Pagos',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                              color: Colors.blue[800],
-                                            ),
-                                          ),
-                                          Text(
-                                            'Pagados: ${credito.numPago}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey[700],
-                                            ),
-                                          ),
-                                          Divider(height: 16),
-                                          Flexible(
-                                            child: Container(
-                                              constraints: BoxConstraints(
-                                                maxHeight: 320,
-                                              ),
-                                              child: SingleChildScrollView(
-                                                child: Column(
-                                                  children:
-                                                      _buildPagosMenuItems(
-                                                          credito),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ]),
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              DataCell(Center(
-                  child: Text(credito.estadoPeriodo!,
-                      style: TextStyle(fontSize: textTableSize)))),
-              /*   DataCell(Container(
-                width: 70,
-                child: Text(
-                  credito.fechasIniciofin,
-                  style: TextStyle(fontSize: textTableSize),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 2,
-                  softWrap: true,
-                ),
-              )), */
-              // En tu DataCell
-              // En tu DataCell
-             DataCell(
-  Center(
-    child: Tooltip(
-      message: credito.fCreacion, // Fecha completa en el tooltip
-      child: Text(
-        credito.fCreacion.split(' ')[0], // Solo la fecha (parte antes del primer espacio)
-        style: TextStyle(fontSize: textTableSize),
-      ),
+            ],
+          ),
+        ),
+      ],
     ),
   ),
 ),
+              DataCell(Center(
+                  child: Text(credito.estadoPeriodo!,
+                      style: TextStyle(fontSize: textTableSize)))),
+
+              // En tu DataCell
+              DataCell(
+                Center(
+                  child: Tooltip(
+                    message: credito.fCreacion, // Fecha completa en el tooltip
+                    child: Text(
+                      credito.fCreacion.split(' ')[
+                          0], // Solo la fecha (parte antes del primer espacio)
+                      style: TextStyle(fontSize: textTableSize),
+                    ),
+                  ),
+                ),
+              ),
               DataCell(
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -1608,151 +1604,163 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   }
 
   // Nueva función para generar los items del popup menu
-  List<Widget> _buildPagosMenuItems(Credito credito) {
-    if (credito.fechas.isEmpty) {
-      return [
-        Padding(
-          padding: EdgeInsets.all(8.0),
-          child: Text(
-            'No hay información de pagos disponible',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontStyle: FontStyle.italic,
-            ),
+  // MODIFICADO: La función ahora recibe el booleano isDarkMode
+List<Widget> _buildPagosMenuItems(Credito credito, bool isDarkMode) {
+  if (credito.fechas.isEmpty) {
+    return [
+      Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Text(
+          'No hay información de pagos disponible',
+          style: TextStyle(
+            fontSize: 12,
+            // MODIFICADO: Color del texto
+            color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
+            fontStyle: FontStyle.italic,
           ),
         ),
-      ];
+      ),
+    ];
+  }
+
+  List<Widget> items = [];
+
+  for (var fechaPago in credito.fechas) {
+    // La lógica de colores de estado (verde, rojo, etc.) suele funcionar bien en ambos modos.
+    // Si algún color no se ve bien, puedes ajustarlo aquí también.
+    Color statusColor;
+    IconData statusIcon;
+
+    switch (fechaPago.estado.toLowerCase()) {
+      case 'pagado':
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'pendiente':
+        statusColor = Colors.orange;
+        statusIcon = Icons.schedule;
+        break;
+      case 'atraso':
+        statusColor = Colors.red;
+        statusIcon = Icons.error;
+        break;
+      case 'proximo':
+        statusColor = Colors.blue;
+        statusIcon = Icons.upcoming;
+        break;
+      case 'en abonos':
+        statusColor = Colors.orange;
+        statusIcon = Icons.schedule;
+        break;
+      case 'pagado con retraso':
+        statusColor = Colors.purple;
+        statusIcon = Icons.schedule;
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusIcon = Icons.radio_button_unchecked;
     }
+    
+    bool isCurrentPayment = fechaPago.numPago.toString() == credito.periodoPagoActual;
+    
+    // MODIFICADO: Definimos los colores del texto principal y secundario
+    final Color primaryTextColor = isDarkMode ? Colors.white : Colors.black87;
+    final Color secondaryTextColor = isDarkMode ? Colors.grey[400]! : Colors.grey[700]!;
 
-    List<Widget> items = [];
-
-    for (var fechaPago in credito.fechas) {
-      // Determinar el color y icono según el estado
-      Color statusColor;
-      IconData statusIcon;
-
-      switch (fechaPago.estado.toLowerCase()) {
-        case 'pagado':
-          statusColor = Colors.green;
-          statusIcon = Icons.check_circle;
-          break;
-        case 'pendiente':
-          statusColor = Colors.orange;
-          statusIcon = Icons.schedule;
-          break;
-        case 'atraso':
-          statusColor = Colors.red;
-          statusIcon = Icons.error;
-          break;
-        case 'proximo':
-          statusColor = Colors.blue;
-          statusIcon = Icons.upcoming;
-          break;
-        case 'en abonos':
-          statusColor = Colors.orange;
-          statusIcon = Icons.schedule;
-          break;
-        case 'pagado con retraso':
-          statusColor = Colors.purple;
-          statusIcon = Icons.schedule;
-          break;
-        default:
-          statusColor = Colors.grey;
-          statusIcon = Icons.radio_button_unchecked;
-      }
-
-      // Verificar si es el pago actual
-      bool isCurrentPayment =
-          fechaPago.numPago.toString() == credito.periodoPagoActual;
-
-      items.add(
-        Container(
-          margin: EdgeInsets.symmetric(vertical: 2),
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: isCurrentPayment ? Colors.blue[50] : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-            border: isCurrentPayment
-                ? Border.all(color: Colors.blue[300]!, width: 1)
-                : null,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                statusIcon,
-                size: 16,
-                color: statusColor,
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
+    items.add(
+      Container(
+        margin: EdgeInsets.symmetric(vertical: 2),
+        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          // MODIFICADO: El color de fondo para el item actual
+          color: isCurrentPayment
+              ? (isDarkMode ? Colors.blue.withOpacity(0.25) : Colors.blue[50])
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          // MODIFICADO: El color del borde para el item actual
+          border: isCurrentPayment
+              ? Border.all(color: (isDarkMode ? Colors.blue[700] : Colors.blue[300])!, width: 1)
+              : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              statusIcon,
+              size: 16,
+              color: statusColor,
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Pago ${fechaPago.numPago}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isCurrentPayment ? FontWeight.bold : FontWeight.normal,
+                          // MODIFICADO: Color del texto del pago
+                          color: isCurrentPayment
+                              ? (isDarkMode ? Colors.blue[300] : Colors.blue[800])
+                              : primaryTextColor,
+                        ),
+                      ),
+                      if (isCurrentPayment) ...[
+                        SizedBox(width: 4),
                         Text(
-                          'Pago ${fechaPago.numPago}',
+                          '(Actual)',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isCurrentPayment
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: isCurrentPayment
-                                ? Colors.blue[800]
-                                : Colors.black87,
+                            fontSize: 10,
+                            // MODIFICADO: Color del texto '(Actual)'
+                            color: isDarkMode ? Colors.blue[300] : Colors.blue[600],
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        if (isCurrentPayment) ...[
-                          SizedBox(width: 4),
-                          Text(
-                            '(Actual)',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.blue[600],
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
                       ],
+                    ],
+                  ),
+                  Text(
+                    fechaPago.fechaPago,
+                    style: TextStyle(
+                      fontSize: 11,
+                      // MODIFICADO: Usamos el color secundario definido arriba
+                      color: secondaryTextColor,
                     ),
-                    Text(
-                      fechaPago.fechaPago,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            // La "píldora" de estado suele verse bien en ambos modos,
+            // ya que usa el color de estado con opacidad.
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: statusColor.withOpacity(0.3),
+                  width: 1,
                 ),
               ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: statusColor.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Text(
-                  fechaPago.estado,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                  ),
+              child: Text(
+                fechaPago.estado,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: statusColor,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    }
-
-    return items;
+      ),
+    );
   }
+
+  return items;
+}
 
   Color _getStatusColor(String? estado, BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context,
