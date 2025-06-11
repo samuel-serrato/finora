@@ -1085,11 +1085,16 @@ class _GestionUsuariosScreenState extends State<GestionUsuariosScreen> {
                                     textAlign: TextAlign.center,
                                     style: TextStyle(fontSize: textTableSize),
                                   )),
-                                  DataCell(Text(
-                                    formatDate(usuario.fCreacion),
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: textTableSize),
-                                  )),
+                                 DataCell(
+  Tooltip(
+    message: usuario.fCreacion, // Fecha completa en tooltip
+    child: Text(
+      usuario.fCreacion.split(' ')[0], // Solo la fecha
+      textAlign: TextAlign.center,
+      style: TextStyle(fontSize: textTableSize),
+    ),
+  ),
+),
                                   DataCell(
                                     Row(
                                       mainAxisAlignment:

@@ -602,7 +602,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
           ),
           const SizedBox(width: 15),
           Container(
-            width: 180,
+            width: 150,
             child: ElevatedButton(
               onPressed:
                   (selectedReportType != null && selectedDateRange != null)

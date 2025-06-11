@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:finora/dialogs/configuracion_credito_widget.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/main.dart';
+import 'package:finora/models/cuenta_bancaria.dart';
 import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
 import 'package:finora/widgets/cambiar_contraseña.dart';
@@ -41,6 +43,9 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
   // Agrega estas variables nuevas
   List<CuentaBancaria> _cuentasBancarias = [];
   bool _loadingCuentas = false;
+
+  // NUEVO: Estado para controlar la vista del submenú
+  bool _showCreditSettings = false;
 
   void initState() {
     super.initState();
@@ -95,8 +100,8 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
       leadingContent = leadingWidget;
     } else if (leadingIcon != null) {
       leadingContent = Container(
-        width: 32,
-        height: 32,
+        width: 30,
+        height: 30,
         decoration: BoxDecoration(
           color: enabled
               ? effectiveIconColor.withOpacity(0.1)
@@ -121,8 +126,8 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
             color: enabled
                 ? (isDarkMode ? Colors.white : Colors.black)
                 : Colors.grey,
-            fontSize: 14,
-            fontWeight: FontWeight.w500, // Un poco más de peso para el título
+            fontSize: 16,
+            //fontWeight: FontWeight.w500, // Un poco más de peso para el título
           ),
     );
 
@@ -134,7 +139,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                   color: enabled
                       ? (isDarkMode ? Colors.grey[400] : Colors.grey[600])
                       : Colors.grey[700],
-                  fontSize: 12,
+                  fontSize: 14,
                 ),
           )
         : null;
@@ -143,7 +148,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     Widget itemContent = Row(
       children: [
         leadingContent,
-        SizedBox(width: 14),
+        SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,23 +197,19 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     return finalWidget;
   }
 
+  @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
-    final scaleProvider = Provider.of<ScaleProvider>(context);
-    final userData = Provider.of<UserDataProvider>(context); // Nuevo
     final isDarkMode = themeProvider.isDarkMode;
     final size = MediaQuery.of(context).size;
-
-    // Definir tamaños más grandes
-    final width = size.width * 0.80; // Usar 90% del ancho disponible
-    final height = size.height * 0.85; // Usar 85% del alto disponible
+    final width = size.width * 0.80;
+    final height = size.height * 0.85;
 
     return AlertDialog(
       backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
       elevation: 10,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       contentPadding: EdgeInsets.zero,
-      // Reducir los márgenes internos para maximizar el espacio utilizable
       insetPadding: EdgeInsets.symmetric(
         horizontal: size.width * 0.05,
         vertical: size.height * 0.05,
@@ -218,241 +219,167 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
         height: height,
         child: Column(
           children: [
-            _buildHeader(context),
+            // El header ahora es dinámico y muestra el botón de retroceso
+            _buildHeader(
+              context,
+              title: _showCreditSettings
+                  ? 'Configuración de Crédito'
+                  : 'Configuración',
+              onBack: _showCreditSettings
+                  ? () {
+                      setState(() {
+                        _showCreditSettings = false;
+                      });
+                    }
+                  : null, // No hay botón de retroceso en la pantalla principal
+            ),
             Expanded(
-              child: SingleChildScrollView(
-                physics: BouncingScrollPhysics(),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildFinancialInfoBlock(context),
-                      _buildUserSection(context),
-                      SizedBox(height: 15),
-                      _buildSection(
-                        context,
-                        title: 'Apariencia',
-                        items: [
-                          _buildConfigItem(
-                            context,
-                            title: 'Modo oscuro',
-                            leadingIcon: Icons.dark_mode,
-                            iconColor: Colors.purple,
-                            trailing: Transform.scale(
-                              scale: 0.8,
-                              child: Switch.adaptive(
-                                value: isDarkMode,
-                                onChanged: (value) {
-                                  themeProvider.toggleDarkMode(value);
-                                },
-                                activeColor: Color(0xFF5162F6),
-                              ),
-                            ),
-                          ),
-                        ],
+              child: ClipRRect(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, animation) {
+                    final offsetAnimation = Tween<Offset>(
+                      begin: Offset(
+                          child.key == const ValueKey('credit_settings')
+                              ? 1.0
+                              : -1.0,
+                          0.0),
+                      end: Offset.zero,
+                    ).animate(animation);
+
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: offsetAnimation,
+                        child: child,
                       ),
-                      SizedBox(height: 15),
-                      _buildSection(
-                        context,
-                        title: 'Zoom',
-                        items: [_buildZoomSlider(context, scaleProvider)],
-                        isExpandable: true,
-                      ),
-                      SizedBox(height: 15),
-                      _buildSection(
-                        context,
-                        title: 'Personalizar logo',
-                        items: [_buildLogoUploader(context)],
-                        isExpandable: true,
-                        enabled: userData.tipoUsuario == 'Admin',
-                      ),
-                      SizedBox(height: 15),
-                      _buildBankAccountsSection(context),
-                      SizedBox(height: 15),
-                      _buildSection(
-                        context,
-                        title: 'Opciones de Redondeo',
-                        items: [
-                          FutureBuilder<Widget>(
-                            future: _buildRoundingSelector(context),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const Center(
-                                    child: CircularProgressIndicator());
-                              } else if (snapshot.hasError) {
-                                return Text('Error: ${snapshot.error}');
-                              } else {
-                                return snapshot.data ?? SizedBox.shrink();
-                              }
-                            },
-                          ),
-                        ],
-                        isExpandable: true,
-                        enabled: userData.tipoUsuario == 'Admin',
-                      ),
-                    ],
-                  ),
+                    );
+                  },
+                  child: _showCreditSettings
+                      ? ConfiguracionCreditoWidget(
+                          key: const ValueKey('credit_settings'),
+                          initialRoundingValue: _roundingThreshold!,
+                          onSave: (newValue) {
+                            // Actualizar el valor local y el provider
+                            final userDataProvider =
+                                Provider.of<UserDataProvider>(context,
+                                    listen: false);
+                            userDataProvider.actualizarRedondeo(newValue);
+                            setState(() {
+                              _roundingThreshold = newValue;
+                              // Regresar a la pantalla anterior después de guardar
+                              _showCreditSettings = false;
+                            });
+                          },
+                        )
+                      : _buildMainSettings(
+                          key: const ValueKey('main_settings'),
+                        ),
                 ),
               ),
             ),
-            _buildFooter(context), // Este queda fijo abajo
+            _buildFooter(context),
           ],
         ),
       ),
     );
   }
 
-  Future<Widget> _buildRoundingSelector(BuildContext context) async {
-    final List<double> options = [0.1, 0.25, 0.3, 0.5, 0.6, 0.75, 0.8, 0.9];
-    final theme = Theme.of(context);
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  // NUEVO: Widget que contiene el menú principal de configuración
+  Widget _buildMainSettings({Key? key}) {
+    final scaleProvider = Provider.of<ScaleProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final userData = Provider.of<UserDataProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    if (_roundingThreshold == null) {
-      // Mientras carga el valor inicial, muestra un CircularProgress o similar
-      return Center(child: CircularProgressIndicator());
-    }
+    return CustomScrollView(
+        key: key,
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate(
+                [
+                  _buildFinancialInfoBlock(context),
+                  _buildUserSection(context),
+                  const SizedBox(height: 15),
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 12.0),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.rounded_corner,
-                size: 22.0,
-                color: Color(0xFF5162F6),
-              ),
-              const SizedBox(width: 12.0),
-              Expanded(
-                child: Text(
-                  'Redondear desde',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
-                decoration: BoxDecoration(
-                  color: Color(0xFF5162F6).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<double>(
-                    value: _roundingThreshold,
-                    icon: Icon(
-                      Icons.arrow_drop_down_rounded,
-                      color: Color(0xFF5162F6),
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    elevation: 4,
-                    isDense: true,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF404FD2),
-                    ),
-                    dropdownColor: Color(0xFFD4D6EA),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _roundingThreshold = value;
-                        });
-                      }
-                    },
-                    items: options.map((value) {
-                      return DropdownMenuItem<double>(
-                        value: value,
-                        child: Text(
-                          '≥ ${value.toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 15.0),
+                  _buildSection(
+                    context,
+                    title: 'Apariencia',
+                    items: [
+                      _buildConfigItem(
+                        context,
+                        title: 'Modo oscuro',
+                        leadingIcon: Icons.dark_mode,
+                        iconColor: Colors.purple,
+                        trailing: Transform.scale(
+                          scale: 0.8,
+                          child: Switch.adaptive(
+                            value: isDarkMode,
+                            onChanged: (value) {
+                              themeProvider.toggleDarkMode(value);
+                            },
+                            activeColor: const Color(0xFF5162F6),
+                          ),
                         ),
-                      );
-                    }).toList(),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                try {
-                  final url =
-                      Uri.parse('$baseUrl/api/v1/configuracion/redondeo');
-                  final response = await http.put(
-                    url,
-                    headers: {
-                      'tokenauth': token,
-                      'Content-Type': 'application/json',
-                    },
-                    body: jsonEncode({"redondeo": _roundingThreshold}),
-                  );
+                  const SizedBox(height: 15),
+                  _buildSection(
+                    context,
+                    title: 'Zoom',
+                    items: [_buildZoomSlider(context, scaleProvider)],
+                    isExpandable: true,
+                  ),
+                  const SizedBox(height: 15),
+                  _buildSection(
+                    context,
+                    title: 'Personalizar logo',
+                    items: [_buildLogoUploader(context)],
+                    isExpandable: true,
+                    enabled: userData.tipoUsuario == 'Admin',
+                  ),
+                  const SizedBox(height: 15),
+                  _buildBankAccountsSection(context),
+                  const SizedBox(height: 15),
 
-                  if (response.statusCode == 200) {
-                    if (!mounted) return;
-
-                    // Actualizar el provider aquí:
-                    final userDataProvider =
-                        Provider.of<UserDataProvider>(context, listen: false);
-                    userDataProvider.actualizarRedondeo(_roundingThreshold!);
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('Redondeo guardado correctamente.')),
-                    );
-                  } else {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content:
-                              Text('Error al guardar: ${response.statusCode}')),
-                    );
-                  }
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error de red: $e')),
-                  );
-                }
-              },
-              icon: Icon(
-                Icons.save,
-                color: isDarkMode ? Colors.grey[400] : Colors.white,
-              ),
-              label: Text('Guardar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF5162F6),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24.0, vertical: 14.0),
+                  // ---- MODIFICACIÓN PRINCIPAL AQUÍ ----
+                  // Ahora es un item de configuración que navega
+                  _buildSection(
+                    context,
+                    title: 'Crédito', // Título de la sección general
+                    items: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 5),
+                        child: _buildConfigItem(context,
+                            title: 'Configuración de crédito',
+                            //subtitle: 'Define el redondeo para los créditos',
+                            leadingIcon: Icons.monetization_on,
+                            iconColor: Colors.teal, onTap: () {
+                          setState(() {
+                            _showCreditSettings = true;
+                          });
+                        },
+                            trailing: Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: isDarkMode
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                            ),
+                            enabled: userData.tipoUsuario == 'Admin'),
+                      ),
+                    ],
+                    enabled: userData.tipoUsuario == 'Admin',
+                  ),
+                ],
               ),
             ),
           ),
-        ),
-        SizedBox(height: 10),
-      ],
-    );
+        ]);
   }
 
   Widget _buildLogoUploader(BuildContext context) {
@@ -955,28 +882,61 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  // Modificamos el header para que pueda cambiar de título
+
+  // ---- FUNCIÓN MODIFICADA ----
+  // El header ahora es más inteligente
+  // ---- FUNCIÓN CORREGIDA ----
+  // Se reemplaza Stack por un Row para un layout más robusto y predecible.
+  Widget _buildHeader(BuildContext context,
+      {required String title, VoidCallback? onBack}) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 16),
+      // Se mantiene el contenedor principal para el color de fondo y los bordes
+      height: 60, // Una altura fija ayuda a la consistencia
       decoration: BoxDecoration(
         color: isDarkMode ? Colors.grey[850] : Colors.grey[100],
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
         ),
       ),
-      child: Center(
-        child: Text(
-          'Configuración',
-          style: TextStyle(
-            color: isDarkMode ? Colors.white : Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+      child: Row(
+        children: [
+          // 1. Espacio izquierdo: Contiene el botón de "atrás" o está vacío.
+          //    Tiene un ancho fijo para que el título siempre se alinee igual.
+          SizedBox(
+            width: 60, // Ancho fijo para el área del botón
+            child: onBack != null
+                ? Center(
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios, size: 20),
+                      onPressed: onBack,
+                      tooltip: 'Volver',
+                    ),
+                  )
+                : null, // Si no hay callback, no se muestra nada.
           ),
-        ),
+
+          // 2. Título: Ocupa todo el espacio restante y se centra dentro de él.
+          Expanded(
+            child: Text(
+              title,
+              textAlign: TextAlign.center, // Centra el texto horizontalmente
+              style: TextStyle(
+                color: isDarkMode ? Colors.white : Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+
+          // 3. Espacio derecho: Un espaciador invisible del mismo tamaño que el izquierdo.
+          //    Esto es CRUCIAL para que el título en el Expanded quede perfectamente centrado.
+          const SizedBox(width: 60),
+        ],
       ),
     );
   }
@@ -1051,7 +1011,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
     final effectiveSectionTitleTextStyle = sectionTitleTextStyle ??
         TextStyle(
           color: isDarkMode ? Colors.white : Colors.black,
-          fontSize: 14, // Podrías querer unificar este tamaño
+          fontSize: 16, // Podrías querer unificar este tamaño
         );
 
     return Column(
@@ -1202,13 +1162,13 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: EdgeInsets.only(top: 20, bottom: 30, left: 0, right: 0),
+        padding: EdgeInsets.only(top: 0, bottom: 20, left: 0, right: 0),
         child: Row(
           children: [
             // Contenedor para la imagen del logo
             Container(
-              width: 60,
-              height: 60,
+              width: 90,
+              height: 90,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(60),
                 border: Border.all(
@@ -1244,7 +1204,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                   Text(
                     userData.nombreNegocio,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: isDarkMode ? Colors.white : Colors.black,
                     ),
@@ -1253,7 +1213,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                   Text(
                     'Financiera',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                     ),
                   ),
@@ -2254,34 +2214,5 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
         ),
       );
     }
-  }
-}
-
-class CuentaBancaria {
-  final String idnegocio;
-  final String nombreCuenta;
-  final String numeroCuenta;
-  final String nombreBanco;
-  final String rutaBanco;
-  final DateTime fCreacion;
-
-  CuentaBancaria({
-    required this.idnegocio,
-    required this.nombreCuenta,
-    required this.numeroCuenta,
-    required this.nombreBanco,
-    required this.rutaBanco,
-    required this.fCreacion,
-  });
-
-  factory CuentaBancaria.fromJson(Map<String, dynamic> json) {
-    return CuentaBancaria(
-      idnegocio: json['idnegocio'],
-      nombreCuenta: json['nombreCuenta'],
-      numeroCuenta: json['numeroCuenta'],
-      nombreBanco: json['nombreBanco'],
-      rutaBanco: json['rutaBanco'],
-      fCreacion: DateTime.parse(json['fCreacion']),
-    );
   }
 }

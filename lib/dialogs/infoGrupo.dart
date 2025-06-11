@@ -978,7 +978,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                                             ],
                                                           ),
                                                           Text(
-                                                            'Fecha: ${_formatDate(historialItem['fCreacion'])}',
+                                                            'Fecha: ${(historialItem['fCreacion'])}',
                                                             style: TextStyle(
                                                               fontSize: 12,
                                                               color: isDarkMode
@@ -1250,7 +1250,7 @@ class Grupo {
   final String nombreGrupo;
   final String detalles;
   final List<Cliente> clientes;
-  final DateTime fCreacion;
+  final String fCreacion;
 
   Grupo({
     required this.idgrupos,
@@ -1278,7 +1278,7 @@ class Grupo {
       clientes: (json['clientes'] as List)
           .map((cliente) => Cliente.fromJson(cliente))
           .toList(),
-      fCreacion: DateTime.parse(json['fCreacion']),
+      fCreacion: json['fCreacion'],
     );
   }
 }

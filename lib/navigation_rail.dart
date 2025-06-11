@@ -1,4 +1,5 @@
 import 'package:easy_sidemenu/easy_sidemenu.dart';
+import 'package:finora/screens/bitacora.dart';
 import 'package:finora/screens/reportes.dart';
 import 'package:flutter/material.dart';
 import 'package:finora/screens/clientes.dart';
@@ -45,7 +46,6 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   List<Widget> _buildPages() {
     final userData = Provider.of<UserDataProvider>(context, listen: false);
-    
     List<Widget> pages = [
       HomeScreen(),
       SeguimientoScreen(),
@@ -62,12 +62,15 @@ class _NavigationScreenState extends State<NavigationScreen> {
       pages.add(ReportesScreen());
     }
 
+    if (userData.tipoUsuario == 'Admin') {
+      pages.add(BitacoraScreen()); // Bitácora al final
+    }
+
     return pages;
   }
 
   List<SideMenuItem> _buildMenuItems() {
     final userData = Provider.of<UserDataProvider>(context, listen: false);
-    
     List<SideMenuItem> items = [
       SideMenuItem(
           title: 'Home',
@@ -96,14 +99,22 @@ class _NavigationScreenState extends State<NavigationScreen> {
           title: 'Usuarios',
           onTap: (index, _) => sideMenu.changePage(5),
           icon: const Icon(Icons.manage_accounts)));
-    }
 
-    if (userData.tipoUsuario != 'Invitado') {
-      int reportesIndex = userData.tipoUsuario == 'Admin' ? 6 : 5;
-      items.add(SideMenuItem(
-          title: 'Reportes',
-          onTap: (index, _) => sideMenu.changePage(reportesIndex),
-          icon: const Icon(Icons.insert_chart_rounded)));
+      if (userData.tipoUsuario != 'Invitado') {
+        int reportesIndex = userData.tipoUsuario == 'Admin' ? 6 : 5;
+        items.add(SideMenuItem(
+            title: 'Reportes',
+            onTap: (index, _) => sideMenu.changePage(reportesIndex),
+            icon: const Icon(Icons.insert_chart_rounded)));
+      }
+
+      if (userData.tipoUsuario == 'Admin') {
+        // Bitácora al final - índice 7 para Admin
+        items.add(SideMenuItem(
+            title: 'Bitácora',
+            onTap: (index, _) => sideMenu.changePage(7),
+            icon: const Icon(Icons.history)));
+      }
     }
 
     return items;

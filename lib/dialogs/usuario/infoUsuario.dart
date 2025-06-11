@@ -277,7 +277,7 @@ class _InfoUsuarioState extends State<InfoUsuario> {
                     _buildInfoItem('Tipo de Usuario', userData!['tipoUsuario'],
                         isDarkMode),
                     _buildInfoItem('Fecha de Creación',
-                        _formatDate(userData!['fCreacion']), isDarkMode),
+                        (userData!['fCreacion']), isDarkMode),
                   ],
                 ),
               ],
@@ -409,31 +409,38 @@ class _InfoUsuarioState extends State<InfoUsuario> {
     );
   }
 
-  Widget _buildInfoItem(String label, String value, bool isDarkMode) {
-    final labelColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
-    final valueColor = isDarkMode ? Colors.grey[200] : Colors.grey[800];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(label,
-                style:
-                    TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Text(value,
-                textAlign: TextAlign.end,
-                style:
-                    TextStyle(color: valueColor, fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildInfoItem(String label, String value, bool isDarkMode, {String? tooltip}) {
+  final labelColor = isDarkMode ? Colors.grey[400] : Colors.grey[600];
+  final valueColor = isDarkMode ? Colors.grey[200] : Colors.grey[800];
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(label,
+              style:
+                  TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
+        ),
+        const SizedBox(width: 15),
+        Expanded(
+          child: tooltip != null
+              ? Tooltip(
+                  message: tooltip,
+                  child: Text(value,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                          color: valueColor, fontWeight: FontWeight.w600)),
+                )
+              : Text(value,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                      color: valueColor, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildErrorState(bool isDarkMode) {
     final headingColor = isDarkMode ? Colors.grey[300] : Colors.grey[800];

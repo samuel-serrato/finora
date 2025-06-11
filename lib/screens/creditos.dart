@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:finora/models/credito.dart';
+import 'package:finora/models/usuarios.dart';
 import 'package:finora/providers/theme_provider.dart';
 import 'package:finora/providers/user_data_provider.dart';
 import 'package:finora/widgets/filtros_genericos_widget.dart';
@@ -45,6 +46,9 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
   String _currentSearchQuery = '';
   bool _isSearching = false;
 
+  List<Usuario> _usuarios = [];
+  bool _isLoadingUsuarios = false;
+
   String?
       _sortColumnKey; // Clave de la API para la columna ordenada (ej: 'nombre')
   bool _sortAscending = true; // true para AZ, false para ZA
@@ -64,6 +68,7 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
     super.initState();
     _initializarFiltros();
     obtenerCreditos();
+    obtenerUsuariosCampo(); // AGREGAR ESTA LÍNEA
   }
 
   void _initializarFiltros() {
@@ -127,6 +132,13 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         tipo: TipoFiltro.dropdown,
         opciones: ['Pagado', 'Pendiente', 'Retraso', 'Desembolso'],
       ),
+      // NUEVO FILTRO AGREGADO:
+      ConfiguracionFiltro(
+        clave: 'usuarioCampo',
+        titulo: 'Asesor',
+        tipo: TipoFiltro.dropdown,
+        opciones: [], // Se llenará dinámicamente
+      ),
       /*    ConfiguracionFiltro(
         clave: 'estadocredito',
         titulo: 'Estado del Crédito',
@@ -134,6 +146,116 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         opciones: ['Activo', 'Finalizado', 'En mora'],
       ), */
     ];
+  }
+
+  // Función para actualizar las opciones del filtro de usuarios
+  void _actualizarOpcionesUsuarios() {
+    final filtroUsuario = _configuracionesFiltros.firstWhere(
+      (config) => config.clave == 'usuarioCampo',
+    );
+
+    // Usar el campo nombreCompleto que viene de la API
+    filtroUsuario.opciones =
+        _usuarios.map((usuario) => usuario.nombreCompleto).toList();
+  }
+
+  Future<void> obtenerUsuariosCampo() async {
+    setState(() => _isLoadingUsuarios = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/usuarios/tipo/campo'),
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _usuarios = data.map((item) => Usuario.fromJson(item)).toList();
+          // Actualizar las opciones del filtro después de cargar los usuarios
+          _actualizarOpcionesUsuarios();
+        });
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+          // Verificar si es el mensaje específico de sesión cambiada
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] ==
+                  "La sesión ha cambiado. Cerrando sesión...") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              // Mostrar diálogo y redirigir al login
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false,
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error JWT expirado
+          else if (response.statusCode == 404 &&
+              errorData["Error"]["Message"] == "jwt expired") {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              _timer?.cancel();
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
+              });
+            }
+            return;
+          }
+          // Manejar error 401 (token expirado)
+          else if (response.statusCode == 401) {
+            if (mounted) {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('tokenauth');
+              mostrarDialogoError(
+                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false,
+                );
+              });
+            }
+            return;
+          }
+          // Otros errores
+          else {
+            print('Error ${response.statusCode}: ${errorData.toString()}');
+          }
+        } catch (parseError) {
+          print('Error parseando respuesta: $parseError');
+        }
+      }
+    } catch (e) {
+      print('Error obteniendo usuarios: $e');
+      // Manejar errores de conexión
+      if (mounted) {
+        mostrarDialogoError('Error de conexión al obtener usuarios campo.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingUsuarios = false);
+      }
+    }
   }
 
   @override
@@ -1029,6 +1151,8 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         return 'estadoPago';
       case 'estadoCredito':
         return 'estadocredito';
+      case 'usuarioCampo':
+        return 'asesor'; // AGREGAR ESTA LÍNEA (ajusta el nombre según tu API)
       default:
         return filterKey;
     }
@@ -1295,11 +1419,94 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                   // Pago Periodo
                   child: Text('\$${formatearNumero(credito.pagoCuota)}',
                       style: TextStyle(fontSize: textTableSize)))),
+              // Reemplaza el DataCell actual del periodoPagoActual con este código:
+
+              // Reemplaza el DataCell actual del periodoPagoActual con este código:
+              DataCell(
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${credito.periodoPagoActual}',
+                        style: TextStyle(fontSize: textTableSize),
+                      ),
+                      SizedBox(
+                        width: 30, // Controla el ancho del área clickable
+                        height: 30, // Controla el alto del área clickable
+                        child: PopupMenuButton<int>(
+                            color: Colors.white,
+                            tooltip: 'Mostrar información',
+                            splashRadius:
+                                8, // Radio muy pequeño del efecto hover
+                            icon: Icon(
+                              Icons.info_outline,
+                              size: 12,
+                              color: isDarkMode
+                                  ? Colors.white70
+                                  : Colors.grey[600],
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: BoxConstraints(
+                              minWidth: 250,
+                              maxWidth: 350,
+                            ),
+                            offset: Offset(0, 50),
+                            itemBuilder: (context) => [
+                                  PopupMenuItem<int>(
+                                    enabled: false,
+                                    child: Container(
+                                      constraints: BoxConstraints(
+                                        maxWidth: 320,
+                                        maxHeight: 300,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Cronograma de Pagos',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                              color: Colors.blue[800],
+                                            ),
+                                          ),
+                                          Text(
+                                            'Pagados: ${credito.numPago}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                          Divider(height: 16),
+                                          Flexible(
+                                            child: Container(
+                                              constraints: BoxConstraints(
+                                                maxHeight: 320,
+                                              ),
+                                              child: SingleChildScrollView(
+                                                child: Column(
+                                                  children:
+                                                      _buildPagosMenuItems(
+                                                          credito),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ]),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               DataCell(Center(
-                  child: Text('${credito.numPago}',
-                      style: TextStyle(fontSize: textTableSize)))),
-              DataCell(Center(
-                  child: Text(credito.estadoInterno!,
+                  child: Text(credito.estadoPeriodo!,
                       style: TextStyle(fontSize: textTableSize)))),
               /*   DataCell(Container(
                 width: 70,
@@ -1312,19 +1519,18 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
                 ),
               )), */
               // En tu DataCell
-// En tu DataCell
-              DataCell(
-                Center(
-                  child: Tooltip(
-                    message: DateFormat('yyyy-MM-dd hh:mm a')
-                        .format(credito.fCreacion),
-                    child: Text(
-                      DateFormat('yyyy-MM-dd').format(credito.fCreacion),
-                      style: TextStyle(fontSize: textTableSize),
-                    ),
-                  ),
-                ),
-              ),
+              // En tu DataCell
+             DataCell(
+  Center(
+    child: Tooltip(
+      message: credito.fCreacion, // Fecha completa en el tooltip
+      child: Text(
+        credito.fCreacion.split(' ')[0], // Solo la fecha (parte antes del primer espacio)
+        style: TextStyle(fontSize: textTableSize),
+      ),
+    ),
+  ),
+),
               DataCell(
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -1399,6 +1605,153 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
         }).toList(),
       ),
     );
+  }
+
+  // Nueva función para generar los items del popup menu
+  List<Widget> _buildPagosMenuItems(Credito credito) {
+    if (credito.fechas.isEmpty) {
+      return [
+        Padding(
+          padding: EdgeInsets.all(8.0),
+          child: Text(
+            'No hay información de pagos disponible',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    List<Widget> items = [];
+
+    for (var fechaPago in credito.fechas) {
+      // Determinar el color y icono según el estado
+      Color statusColor;
+      IconData statusIcon;
+
+      switch (fechaPago.estado.toLowerCase()) {
+        case 'pagado':
+          statusColor = Colors.green;
+          statusIcon = Icons.check_circle;
+          break;
+        case 'pendiente':
+          statusColor = Colors.orange;
+          statusIcon = Icons.schedule;
+          break;
+        case 'atraso':
+          statusColor = Colors.red;
+          statusIcon = Icons.error;
+          break;
+        case 'proximo':
+          statusColor = Colors.blue;
+          statusIcon = Icons.upcoming;
+          break;
+        case 'en abonos':
+          statusColor = Colors.orange;
+          statusIcon = Icons.schedule;
+          break;
+        case 'pagado con retraso':
+          statusColor = Colors.purple;
+          statusIcon = Icons.schedule;
+          break;
+        default:
+          statusColor = Colors.grey;
+          statusIcon = Icons.radio_button_unchecked;
+      }
+
+      // Verificar si es el pago actual
+      bool isCurrentPayment =
+          fechaPago.numPago.toString() == credito.periodoPagoActual;
+
+      items.add(
+        Container(
+          margin: EdgeInsets.symmetric(vertical: 2),
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: isCurrentPayment ? Colors.blue[50] : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+            border: isCurrentPayment
+                ? Border.all(color: Colors.blue[300]!, width: 1)
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                statusIcon,
+                size: 16,
+                color: statusColor,
+              ),
+              SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Pago ${fechaPago.numPago}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isCurrentPayment
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isCurrentPayment
+                                ? Colors.blue[800]
+                                : Colors.black87,
+                          ),
+                        ),
+                        if (isCurrentPayment) ...[
+                          SizedBox(width: 4),
+                          Text(
+                            '(Actual)',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue[600],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Text(
+                      fechaPago.fechaPago,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: statusColor.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  fechaPago.estado,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return items;
   }
 
   Color _getStatusColor(String? estado, BuildContext context) {

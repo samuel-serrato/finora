@@ -1,5 +1,7 @@
-import 'estado_credito.dart';
+// Archivo: models/credito.dart
+
 import 'cliente_monto.dart';
+import 'fecha_pago.dart'; // NUEVO: Importa el nuevo modelo
 
 class Credito {
   final String idcredito;
@@ -25,11 +27,15 @@ class Credito {
   final double montoMasInteres;
   final double pagoCuota;
   final String numPago;
+  final String periodoPagoActual; // NUEVO
+  final String estadoPeriodo;     // NUEVO
+  final String estado;
   final String fechasIniciofin;
-  final String estado; // para json['estado'] (ej. "Finalizado")
-  final DateTime fCreacion;
-  final String estadoInterno; // para estado_credito['esatado'] (ej. "Pagado")
+  final List<FechaPago> fechas;   // ACTUALIZADO: ahora es una lista del tipo FechaPago
+  final String fCreacion;
+  final String estadoInterno;
   final List<ClienteMonto> clientesMontosInd;
+  // Nota: he quitado estado_credito de la lista de propiedades, ya que solo se usaba para extraer 'estadoInterno'.
 
   Credito({
     required this.idcredito,
@@ -55,8 +61,11 @@ class Credito {
     required this.montoMasInteres,
     required this.pagoCuota,
     required this.numPago,
-    required this.fechasIniciofin,
+    required this.periodoPagoActual, // NUEVO
+    required this.estadoPeriodo,     // NUEVO
     required this.estado,
+    required this.fechasIniciofin,
+    required this.fechas,            // ACTUALIZADO
     required this.fCreacion,
     required this.estadoInterno,
     required this.clientesMontosInd,
@@ -64,6 +73,12 @@ class Credito {
 
   factory Credito.fromJson(Map<String, dynamic> json) {
     final estadoCreditoJson = json['estado_credito'];
+
+    // Lógica para parsear la lista de fechas
+    final List<dynamic> fechasJson = json['fechas'] as List? ?? [];
+    final List<FechaPago> fechasList = fechasJson
+        .map((fechaJson) => FechaPago.fromJson(fechaJson))
+        .toList();
 
     return Credito(
       idcredito: json['idcredito'] ?? '',
@@ -91,11 +106,13 @@ class Credito {
       montoMasInteres: (json['montoMasInteres'] as num?)?.toDouble() ?? 0.0,
       pagoCuota: (json['pagoCuota'] as num?)?.toDouble() ?? 0.0,
       numPago: json['numPago'] ?? '',
-      fechasIniciofin: json['fechasIniciofin'] ?? '',
+      periodoPagoActual: json['periodoPagoActual'] ?? '', // NUEVO
+      estadoPeriodo: json['estadoPeriodo'] ?? '',         // NUEVO
       estado: json['estado'] ?? '',
-      fCreacion: DateTime.tryParse(json['fCreacion'] ?? '') ?? DateTime.now(),
-      estadoInterno:
-          estadoCreditoJson?['estado'] ?? estadoCreditoJson?['esatado'] ?? '',
+      fechasIniciofin: json['fechasIniciofin'] ?? '',
+      fechas: fechasList, // ACTUALIZADO
+      fCreacion: json['fCreacion'],
+      estadoInterno: estadoCreditoJson?['estado'] ?? '',
       clientesMontosInd: (json['clientesMontosInd'] as List? ?? [])
           .map((e) => ClienteMonto.fromJson(e))
           .toList(),

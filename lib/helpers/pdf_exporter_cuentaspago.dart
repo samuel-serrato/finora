@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:finora/dialogs/configuracion.dart';
 import 'package:finora/models/credito.dart';
+import 'package:finora/models/cuenta_bancaria.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/date_symbol_data_local.dart';

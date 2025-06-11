@@ -1,0 +1,79 @@
+# finora
+
+**finora** es una aplicación desarrollada en Flutter para la gestión de créditos, grupos, usuarios y reportes financieros. Incluye funcionalidades como simulador de créditos, exportación de reportes en PDF, administración de usuarios y más.
+
+## Requisitos
+
+- [Flutter](https://docs.flutter.dev/get-started/install) (estable)
+- [Dart](https://dart.dev/get-dart)
+- Un editor como [Visual Studio Code](https://code.visualstudio.com/) o Android Studio
+
+## Instalación
+
+1. Clona este repositorio:
+   ```sh
+   git clone <URL-del-repositorio>
+   cd finora
+   ```
+
+2. Instala las dependencias:
+   ```sh
+   flutter pub get
+   ```
+
+3. Corre la aplicación:
+   ```sh
+   flutter run -d windows   # Para Windows
+   flutter run -d macos     # Para macOS
+   flutter run -d chrome    # Para Web
+   flutter run -d ios       # Para iOS (requiere Mac)
+   flutter run -d android   # Para Android
+   ```
+
+## Estructura del Proyecto
+
+- `lib/`  
+  - `main.dart` — Punto de entrada de la app.
+  - `screens/` — Pantallas principales (clientes, grupos, usuarios, reportes, simulador, etc).
+  - `dialogs/` — Diálogos modales para edición, creación y configuración.
+  - `models/` — Modelos de datos.
+  - `providers/` — Providers para manejo de estado.
+  - `helpers/` — Utilidades para exportar PDFs y otras funciones auxiliares.
+  - `utils/` — Funciones utilitarias.
+  - `widgets/` — Widgets reutilizables.
+  - `constants/` — Constantes y rutas.
+
+- `assets/` — Recursos estáticos (imágenes, logos, etc).
+
+- `android/`, `ios/`, `macos/`, `windows/`, `linux/`, `web/` — Archivos de plataforma.
+
+## Funcionalidades principales
+
+- Gestión de clientes, grupos y usuarios.
+- Simulador de créditos.
+- Exportación de reportes en PDF.
+- Temas claro/oscuro.
+- Control de acceso y autenticación.
+- Configuración avanzada y personalización.
+
+## Notas
+
+- Configura la IP del backend en [`lib/ip.dart`](lib/ip.dart) según tu entorno.
+- Para compilar en escritorio, asegúrate de tener habilitado el soporte correspondiente en Flutter.
+- Los reportes PDF se generan usando la librería [`pdf`](https://pub.dev/packages/pdf).
+
+## Contribución
+
+1. Haz un fork del repositorio.
+2. Crea una rama (`git checkout -b feature/nueva-funcionalidad`).
+3. Realiza tus cambios y haz commit (`git commit -am 'Agrega nueva funcionalidad'`).
+4. Haz push a tu rama (`git push origin feature/nueva-funcionalidad`).
+5. Abre un Pull Request.
+
+## Licencia
+
+Este proyecto es privado y no está destinado para distribución pública.
+
+---
+
+¿Dudas? Consulta la documentación oficial de [Flutter](https://docs.flutter.dev/) o contacta al desarrollador principal.

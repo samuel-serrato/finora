@@ -202,10 +202,8 @@ class ReporteContableWidget extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Tooltip(
-                      message: 'El Total Ideal representa la suma de:\n\n'
-                          '• Monto ficha\n'
-                          '• Saldo a favor\n'
-                          '• Moratorios\n\n'
+                      message: 'El Total Ideal representa el total de:\n\n'
+                          '• Monto ficha\n\n'
                           'Es el monto objetivo que se debe alcanzar.',
                       decoration: BoxDecoration(
                         color: const Color(0xFFE53888),
@@ -239,6 +237,41 @@ class ReporteContableWidget extends StatelessWidget {
                       message:
                           'La Diferencia es el monto restante para alcanzar el Total Ideal.\n\n'
                           'Se calcula restando el total de pagos recibidos del Total Ideal.',
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53888),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      padding: const EdgeInsets.all(12),
+                      preferBelow: false,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: Icon(
+                          Icons.info_outline,
+                          color: isDarkMode ? Colors.grey[400] : Colors.black38,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    _buildSummaryItem(
+                      context,
+                      'Total Bruto',
+                      reporteData.sumaTotalCapMoraFav,
+                      isPrimary: true,
+                    ),
+                    const SizedBox(width: 10),
+                    Tooltip(
+                      message:
+                          'El Total Bruto representa la suma completa de todos los conceptos:\n\n'
+                          '• Total Pagos\n'
+                          '• Moratorios\n'
+                          '• Saldos a favor\n\n'
+                          'Es el total acumulado antes de aplicar cualquier ajuste o validación.',
                       decoration: BoxDecoration(
                         color: const Color(0xFFE53888),
                         borderRadius: BorderRadius.circular(12),
@@ -565,13 +598,29 @@ class ReporteContableWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
 
-                      SizedBox(
-                        width: double.infinity,
-                        child: _buildFinancialInfo(
-                          context,
-                          'Moratorios Generados',
-                          0.0, // o grupo.moratoriosGenerados
-                        ),
+// Con esta nueva sección:
+                      Row(
+                        children: [
+                          // Moratorios Generados
+                          Expanded(
+                            child: _buildFinancialInfo(
+                              context,
+                              'Moratorios Generados',
+                              grupo.moratorios.moratoriosAPagar ??
+                                  0.0, // Asegúrate de tener este campo en tu modelo
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          // Moratorios Pagados
+                          Expanded(
+                            child: _buildFinancialInfo(
+                              context,
+                              'Moratorios Pagados',
+                              grupo.pagoficha.sumaMoratorio ??
+                                  0.0, // Asegúrate de tener este campo en tu modelo
+                            ),
+                          ),
+                        ],
                       ),
 
                       const SizedBox(height: 20),
@@ -993,6 +1042,11 @@ class ReporteContableWidget extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
+      // --- NUEVA LÍNEA ---
+  // Calculamos la condición UNA SOLA VEZ para todo el grupo de depósitos.
+  // Comparamos el total de depósitos con el total esperado.
+  final bool mostrarIconoInfoParaEsteGrupo = pagoficha.sumaDeposito != pagoficha.depositoCompleto;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1076,12 +1130,18 @@ class ReporteContableWidget extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              // Asumiendo que 'reporte' y 'deposito' están disponibles en este contexto
+
                               _buildDepositoDetail(
-                                context,
-                                'Depósito',
-                                deposito.deposito,
-                                Icons.arrow_downward,
-                              ),
+                              context,
+                              'Depósito',
+                              deposito.deposito,
+                              Icons.arrow_downward,
+                              depositoCompleto: pagoficha.depositoCompleto,
+                              // --- LÍNEA MODIFICADA ---
+                              // Pasamos el resultado del cálculo que hicimos arriba.
+                              mostrarIconoInfo: mostrarIconoInfoParaEsteGrupo,
+                            ),
                               _buildDepositoDetail(
                                 context,
                                 'Saldo a Favor',
@@ -1246,13 +1306,28 @@ class ReporteContableWidget extends StatelessWidget {
   }
 
   Widget _buildDepositoDetail(
-      BuildContext context, String label, double value, IconData icon) {
+    BuildContext context,
+    String label,
+    double value,
+    IconData icon, {
+    double? depositoCompleto,
+    // --- NUEVO PARÁMETRO ---
+  // Por defecto es false para no romper otras llamadas.
+  bool mostrarIconoInfo = false,
+  }) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    return Column(
+
+  // --- LÓGICA MODIFICADA ---
+  // Ya no calculamos la condición aquí. Simplemente usamos el valor que nos pasan.
+  final bool mostrarInfoAdicional = mostrarIconoInfo;
+  
+    // El widget base que se va a construir.
+    Widget detailWidget = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Fila para el label y el ícono principal (sin cambios)
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1269,16 +1344,56 @@ class ReporteContableWidget extends StatelessWidget {
             ),
           ],
         ),
-        Text(
-          currencyFormat.format(value),
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 11,
-            color: isDarkMode ? Colors.grey[200] : Colors.black87,
-          ),
+        // 2. CAMBIO PRINCIPAL: Envolvemos el monto y el nuevo ícono en un Row.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // El texto con el monto del depósito
+            Text(
+              currencyFormat.format(value),
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                color: isDarkMode ? Colors.grey[200] : Colors.black87,
+              ),
+            ),
+            // 3. Ícono de información condicional.
+            //    Se muestra solo si la condición es verdadera.
+            if (mostrarInfoAdicional)
+              Padding(
+                padding: const EdgeInsets.only(left: 4.0), // Un poco de espacio
+                child: Icon(
+                  Icons.info_outline, // El ícono que pediste
+                  size: 12, // Tamaño sutil
+                  // Colores consistentes con tu primer ejemplo
+                  color: isDarkMode ? Colors.white54 : Colors.grey[600],
+                ),
+              ),
+          ],
         ),
       ],
     );
+
+    // 4. La lógica del Tooltip sigue siendo la misma.
+    //    Si hay info adicional, envolvemos todo el widget en el Tooltip.
+    if (mostrarInfoAdicional) {
+      return Tooltip(
+        message:
+            'Depósito completo: ${currencyFormat.format(depositoCompleto!)}',
+        decoration: BoxDecoration(
+          color: const Color(0xFFE53888),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.help,
+          child: detailWidget,
+        ),
+      );
+    }
+
+    // Si no, se devuelve el widget sin Tooltip ni ícono de info.
+    return detailWidget;
   }
 
   String _formatDateSafe(String dateString) {

@@ -295,6 +295,15 @@ class _InfoClienteState extends State<InfoCliente> {
                                   _getValidatedValue(clienteData!['email'])),
                               _buildDetailRowIG(
                                   'Estado:', clienteData!['estado'] ?? 'N/A'),
+                              _buildDetailRowIG(
+                                'F. Creación:',
+                                clienteData!['fCreacion'] != null
+                                    ? clienteData!['fCreacion']
+                                        .split(' ')[0] // Solo la fecha
+                                    : 'N/A',
+                                tooltip: clienteData!['fCreacion'] ??
+                                    'N/A', // Fecha completa en tooltip
+                              ),
                             ],
                           ),
                         ),
@@ -354,8 +363,8 @@ class _InfoClienteState extends State<InfoCliente> {
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
-                                                  if (clienteData!['cuentabanco']
-                                                      is List)
+                                                  if (clienteData![
+                                                      'cuentabanco'] is List)
                                                     for (var cuenta
                                                         in clienteData![
                                                             'cuentabanco']) ...[
@@ -662,16 +671,27 @@ class _InfoClienteState extends State<InfoCliente> {
     );
   }
 
-  Widget _buildDetailRowIG(String title, String? value) {
+  Widget _buildDetailRowIG(String title, String? value, {String? tooltip}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Text(
-        '$title $value',
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.white, // Mantén el texto blanco en la columna izquierda
-        ),
-      ),
+      child: tooltip != null
+          ? Tooltip(
+              message: tooltip,
+              child: Text(
+                '$title $value',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white,
+                ),
+              ),
+            )
+          : Text(
+              '$title $value',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white,
+              ),
+            ),
     );
   }
 

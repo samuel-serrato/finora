@@ -1203,9 +1203,15 @@ class _GruposScreenState extends State<GruposScreen> {
                                   DataCell(Text(grupo.asesor,
                                       style:
                                           TextStyle(fontSize: textTableSize))),
-                                  DataCell(Text(formatDate(grupo.fCreacion),
-                                      style:
-                                          TextStyle(fontSize: textTableSize))),
+                               DataCell(
+  Tooltip(
+    message: grupo.fCreacion, // Fecha completa en tooltip
+    child: Text(
+      grupo.fCreacion.split(' ')[0], // Solo la fecha
+      style: TextStyle(fontSize: textTableSize),
+    ),
+  ),
+),
                                   DataCell(
                                     Container(
                                       padding: EdgeInsets.symmetric(

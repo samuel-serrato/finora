@@ -1,29 +1,6 @@
+import 'package:finora/models/moratorios.dart';
+import 'package:finora/models/parseHelper.dart';
 import 'package:intl/intl.dart';
-
-class ParseHelpers {
-  static double parseDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) {
-      // Eliminar comas y símbolos de moneda
-      String cleanedValue =
-          value.replaceAll(RegExp(r'[^0-9.]'), '').replaceAll(',', '');
-      return double.tryParse(cleanedValue) ?? 0.0;
-    }
-    return 0.0;
-  }
-
-  static List<T> parseList<T>(dynamic data, T Function(dynamic) converter) {
-    if (data == null) return [];
-    if (data is! List) return [];
-    try {
-      return data.map((item) => converter(item)).toList();
-    } catch (e) {
-      return [];
-    }
-  }
-}
 
 String _formatearFechaSemana(String fechaOriginal) {
   try {
@@ -53,6 +30,7 @@ class ReporteContableData {
   final double totalTotal;
   final double restante;
   final double totalFicha;
+  final double sumaTotalCapMoraFav;
   final List<ReporteContableGrupo> listaGrupos;
 
   ReporteContableData({
@@ -66,6 +44,7 @@ class ReporteContableData {
     required this.totalTotal,
     required this.restante,
     required this.totalFicha,
+    required this.sumaTotalCapMoraFav,
     required this.listaGrupos,
   });
 
@@ -85,6 +64,7 @@ class ReporteContableData {
       totalTotal: ParseHelpers.parseDouble(json['totalTotal']),
       restante: ParseHelpers.parseDouble(json['restante']),
       totalFicha: ParseHelpers.parseDouble(json['totalFicha']),
+      sumaTotalCapMoraFav: ParseHelpers.parseDouble(json['sumaTotalCapMoraFav']),
       listaGrupos: ParseHelpers.parseList(
         json['listaGrupos'],
         (item) => ReporteContableGrupo.fromJson(item),
@@ -103,6 +83,7 @@ class ReporteContableGrupo {
   final String grupos;
   final String estado;
   final Pagoficha pagoficha;
+  final Moratorios moratorios; // <--- NUEVO: Añadimos el objeto Moratorios
   final String garantia;
   final double montoDesembolsado;
   final double montoSolicitado;
@@ -126,6 +107,7 @@ class ReporteContableGrupo {
     required this.grupos,
     required this.estado,
     required this.pagoficha,
+    required this.moratorios, // <--- NUEVO: Añadido al constructor
     required this.garantia,
     required this.montoDesembolsado,
     required this.montoSolicitado,
@@ -151,6 +133,8 @@ class ReporteContableGrupo {
       grupos: json['grupos'] ?? '',
       estado: json['estado'] ?? '',
       pagoficha: Pagoficha.fromJson(json['pagoficha'] ?? {}),
+      moratorios: Moratorios.fromJson(json['Moratorios'] ??
+          {}), // <--- NUEVO: Parseamos el objeto Moratorios
       garantia: json['garantia'] ?? '',
       montoDesembolsado: ParseHelpers.parseDouble(json['montoDesembolsado']),
       montoSolicitado: ParseHelpers.parseDouble(json['montoSolicitado']),
@@ -176,7 +160,9 @@ class Pagoficha {
   final int semanaPago;
   final String fechasPago;
   final double sumaDeposito;
+  final double sumaMoratorio; // <--- NUEVO: Este es el moratorio pagado
   final List<Deposito> depositos;
+  final double depositoCompleto;
 
   Pagoficha({
     required this.idpagosdetalles,
@@ -184,7 +170,9 @@ class Pagoficha {
     required this.semanaPago,
     required this.fechasPago,
     required this.sumaDeposito,
+    required this.sumaMoratorio, // <--- NUEVO
     required this.depositos,
+    required this.depositoCompleto,
   });
 
   factory Pagoficha.fromJson(Map<String, dynamic> json) {
@@ -194,10 +182,13 @@ class Pagoficha {
       semanaPago: json['semanaPago'] ?? 0,
       fechasPago: json['fechasPago']?.toString() ?? '',
       sumaDeposito: ParseHelpers.parseDouble(json['sumaDeposito']),
+      sumaMoratorio:
+          ParseHelpers.parseDouble(json['sumaMoratorio']), // <--- NUEVO
       depositos: ParseHelpers.parseList(
         json['depositos'],
         (item) => Deposito.fromJson(item),
       ),
+      depositoCompleto: ParseHelpers.parseDouble(json['depositoCompleto']),
     );
   }
 }

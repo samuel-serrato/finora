@@ -318,9 +318,12 @@ class PDFExportHelperContable {
     );
   }
 
+  // <<<<<<<<<<<<<<< INICIO DE LA MODIFICACIÓN >>>>>>>>>>>>>>>>>
+
   pw.Widget _buildFinancialInfoSection(ReporteContableGrupo grupo) {
+
     return pw.Expanded(
-      flex: 20,
+      flex: 20, // Ajusta el flex si es necesario
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -340,7 +343,6 @@ class PDFExportHelperContable {
             ),
             child: pw.Column(
               children: [
-                // Primera fila con 2 columnas (Garantía y Tasa)
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -351,8 +353,6 @@ class PDFExportHelperContable {
                   ],
                 ),
                 pw.SizedBox(height: 6),
-
-                // Segunda fila con 2 columnas (Monto Solicitado y Monto Desembolsado)
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -363,8 +363,6 @@ class PDFExportHelperContable {
                   ],
                 ),
                 pw.SizedBox(height: 6),
-
-                // Tercera fila con 2 columnas (Interés Total y Monto a Recuperar)
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -377,7 +375,6 @@ class PDFExportHelperContable {
               ],
             ),
           ),
-
           pw.SizedBox(height: 4),
 
           // Container para la información semanal con 3 columnas
@@ -400,10 +397,44 @@ class PDFExportHelperContable {
               ],
             ),
           ),
+
+          pw.SizedBox(height: 4), // Espacio antes de la nueva sección
+
+          // <<< NUEVA SECCIÓN PARA MORATORIOS >>>
+          pw.Container(
+            padding: pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
+              borderRadius: pw.BorderRadius.circular(2),
+            ),
+            child: pw.Row(
+              // << CAMBIO PRINCIPAL AQUÍ >>
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                // Columna 1: Moratorios Generados
+                // Se alineará automáticamente a la izquierda
+                _buildFinancialColumn(
+                  'Moratorios Generados',
+                  grupo.moratorios.moratoriosAPagar ?? 0.0,
+                ),
+
+                // Ya no necesitamos el SizedBox
+
+                // Columna 2: Moratorios Pagados
+                // Se alineará automáticamente a la derecha
+                _buildFinancialColumn(
+                  'Moratorios Pagados',
+                  grupo.pagoficha.sumaMoratorio ?? 0.0,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+
+  // <<<<<<<<<<<<<<< FIN DE LA MODIFICACIÓN >>>>>>>>>>>>>>>>>
 
 // Método auxiliar para crear columnas con texto arriba y valor abajo
   pw.Widget _buildFinancialColumn(String label, dynamic value,

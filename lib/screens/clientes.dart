@@ -1193,10 +1193,10 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                           fontSize: textHeaderTableSize))),
                               _buildSortableColumn(
                                   'Nombre', 'nombrecompleto'), // Clave API
-                              DataColumn(
+                            /*   DataColumn(
                                   label: Text('F. Nac',
                                       style: TextStyle(
-                                          fontSize: textHeaderTableSize))),
+                                          fontSize: textHeaderTableSize))), */
                               DataColumn(
                                   label: Text('Sexo',
                                       style: TextStyle(
@@ -1230,10 +1230,10 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                       '${cliente.nombres ?? 'N/A'} ${cliente.apellidoP ?? 'N/A'} ${cliente.apellidoM ?? 'N/A'}',
                                       style:
                                           TextStyle(fontSize: textTableSize))),
-                                  DataCell(Text(
+                               /*    DataCell(Text(
                                       formatDate(cliente.fechaNac) ?? 'N/A',
                                       style:
-                                          TextStyle(fontSize: textTableSize))),
+                                          TextStyle(fontSize: textTableSize))), */
                                   DataCell(Text(cliente.sexo ?? 'N/A',
                                       style:
                                           TextStyle(fontSize: textTableSize))),
@@ -1243,10 +1243,20 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                   DataCell(Text(cliente.email ?? 'N/A',
                                       style:
                                           TextStyle(fontSize: textTableSize))),
-                                  DataCell(Text(
-                                      formatDate(cliente.fCreacion) ?? 'N/A',
-                                      style:
-                                          TextStyle(fontSize: textTableSize))),
+                                  DataCell(
+                                    Tooltip(
+                                      message: cliente.fCreacion ??
+                                          'N/A', // Fecha completa en tooltip
+                                      child: Text(
+                                        cliente.fCreacion != null
+                                            ? cliente.fCreacion!
+                                                .split(' ')[0] // Solo la fecha
+                                            : 'N/A', // Si es null, mostrar 'N/A'
+                                        style:
+                                            TextStyle(fontSize: textTableSize),
+                                      ),
+                                    ),
+                                  ),
                                   DataCell(
                                     Container(
                                       padding: EdgeInsets.symmetric(
