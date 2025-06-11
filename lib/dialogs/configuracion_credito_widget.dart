@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'package:finora/ip.dart'; // Asegúrate de que esta importación sea correcta
 import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 // SOLUCIÓN 1: Conversión explícita en fromJson (RECOMENDADA)
 class TasaInteres {
   final int idtipointeres;
@@ -51,6 +53,37 @@ class Duracion {
   }
 }
 
+// --- NUEVO: Modelo para la configuración de moratorios ---
+class MoratorioConfig {
+  final int diasTolerancia;
+  final double moratorio;
+  final double moratorioExpandido;
+
+  MoratorioConfig({
+    required this.diasTolerancia,
+    required this.moratorio,
+    required this.moratorioExpandido,
+  });
+
+  factory MoratorioConfig.fromJson(Map<String, dynamic> json) {
+    return MoratorioConfig(
+      // Se manejan tanto int como double para mayor flexibilidad desde el backend
+      diasTolerancia: (json['diasTolerancia'] as num).toInt(),
+      moratorio: (json['moratorio'] as num).toDouble(),
+      moratorioExpandido: (json['moratorioExpandido'] as num).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'diasTolerancia': diasTolerancia,
+      'moratorio': moratorio,
+      'moratorioExpandido': moratorioExpandido,
+    };
+  }
+}
+
+// --- WIDGET PRINCIPAL CON TABS ---
 // --- WIDGET PRINCIPAL CON TABS ---
 class ConfiguracionCreditoWidget extends StatefulWidget {
   final double initialRoundingValue;
@@ -83,17 +116,39 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
   List<Duracion> _duraciones = [];
   bool _loadingDuraciones = true;
 
+  // --- NUEVO: Estado para Moratorios ---
+  MoratorioConfig? _moratorioConfig;
+  bool _loadingMoratorio = true;
+  bool _isSavingMoratorio = false;
+  final _moratorioFormKey = GlobalKey<FormState>();
+  late TextEditingController _diasToleranciaController;
+  late TextEditingController _moratorioController;
+  late TextEditingController _moratorioExpandidoController;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    // --- MODIFICADO: Ahora son 4 tabs ---
+    _tabController = TabController(length: 4, vsync: this);
+
+    // Inicialización de estado de Redondeo
     _roundingThreshold = widget.initialRoundingValue;
+
+    // --- NUEVO: Inicialización de controladores para Moratorios ---
+    _diasToleranciaController = TextEditingController();
+    _moratorioController = TextEditingController();
+    _moratorioExpandidoController = TextEditingController();
+
     _fetchData();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    // --- NUEVO: Liberar los nuevos controladores ---
+    _diasToleranciaController.dispose();
+    _moratorioController.dispose();
+    _moratorioExpandidoController.dispose();
     super.dispose();
   }
 
@@ -106,7 +161,81 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
     await Future.wait([
       _fetchTasasDeInteres(),
       _fetchDuraciones(),
+      _fetchMoratorioConfig(), // --- NUEVO ---
     ]);
+  }
+
+  // --- NUEVO: Método GET para la configuración de Moratorios ---
+  Future<void> _fetchMoratorioConfig() async {
+    setState(() => _loadingMoratorio = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/configuracion/moratorio'),
+        headers: {'tokenauth': token},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (mounted) {
+          setState(() {
+            _moratorioConfig = MoratorioConfig.fromJson(data);
+            // Llenar los controladores con los datos obtenidos
+            _diasToleranciaController.text =
+                _moratorioConfig!.diasTolerancia.toString();
+            _moratorioController.text = _moratorioConfig!.moratorio.toString();
+            _moratorioExpandidoController.text =
+                _moratorioConfig!.moratorioExpandido.toString();
+          });
+        }
+      } else {
+        _showErrorSnackBar('Error al cargar moratorios: ${response.body}');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Excepción al cargar moratorios: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _loadingMoratorio = false);
+      }
+    }
+  }
+
+  // --- NUEVO: Método PUT para actualizar la configuración de Moratorios ---
+  Future<void> _updateMoratorioConfig() async {
+    if (!_moratorioFormKey.currentState!.validate()) return;
+
+    setState(() => _isSavingMoratorio = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final url = Uri.parse('$baseUrl/api/v1/configuracion/moratorio');
+
+      final body = MoratorioConfig(
+        diasTolerancia: int.parse(_diasToleranciaController.text),
+        moratorio: double.parse(_moratorioController.text),
+        moratorioExpandido: double.parse(_moratorioExpandidoController.text),
+      ).toJson();
+
+      final response = await http.put(
+        url,
+        headers: {'tokenauth': token, 'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        _showSuccessSnackBar(
+            'Configuración de moratorios guardada correctamente');
+      } else {
+        _showErrorSnackBar('Error al guardar moratorios: ${response.body}');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _showErrorSnackBar('Error al guardar moratorios: $e');
+    } finally {
+      if (mounted) setState(() => _isSavingMoratorio = false);
+    }
   }
 
   // --- Métodos GET (ya existentes) ---
@@ -365,9 +494,9 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
     final isDarkMode = themeProvider.isDarkMode;
 
     final _formKey = GlobalKey<FormState>();
-   final _mensualController = TextEditingController(
-  text: tasa != null ? tasa.mensual.toString() : '',
-);
+    final _mensualController = TextEditingController(
+      text: tasa != null ? tasa.mensual.toString() : '',
+    );
     final isEditing = tasa != null;
 
     showDialog(
@@ -1147,17 +1276,18 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
               child: Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.all(20.0),
+                    padding: const EdgeInsets.only(
+                        left: 20, right: 20, top: 10, bottom: 10),
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.2),
+                            //color: Colors.grey.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Icon(
-                            Icons.settings,
+                            Icons.tune,
                             color: isDarkMode ? Colors.white : Colors.grey[700],
                             size: 22,
                           ),
@@ -1167,18 +1297,10 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Configuración',
-                              style: TextStyle(
-                                color: isDarkMode ? Colors.white : Colors.black,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
                               'Gestiona los parámetros de crédito',
                               style: TextStyle(
                                 color: isDarkMode ? Colors.white : Colors.black,
-                                fontSize: 12,
+                                fontSize: 14,
                               ),
                             ),
                           ],
@@ -1187,6 +1309,7 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
                     ),
                   ),
                   // Tabs personalizados
+                  // --- MODIFICADO: Se actualiza el TabBar ---
                   Container(
                     margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                     decoration: BoxDecoration(
@@ -1212,6 +1335,7 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
+                        // --- MODIFICADO: Se añade la nueva Tab ---
                         tabs: const [
                           Tab(
                             icon: Icon(Icons.adjust, size: 14),
@@ -1224,6 +1348,11 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
                           Tab(
                             icon: Icon(Icons.calendar_today, size: 14),
                             text: 'Plazos',
+                          ),
+                          // --- NUEVO: Tab de Moratorios ---
+                          Tab(
+                            icon: Icon(Icons.warning_amber_rounded, size: 14),
+                            text: 'Moratorios',
                           ),
                         ],
                       ),
@@ -1242,6 +1371,7 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
                 _buildRedondeoTab(),
                 _buildTasasTab(),
                 _buildDuracionesTab(),
+                _buildMoratorioTab(), // --- NUEVO ---
               ],
             ),
           ),
@@ -1257,7 +1387,7 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
     final List<double> options = [0.1, 0.25, 0.3, 0.5, 0.6, 0.75, 0.8, 0.9];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 20),
       child: Column(
         children: [
           Container(
@@ -1444,7 +1574,8 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(20),
+          padding:
+              const EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 20),
           child: Row(
             children: [
               Container(
@@ -1598,7 +1729,7 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
                     ),
                   ),
                   Text(
-                   (tasa.fCreacion),
+                    (tasa.fCreacion),
                     style: TextStyle(
                       fontSize: 12,
                       color: isDarkMode ? Colors.white : Colors.black,
@@ -1746,6 +1877,251 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
           ],
         ),
       ),
+    );
+  }
+
+  // --- NUEVO: Widget para la Pestaña de Moratorios ---
+  Widget _buildMoratorioTab() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    if (_loadingMoratorio) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_moratorioConfig == null) {
+      return _buildEmptyState("Configuración de Moratorios");
+    }
+
+    return SingleChildScrollView(
+            padding: const EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 20),
+
+      child: Form(
+        key: _moratorioFormKey,
+        child: Column(
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF5162F6).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded,
+                      color: Color(0xFF5162F6), size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Configuración de Moratorios',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      Text(
+                        'Define las penalizaciones por atraso',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Campo: Días de Tolerancia
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Número de días sin penalización después del vencimiento (Ej: 3)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _diasToleranciaController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black),
+                  decoration: _buildInputDecoration(
+                      label: 'Días de Tolerancia',
+                      hint: 'Ej: 3',
+                      icon: Icons.shield_outlined,
+                      isDarkMode: isDarkMode),
+                  validator: (value) {
+                    if (value == null || value.isEmpty)
+                      return 'Campo requerido';
+                    final n = int.tryParse(value);
+                    if (n == null) return 'Debe ser un número entero';
+                    if (n < 0) return 'No puede ser negativo';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Campo: Tasa Moratoria
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Porcentaje de interés aplicado por cada día de atraso (Ej: 0.1 para 10%)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _moratorioController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black),
+                  decoration: _buildInputDecoration(
+                      label: 'Tasa Moratoria (%)',
+                      hint: 'Ej: 0.1 para 10%',
+                      icon: Icons.trending_down,
+                      isDarkMode: isDarkMode),
+                  validator: (value) {
+                    if (value == null || value.isEmpty)
+                      return 'Campo requerido';
+                    final n = double.tryParse(value);
+                    if (n == null) return 'Debe ser un número';
+                    if (n < 0 || n > 1) return 'Debe ser un valor entre 0 y 1';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Campo: Tasa Moratoria Expandida
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tasa adicional aplicada después de un período extendido de atraso (Ej: 0.05 para 5%)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode ? Colors.white70 : Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _moratorioExpandidoController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  style: TextStyle(
+                      color: isDarkMode ? Colors.white : Colors.black),
+                  decoration: _buildInputDecoration(
+                      label: 'Tasa Moratoria Expandida (%)',
+                      hint: 'Ej: 0.05 para 5%',
+                      icon: Icons.layers,
+                      isDarkMode: isDarkMode),
+                  validator: (value) {
+                    if (value == null || value.isEmpty)
+                      return 'Campo requerido';
+                    final n = double.tryParse(value);
+                    if (n == null) return 'Debe ser un número';
+                    if (n < 0 || n > 1) return 'Debe ser un valor entre 0 y 1';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+
+            // Botón de Guardar
+            SizedBox(
+              width: double.infinity,
+              child: _isSavingMoratorio
+                  ? Container(
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Center(child: CircularProgressIndicator()),
+                    )
+                  : ElevatedButton(
+                      onPressed: _updateMoratorioConfig,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5162F6),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.save, size: 20, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'Guardar Configuración',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- NUEVO: Helper para decorar los inputs y evitar repetición de código ---
+  InputDecoration _buildInputDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required bool isDarkMode,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(
+          color: isDarkMode ? Colors.grey.shade400 : Colors.grey.shade600),
+      hintText: hint,
+      hintStyle: TextStyle(
+          color: isDarkMode ? Colors.grey.shade500 : Colors.grey.shade400),
+      prefixIcon: Icon(
+        icon,
+        color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade600,
+      ),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(
+          color: isDarkMode ? Colors.blue.shade300 : Colors.blue.shade600,
+          width: 2,
+        ),
+      ),
+      filled: true,
+      fillColor: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade50,
     );
   }
 }
