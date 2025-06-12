@@ -621,7 +621,16 @@ class _InfoCreditoState extends State<InfoCredito> {
       List<Map<String, dynamic>> pagosJson =
           generarPagoJson(pagosSeleccionados, pagosOriginales);
 
+      // IMPRIMIR DATOS A ENVIAR
+      print('=== DATOS A ENVIAR AL SERVIDOR ===');
+      print('Token: $token');
+      print('URL: $baseUrl/api/v1/pagos');
+      print('Pagos JSON: ${json.encode(pagosJson)}');
+      print('Número de pagos: ${pagosJson.length}');
+      print('=====================================');
+
       if (pagosJson.isEmpty) {
+        print('❌ No hay cambios para guardar');
         mostrarDialogo(context, 'Aviso', 'No hay cambios para guardar');
         return;
       }
@@ -632,19 +641,27 @@ class _InfoCreditoState extends State<InfoCredito> {
         body: json.encode(pagosJson),
       );
 
+      // IMPRIMIR RESPUESTA DEL SERVIDOR
+      print('=== RESPUESTA DEL SERVIDOR ===');
+      print('Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+      print('Headers: ${response.headers}');
+      print('===============================');
+
       // Manejar respuesta del servidor para pagos principales
       if (response.statusCode != 201) {
         final errorData = json.decode(response.body);
         final mensajeError =
             errorData['Error']['Message'] ?? 'Error desconocido';
+        print('❌ Error del servidor: $mensajeError');
         throw HttpException(mensajeError, uri: response.request?.url);
       }
 
       // 2. Actualizar permisos de moratorios si es Admin
       if (widget.tipoUsuario == 'Admin') {
+        print('=== ACTUALIZANDO MORATORIOS (Admin) ===');
         try {
           List<Future<bool>> actualizacionesMoratorios = [];
-
           for (final pagoActual in pagosSeleccionados) {
             final pagoOriginal = pagosOriginales.firstWhere(
               (p) => p.idfechaspagos == pagoActual.idfechaspagos,
@@ -654,6 +671,12 @@ class _InfoCreditoState extends State<InfoCredito> {
             // Verificar si hubo cambio en el moratorio
             if (pagoActual.moratorioDesabilitado !=
                 pagoOriginal.moratorioDesabilitado) {
+              print('🔄 Actualizando moratorio:');
+              print('  - ID: ${pagoActual.idfechaspagos}');
+              print(
+                  '  - Estado anterior: ${pagoOriginal.moratorioDesabilitado}');
+              print('  - Estado nuevo: ${pagoActual.moratorioDesabilitado}');
+
               actualizacionesMoratorios.add(
                 _actualizarMoratorioServidor(
                   pagoActual.idfechaspagos,
@@ -664,14 +687,23 @@ class _InfoCreditoState extends State<InfoCredito> {
             }
           }
 
+          print(
+              'Total de moratorios a actualizar: ${actualizacionesMoratorios.length}');
+
           // Ejecutar todas las actualizaciones
           final resultados = await Future.wait(actualizacionesMoratorios);
 
+          print('Resultados de actualizaciones de moratorios: $resultados');
+
           if (resultados.contains(false)) {
+            print('❌ Algunos moratorios no se actualizaron correctamente');
             throw Exception('Algunos moratorios no se actualizaron');
           }
+
+          print('✅ Todos los moratorios actualizados correctamente');
+          print('=====================================');
         } catch (e) {
-          print('Error en actualización de moratorios: $e');
+          print('❌ Error en actualización de moratorios: $e');
           mostrarDialogo(context, 'Aviso Parcial',
               'Pagos principales guardados. Error en algunos moratorios',
               esError: true);
@@ -679,17 +711,23 @@ class _InfoCreditoState extends State<InfoCredito> {
       }
 
       // 3. Actualizar UI y datos
+      print('✅ Proceso completado exitosamente');
       mostrarDialogo(context, 'Éxito', 'Datos guardados correctamente');
       pagosProvider.limpiarPagos();
       //paginaControlKey.currentState?.recargarPagos();
     } on HttpException catch (e) {
+      print('❌ HttpException: ${e.message}');
+      print('❌ URI: ${e.uri}');
       _handleHttpError(context, e);
     } on SocketException {
+      print('❌ SocketException: Error de conexión de red');
       _handleNetworkError(context);
     } on Exception catch (e) {
+      print('❌ Exception genérica: $e');
       _handleGenericError(context, e);
     } finally {
       if (mounted) setState(() => isSending = false);
+      print('🏁 Finalizando enviarDatosAlServidor - isSending: false');
     }
   }
 
@@ -1075,10 +1113,13 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                         : 'No disponible',
                                                   ),
                                                   _buildDetailRow(
-  'Fecha de Creación',
-  creditoData!.fCreacion.split(' ')[0], // Solo la fecha
-  tooltip: creditoData!.fCreacion, // Fecha completa en tooltip
-),
+                                                    'Fecha de Creación',
+                                                    creditoData!.fCreacion
+                                                            .split(' ')[
+                                                        0], // Solo la fecha
+                                                    tooltip: creditoData!
+                                                        .fCreacion, // Fecha completa en tooltip
+                                                  ),
                                                   _buildDetailRow(
                                                     'Duración',
                                                     formatearRangoFechasDdMmYyyy(
@@ -1412,23 +1453,32 @@ class _InfoCreditoState extends State<InfoCredito> {
   // Construcción del widget para mostrar detalles
 // Widget para construir filas de detalle
   Widget _buildDetailRow(String title, String value, {String? tooltip}) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 2),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Colors.white70,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.white70,
+            ),
           ),
-        ),
-        tooltip != null
-            ? Tooltip(
-                message: tooltip,
-                child: Text(
+          tooltip != null
+              ? Tooltip(
+                  message: tooltip,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+              : Text(
                   value,
                   style: TextStyle(
                     fontSize: 13,
@@ -1436,19 +1486,10 @@ class _InfoCreditoState extends State<InfoCredito> {
                     color: Colors.white,
                   ),
                 ),
-              )
-            : Text(
-                value,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -1917,131 +1958,76 @@ class _PaginaControlState extends State<PaginaControl> {
 
           double saldoAcumuladoContra = 0.0;
 
-          for (int i = 0; i < pagos.length; i++) {
-            final pago = pagos[i];
+          // Pega el nuevo código aquí
+// ======================================================================
+//             NUEVO BLOQUE DE CÓDIGO CORREGIDO
+// ======================================================================
+          // ======================================================================
+//                      NUEVA LÓGICA DE TOTALES
+// ======================================================================
+for (int i = 0; i < pagos.length; i++) {
+    final pago = pagos[i];
 
-            // Excluir semana 0 (cuando no hay pagos aún)
-            if (i == 0) {
-              continue; // No se hace ningún cálculo para la semana 0
-            }
+    // Ignoramos la primera fila (pago 0) que no tiene montos
+    if (i == 0) {
+        continue;
+    }
 
-            double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
-            double deposito = pago.deposito ?? 0.0;
-            double moratorios = pago.moratorioDesabilitado == "Si"
-                ? 0.0
-                : (pago.moratorios?.moratorios ?? 0.0);
+    // Calculamos la deuda de la semana (capital + moratorios)
+    double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
+    double moratorios = pago.moratorioDesabilitado == "Si"
+        ? 0.0
+        : (pago.moratorios?.moratorios ?? 0.0);
+    double totalDeudaSemana = capitalMasInteres + moratorios;
 
-            totalMoratorios += moratorios; // Sumamos al total de moratorios ⭐
+    // Calculamos el monto pagado en la semana
+    double montoPagado = 0.0;
+    if (pago.tipoPago == 'En Abonos') {
+        montoPagado = pago.abonos.fold(0.0, (sum, abono) => sum + (abono['deposito'] ?? 0.0));
+    } else {
+        montoPagado = pago.deposito ?? 0.0;
+    }
 
-            // Usar sumaDepositoMoratorios en lugar de los abonos
-            double sumaDepositoMoratorios = pago.sumaDepositoMoratorisos ?? 0.0;
+    // Recalculamos los saldos de la fila para asegurar que estén correctos
+    bool tieneGarantia = pago.abonos.any((abono) => abono['garantia'] == 'Si');
+    if (!tieneGarantia && montoPagado > 0) {
+        if (montoPagado > totalDeudaSemana) {
+            pago.saldoFavor = montoPagado - totalDeudaSemana;
+            pago.saldoEnContra = 0.0;
+        } else {
+            pago.saldoFavor = 0.0;
+            pago.saldoEnContra = totalDeudaSemana - montoPagado;
+        }
+    } else if (tieneGarantia) {
+        // Lógica específica si es garantía y se quiere manejar diferente
+        pago.saldoEnContra = totalDeudaSemana - montoPagado;
+        if (pago.saldoEnContra! < 0) pago.saldoEnContra = 0;
+    }
 
-            if (sumaDepositoMoratorios == 0.0) {
-              sumaDepositoMoratorios = pago.abonos.fold(
-                    0.0,
-                    (sum, abono) => sum + (abono['deposito'] ?? 0.0),
-                  ) +
-                  deposito;
-            }
+    // Si no se ha pagado nada en la semana, los saldos de esa fila son 0
+    if (montoPagado == 0.0) {
+        pago.saldoEnContra = 0.0;
+        pago.saldoFavor = 0.0;
+    }
 
-            // Total de la deuda incluye capital + interés + moratorios
-            double totalDeuda = capitalMasInteres + moratorios;
-
-            // Monto pagado es el valor de sumaDepositoMoratorios
-            double montoPagado = sumaDepositoMoratorios;
-
-            // Verificar si se usó garantía en este pago
-            bool tieneGarantia =
-                pago.abonos.any((abono) => abono['garantia'] == 'Si');
-
-// Corregir el cálculo cuando hay garantía
-            if (tieneGarantia) {
-              // Sumar TODOS los abonos, tanto garantía como pagos adicionales
-              montoPagado = pago.abonos.fold(
-                0.0,
-                (sum, abono) =>
-                    sum +
-                    (double.tryParse(abono['deposito'].toString()) ?? 0.0),
-              );
-            }
-            // Acumular el pago actual
-            totalPagoActual += montoPagado;
-
-            // Verificar si el monto pagado excede lo que debe (capital + intereses + moratorios)
-            double saldoFavor = 0.0;
-            double saldoContra = 0.0;
-
-            // Código corregido:
-            if (tieneGarantia) {
-              saldoFavor = 0.0;
-              saldoContra =
-                  totalDeuda - montoPagado; // <-- Usar el monto real pagado
-            } else {
-              // Si no hay garantía, calcular saldos normalmente
-              if (montoPagado >= totalDeuda) {
-                saldoFavor = montoPagado - totalDeuda;
-              } else {
-                saldoContra = totalDeuda - montoPagado;
-              }
-            }
-
-            // Si el saldo en contra es igual al total de la deuda, restablecer a 0
-            if (saldoContra == totalDeuda) {
-              saldoContra = 0.0;
-            }
-
-            // Si hay saldo a favor, este debe restar del saldo acumulado en contra
-            if (saldoFavor > 0) {
-              // Restamos del saldo en contra si es posible
-              if (saldoAcumuladoContra > 0) {
-                if (saldoAcumuladoContra <= saldoFavor) {
-                  saldoFavor -= saldoAcumuladoContra;
-                  saldoAcumuladoContra = 0;
-                } else {
-                  saldoAcumuladoContra -= saldoFavor;
-                  saldoFavor = 0;
-                }
-              }
-              totalSaldoFavor += saldoFavor;
-            }
-
-            // Si no hay saldo a favor, simplemente acumulamos el saldo en contra
-            if (saldoContra > 0) {
-              saldoAcumuladoContra += saldoContra;
-            }
-
-            // Acumular totales evitando duplicaciones
-            if (saldoAcumuladoContra > 0) {
-              totalSaldoContra = saldoAcumuladoContra;
-            }
-
-            // Debugging: Para verificar si los valores son correctos
-            /*   print("Pago $i");
-            print("  Total deuda: $totalDeuda");
-            print("  Monto pagado: $montoPagado");
-            print("  Saldo Favor: $saldoFavor");
-            print("  Saldo Contra: $saldoContra"); */
-
-            pago.saldoEnContra = saldoContra; // <-- ¡Clave!
-            pago.saldoFavor = saldoFavor;
-
-            // Debugging
-            /*  print(
-                "Pago ${pago.semana}: Saldo en contra UI = ${pago.saldoEnContra}"); */
-          }
+    // SUMAMOS LOS TOTALES DIRECTAMENTE DE CADA FILA
+    totalPagoActual += montoPagado;
+    totalSaldoFavor += pago.saldoFavor ?? 0.0;
+    totalSaldoContra += pago.saldoEnContra ?? 0.0;
+    totalMoratorios += moratorios;
+}
+// ======================================================================
+//                   FIN DE LA NUEVA LÓGICA
+// ======================================================================
+// ======================================================================
+//                   FIN DEL NUEVO BLOQUE
+// ======================================================================
 
           // Mostrar los totales correctamente
           totalSaldoFavor = totalSaldoFavor > 0.0 ? totalSaldoFavor : 0.0;
           totalSaldoContra = totalSaldoContra > 0.0 ? totalSaldoContra : 0.0;
 
-          /*   print("=== Totales Finales ===");
-          print(
-              "  Total Monto: $totalMonto"); // Total de la deuda (capital + moratorios)
-          print("  Total Pagos Realizados: $totalPagoActual");
-          print(
-              "  Total Saldo a Favor: ${totalSaldoFavor == 0.0 ? '-' : totalSaldoFavor.toStringAsFixed(2)}");
-          print(
-              "  Total Saldo en Contra: ${totalSaldoContra == 0.0 ? '-' : totalSaldoContra.toStringAsFixed(2)}"); */
+       
 
           return LayoutBuilder(builder: (context, constraints) {
             return Column(
@@ -4095,11 +4081,13 @@ class _PaginaControlState extends State<PaginaControl> {
   }
 
   // 1. Este es el método para editar la fecha
-  void _editarFechaPago(BuildContext context, Pago pago) async {
+    void _editarFechaPago(BuildContext context, Pago pago) async {
+    // 1. Detectar si el modo oscuro está activo
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     DateTime initialDate = DateTime.now();
     DateTime lastDate = DateTime.now();
 
-    // Priorizar fechaPagoCompleto si existe
     String? fechaAUsar = pago.fechaPagoCompleto.isNotEmpty
         ? pago.fechaPagoCompleto
         : pago.fechaPago;
@@ -4107,7 +4095,6 @@ class _PaginaControlState extends State<PaginaControl> {
     if (fechaAUsar.isNotEmpty) {
       try {
         final DateTime parsedDate = DateTime.parse(fechaAUsar);
-
         if (!parsedDate.isAfter(DateTime.now())) {
           initialDate = parsedDate;
         }
@@ -4122,24 +4109,40 @@ class _PaginaControlState extends State<PaginaControl> {
       firstDate: DateTime(2000),
       lastDate: lastDate,
       builder: (context, child) {
+        // 2. Usar el Theme.of(context).copyWith para heredar estilos
+        // y sobreescribir solo el colorScheme.
         return Theme(
-            child: child!,
-            data: Theme.of(context).copyWith(
-              colorScheme: ColorScheme.light(
-                primary: Color(0xFF5162F6),
+          data: Theme.of(context).copyWith(
+            // 3. Aplicar el ColorScheme correcto basado en isDarkMode
+            colorScheme: isDarkMode
+                ? ColorScheme.dark(
+                    primary: Color(0xFF5162F6), // Color principal (header, día seleccionado)
+                    onPrimary: Colors.white, // Color del texto sobre el primario
+                    surface: Color(0xFF303030), // Fondo del calendario
+                    onSurface: Colors.white, // Color del texto de los días
+                  )
+                : ColorScheme.light(
+                    primary: Color(0xFF5162F6), // Color principal
+                    onPrimary: Colors.white, // Texto sobre el primario
+                    // Los demás colores se heredan del tema claro por defecto.
+                  ),
+            // Opcional: Estilizar los botones de OK/CANCELAR
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: isDarkMode ? Colors.white : Color(0xFF5162F6), // Color del texto de los botones
               ),
-            ));
+            ),
+          ),
+          child: child!,
+        );
       },
     );
 
     if (fechaSeleccionada != null) {
       setState(() {
-        // Actualizar SOLO la fecha de pago completo
-        // Actualizar SOLO la fecha de pago completo (solo fecha)
         pago.fechaPagoCompleto =
             fechaSeleccionada.toIso8601String().split('T')[0];
 
-        // Mantener fechaPago original intacta
         if (pago.fechaPago.isEmpty) {
           pago.fechaPago = DateTime.now().toString();
         }
