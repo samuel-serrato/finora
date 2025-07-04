@@ -69,8 +69,17 @@ class ExportHelperGeneral {
 
       void buildPdfPages() {
         final headers = [
-          '#', 'Tipo', 'Grupos', 'Pagos', 'Fecha',
-          'M. Ficha', 'S. Contra', 'Capital', 'Interés', 'S. Favor', 'Mor. Gen.',
+          '#',
+          'Tipo',
+          'Grupos',
+          'Pagos',
+          'Fecha',
+          'M. Ficha',
+          'S. Contra',
+          'Capital',
+          'Interés',
+          'S. Favor',
+          'Mor. Gen.',
           'Mor. Pag.',
         ];
 
@@ -136,19 +145,26 @@ class ExportHelperGeneral {
         border: pw.TableBorder.symmetric(
             inside: const pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
         columnWidths: {
-          0: const pw.FlexColumnWidth(0.35), 1: const pw.FlexColumnWidth(0.55),
-          2: const pw.FlexColumnWidth(1.8),  3: const pw.FlexColumnWidth(0.9),
-          4: const pw.FlexColumnWidth(0.7),  5: const pw.FlexColumnWidth(0.8),
-          6: const pw.FlexColumnWidth(0.8),  7: const pw.FlexColumnWidth(0.7),
-          8: const pw.FlexColumnWidth(0.7),  9: const pw.FlexColumnWidth(0.8),
-          10: const pw.FlexColumnWidth(0.8), 11: const pw.FlexColumnWidth(0.8),
+          0: const pw.FlexColumnWidth(0.35),
+          1: const pw.FlexColumnWidth(0.55),
+          2: const pw.FlexColumnWidth(1.8),
+          3: const pw.FlexColumnWidth(0.9),
+          4: const pw.FlexColumnWidth(0.7),
+          5: const pw.FlexColumnWidth(0.8),
+          6: const pw.FlexColumnWidth(0.8),
+          7: const pw.FlexColumnWidth(0.7),
+          8: const pw.FlexColumnWidth(0.7),
+          9: const pw.FlexColumnWidth(0.8),
+          10: const pw.FlexColumnWidth(0.8),
+          11: const pw.FlexColumnWidth(0.8),
         },
         children: [
           pw.TableRow(
             decoration: pw.BoxDecoration(
               color: PdfColor.fromHex('#5162F6'),
               borderRadius: const pw.BorderRadius.only(
-                topLeft: pw.Radius.circular(10), topRight: pw.Radius.circular(10),
+                topLeft: pw.Radius.circular(10),
+                topRight: pw.Radius.circular(10),
               ),
             ),
             children:
@@ -162,7 +178,8 @@ class ExportHelperGeneral {
             final montoFicha = reporte.montoficha;
             final moratoriosGenerados = reporte.moratoriosAPagar;
             final moratoriosPagados = reporte.sumaMoratorio;
-            final moratoriosPendientes = moratoriosGenerados - moratoriosPagados;
+            final moratoriosPendientes =
+                moratoriosGenerados - moratoriosPagados;
 
             final bool pagoNoRealizado = totalPagos == 0.0;
             final bool fichaCubierta = totalPagos >= montoFicha;
@@ -171,10 +188,12 @@ class ExportHelperGeneral {
             final bool esIncompleto = !pagoNoRealizado && !esCompleto;
 
             final double saldoContra = montoFicha - totalPagos;
-            final double saldoContraDisplay = saldoContra > 0 ? saldoContra : 0.0;
+            final double saldoContraDisplay =
+                saldoContra > 0 ? saldoContra : 0.0;
 
             final isLastRow = index == listaReportes.length - 1;
-            final rowDecoration = _rowDecoration(pagoNoRealizado, esIncompleto, isLastRow: isLastRow);
+            final rowDecoration = _rowDecoration(pagoNoRealizado, esIncompleto,
+                isLastRow: isLastRow);
 
             return pw.TableRow(
               decoration: rowDecoration,
@@ -184,13 +203,24 @@ class ExportHelperGeneral {
                 _buildPdfCell(_truncateText(reporte.grupos, 30)),
                 _buildPagosColumnPdf(reporte, currencyFormat),
                 _buildFechasColumnPdf(reporte),
-                _buildPdfCell(currencyFormat.format(reporte.montoficha), isNumeric: true),
-                _buildPdfCellSaldoContra(currencyFormat.format(saldoContraDisplay), saldoContra > 0),
-                _buildPdfCell(currencyFormat.format(reporte.capitalsemanal), isNumeric: true),
-                _buildPdfCell(currencyFormat.format(reporte.interessemanal), isNumeric: true),
-                _buildPdfCell(currencyFormat.format(reporte.saldofavor), isNumeric: true),
-                _buildPdfCellMoratorios(currencyFormat.format(moratoriosGenerados), moratoriosGenerados > 0, isGenerated: true),
-                _buildPdfCellMoratorios(currencyFormat.format(moratoriosPagados), moratoriosPagados > 0, isGenerated: false),
+                _buildPdfCell(currencyFormat.format(reporte.montoficha),
+                    isNumeric: true),
+                _buildPdfCellSaldoContra(
+                    currencyFormat.format(saldoContraDisplay), saldoContra > 0),
+                _buildPdfCell(currencyFormat.format(reporte.capitalsemanal),
+                    isNumeric: true),
+                _buildPdfCell(currencyFormat.format(reporte.interessemanal),
+                    isNumeric: true),
+                _buildPdfCell(currencyFormat.format(reporte.saldofavor),
+                    isNumeric: true),
+                _buildPdfCellMoratorios(
+                    currencyFormat.format(moratoriosGenerados),
+                    moratoriosGenerados > 0,
+                    isGenerated: true),
+                _buildPdfCellMoratorios(
+                    currencyFormat.format(moratoriosPagados),
+                    moratoriosPagados > 0,
+                    isGenerated: false),
               ],
             );
           }).toList(),
@@ -199,7 +229,8 @@ class ExportHelperGeneral {
     );
   }
 
-  static pw.Widget _buildPagosColumnPdf(ReporteGeneral reporte, NumberFormat currencyFormat) {
+  static pw.Widget _buildPagosColumnPdf(
+      ReporteGeneral reporte, NumberFormat currencyFormat) {
     if (reporte.depositos.isEmpty) {
       return _buildPdfCell(currencyFormat.format(0.0), isNumeric: true);
     }
@@ -214,9 +245,11 @@ class ExportHelperGeneral {
               decoration: pw.BoxDecoration(
                   color: PdfColor.fromHex('#E53888'),
                   borderRadius: pw.BorderRadius.circular(4)),
-              padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1.5),
+              padding:
+                  const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1.5),
               child: pw.Text(currencyFormat.format(deposito.monto),
-                  style: const pw.TextStyle(color: PdfColors.white, fontSize: 6)),
+                  style:
+                      const pw.TextStyle(color: PdfColors.white, fontSize: 6)),
             );
           }
           return pw.Text(currencyFormat.format(deposito.monto),
@@ -236,7 +269,8 @@ class ExportHelperGeneral {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: reporte.depositos.map((deposito) {
-          return pw.Text(deposito.fecha, style: const pw.TextStyle(fontSize: 6));
+          return pw.Text(deposito.fecha,
+              style: const pw.TextStyle(fontSize: 6));
         }).toList(),
       ),
     );
@@ -247,9 +281,14 @@ class ExportHelperGeneral {
     NumberFormat currencyFormat,
     List<ReporteGeneral> listaReportes,
   ) {
-    final double totalPagosFicha =
-        listaReportes.fold(0.0, (sum, r) => sum + r.pagoficha);
+    // Valores que ahora vienen del servidor:
+    final double totalPagosFicha = reporteData.totalPagoficha;
+    final double totalFicha = reporteData.totalFicha;
+    final double totalCapital = reporteData.totalCapital;
+    final double totalInteres = reporteData.totalInteres;
+    final double totalSaldoFavor = reporteData.totalSaldoFavor;
 
+    // Valores que seguimos calculando localmente:
     double totalSaldoContra = 0.0;
     for (final reporte in listaReportes) {
       final double saldoContra = reporte.montoficha - reporte.pagoficha;
@@ -260,38 +299,73 @@ class ExportHelperGeneral {
 
     final double totalMoratoriosGenerados =
         listaReportes.fold(0.0, (sum, r) => sum + r.moratoriosAPagar);
-    
+
     final double totalMoratoriosPagados =
         listaReportes.fold(0.0, (sum, r) => sum + r.sumaMoratorio);
 
     const flexValues = {
-      0: 35, 1: 55, 2: 180, 3: 90, 4: 70, 5: 80, 6: 80, 7: 70, 8: 70, 9: 80, 10: 80, 11: 80,
+      0: 35,
+      1: 55,
+      2: 180,
+      3: 90,
+      4: 70,
+      5: 80,
+      6: 80,
+      7: 70,
+      8: 70,
+      9: 80,
+      10: 80,
+      11: 80,
     };
 
     return pw.Container(
-      decoration: pw.BoxDecoration(
-        color: PdfColor.fromHex('#5162F6'),
-        borderRadius: pw.BorderRadius.circular(10),
-      ),
-      child: pw.Row(
-        children: [
-          pw.Expanded(
-            flex: flexValues[0]! + flexValues[1]!,
-            child: _buildTotalCell('Totales', alignLeft: true),
+        decoration: pw.BoxDecoration(
+          color: PdfColor.fromHex('#5162F6'),
+          borderRadius: pw.BorderRadius.circular(10),
+        ),
+        child: pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(
+              horizontal: 12), // padding horizontal aquí
+          child: pw.Row(
+            children: [
+              pw.Expanded(
+                flex: flexValues[0]! + flexValues[1]!,
+                child: _buildTotalCell('Totales', alignLeft: true),
+              ),
+              pw.Expanded(flex: flexValues[2]!, child: _buildTotalCell('')),
+              pw.Expanded(
+                  flex: flexValues[3]!,
+                  child:
+                      _buildTotalCell(currencyFormat.format(totalPagosFicha))),
+              pw.Expanded(flex: flexValues[4]!, child: _buildTotalCell('')),
+              pw.Expanded(
+                  flex: flexValues[5]!,
+                  child: _buildTotalCell(currencyFormat.format(totalFicha))),
+              pw.Expanded(
+                  flex: flexValues[6]!,
+                  child:
+                      _buildTotalCell(currencyFormat.format(totalSaldoContra))),
+              pw.Expanded(
+                  flex: flexValues[7]!,
+                  child: _buildTotalCell(currencyFormat.format(totalCapital))),
+              pw.Expanded(
+                  flex: flexValues[8]!,
+                  child: _buildTotalCell(currencyFormat.format(totalInteres))),
+              pw.Expanded(
+                  flex: flexValues[9]!,
+                  child:
+                      _buildTotalCell(currencyFormat.format(totalSaldoFavor))),
+              pw.Expanded(
+                  flex: flexValues[10]!,
+                  child: _buildTotalCell(
+                      currencyFormat.format(totalMoratoriosGenerados))),
+              pw.Expanded(
+                  flex: flexValues[11]!,
+                  child: _buildTotalCell(
+                      currencyFormat.format(totalMoratoriosPagados))),
+            ],
           ),
-          pw.Expanded(flex: flexValues[2]!, child: _buildTotalCell('')),
-          pw.Expanded(flex: flexValues[3]!, child: _buildTotalCell(currencyFormat.format(totalPagosFicha))),
-          pw.Expanded(flex: flexValues[4]!, child: _buildTotalCell('')),
-          pw.Expanded(flex: flexValues[5]!, child: _buildTotalCell(currencyFormat.format(reporteData.totalFicha))),
-          pw.Expanded(flex: flexValues[6]!, child: _buildTotalCell(currencyFormat.format(totalSaldoContra))),
-          pw.Expanded(flex: flexValues[7]!, child: _buildTotalCell(currencyFormat.format(reporteData.totalCapital))),
-          pw.Expanded(flex: flexValues[8]!, child: _buildTotalCell(currencyFormat.format(reporteData.totalInteres))),
-          pw.Expanded(flex: flexValues[9]!, child: _buildTotalCell(currencyFormat.format(reporteData.totalSaldoFavor))),
-          pw.Expanded(flex: flexValues[10]!, child: _buildTotalCell(currencyFormat.format(totalMoratoriosGenerados))),
-          pw.Expanded(flex: flexValues[11]!, child: _buildTotalCell(currencyFormat.format(totalMoratoriosPagados))),
-        ],
-      ),
-    );
+        ));
   }
 
   static pw.Widget _buildTotalsIdealPdfWidget(
@@ -305,11 +379,14 @@ class ExportHelperGeneral {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.start,
         children: [
-          _buildTotalPdfItem('Total Ideal', reporteData.totalTotal, currencyFormat),
+          _buildTotalPdfItem(
+              'Total Ideal', reporteData.totalTotal, currencyFormat),
           pw.SizedBox(width: 40),
-          _buildTotalPdfItem('Diferencia', reporteData.restante, currencyFormat),
+          _buildTotalPdfItem(
+              'Diferencia', reporteData.restante, currencyFormat),
           pw.SizedBox(width: 40),
-          _buildTotalPdfItem('Total Bruto', reporteData.sumaTotalCapMoraFav, currencyFormat),
+          _buildTotalPdfItem(
+              'Total Bruto', reporteData.sumaTotalCapMoraFav, currencyFormat),
         ],
       ),
     );
@@ -348,7 +425,7 @@ class ExportHelperGeneral {
                   isPositive ? pw.FontWeight.bold : pw.FontWeight.normal)),
     );
   }
-  
+
   // --- MÉTODO REINTEGRADO ---
   // Este es el método que faltaba. Se encarga de aplicar los colores
   // rojo (generado) y verde (pagado) a las celdas de moratorios.

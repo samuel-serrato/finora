@@ -371,9 +371,9 @@ class ReporteGeneralWidget extends StatelessWidget {
     return Tooltip(
       message: tooltipMessage,
       decoration: BoxDecoration(
-          color: circleColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
+        color: circleColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: MouseRegion(
         cursor: SystemMouseCursors.help,
         child: Container(
@@ -549,10 +549,26 @@ class ReporteGeneralWidget extends StatelessWidget {
   }
 
   Widget _buildTotalsWidget() {
-    // Ya no se necesita 'groupBy', se calcula directamente desde 'listaReportes'
-    final double totalPagosFicha =
-        listaReportes.fold(0.0, (sum, r) => sum + r.pagoficha);
+    // --- INICIO DE LA MODIFICACIÓN ---
 
+    // Primero, nos aseguramos de que reporteData no sea nulo para evitar errores.
+    if (reporteData == null) {
+      return const SizedBox.shrink(); // No muestra nada si no hay datos.
+    }
+
+    // Usamos los totales que ya vienen directamente del servidor.
+    // Tu modelo ReporteGeneralData ya debería convertir estos valores a double.
+    final double totalPagosFicha = reporteData!.totalPagoficha;
+    final double totalFicha = reporteData!.totalFicha;
+    final double totalCapital = reporteData!.totalCapital;
+    final double totalInteres = reporteData!.totalInteres;
+    final double totalSaldoFavor = reporteData!.totalSaldoFavor;
+
+    // --- VALORES QUE SÍ SEGUIMOS CALCULANDO LOCALMENTE ---
+    // Estos totales específicos no vienen en el objeto principal del JSON,
+    // por lo que es correcto seguir sumándolos desde la lista de grupos.
+
+    // 1. Total Saldo Contra: La lógica original es correcta, ya que solo suma si es positivo.
     double totalSaldoContra = 0.0;
     for (final reporte in listaReportes) {
       final double saldoContra = reporte.montoficha - reporte.pagoficha;
@@ -561,22 +577,16 @@ class ReporteGeneralWidget extends StatelessWidget {
       }
     }
 
+    // 2. Totales de Moratorios: Estos se calculan sumando los de cada fila.
     final double totalMoratoriosGenerados =
         listaReportes.fold(0.0, (sum, r) => sum + r.moratoriosAPagar);
-
     final double totalMoratoriosPagados =
         listaReportes.fold(0.0, (sum, r) => sum + r.sumaMoratorio);
 
-    // (Asegúrate que los valores de reporteData también sean correctos o calcúlalos aquí)
-    final double totalFicha =
-        listaReportes.fold(0, (sum, r) => sum + r.montoficha);
-    final double totalCapital =
-        listaReportes.fold(0, (sum, r) => sum + r.capitalsemanal);
-    final double totalInteres =
-        listaReportes.fold(0, (sum, r) => sum + r.interessemanal);
-    final double totalSaldoFavor =
-        listaReportes.fold(0, (sum, r) => sum + r.saldofavor);
+    // --- FIN DE LA MODIFICACIÓN ---
 
+    // El resto del widget que muestra la fila no cambia,
+    // simplemente usará los valores que acabamos de definir.
     return Column(
       children: [
         _buildTotalsRow(

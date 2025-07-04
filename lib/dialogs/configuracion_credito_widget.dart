@@ -1645,7 +1645,7 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: isDarkMode ? Colors.grey.shade800 : Colors.red.shade100,
+              color: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade100,
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1894,8 +1894,7 @@ class _ConfiguracionCreditoWidgetState extends State<ConfiguracionCreditoWidget>
     }
 
     return SingleChildScrollView(
-            padding: const EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 20),
-
+      padding: const EdgeInsets.only(top: 10, left: 20, right: 20, bottom: 20),
       child: Form(
         key: _moratorioFormKey,
         child: Column(

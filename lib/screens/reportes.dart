@@ -832,13 +832,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
     );
   }
 
+  // Función corregida: exportarReporte
   Future<void> exportarReporte() async {
-    // Crea una variable para el estado de tema ANTES de que inicie la operación asíncrona
-    // Y usa listen: false para evitar reconstrucciones innecesarias
     final isDarkMode =
         Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
 
-    // Mostrar diálogo de carga
+    // 1. Mostrar diálogo de carga. Esto no cambia.
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -872,32 +871,31 @@ class _ReportesScreenState extends State<ReportesScreen> {
     );
 
     try {
-      // Resto del código igual...
-      await Future.delayed(Duration(milliseconds: 500));
+      // Damos un pequeño respiro para que el diálogo se renderice correctamente
+      await Future.delayed(Duration(milliseconds: 100));
 
       if (selectedReportType == 'Reporte Contable') {
-        // Exportar reporte contable
         if (listaReportesContable.isEmpty) {
-          // Cerrar el diálogo de carga
-          Navigator.pop(context);
+          Navigator.pop(context); // Cierra el diálogo de carga si no hay datos
           mostrarDialogoError('No hay datos contables para exportar');
           return;
         }
 
+        // 2. Genera el PDF en memoria. El diálogo de carga SIGUE visible.
         final pdfHelper = PDFExportHelperContable(listaReportesContable.first,
             currencyFormat, selectedReportType, context);
-
         final pdfDocument = await pdfHelper.generatePDF();
         final bytes = await pdfDocument.save();
 
+        // 3. ¡CORRECCIÓN! Cerramos el diálogo de carga AHORA, justo antes de mostrar el de Windows.
+        Navigator.pop(context);
+
+        // 4. Inmediatamente después, mostramos el diálogo de guardado de archivos.
         final output = await FilePicker.platform.saveFile(
           dialogTitle: 'Exportar Reporte Contable',
           fileName:
               'reporte_contable_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.pdf',
         );
-
-        // Cerrar el diálogo de carga antes de mostrar el selector de archivos
-        Navigator.pop(context);
 
         if (output != null) {
           final file = File(output);
@@ -905,10 +903,26 @@ class _ReportesScreenState extends State<ReportesScreen> {
           await OpenFile.open(file.path);
         }
       } else {
-        // Cerrar el diálogo de carga antes de llamar a exportToPdf
+        // Para el reporte General
+        if (reporteData == null || listaReportes.isEmpty) {
+          Navigator.pop(context); // Cierra el diálogo de carga si no hay datos
+          mostrarDialogoError('No hay datos de reporte general para exportar');
+          return;
+        }
+
+        // Para el reporte general, la lógica es un poco diferente porque la exportación
+        // está encapsulada. La idea es la misma: generar los bytes primero,
+        // cerrar el diálogo y LUEGO pedir que se guarde el archivo.
+        // Asumiremos que tu `ExportHelperGeneral.exportToPdf` hace todo.
+        // Una mejor aproximación sería que `exportToPdf` devolviera los `bytes`
+        // y manejar el guardado aquí, como en el caso contable.
+
+        // Si no podemos modificar `ExportHelperGeneral`, la mejor aproximación es:
+        // Cerrar el diálogo justo antes de llamar a la función que lo hace todo.
+
+        // ¡CORRECCIÓN! Cerramos el diálogo de carga justo antes de la exportación.
         Navigator.pop(context);
 
-        // Exportar reporte general existente
         await ExportHelperGeneral.exportToPdf(
           context: context,
           reporteData: reporteData,
@@ -919,7 +933,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
         );
       }
     } catch (e) {
-      // Cerrar el diálogo de carga en caso de error
+      // Si hay un error, nos aseguramos de cerrar el diálogo de carga
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
       }
