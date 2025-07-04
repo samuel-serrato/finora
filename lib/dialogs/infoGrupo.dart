@@ -595,7 +595,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: EdgeInsets.all(16),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 50),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 30),
         width: width,
         height: height,
         child: isLoading
@@ -622,15 +622,15 @@ class _InfoGrupoState extends State<InfoGrupo> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               CircleAvatar(
-                                radius: 70,
+                                radius: 50,
                                 backgroundColor: Colors.white,
                                 child: Icon(
                                   Icons.groups,
-                                  size: 100,
+                                  size: 70,
                                   color: Color(0xFF5162F6),
                                 ),
                               ),
-                              SizedBox(height: 16),
+                              /* SizedBox(height: 16),
                               Padding(
                                 padding: EdgeInsets.symmetric(vertical: 8.0),
                                 child: Text(
@@ -641,17 +641,17 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                     color: Colors.white,
                                   ),
                                 ),
-                              ),
+                              ), */
                               SizedBox(height: 8),
-                              //_buildDetailRowIG('ID:', grupoData!.idgrupos),
-                              _buildDetailRowIG(
-                                  '', grupoData!.nombreGrupo),
-                              _buildDetailRowIG('Tipo:', grupoData!.tipoGrupo),
-                              _buildDetailRowIG(
+                              //_buildDetailRowIGFlexible('ID:', grupoData!.idgrupos),
+                              _buildDetailRowIGFlexible(
+                                  '', grupoData!.nombreGrupo, isTitle: true),
+                              _buildDetailRowIGFlexible('Tipo:', grupoData!.tipoGrupo),
+                              _buildDetailRowIGFlexible(
                                   'Detalles:', grupoData!.detalles),
-                              _buildDetailRowIG('Asesor:', grupoData!.asesor),
-                              _buildDetailRowIG('Estado:', grupoData!.estado),
-                              _buildDetailRowIG('Folio del Crédito:',
+                              _buildDetailRowIGFlexible('Asesor:', grupoData!.asesor),
+                              _buildDetailRowIGFlexible('Estado:', grupoData!.estado),
+                              _buildDetailRowIGFlexible('Folio del Crédito:',
                                   grupoData!.folio ?? 'No asignado'),
                               SizedBox(height: 30),
                               ElevatedButton(
@@ -670,7 +670,7 @@ class _InfoGrupoState extends State<InfoGrupo> {
                                 child: Text(
                                   "Renovación de Grupo",
                                   style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: 13,
                                       fontWeight: FontWeight.bold),
                                 ),
                               ),
@@ -1215,11 +1215,41 @@ class _InfoGrupoState extends State<InfoGrupo> {
     return SizedBox.shrink();
   }
 
-  Widget _buildDetailRowIG(String title, String? value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Text('$title $value',
-          style: TextStyle(fontSize: 12, color: Colors.white)),
+  Widget _buildDetailRowIGFlexible(
+    String title,
+    String? value, {
+    String? tooltip,
+    bool isTitle = false,
+    double? fontSize,
+  }) {
+    // Determinar el tamaño de fuente
+    double finalFontSize = fontSize ?? (isTitle ? 16.0 : 12.0);
+
+    // Determinar el peso de la fuente
+    FontWeight fontWeight = isTitle ? FontWeight.bold : FontWeight.normal;
+
+    Widget textWidget = Text(
+      '$title $value',
+      style: TextStyle(
+        fontSize: finalFontSize,
+        fontWeight: fontWeight,
+        color: Colors.white,
+      ),
+      textAlign: isTitle ? TextAlign.center : TextAlign.center,
+      overflow: TextOverflow.visible, // Permite que el texto se ajuste
+      softWrap: true, // Permite salto de línea
+      maxLines: isTitle ? 3 : 2, // Más líneas para títulos largos
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+      child: tooltip != null
+          ? Tooltip(
+              message: tooltip,
+              child: textWidget,
+            )
+          : textWidget,
     );
   }
 

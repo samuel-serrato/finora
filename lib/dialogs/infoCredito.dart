@@ -6,9 +6,14 @@ import 'package:finora/helpers/pdf_exporter_cuentaspago.dart';
 import 'package:finora/helpers/pdf_resumen_credito.dart';
 import 'package:finora/models/cliente_monto.dart';
 import 'package:finora/models/credito.dart';
+import 'package:finora/models/menu_pago.dart';
+import 'package:finora/models/renovacion_pendiente.dart';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/widgets/icono_con_indicador.dart';
+import 'package:finora/widgets/menu_pago.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
@@ -53,6 +58,19 @@ class _InfoCreditoState extends State<InfoCredito> {
     _scrollController = ScrollController();
     tipoUsuario = widget.tipoUsuario; // Inicialización dentro de initState
     _fetchCreditoData();
+  }
+
+    
+  // --- NUEVO ---
+  // 1. Creamos una función específica para recargar toda la información del crédito.
+  //    Esto nos da un nombre claro para la acción que queremos realizar.
+  Future<void> _refrescarDatosCredito() async {
+    // Al llamar a _fetchCreditoData, se volverá a pedir la información
+    // del crédito al servidor y se reconstruirá el widget con los nuevos datos.
+    if (mounted) {
+      print("REFRESCANDO TODA LA INFORMACIÓN DEL CRÉDITO...");
+      await _fetchCreditoData();
+    }
   }
 
   @override
@@ -607,129 +625,170 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
   Future<void> enviarDatosAlServidor(
-    BuildContext context,
-    List<PagoSeleccionado> pagosSeleccionados,
-  ) async {
-    try {
-      setState(() => isSending = true);
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-      final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
-      final pagosOriginales = pagosProvider.pagosOriginales;
+  BuildContext context,
+  // Esta lista contiene el ESTADO ACTUAL de TODOS los pagos, no solo los seleccionados.
+  // La renombramos para mayor claridad.
+  List<PagoSeleccionado> estadoActualDePagos,
+) async {
+  try {
+    if (!mounted) return; // Buena práctica para evitar errores de estado
+    setState(() => isSending = true);
 
-      // 1. Generar y enviar datos principales de pagos
-      List<Map<String, dynamic>> pagosJson =
-          generarPagoJson(pagosSeleccionados, pagosOriginales);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
+    final pagosOriginales = pagosProvider.pagosOriginales;
 
-      // IMPRIMIR DATOS A ENVIAR
-      print('=== DATOS A ENVIAR AL SERVIDOR ===');
-      print('Token: $token');
-      print('URL: $baseUrl/api/v1/pagos');
-      print('Pagos JSON: ${json.encode(pagosJson)}');
-      print('Número de pagos: ${pagosJson.length}');
-      print('=====================================');
+    // ================== INICIO DE LA LÓGICA CORREGIDA ==================
 
-      if (pagosJson.isEmpty) {
-        print('❌ No hay cambios para guardar');
-        mostrarDialogo(context, 'Aviso', 'No hay cambios para guardar');
-        return;
-      }
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/pagos'),
-        headers: {'Content-Type': 'application/json', 'tokenauth': token},
-        body: json.encode(pagosJson),
+    // 1. FILTRAR PARA OBTENER SÓLO LOS PAGOS REALMENTE MODIFICADOS
+    // Comparamos el estado actual de cada pago con su estado original.
+    final List<PagoSeleccionado> pagosRealmenteModificados = [];
+    for (final pagoActual in estadoActualDePagos) {
+      // Encontramos el pago original correspondiente por su ID único.
+      final pagoOriginal = pagosOriginales.firstWhere(
+        (p) => p.idfechaspagos == pagoActual.idfechaspagos,
+        // Si no lo encuentra, es un caso anómalo, pero lo ignoramos para no fallar.
+        // También puedes lanzar una excepción si esto no debería ocurrir nunca.
+        orElse: () => pagoActual,
       );
 
-      // IMPRIMIR RESPUESTA DEL SERVIDOR
-      print('=== RESPUESTA DEL SERVIDOR ===');
-      print('Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-      print('Headers: ${response.headers}');
-      print('===============================');
-
-      // Manejar respuesta del servidor para pagos principales
-      if (response.statusCode != 201) {
-        final errorData = json.decode(response.body);
-        final mensajeError =
-            errorData['Error']['Message'] ?? 'Error desconocido';
-        print('❌ Error del servidor: $mensajeError');
-        throw HttpException(mensajeError, uri: response.request?.url);
+      // Gracias a 'equatable', podemos comparar los objetos directamente.
+      // Si el pago actual es diferente al original, ¡el usuario lo ha modificado!
+      if (pagoActual != pagoOriginal) {
+        pagosRealmenteModificados.add(pagoActual);
       }
-
-      // 2. Actualizar permisos de moratorios si es Admin
-      if (widget.tipoUsuario == 'Admin') {
-        print('=== ACTUALIZANDO MORATORIOS (Admin) ===');
-        try {
-          List<Future<bool>> actualizacionesMoratorios = [];
-          for (final pagoActual in pagosSeleccionados) {
-            final pagoOriginal = pagosOriginales.firstWhere(
-              (p) => p.idfechaspagos == pagoActual.idfechaspagos,
-              orElse: () => pagoActual,
-            );
-
-            // Verificar si hubo cambio en el moratorio
-            if (pagoActual.moratorioDesabilitado !=
-                pagoOriginal.moratorioDesabilitado) {
-              print('🔄 Actualizando moratorio:');
-              print('  - ID: ${pagoActual.idfechaspagos}');
-              print(
-                  '  - Estado anterior: ${pagoOriginal.moratorioDesabilitado}');
-              print('  - Estado nuevo: ${pagoActual.moratorioDesabilitado}');
-
-              actualizacionesMoratorios.add(
-                _actualizarMoratorioServidor(
-                  pagoActual.idfechaspagos,
-                  pagoActual.moratorioDesabilitado,
-                  token,
-                ),
-              );
-            }
-          }
-
-          print(
-              'Total de moratorios a actualizar: ${actualizacionesMoratorios.length}');
-
-          // Ejecutar todas las actualizaciones
-          final resultados = await Future.wait(actualizacionesMoratorios);
-
-          print('Resultados de actualizaciones de moratorios: $resultados');
-
-          if (resultados.contains(false)) {
-            print('❌ Algunos moratorios no se actualizaron correctamente');
-            throw Exception('Algunos moratorios no se actualizaron');
-          }
-
-          print('✅ Todos los moratorios actualizados correctamente');
-          print('=====================================');
-        } catch (e) {
-          print('❌ Error en actualización de moratorios: $e');
-          mostrarDialogo(context, 'Aviso Parcial',
-              'Pagos principales guardados. Error en algunos moratorios',
-              esError: true);
-        }
-      }
-
-      // 3. Actualizar UI y datos
-      print('✅ Proceso completado exitosamente');
-      mostrarDialogo(context, 'Éxito', 'Datos guardados correctamente');
-      pagosProvider.limpiarPagos();
-      //paginaControlKey.currentState?.recargarPagos();
-    } on HttpException catch (e) {
-      print('❌ HttpException: ${e.message}');
-      print('❌ URI: ${e.uri}');
-      _handleHttpError(context, e);
-    } on SocketException {
-      print('❌ SocketException: Error de conexión de red');
-      _handleNetworkError(context);
-    } on Exception catch (e) {
-      print('❌ Exception genérica: $e');
-      _handleGenericError(context, e);
-    } finally {
-      if (mounted) setState(() => isSending = false);
-      print('🏁 Finalizando enviarDatosAlServidor - isSending: false');
     }
+
+    print('--- DEBUG: Pagos detectados como modificados: ${pagosRealmenteModificados.length} ---');
+    for (var pago in pagosRealmenteModificados) {
+        print('Pago modificado -> ID: ${pago.idfechaspagos}, Semana: ${pago.semana}');
+    }
+    print('--- FIN DEBUG ---');
+
+    // Si la lista de pagos modificados está vacía, no hay nada que enviar.
+    if (pagosRealmenteModificados.isEmpty) {
+      print('❌ No hay cambios para guardar');
+      mostrarDialogo(context, 'Aviso', 'No se ha realizado ninguna modificación.');
+      setState(() => isSending = false);
+      return;
+    }
+
+    // =================== FIN DE LA LÓGICA CORREGIDA ====================
+
+    // 2. Generar y enviar datos principales de pagos (USANDO LA LISTA FILTRADA)
+    List<Map<String, dynamic>> pagosJson =
+        generarPagoJson(pagosRealmenteModificados, pagosOriginales);
+
+    print('=== DATOS A ENVIAR AL SERVIDOR ===');
+    print('Token: $token');
+    print('URL: $baseUrl/api/v1/pagos');
+    print('Pagos JSON: ${json.encode(pagosJson)}');
+    print('Número de pagos a enviar: ${pagosJson.length}');
+    print('=====================================');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/v1/pagos'),
+      headers: {'Content-Type': 'application/json', 'tokenauth': token},
+      body: json.encode(pagosJson),
+    );
+
+    print('=== RESPUESTA DEL SERVIDOR ===');
+    print('Status Code: ${response.statusCode}');
+    print('Response Body: ${response.body}');
+    print('===============================');
+
+    if (response.statusCode != 201) {
+      final errorData = json.decode(response.body);
+      final mensajeError = errorData['Error']['Message'] ?? 'Error desconocido';
+      print('❌ Error del servidor: $mensajeError');
+      throw HttpException(mensajeError, uri: response.request?.url);
+    }
+
+    // 3. Actualizar permisos de moratorios si es Admin (USANDO LA LISTA FILTRADA)
+    if (widget.tipoUsuario == 'Admin') {
+      print('=== ACTUALIZANDO MORATORIOS (Admin) ===');
+      try {
+        List<Future<bool>> actualizacionesMoratorios = [];
+        for (final pagoActual in pagosRealmenteModificados) { // Usamos la lista filtrada
+          final pagoOriginal = pagosOriginales.firstWhere(
+            (p) => p.idfechaspagos == pagoActual.idfechaspagos
+          );
+
+          if (pagoActual.moratorioDesabilitado != pagoOriginal.moratorioDesabilitado) {
+            print('🔄 Actualizando moratorio para ID: ${pagoActual.idfechaspagos}');
+            actualizacionesMoratorios.add(
+              _actualizarMoratorioServidor(
+                pagoActual.idfechaspagos,
+                pagoActual.moratorioDesabilitado,
+                token,
+              ),
+            );
+          }
+        }
+        if (actualizacionesMoratorios.isNotEmpty) {
+           await Future.wait(actualizacionesMoratorios);
+           print('✅ Moratorios actualizados.');
+        }
+      } catch (e) {
+        print('❌ Error en actualización de moratorios: $e');
+        // El flujo continúa, pero se notifica al usuario del error parcial.
+      }
+    }
+
+    // 4. --- LÓGICA CLAVE PARA DECIDIR LA ACCIÓN DE REFRESCO (USANDO LA LISTA FILTRADA) ---
+    print('✅ Proceso de envío completado exitosamente.');
+
+    final int totalPlazos = creditoData?.plazo ?? 0;
+    
+    // ¡AQUÍ ESTÁ EL CAMBIO CRÍTICO! La lógica ahora usa la lista correcta.
+    final bool seModificoPagoFinal = pagosRealmenteModificados.any((pago) {
+      return pago.semana >= totalPlazos - 1;
+    });
+
+    VoidCallback accionAlPresionarOk;
+
+    if (seModificoPagoFinal) {
+      print("Se detectó un pago final modificado. La acción será recargar toda la información del crédito.");
+      accionAlPresionarOk = () {
+        if (!mounted) return;
+        pagosProvider.limpiarPagos();
+        _fetchCreditoData(); // Asumiendo que esta función existe y recarga todo.
+      };
+    } else {
+      print("Pago intermedio modificado. La acción será recargar solo la tabla de pagos.");
+      accionAlPresionarOk = () {
+        if (!mounted) return;
+        pagosProvider.limpiarPagos();
+        paginaControlKey.currentState?.recargarPagos();
+      };
+    }
+
+    // 5. Mostramos el diálogo de éxito.
+    mostrarDialogo(
+      context,
+      'Éxito',
+      'Datos guardados correctamente',
+      onOkPressed: accionAlPresionarOk,
+    );
+
+  } on HttpException catch (e) {
+    if (!mounted) return;
+    print('❌ HttpException: ${e.message}');
+    _handleHttpError(context, e);
+  } on SocketException {
+    if (!mounted) return;
+    print('❌ SocketException: Error de conexión de red');
+    _handleNetworkError(context);
+  } on Exception catch (e) {
+    if (!mounted) return;
+    print('❌ Exception genérica: $e');
+    _handleGenericError(context, e);
+  } finally {
+    if (mounted) setState(() => isSending = false);
+    print('🏁 Finalizando enviarDatosAlServidor - isSending: false');
   }
+}
 
   void _handleHttpError(BuildContext context, HttpException e) {
     final mensaje = _traducirMensajeError(e.message);
@@ -835,69 +894,73 @@ class _InfoCreditoState extends State<InfoCredito> {
   }
 
 // Función para mostrar un diálogo genérico o de error con diseño
-  void mostrarDialogo(BuildContext context, String titulo, String mensaje,
-      {bool esError = false}) {
-    // Reemplazar la IP si está en el mensaje
-    mensaje = mensaje.replaceAll(
-        RegExp(r'\d+\.\d+\.\d+\.\d+:\d+/\S*'), '[URL Oculta]');
+  // --- MÉTODO COMPLETO Y MODIFICADO ---
+void mostrarDialogo(BuildContext context, String titulo, String mensaje,
+    {bool esError = false, VoidCallback? onOkPressed}) {
+  // El parámetro `onOkPressed` es opcional.
+  // Es la función que se ejecutará cuando el usuario presione el botón 'OK'.
 
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15.0),
-          ),
-          title: Row(
-            children: [
-              if (esError) Icon(Icons.error_outline, color: Colors.red),
-              if (!esError) Icon(Icons.info_outline, color: Colors.blue),
-              SizedBox(width: 10),
-              Text(
-                esError
-                    ? "Error"
-                    : titulo, // Solo muestra "Error" si es un error
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: esError ? Colors.red : Colors.blue,
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            mensaje,
-            textAlign: TextAlign.justify,
-            style: TextStyle(fontSize: 16),
-          ),
-          actions: [
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop(); // Cerrar el diálogo
+  mensaje = mensaje.replaceAll(
+      RegExp(r'\d+\.\d+\.\d+\.\d+:\d+/\S*'), '[URL Oculta]');
 
-                // Especificar el tipo correcto de Provider
-                Provider.of<PagosProvider>(context, listen: false)
-                    .limpiarPagos();
-
-                paginaControlKey.currentState?.recargarPagos();
-              },
-              icon: Icon(Icons.check, color: Colors.white),
-              label: Text(
-                'OK',
-                style: TextStyle(color: Colors.white),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: esError ? Colors.red : Colors.blue,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
+  showDialog(
+    barrierDismissible: false,
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15.0),
+        ),
+        title: Row(
+          children: [
+            if (esError) Icon(Icons.error_outline, color: Colors.red),
+            if (!esError) Icon(Icons.info_outline, color: Colors.blue),
+            SizedBox(width: 10),
+            Text(
+              esError
+                  ? "Error"
+                  : titulo,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: esError ? Colors.red : Colors.blue,
               ),
             ),
           ],
-        );
-      },
-    );
-  }
+        ),
+        content: Text(
+          mensaje,
+          textAlign: TextAlign.justify,
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          ElevatedButton.icon(
+            onPressed: () {
+              // 1. Siempre cerramos el diálogo primero.
+              Navigator.of(context).pop();
+
+              // 2. --- LÓGICA CLAVE ---
+              //    Si se nos proporcionó una función `onOkPressed`, la ejecutamos.
+              if (onOkPressed != null) {
+                onOkPressed();
+              }
+            },
+            icon: Icon(Icons.check, color: Colors.white),
+            label: Text(
+              'OK',
+              style: TextStyle(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: esError ? Colors.red : Colors.blue,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10.0),
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context,
@@ -939,7 +1002,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                 children: [
                   Expanded(
                     child: isLoading
-                        ? Center(child: CircularProgressIndicator())
+                        ? Center(child: CircularProgressIndicator(color: Colors.transparent,))
                         : creditoData != null
                             ? Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -998,7 +1061,7 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                   Text(
                                                     'Información del Crédito',
                                                     style: TextStyle(
-                                                      fontSize: 18,
+                                                      fontSize: 16,
                                                       fontWeight:
                                                           FontWeight.w600,
                                                       color: Colors.white,
@@ -1017,6 +1080,10 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                       'Grupo',
                                                       creditoData!
                                                               .nombreGrupo ??
+                                                          'No disponible'),
+                                                  _buildDetailRow(
+                                                      'Detalles:',
+                                                      creditoData!.detalles ??
                                                           'No disponible'),
                                                   _buildDetailRow(
                                                       'Tipo',
@@ -1164,8 +1231,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                         CrossAxisAlignment
                                                             .start,
                                                     children: [
-                                                      _buildSectionTitle(
-                                                          'Control de Pagos'),
+                                                      /*   _buildSectionTitle(
+                                                          'Control de Pagos'), */
                                                       PaginaControl(
                                                         key: paginaControlKey,
                                                         idCredito: idCredito,
@@ -1174,6 +1241,9 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                             0.0,
                                                         tipoUsuario:
                                                             tipoUsuario,
+                                                        clientesParaRenovar:
+                                                            creditoData!
+                                                                .clientesMontosInd,
                                                       ),
                                                     ],
                                                   ),
@@ -1184,8 +1254,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                         CrossAxisAlignment
                                                             .start,
                                                     children: [
-                                                      _buildSectionTitle(
-                                                          'Integrantes'),
+                                                      /*  _buildSectionTitle(
+                                                          'Integrantes'), */
                                                       SizedBox(height: 0),
                                                       PaginaIntegrantes(
                                                         clientesMontosInd:
@@ -1199,6 +1269,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                             creditoData!.plazo,
                                                         garantia: creditoData!
                                                             .garantia,
+                                                        idgrupo: creditoData!
+                                                            .idgrupos,
                                                       ),
                                                     ],
                                                   ),
@@ -1209,8 +1281,8 @@ class _InfoCreditoState extends State<InfoCredito> {
                                                         CrossAxisAlignment
                                                             .start,
                                                     children: [
-                                                      _buildSectionTitle(
-                                                          'Descargables'),
+                                                      /* _buildSectionTitle(
+                                                          'Descargables'), */
                                                       PaginaDescargables(
                                                         tipo: creditoData!.tipo,
                                                         folio:
@@ -1461,7 +1533,7 @@ class _InfoCreditoState extends State<InfoCredito> {
           Text(
             title,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w500,
               color: Colors.white70,
             ),
@@ -1478,14 +1550,25 @@ class _InfoCreditoState extends State<InfoCredito> {
                     ),
                   ),
                 )
-              : Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+              : SelectableRegion(
+                  focusNode: FocusNode(),
+                  selectionControls: materialTextSelectionControls,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      textSelectionTheme: TextSelectionThemeData(
+                        selectionColor: Colors.white.withOpacity(0.4),
+                      ),
+                    ),
+                    child: SelectableText(
+                      value,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                ),
+                )
         ],
       ),
     );
@@ -1506,13 +1589,16 @@ class PaginaControl extends StatefulWidget {
   final String idCredito;
   final double montoGarantia;
   final String tipoUsuario;
+  // Aceptamos la lista de clientes aquí. Asegúrate de que el tipo sea el correcto.
+  final List<ClienteMonto> clientesParaRenovar;
 
-  PaginaControl(
-      {Key? key,
-      required this.idCredito,
-      required this.montoGarantia,
-      required this.tipoUsuario})
-      : super(key: key);
+  PaginaControl({
+    Key? key,
+    required this.idCredito,
+    required this.montoGarantia,
+    required this.tipoUsuario,
+    required this.clientesParaRenovar, // --- CAMBIADO ---
+  }) : super(key: key);
 
   @override
   _PaginaControlState createState() => _PaginaControlState();
@@ -1526,12 +1612,27 @@ class _PaginaControlState extends State<PaginaControl> {
   Timer? _debounce;
   bool dialogShown = false;
   late String tipoUsuario; // Declaración sin inicialización directa
+  final ValueNotifier<Map<String, bool>> _clientesSeleccionadosNotifier =
+      ValueNotifier<Map<String, bool>>({});
+
+  // --- MODIFICADO ---
+  // Ahora usaremos esta variable para el estado de carga del botón de guardar del submenú.
+  bool _isSaving = false;
+  bool _isDeleting = false; // <-- NUEVA VARIABLE DE ESTADO
 
   @override
   void initState() {
     super.initState();
     _pagosFuture = _fetchPagos();
     tipoUsuario = widget.tipoUsuario; // Inicialización dentro de initState
+    // --- CAMBIADO ---
+    final initialSelection = {
+      for (var cliente in widget.clientesParaRenovar)
+        cliente.idamortizacion:
+            false, // O true si quieres que empiecen seleccionados
+    };
+    // Asigna este mapa como el valor inicial del notificador.
+    _clientesSeleccionadosNotifier.value = initialSelection;
   }
 
   Future<void> recargarPagos() async {
@@ -1908,6 +2009,293 @@ class _PaginaControlState extends State<PaginaControl> {
     );
   }
 
+  // =========================================================================
+  // --- NUEVO ---: FUNCIÓN COMPLETA PARA GUARDAR LA SELECCIÓN DE RENOVACIÓN
+  // =========================================================================
+  // En tu clase _PaginaControlState
+
+// =========================================================================
+// FUNCIÓN COMPLETA Y CORREGIDA PARA GUARDAR LA SELECCIÓN DE RENOVACIÓN
+// Devuelve 'true' en caso de éxito para que se pueda recargar la UI.
+// =========================================================================
+  // =========================================================================
+// FUNCIÓN COMPLETA Y CORREGIDA PARA GUARDAR LA SELECCIÓN DE RENOVACIÓN
+// Devuelve 'true' en caso de éxito para que se pueda recargar la UI.
+// =========================================================================
+Future<bool> _guardarSeleccionRenovacion(BuildContext popupContext,
+    StateSetter setStateInPopup, Pago pago) async {
+  // <<-- CAMBIO: Ahora recibe el objeto 'pago' completo
+  // Si ya se está guardando, evita múltiples clics y devuelve 'false'.
+  if (_isSaving) return false;
+
+  final mainContext = context;
+  final String idFechasPago = pago.idfechaspagos ?? '';
+
+  // Actualiza la UI del popup para mostrar el indicador de carga.
+  setStateInPopup(() {
+    _isSaving = true;
+  });
+
+  try {
+    // =========================================================================
+    //               ✅✅✅ INICIO DE LA NUEVA LÓGICA DE VALIDACIÓN ✅✅✅
+    // =========================================================================
+    // Comprobamos si estamos en los pagos 15 o 16
+    if (pago.semana == 15 || pago.semana == 16) {
+      // 1. Verificamos si hay más de un integrante en el grupo.
+      if (widget.clientesParaRenovar.length > 1) {
+        // 2. Obtenemos los clientes que SÍ fueron seleccionados para renovar.
+        final List<ClienteMonto> clientesSeleccionados = widget
+            .clientesParaRenovar
+            .where((cliente) =>
+                _clientesSeleccionadosNotifier.value[cliente.idamortizacion] ==
+                true)
+            .toList();
+        final Set<String> idsClientesSeleccionados =
+            clientesSeleccionados.map((c) => c.idclientes).toSet();
+
+        // 3. Verificamos si hay al menos un cliente que NO va a renovar.
+        final bool hayClientesSinRenovar = widget.clientesParaRenovar
+            .any((c) => !idsClientesSeleccionados.contains(c.idclientes));
+
+        // 4. Verificamos si NO se ha registrado NINGÚN abono para este pago.
+        //    Nota: Se comprueba el total de abonos del pago, ya que el modelo actual
+        //    no distingue abonos por cliente individual dentro de un mismo pago.
+        final bool sinAbonosRegistrados = pago.abonos.isEmpty;
+
+        // 5. Si TODAS las condiciones se cumplen, mostramos el error y detenemos.
+        if (hayClientesSinRenovar && sinAbonosRegistrados) {
+          if (mounted) {
+            showDialog(
+              context: mainContext, // Usar el contexto principal
+              builder: (context) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15.0)),
+                title: Row(children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: Colors.orange.shade700),
+                  SizedBox(width: 10),
+                  Text('Acción Requerida'),
+                ]),
+                content: Text(
+                    'Para continuar, por favor, primero registre los abonos de los integrantes que no van a renovar en este pago.'),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text('Entendido', style: TextStyle(color: Colors.white),),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange.shade800),
+                  ),
+                ],
+              ),
+            );
+          }
+          // Detenemos la ejecución de la función.
+          return false;
+        }
+      }
+    }
+    // =========================================================================
+    //               ✅✅✅ FIN DE LA NUEVA LÓGICA DE VALIDACIÓN ✅✅✅
+    // =========================================================================
+
+    // 1. OBTENER Y VALIDAR TOKEN (El resto de la función sigue igual)
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    if (token.isEmpty) {
+      if (!mounted) return false;
+      _mostrarDialogoError(
+          'No se encontró sesión activa. Por favor, inicia sesión.');
+      Navigator.pushAndRemoveUntil(
+        mainContext,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+        (route) => false,
+      );
+      return false;
+    }
+
+    // 2. CONSTRUIR EL CUERPO DE LA SOLICITUD
+    final List<ClienteMonto> clientesSeleccionados = widget.clientesParaRenovar
+        .where((cliente) =>
+            _clientesSeleccionadosNotifier.value[cliente.idamortizacion] ==
+            true)
+        .toList();
+
+    if (clientesSeleccionados.isEmpty) {
+      ScaffoldMessenger.of(mainContext).showSnackBar(
+        const SnackBar(
+          content: Text("No se ha seleccionado ningún cliente."),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return false;
+    }
+
+    final body = {
+      "pagadoParaRenovacion": idFechasPago,
+      "clientes": clientesSeleccionados.map((cliente) {
+        return {
+          "iddetallegrupos": cliente.iddetallegrupos,
+          "idgrupos": cliente.idgrupos,
+          "idclientes": cliente.idclientes,
+          "descuento": cliente.capitalMasInteres ?? 0,
+        };
+      }).toList(),
+    };
+
+    // 3. REALIZAR LA LLAMADA HTTP POST
+    final url =
+        Uri.parse('$baseUrl/api/v1/pagos/permiso/renovacion/pendientes');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'tokenauth': token,
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(body),
+    );
+
+    if (!mounted) return false;
+
+    // 4. MANEJAR LA RESPUESTA
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      ScaffoldMessenger.of(mainContext).showSnackBar(
+        const SnackBar(
+          content: Text("Selección para renovación guardada exitosamente."),
+          backgroundColor: Colors.green,
+        ),
+      );
+      return true;
+    } else {
+      try {
+        final errorData = json.decode(response.body);
+        String mensajeError = "Ocurrió un error desconocido.";
+
+        if (errorData["Error"] != null &&
+            errorData["Error"]["Message"] != null) {
+          mensajeError = errorData["Error"]["Message"];
+
+          if (mensajeError == "La sesión ha cambiado. Cerrando sesión...") {
+            await prefs.remove('tokenauth');
+            mostrarDialogoCierreSesion(
+                'La sesión ha cambiado. Se cerrará la sesión actual.',
+                onClose: () {
+              Navigator.pushAndRemoveUntil(
+                mainContext,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false,
+              );
+            });
+            return false;
+          } else if (mensajeError == "jwt expired") {
+            await prefs.remove('tokenauth');
+            mostrarDialogoCierreSesion(
+                'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+                onClose: () {
+              Navigator.pushAndRemoveUntil(
+                mainContext,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false,
+              );
+            });
+            return false;
+          }
+        }
+        ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+            content: Text("Error al guardar: $mensajeError"),
+            backgroundColor: Colors.red));
+      } catch (e) {
+        ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+            content: Text("Error del servidor: ${response.statusCode}"),
+            backgroundColor: Colors.red));
+      }
+      return false;
+    }
+  } catch (e) {
+    if (!mounted) return false;
+    ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+        content: Text("Error de conexión: $e"), backgroundColor: Colors.red));
+    return false;
+  } finally {
+    if (mounted) {
+      setStateInPopup(() {
+        _isSaving = false;
+      });
+    }
+  }
+}
+
+// FUNCIÓN PARA ELIMINAR TODAS LAS SELECCIONES DE RENOVACIÓN DE UN PAGO
+// =========================================================================
+  Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
+      StateSetter setStateInPopup, String idFechasPago) async {
+    // Evita múltiples clics si ya se está eliminando o guardando
+    if (_isDeleting || _isSaving) return false;
+
+    final mainContext = context;
+
+    // Muestra el indicador de carga en el botón de eliminar
+    setStateInPopup(() {
+      _isDeleting = true;
+    });
+
+    try {
+      // 1. OBTENER TOKEN (lógica reutilizada)
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+
+      if (token.isEmpty) {
+        // Manejo de sesión no encontrada (sin cambios)
+        // ...
+        return false;
+      }
+
+      // 2. REALIZAR LA LLAMADA HTTP DELETE
+      final url = Uri.parse(
+          '$baseUrl/api/v1/pagos/permiso/renovacion/pendientes/$idFechasPago');
+
+      final response = await http.delete(
+        url,
+        headers: {'tokenauth': token},
+      );
+
+      if (!mounted) return false;
+
+      // 3. MANEJAR LA RESPUESTA
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(mainContext).showSnackBar(
+          const SnackBar(
+            content: Text("Selección de renovación eliminada exitosamente."),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Devuelve 'true' para indicar éxito
+        return true;
+      } else {
+        // Manejo de errores de API (reutilizado)
+        // ...
+        ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+            content: Text("Error al eliminar: ${response.body}"),
+            backgroundColor: Colors.red));
+        return false;
+      }
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+          content: Text("Error de conexión: $e"), backgroundColor: Colors.red));
+      return false;
+    } finally {
+      if (mounted) {
+        // Reinicia el estado de carga
+        setStateInPopup(() {
+          _isDeleting = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context,
@@ -1965,57 +2353,59 @@ class _PaginaControlState extends State<PaginaControl> {
           // ======================================================================
 //                      NUEVA LÓGICA DE TOTALES
 // ======================================================================
-for (int i = 0; i < pagos.length; i++) {
-    final pago = pagos[i];
+          for (int i = 0; i < pagos.length; i++) {
+            final pago = pagos[i];
 
-    // Ignoramos la primera fila (pago 0) que no tiene montos
-    if (i == 0) {
-        continue;
-    }
+            // Ignoramos la primera fila (pago 0) que no tiene montos
+            if (i == 0) {
+              continue;
+            }
 
-    // Calculamos la deuda de la semana (capital + moratorios)
-    double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
-    double moratorios = pago.moratorioDesabilitado == "Si"
-        ? 0.0
-        : (pago.moratorios?.moratorios ?? 0.0);
-    double totalDeudaSemana = capitalMasInteres + moratorios;
+            // Calculamos la deuda de la semana (capital + moratorios)
+            double capitalMasInteres = pago.capitalMasInteres ?? 0.0;
+            double moratorios = pago.moratorioDesabilitado == "Si"
+                ? 0.0
+                : (pago.moratorios?.moratorios ?? 0.0);
+            double totalDeudaSemana = capitalMasInteres + moratorios;
 
-    // Calculamos el monto pagado en la semana
-    double montoPagado = 0.0;
-    if (pago.tipoPago == 'En Abonos') {
-        montoPagado = pago.abonos.fold(0.0, (sum, abono) => sum + (abono['deposito'] ?? 0.0));
-    } else {
-        montoPagado = pago.deposito ?? 0.0;
-    }
+            // Calculamos el monto pagado en la semana
+            double montoPagado = 0.0;
+            if (pago.tipoPago == 'En Abonos') {
+              montoPagado = pago.abonos
+                  .fold(0.0, (sum, abono) => sum + (abono['deposito'] ?? 0.0));
+            } else {
+              montoPagado = pago.deposito ?? 0.0;
+            }
 
-    // Recalculamos los saldos de la fila para asegurar que estén correctos
-    bool tieneGarantia = pago.abonos.any((abono) => abono['garantia'] == 'Si');
-    if (!tieneGarantia && montoPagado > 0) {
-        if (montoPagado > totalDeudaSemana) {
-            pago.saldoFavor = montoPagado - totalDeudaSemana;
-            pago.saldoEnContra = 0.0;
-        } else {
-            pago.saldoFavor = 0.0;
-            pago.saldoEnContra = totalDeudaSemana - montoPagado;
-        }
-    } else if (tieneGarantia) {
-        // Lógica específica si es garantía y se quiere manejar diferente
-        pago.saldoEnContra = totalDeudaSemana - montoPagado;
-        if (pago.saldoEnContra! < 0) pago.saldoEnContra = 0;
-    }
+            // Recalculamos los saldos de la fila para asegurar que estén correctos
+            bool tieneGarantia =
+                pago.abonos.any((abono) => abono['garantia'] == 'Si');
+            if (!tieneGarantia && montoPagado > 0) {
+              if (montoPagado > totalDeudaSemana) {
+                pago.saldoFavor = montoPagado - totalDeudaSemana;
+                pago.saldoEnContra = 0.0;
+              } else {
+                pago.saldoFavor = 0.0;
+                pago.saldoEnContra = totalDeudaSemana - montoPagado;
+              }
+            } else if (tieneGarantia) {
+              // Lógica específica si es garantía y se quiere manejar diferente
+              pago.saldoEnContra = totalDeudaSemana - montoPagado;
+              if (pago.saldoEnContra! < 0) pago.saldoEnContra = 0;
+            }
 
-    // Si no se ha pagado nada en la semana, los saldos de esa fila son 0
-    if (montoPagado == 0.0) {
-        pago.saldoEnContra = 0.0;
-        pago.saldoFavor = 0.0;
-    }
+            // Si no se ha pagado nada en la semana, los saldos de esa fila son 0
+            if (montoPagado == 0.0) {
+              pago.saldoEnContra = 0.0;
+              pago.saldoFavor = 0.0;
+            }
 
-    // SUMAMOS LOS TOTALES DIRECTAMENTE DE CADA FILA
-    totalPagoActual += montoPagado;
-    totalSaldoFavor += pago.saldoFavor ?? 0.0;
-    totalSaldoContra += pago.saldoEnContra ?? 0.0;
-    totalMoratorios += moratorios;
-}
+            // SUMAMOS LOS TOTALES DIRECTAMENTE DE CADA FILA
+            totalPagoActual += montoPagado;
+            totalSaldoFavor += pago.saldoFavor ?? 0.0;
+            totalSaldoContra += pago.saldoEnContra ?? 0.0;
+            totalMoratorios += moratorios;
+          }
 // ======================================================================
 //                   FIN DE LA NUEVA LÓGICA
 // ======================================================================
@@ -2027,13 +2417,11 @@ for (int i = 0; i < pagos.length; i++) {
           totalSaldoFavor = totalSaldoFavor > 0.0 ? totalSaldoFavor : 0.0;
           totalSaldoContra = totalSaldoContra > 0.0 ? totalSaldoContra : 0.0;
 
-       
-
           return LayoutBuilder(builder: (context, constraints) {
             return Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(top: 0),
+                  padding: const EdgeInsets.only(top: 50),
                   child: Container(
                     height: 40,
                     decoration: BoxDecoration(
@@ -2062,6 +2450,10 @@ for (int i = 0; i < pagos.length; i++) {
                             isHeader: true,
                             textColor: Colors.white,
                             flex: 18), // Nueva columna
+                        // PASO 1: Agregar un espacio en el encabezado para la nueva columna de acciones
+                        Flexible(
+                            flex: 7,
+                            child: Container()), // Espacio para el ícono
                       ],
                     ),
                   ),
@@ -2074,6 +2466,31 @@ for (int i = 0; i < pagos.length; i++) {
                       children: pagos.map((pago) {
                         bool esPago1 = pagos.indexOf(pago) == 0;
                         int index = pagos.indexOf(pago);
+
+                        // ▼▼▼ MANTIENES LA LÓGICA DE CÁLCULO AQUÍ ▼▼▼
+                        final double deudaDeLaSemana =
+                            (pago.capitalMasInteres ?? 0.0) +
+                                (pago.moratorioDesabilitado == "Si"
+                                    ? 0.0
+                                    : (pago.moratorios?.moratorios ?? 0.0));
+                        final double montoCubiertoPorRenovacion =
+                            pago.renovacionesPendientes.fold(
+                                0.0,
+                                (total, renovacion) =>
+                                    total + (renovacion.descuento ?? 0.0));
+                        final double montoPagadoEnEfectivo =
+                            pago.sumaDepositoMoratorisos ?? 0.0;
+                        final double montoTotalPagadoCombinado =
+                            montoPagadoEnEfectivo + montoCubiertoPorRenovacion;
+
+                        // ▼▼▼ Y LA ASIGNAS AL OBJETO PAGO ▼▼▼
+                        pago.estaFinalizado =
+                            montoTotalPagadoCombinado >= deudaDeLaSemana;
+
+                        // =========================================================================
+                        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ FIN DE LA NUEVA LÓGICA ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+                        // =========================================================================
+
                         // Calcula si el botón debe estar habilitado
                         bool isDateButtonEnabled =
                             (pago.moratorioDesabilitado == "Si" ||
@@ -2124,16 +2541,51 @@ for (int i = 0; i < pagos.length; i++) {
                         DateTime fechaPagoDateTime =
                             DateTime.parse(pago.fechaPago);
 
+                        // ==========================================================
+                        // ==========================================================
+// === PASO 2: LÓGICA DEL CONTADOR DEL INDICADOR ===
+// ==========================================================
+                        int indicadorCount = 0;
+
+// Condición 1: Contar si hay moratorios
+                        final bool tieneMoratorios =
+                            (pago.moratorios?.moratorios ?? 0) > 0;
+                        if (tieneMoratorios) {
+                          indicadorCount++;
+                        }
+
+// Condición 2: Contar si hay renovaciones pendientes
+                        final bool tieneRenovaciones =
+                            pago.renovacionesPendientes.isNotEmpty;
+                        final bool puedeRenovar =
+                            index >= totalPagosDelCredito - 1;
+                        if (puedeRenovar && tieneRenovaciones) {
+                          // Puedes sumar 1 por el simple hecho de haber renovaciones,
+                          // o sumar el número exacto de renovaciones.
+                          // Opción A: Sumar 1 si hay al menos una.
+                          indicadorCount++;
+
+                          // Opción B: Sumar el número total de renovaciones (puede ser mucho).
+                          // indicadorCount += pago.renovacionesPendientes.length;
+                        }
+
+// La variable booleana ahora se deriva del contador
+                        final bool mostrarIndicador = indicadorCount > 0;
+// ==========================================================
+// === FIN DE LA LÓGICA DEL CONTADOR ===
+// ==========================================================
+
                         return Container(
                           decoration: BoxDecoration(
-                            color: _puedeEditarPago(pago)
-                                ? Colors
-                                    .transparent // Fondo transparente si es editable
+                            // ▼▼▼ CAMBIADO ▼▼▼
+                            // Usamos `!estaFinalizado` en lugar de `_puedeEditarPago(pago)`
+                            color: !pago
+                                    .estaFinalizado // <-- USA LA PROPIEDAD DEL OBJETO
+
+                                ? Colors.transparent
                                 : isDarkMode
-                                    ? Colors.blueGrey
-                                        .shade900 // Fondo oscuro para pagos no editables en dark mode
-                                    : Colors.blueGrey
-                                        .shade50, // Fondo claro para pagos no editables en light mode
+                                    ? Colors.blueGrey.shade900
+                                    : Colors.blueGrey.shade50,
                             border: Border(
                               bottom: BorderSide(
                                   color: isDarkMode
@@ -2148,14 +2600,14 @@ for (int i = 0; i < pagos.length; i++) {
                               children: [
                                 _buildTableCell(
                                     esPago1 ? "0" : "${pago.semana}",
-                                    flex: 12),
+                                    flex: 10),
                                 _buildTableCell(formatearFecha(pago.fechaPago),
                                     flex: 15),
                                 _buildTableCell(
                                   esPago1
                                       ? "-"
                                       : "\$${formatearNumero(pago.capitalMasInteres)}",
-                                  flex: 20,
+                                  flex: 18,
                                 ),
                                 // Celda para tipo de pago
                                 _buildTableCell(
@@ -2173,7 +2625,7 @@ for (int i = 0; i < pagos.length; i++) {
                                                     ? "Seleccionar Pago"
                                                     : "",
                                                 style: TextStyle(
-                                                  fontSize: 12,
+                                                  fontSize: 11,
                                                   color: isDarkMode
                                                       ? Colors.white70
                                                       : Colors.black87,
@@ -2193,22 +2645,25 @@ for (int i = 0; i < pagos.length; i++) {
                                                   child: Text(
                                                     value,
                                                     style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: _puedeEditarPago(
-                                                              pago)
-                                                          ? isDarkMode
+                                                      fontSize: 11,
+                                                      // ▼▼▼ CAMBIADO ▼▼▼
+                                                      color: !pago.estaFinalizado
+                                                          ? (isDarkMode
                                                               ? Colors.white
-                                                              : Colors.black
-                                                          : isDarkMode
+                                                              : Colors.black)
+                                                          : (isDarkMode
                                                               ? Colors.grey[400]
                                                               : Colors
-                                                                  .grey[700],
+                                                                  .grey[700]),
                                                     ),
                                                   ),
                                                 );
                                               }).toList(),
-                                              onChanged: _puedeEditarPago(pago)
+                                              // ▼▼▼ CAMBIADO ▼▼▼
+                                              onChanged: !pago.estaFinalizado
                                                   ? (String? newValue) {
+                                                      // Tu lógica de `onChanged` no necesita cambiar.
+                                                      // Simplemente se activará o no basado en `!estaFinalizado`.
                                                       setState(() {
                                                         pago.tipoPago =
                                                             newValue!;
@@ -2355,11 +2810,12 @@ for (int i = 0; i < pagos.length; i++) {
                                                   : null,
                                               icon: Icon(
                                                 Icons.arrow_drop_down,
-                                                color: _puedeEditarPago(pago)
+                                                // ▼▼▼ CAMBIADO ▼▼▼
+                                                color: !pago.estaFinalizado
                                                     ? Color(0xFF5162F6)
-                                                    : isDarkMode
+                                                    : (isDarkMode
                                                         ? Colors.grey[600]
-                                                        : Colors.grey[400],
+                                                        : Colors.grey[400]),
                                               ),
                                               dropdownColor: isDarkMode
                                                   ? Colors.grey[800]
@@ -2368,7 +2824,8 @@ for (int i = 0; i < pagos.length; i++) {
                                             // Fila para seleccionar la fecha (se muestra tanto en "Completo" como en "Monto Parcial")
                                             // Selector de fecha
                                             // Selector de fecha (modificar esta condición)
-                                            if (_puedeEditarPago(pago) &&
+                                            // Ejemplo para el selector de fecha
+                                            if (!pago.estaFinalizado &&
                                                 (pago.tipoPago == 'Completo' ||
                                                     pago.tipoPago ==
                                                         'Monto Parcial' ||
@@ -2463,7 +2920,7 @@ for (int i = 0; i < pagos.length; i++) {
                                                           : pago
                                                               .fechaPagoCompleto),
                                                       style: TextStyle(
-                                                        fontSize: 12,
+                                                        fontSize: 11,
                                                         color: isDarkMode
                                                             ? Colors.grey[400]
                                                             : Colors.grey[600],
@@ -2545,7 +3002,7 @@ for (int i = 0; i < pagos.length; i++) {
                                             ],
                                           ],
                                         ),
-                                  flex: 22,
+                                  flex: 20,
                                 ),
 
                                 SizedBox(width: 20),
@@ -2562,172 +3019,191 @@ for (int i = 0; i < pagos.length; i++) {
                                               // Botón para agregar un abono
                                               Container(
                                                 decoration: BoxDecoration(
-                                                  color: _puedeEditarPago(pago)
+                                                  // ▼▼▼ CAMBIADO ▼▼▼
+                                                  color: !pago.estaFinalizado
                                                       ? const Color(0xFF5162F6)
                                                       : Colors.grey,
                                                   borderRadius:
                                                       BorderRadius.circular(8),
                                                   boxShadow: const [
                                                     BoxShadow(
-                                                      color: Colors.black26,
-                                                      blurRadius: 5,
-                                                      offset: Offset(2, 2),
-                                                    ),
+                                                        color: Colors.black26,
+                                                        blurRadius: 5,
+                                                        offset: Offset(2, 2))
                                                   ],
                                                 ),
                                                 child: IconButton(
                                                   icon: const Icon(Icons.add,
                                                       color: Colors.white),
-                                                  onPressed:
-                                                      _puedeEditarPago(pago)
-                                                          ? () async {
-                                                              // Obtén el provider y muestra el diálogo para agregar abonos
-                                                              final pagosProvider =
-                                                                  Provider.of<
-                                                                          PagosProvider>(
-                                                                      context,
-                                                                      listen:
-                                                                          false);
-                                                              var uuid = Uuid();
+                                                  // ▼▼▼ CAMBIADO ▼▼▼
+                                                  onPressed: !pago.estaFinalizado
+                                                      ? () async {
+                                                          // Obtén el provider y muestra el diálogo para agregar abonos
+                                                          final pagosProvider =
+                                                              Provider.of<
+                                                                      PagosProvider>(
+                                                                  context,
+                                                                  listen:
+                                                                      false);
+                                                          var uuid = Uuid();
 
-                                                              List<
-                                                                      Map<String,
-                                                                          dynamic>>
-                                                                  nuevosAbonos =
-                                                                  (await showDialog(
-                                                                        barrierDismissible:
-                                                                            false,
-                                                                        context:
-                                                                            context,
-                                                                        builder:
-                                                                            (context) =>
-                                                                                AbonosDialog(
-                                                                          montoAPagar:
-                                                                              pago.capitalMasInteres,
-                                                                          onConfirm:
-                                                                              (abonos) {
-                                                                            Navigator.of(context).pop(abonos);
-                                                                          },
-                                                                          moratorioDesabilitado:
-                                                                              pago.moratorioDesabilitado, // <-- Pasa el valor
-                                                                          moratorios: pago
-                                                                              .moratorios
-                                                                              ?.moratorios, // <-- Pasa el valor
-                                                                        ),
-                                                                      )) ??
-                                                                      [];
+                                                          List<
+                                                                  Map<String,
+                                                                      dynamic>>
+                                                              nuevosAbonos =
+                                                              (await showDialog(
+                                                                    barrierDismissible:
+                                                                        false,
+                                                                    context:
+                                                                        context,
+                                                                    builder:
+                                                                        (context) =>
+                                                                            AbonosDialog(
+                                                                      montoAPagar:
+                                                                          pago.capitalMasInteres,
+                                                                      onConfirm:
+                                                                          (abonos) {
+                                                                        Navigator.of(context)
+                                                                            .pop(abonos);
+                                                                      },
+                                                                      moratorioDesabilitado:
+                                                                          pago.moratorioDesabilitado, // <-- Pasa el valor
+                                                                      moratorios: pago
+                                                                          .moratorios
+                                                                          ?.moratorios, // <-- Pasa el valor
+                                                                    ),
+                                                                  )) ??
+                                                                  [];
 
-                                                              print(
-                                                                  'Nuevos abonos recibidos: $nuevosAbonos');
+                                                          print(
+                                                              'Nuevos abonos recibidos: $nuevosAbonos');
 
-                                                              setState(() {
-                                                                if (nuevosAbonos
-                                                                    .isNotEmpty) {
-                                                                  nuevosAbonos
-                                                                      .forEach(
-                                                                          (abono) {
-                                                                    // Asigna un UID único a cada abono
-                                                                    abono['uid'] =
-                                                                        uuid.v4();
+                                                          setState(() {
+                                                            if (nuevosAbonos
+                                                                .isNotEmpty) {
+                                                              nuevosAbonos
+                                                                  .forEach(
+                                                                      (abono) {
+                                                                // Asigna un UID único a cada abono
+                                                                abono['uid'] =
+                                                                    uuid.v4();
 
-                                                                    // Evita duplicados comparando UID
-                                                                    bool existeAbono = pago
-                                                                        .abonos
-                                                                        .any((existeAbono) =>
-                                                                            existeAbono['uid'] ==
-                                                                            abono['uid']);
-                                                                    if (!existeAbono) {
-                                                                      print(
-                                                                          'Agregando abono con UID: ${abono['uid']}');
-
-                                                                      // Actualizar la fecha de pago con la fecha de depósito
-                                                                      pago.fechaPago =
-                                                                          abono[
-                                                                              'fechaDeposito']; // <-- Usar la fecha del diálogo
-
-                                                                      pago.abonos
-                                                                          .add(
-                                                                              abono);
-                                                                    } else {
-                                                                      print(
-                                                                          'Abono duplicado detectado con UID: ${abono['uid']}');
-                                                                    }
-                                                                  });
-
-                                                                  // Recalcular totales
-                                                                  double
-                                                                      totalAbonos =
-                                                                      pago.abonos
-                                                                          .fold(
-                                                                    0.0,
-                                                                    (sum, abono) =>
-                                                                        sum +
-                                                                        (abono['deposito'] ??
-                                                                            0.0),
-                                                                  );
-
-                                                                  // Se suma el moratorio si existe (consulta en el objeto moratorios)
-                                                                  double totalDeuda = pago
-                                                                          .capitalMasInteres! +
-                                                                      (pago.moratorios
-                                                                              ?.moratorios ??
-                                                                          0.0);
-
-                                                                  double
-                                                                      montoPagado =
-                                                                      totalAbonos;
-
-                                                                  if (montoPagado <
-                                                                      totalDeuda) {
-                                                                    pago.saldoEnContra =
-                                                                        totalDeuda -
-                                                                            montoPagado;
-                                                                    pago.saldoFavor =
-                                                                        0.0;
-                                                                  } else {
-                                                                    pago.saldoEnContra =
-                                                                        0.0;
-                                                                    pago.saldoFavor =
-                                                                        montoPagado -
-                                                                            totalDeuda;
-                                                                  }
-
+                                                                // Evita duplicados comparando UID
+                                                                bool existeAbono = pago
+                                                                    .abonos
+                                                                    .any((existeAbono) =>
+                                                                        existeAbono[
+                                                                            'uid'] ==
+                                                                        abono[
+                                                                            'uid']);
+                                                                if (!existeAbono) {
                                                                   print(
-                                                                      'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
+                                                                      'Agregando abono con UID: ${abono['uid']}');
 
-                                                                  // Actualiza el Provider
-                                                                  final index = pagosProvider
-                                                                      .pagosSeleccionados
-                                                                      .indexWhere((p) =>
-                                                                          p.semana ==
-                                                                          pago.semana);
-                                                                  final pagoActualizado = PagoSeleccionado(
-                                                                      moratorioDesabilitado: pago.moratorioDesabilitado,
-                                                                      semana: pago.semana,
-                                                                      tipoPago: pago.tipoPago,
-                                                                      deposito: pago.deposito ?? 0.0,
-                                                                      saldoFavor: pago.saldoFavor,
-                                                                      saldoEnContra: pago.saldoEnContra,
-                                                                      abonos: pago.abonos,
-                                                                      idfechaspagos: pago.idfechaspagos!,
-                                                                      fechaPago: pago.fechaPago, // <-- Usar la fecha del diálogo
-                                                                      capitalMasInteres: pago.capitalMasInteres,
-                                                                      moratorio: pago.moratorios?.moratorios,
-                                                                      pagosMoratorios: pago.pagosMoratorios);
-                                                                  if (index !=
-                                                                      -1) {
-                                                                    pagosProvider
-                                                                            .pagosSeleccionados[index] =
-                                                                        pagoActualizado;
-                                                                  } else {
-                                                                    pagosProvider
-                                                                        .agregarPago(
-                                                                            pagoActualizado);
-                                                                  }
+                                                                  // Actualizar la fecha de pago con la fecha de depósito
+                                                                  pago.fechaPago =
+                                                                      abono[
+                                                                          'fechaDeposito']; // <-- Usar la fecha del diálogo
+
+                                                                  pago.abonos
+                                                                      .add(
+                                                                          abono);
+                                                                } else {
+                                                                  print(
+                                                                      'Abono duplicado detectado con UID: ${abono['uid']}');
                                                                 }
                                                               });
+
+                                                              // Recalcular totales
+                                                              double
+                                                                  totalAbonos =
+                                                                  pago.abonos
+                                                                      .fold(
+                                                                0.0,
+                                                                (sum, abono) =>
+                                                                    sum +
+                                                                    (abono['deposito'] ??
+                                                                        0.0),
+                                                              );
+
+                                                              // Se suma el moratorio si existe (consulta en el objeto moratorios)
+                                                              double totalDeuda = pago
+                                                                      .capitalMasInteres! +
+                                                                  (pago.moratorios
+                                                                          ?.moratorios ??
+                                                                      0.0);
+
+                                                              double
+                                                                  montoPagado =
+                                                                  totalAbonos;
+
+                                                              if (montoPagado <
+                                                                  totalDeuda) {
+                                                                pago.saldoEnContra =
+                                                                    totalDeuda -
+                                                                        montoPagado;
+                                                                pago.saldoFavor =
+                                                                    0.0;
+                                                              } else {
+                                                                pago.saldoEnContra =
+                                                                    0.0;
+                                                                pago.saldoFavor =
+                                                                    montoPagado -
+                                                                        totalDeuda;
+                                                              }
+
+                                                              print(
+                                                                  'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
+
+                                                              // Actualiza el Provider
+                                                              final index = pagosProvider
+                                                                  .pagosSeleccionados
+                                                                  .indexWhere((p) =>
+                                                                      p.semana ==
+                                                                      pago.semana);
+                                                              final pagoActualizado =
+                                                                  PagoSeleccionado(
+                                                                      moratorioDesabilitado: pago
+                                                                          .moratorioDesabilitado,
+                                                                      semana: pago
+                                                                          .semana,
+                                                                      tipoPago: pago
+                                                                          .tipoPago,
+                                                                      deposito:
+                                                                          pago.deposito ??
+                                                                              0.0,
+                                                                      saldoFavor: pago
+                                                                          .saldoFavor,
+                                                                      saldoEnContra: pago
+                                                                          .saldoEnContra,
+                                                                      abonos: pago
+                                                                          .abonos,
+                                                                      idfechaspagos: pago
+                                                                          .idfechaspagos!,
+                                                                      fechaPago: pago
+                                                                          .fechaPago, // <-- Usar la fecha del diálogo
+                                                                      capitalMasInteres:
+                                                                          pago
+                                                                              .capitalMasInteres,
+                                                                      moratorio: pago
+                                                                          .moratorios
+                                                                          ?.moratorios,
+                                                                      pagosMoratorios:
+                                                                          pago.pagosMoratorios);
+                                                              if (index != -1) {
+                                                                pagosProvider
+                                                                            .pagosSeleccionados[
+                                                                        index] =
+                                                                    pagoActualizado;
+                                                              } else {
+                                                                pagosProvider
+                                                                    .agregarPago(
+                                                                        pagoActualizado);
+                                                              }
                                                             }
-                                                          : null,
+                                                          });
+                                                        }
+                                                      : null,
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
@@ -2845,7 +3321,7 @@ for (int i = 0; i < pagos.length; i++) {
                                                                             "\$${formatearNumero(monto)}",
                                                                             style:
                                                                                 TextStyle(
-                                                                              fontSize: 14,
+                                                                              fontSize: 13,
                                                                               fontWeight: FontWeight.bold,
                                                                               color: isDarkMode ? Colors.white : Colors.black87,
                                                                             ),
@@ -3080,26 +3556,25 @@ for (int i = 0; i < pagos.length; i++) {
                                                                   TextAlign
                                                                       .center,
                                                               style: TextStyle(
-                                                                fontSize: 14,
-                                                                color: _puedeEditarPago(
-                                                                        pago)
-                                                                    ? isDarkMode
+                                                                fontSize: 13,
+                                                                color: !pago.estaFinalizado
+                                                                    ? (isDarkMode
                                                                         ? Colors
                                                                             .white
                                                                         : Colors
-                                                                            .black
-                                                                    : isDarkMode
+                                                                            .black)
+                                                                    : (isDarkMode
                                                                         ? Colors.grey[
                                                                             300]
                                                                         : Colors
-                                                                            .grey[700],
+                                                                            .grey[700]),
                                                               ),
                                                               keyboardType:
                                                                   TextInputType
                                                                       .number,
+                                                              // ▼▼▼ CAMBIADO ▼▼▼
                                                               enabled:
-                                                                  _puedeEditarPago(
-                                                                      pago), // Usamos la lógica de edición aquí
+                                                                  !pago.estaFinalizado, // Usamos la lógica de edición aquí
 
                                                               onChanged:
                                                                   (value) {
@@ -3264,7 +3739,7 @@ for (int i = 0; i < pagos.length; i++) {
                                                                     'Monto Parcial',
                                                                 hintStyle:
                                                                     TextStyle(
-                                                                  fontSize: 12,
+                                                                  fontSize: 11,
                                                                   color: isDarkMode
                                                                       ? Colors.grey[
                                                                           300]
@@ -3275,7 +3750,7 @@ for (int i = 0; i < pagos.length; i++) {
                                                                     '\$', // Mostrar el símbolo "$" dentro del campo */
                                                                 prefixStyle:
                                                                     TextStyle(
-                                                                  fontSize: 14,
+                                                                  fontSize: 13,
                                                                   color: _puedeEditarPago(
                                                                           pago)
                                                                       ? isDarkMode
@@ -3494,7 +3969,7 @@ for (int i = 0; i < pagos.length; i++) {
                                                       : Text(
                                                           "\$${pago.deposito ?? '0.00'}",
                                                           style: TextStyle(
-                                                              fontSize: 12,
+                                                              fontSize: 11,
                                                               color:
                                                                   Colors.black),
                                                         ),
@@ -3512,7 +3987,7 @@ for (int i = 0; i < pagos.length; i++) {
                                                       Text(
                                                         "\$${formatearNumero(pago.deposito ?? 0.00)}",
                                                         style: TextStyle(
-                                                            fontSize: 14,
+                                                            fontSize: 13,
                                                             color: isDarkMode
                                                                 ? Colors.white
                                                                 : Colors.black),
@@ -3663,7 +4138,7 @@ for (int i = 0; i < pagos.length; i++) {
                                                     ],
                                                   ),
                                                 ),
-                                  flex: 20,
+                                  flex: 18,
                                 ),
 
                                 // Para "Saldo a Favor":
@@ -3703,17 +4178,18 @@ for (int i = 0; i < pagos.length; i++) {
                                   flex: 18,
                                 ),
                                 // Mostrar los moratorios con la misma lógica, solo si existen
+                                // DESPUÉS (CÓDIGO MODIFICADO)
                                 _buildTableCell(
                                   esPago1
                                       ? "-"
-                                      : (pago.moratorios == null)
+                                      : (pago.moratorios == null ||
+                                              pago.moratorios!.moratorios ==
+                                                  0.0)
                                           ? Container(
-                                              alignment: Alignment
-                                                  .center, // Centra el texto
+                                              alignment: Alignment.center,
                                               child: Text(
                                                 "-",
-                                                textAlign: TextAlign
-                                                    .center, // Alineación central para el texto
+                                                textAlign: TextAlign.center,
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.normal,
                                                   color: isDarkMode
@@ -3722,272 +4198,111 @@ for (int i = 0; i < pagos.length; i++) {
                                                 ),
                                               ),
                                             )
-                                          : Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
+                                          // Ahora solo mostramos el texto, sin el Row ni el PopupMenuButton
+                                          : Text(
+                                              pago.moratorioDesabilitado == "Si"
+                                                  ? "-"
+                                                  : "\$${formatearNumero(pago.moratorios!.moratorios)}",
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.normal,
+                                                color:
                                                     pago.moratorioDesabilitado ==
                                                             "Si"
-                                                        ? "-"
-                                                        : (pago.moratorios!
-                                                                    .moratorios ==
-                                                                0.0)
-                                                            ? "-"
-                                                            : "\$${formatearNumero(pago.moratorios!.moratorios)}",
-                                                    textAlign: TextAlign
-                                                        .center, // Siempre centrado para consistencia
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.normal,
-                                                      color:
-                                                          pago.moratorioDesabilitado ==
-                                                                  "Si"
-                                                              ? Colors.grey
-                                                              : isDarkMode
-                                                                  ? Colors.white
-                                                                  : Colors
-                                                                      .black,
-                                                    ),
-                                                  ),
-                                                ),
-                                                //QUITAR PARA QUE NO SALGA AL "PAGARSE"
-                                                /*  if (pago.moratorios!
-                                                          .semanasDeRetraso >
-                                                      0 ||
-                                                  pago.moratorios!
-                                                          .diferenciaEnDias >
-                                                      0) */
-                                                PopupMenuButton<int>(
-                                                  // El resto del código del PopupMenuButton permanece igual
-                                                  tooltip:
-                                                      'Mostrar información',
-                                                  color: isDarkMode
-                                                      ? Colors.grey[800]
-                                                      : Colors.white,
-                                                  icon: Icon(
-                                                    Icons.info_outline,
-                                                    size: 16,
-                                                    color:
-                                                        pago.moratorioDesabilitado ==
-                                                                "Si"
-                                                            ? Colors.grey
-                                                            : Color(0xFF5162F6),
-                                                  ),
-                                                  offset: Offset(0, 40),
-                                                  itemBuilder:
-                                                      (BuildContext context) =>
-                                                          [
-                                                    PopupMenuItem(
-                                                      enabled: false,
-                                                      child: Column(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        mainAxisSize:
-                                                            MainAxisSize.min,
-                                                        children: [
-                                                          // Título de moratorios
-                                                          Text("Moratorios",
-                                                              style: TextStyle(
-                                                                fontSize: 14,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                color: isDarkMode
-                                                                    ? Colors
-                                                                        .white
-                                                                    : Colors
-                                                                        .black,
-                                                              )),
-                                                          SizedBox(height: 8),
-
-                                                          // Información de cálculo
-                                                          if (pago.moratorios!
-                                                                  .semanasDeRetraso >
-                                                              0)
-                                                            _buildPopupItem(
-                                                                "Semanas de retraso:",
-                                                                "${pago.moratorios!.semanasDeRetraso}"),
-
-                                                          if (pago.moratorios!
-                                                                  .diferenciaEnDias >
-                                                              0)
-                                                            _buildPopupItem(
-                                                                "Días de retraso:",
-                                                                "${pago.moratorios!.diferenciaEnDias}"),
-
-                                                          _buildPopupItem(
-                                                              "Monto calculado:",
-                                                              "\$${formatearNumero(pago.moratorios!.moratorios)}",
-                                                              extraStyle:
-                                                                  pago.moratorioDesabilitado ==
-                                                                          "Si"
-                                                                      ? TextStyle(
-                                                                          color:
-                                                                              Colors.black,
-                                                                        )
-                                                                      : null),
-
-                                                          _buildPopupItem(
-                                                              "Monto Total:",
-                                                              "\$${formatearNumero(pago.moratorios!.montoTotal)}"),
-
-                                                          /* _buildPopupItem(
-                                                              "Monto aplicado:",
-                                                              pago.moratorioDesabilitado ==
-                                                                      "Si"
-                                                                  ? "-"
-                                                                  : "\$${formatearNumero(pago.moratorios!.moratorios)}",
-                                                              isApplied: true), */
-
-                                                          // Mensaje de moratorios
-                                                          if (pago
-                                                              .moratorios!
-                                                              .mensaje
-                                                              .isNotEmpty)
-                                                            Padding(
-                                                              padding: EdgeInsets
-                                                                  .only(
-                                                                      top: 8,
-                                                                      bottom:
-                                                                          8),
-                                                              child: Text(
-                                                                pago.moratorios!
-                                                                    .mensaje,
-                                                                style:
-                                                                    TextStyle(
-                                                                  fontSize: 12,
-                                                                  color: isDarkMode
-                                                                      ? Colors.grey[
-                                                                          400]
-                                                                      : Colors.grey[
-                                                                          700],
-                                                                  fontStyle:
-                                                                      FontStyle
-                                                                          .italic,
-                                                                ),
-                                                              ),
-                                                            ),
-
-                                                          SizedBox(height: 12),
-
-                                                          if (pago.moratorioDesabilitado ==
-                                                                  "Si" &&
-                                                              tipoUsuario !=
-                                                                  'Admin')
-                                                            Padding(
-                                                              padding: EdgeInsets
-                                                                  .only(
-                                                                      bottom:
-                                                                          8),
-                                                              child: Row(
-                                                                children: [
-                                                                  Icon(
-                                                                    Icons
-                                                                        .info_outline,
-                                                                    size: 14,
-                                                                    color: Colors
-                                                                        .red,
-                                                                  ),
-                                                                  SizedBox(
-                                                                      width: 6),
-                                                                  Text(
-                                                                    "Moratorios deshabilitados",
-                                                                    style: TextStyle(
-                                                                        fontSize:
-                                                                            12,
-                                                                        color: Colors.red[
-                                                                            700],
-                                                                        fontWeight:
-                                                                            FontWeight.w500),
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                            ),
-
-                                                          // Checkbox de deshabilitar (solo para admin)
-                                                          if (tipoUsuario ==
-                                                                  'Admin' &&
-                                                              _puedeEditarPago(
-                                                                  pago))
-                                                            StatefulBuilder(
-                                                              builder: (BuildContext
-                                                                      context,
-                                                                  StateSetter
-                                                                      setState) {
-                                                                bool
-                                                                    deshabilitado =
-                                                                    pago.moratorioDesabilitado ==
-                                                                        "Si";
-                                                                return CheckboxListTile(
-                                                                  title: Text(
-                                                                    "Deshabilitar moratorios",
-                                                                    style:
-                                                                        TextStyle(
-                                                                      fontSize:
-                                                                          12,
-                                                                      color: isDarkMode
-                                                                          ? Colors
-                                                                              .white
-                                                                          : Colors
-                                                                              .black,
-                                                                    ),
-                                                                  ),
-                                                                  value:
-                                                                      deshabilitado,
-                                                                  onChanged:
-                                                                      (bool?
-                                                                          value) {
-                                                                    setState(
-                                                                        () {
-                                                                      deshabilitado =
-                                                                          value ??
-                                                                              false;
-                                                                      pago.moratorioDesabilitado = deshabilitado
-                                                                          ? "Si"
-                                                                          : "No";
-
-                                                                      // Recálculo forzado
-                                                                      _recalcularSaldos(
-                                                                          pago);
-
-                                                                      Provider.of<PagosProvider>(
-                                                                              context,
-                                                                              listen:
-                                                                                  false)
-                                                                          .actualizarPago(
-                                                                              pago.toPagoSeleccionado());
-                                                                    });
-                                                                  },
-                                                                  controlAffinity:
-                                                                      ListTileControlAffinity
-                                                                          .leading,
-                                                                  contentPadding:
-                                                                      EdgeInsets
-                                                                          .zero,
-                                                                  activeColor:
-                                                                      Color(
-                                                                          0xFF5162F6),
-                                                                  checkColor:
-                                                                      Colors
-                                                                          .white,
-                                                                  dense: true,
-                                                                );
-                                                              },
-                                                            ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
+                                                        ? Colors.grey
+                                                        : isDarkMode
+                                                            ? Colors.white
+                                                            : Colors.black,
+                                              ),
                                             ),
                                   flex: 18,
                                 ),
 
-                                // Nueva columna para los moratorios
+                                // =================================================================
+                                // PASO 2: AÑADIR EL MENÚ DE OPCIONES AL FINAL DE LA FILA
+                                // =================================================================
+                                // DESPUÉS (CÓDIGO MODIFICADO)
+                                // REEMPLAZA todo el bloque Flexible con este código
+
+                                // PASO 3: Reemplaza tu PopupMenuButton principal con este código mejorado
+                                // ---- CÓDIGO A REEMPLAZAR ----
+                                // --- El bloque del CustomPopupMenu que vas a reemplazar ---
+                                Flexible(
+                                  flex: 7,
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: esPago1
+                                        ? SizedBox.shrink()
+                                        : CustomPopupMenu(
+                                            // --- USA EL ICONO CON INDICADOR ---
+                                            icon: IconoConIndicador(
+                                              mostrarIndicador:
+                                                  mostrarIndicador,
+                                              count:
+                                                  indicadorCount, // <-- Pasamos el número calculado
+                                              child: Container(
+                                                padding: EdgeInsets.all(4),
+                                                decoration: BoxDecoration(
+                                                  color: isDarkMode
+                                                      ? Colors.grey[800]
+                                                      : null,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  Icons.more_vert,
+                                                  color: isDarkMode
+                                                      ? Colors.white70
+                                                      : Colors.black54,
+                                                  size: 18,
+                                                ),
+                                              ),
+                                            ),
+
+                                            // El resto de tus propiedades para CustomPopupMenu...
+                                            width: 220.0,
+                                            menuColor: isDarkMode
+                                                ? Colors.grey[850]
+                                                : Colors.white,
+                                            elevation: 12,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                              side: BorderSide(
+                                                color: isDarkMode
+                                                    ? Colors.grey[700]!
+                                                    : Colors.grey[200]!,
+                                                width: 1,
+                                              ),
+                                            ),
+                                            tooltip: "Opciones del pago",
+                                            onMenuBuild: () {
+                                              final Set<String> idsGuardados =
+                                                  pago.renovacionesPendientes
+                                                      .map((r) => r.idclientes)
+                                                      .toSet();
+
+                                              final initialSelection = {
+                                                for (var cliente in widget
+                                                    .clientesParaRenovar)
+                                                  cliente.idamortizacion:
+                                                      idsGuardados.contains(
+                                                          cliente.idclientes),
+                                              };
+                                              _clientesSeleccionadosNotifier
+                                                  .value = initialSelection;
+                                            },
+                                            items: _buildPagoMenuItems(
+                                                context,
+                                                pago,
+                                                isDarkMode,
+                                                index,
+                                                totalPagosDelCredito,
+                                                // ▼▼▼ PASAMOS EL NUEVO ESTADO ▼▼▼
+                                                ),
+                                          ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -4022,6 +4337,8 @@ for (int i = 0; i < pagos.length; i++) {
                           "\$${formatearNumero(totalMoratorios)}", // ← Usar la variable calculada
                           textColor: Colors.white,
                           flex: 10),
+                      // Y el espacio correspondiente en los totales
+                      Flexible(flex: 7, child: Container()),
                     ],
                   ),
                 ),
@@ -4030,6 +4347,940 @@ for (int i = 0; i < pagos.length; i++) {
           });
         }
       },
+    );
+  }
+
+  // Dentro de la clase State de tu pantalla
+// EN LA CLASE STATE DE TU PANTALLA
+
+  Widget _buildTriggerItem({
+    required IconData icon,
+    required String title,
+    String?
+        subtitle, // Parámetro opcional para el subtítulo (como el monto en Moratorios)
+    required Color iconColor,
+    required Color iconBackgroundColor,
+    bool isDarkMode = false,
+  }) {
+    return Container(
+      // Añadimos el padding que tenías para que se vea igual
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // --- LA FLECHA QUE INDICA ACCIÓN ---
+          // La añadimos a TODOS los items que usan este builder.
+          Icon(
+            Icons.chevron_left, // O Icons.chevron_right si prefieres
+            color: isDarkMode ? Colors.white54 : Colors.black45,
+            size: 20.0,
+          ),
+
+          // --- EL ÍCONO CON FONDO REDONDEADO ---
+          Container(
+            padding: EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: iconBackgroundColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: iconColor, size: 16),
+          ),
+          SizedBox(width: 12),
+
+          // --- TEXTO PRINCIPAL Y SUBTÍTULO (OPCIONAL) ---
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDarkMode ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (subtitle != null) // Solo muestra el subtítulo si existe
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Coloca este método en tu State class
+// =========================================================================
+// FUNCIÓN PRINCIPAL QUE CONSTRUYE LA ESTRUCTURA DEL MENÚ USANDO MODELOS
+// =========================================================================
+  // EN LA CLASE STATE DE TU PANTALLA
+
+  // Función SIN 'estaFinalizado', 'Opacity' ni 'IgnorePointer'
+  List<MenuItemModel> _buildPagoMenuItems(
+    BuildContext context,
+    Pago pago,
+    bool isDarkMode,
+    int indicePagoActual,
+    int totalPagos,
+  ) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+    final isRightSide = screenWidth > 600;
+
+    final List<MenuItemModel> menuDefinition = [];
+
+    // --- 1. Submenú de Moratorios ---
+    //if (pago.moratorios != null && pago.moratorios!.moratorios > 0) {
+    menuDefinition.add(
+      SubMenuItem(
+        maxWidth: 280.0,
+        offset: isSmallScreen
+            ? Offset(-250, 0)
+            : isRightSide
+                ? Offset(-230, 0)
+                : Offset(-0, 0),
+        backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+        elevation: 12,
+        child: ValueListenableBuilder<Map<String, bool>>(
+          valueListenable: _clientesSeleccionadosNotifier,
+          builder: (context, selectionMap, child) {
+            return _buildTriggerItem(
+              icon: Icons.info_outline,
+              title: 'Moratorios',
+              subtitle: '\$${formatearNumero(pago.moratorios!.moratorios)}',
+              iconColor: isDarkMode ? Color(0xFF7E92FF) : Color(0xFF3D5AFE),
+              iconBackgroundColor:
+                  isDarkMode ? Colors.grey.shade800 : Color(0xFFE8EAF6),
+              isDarkMode: isDarkMode,
+            );
+          },
+        ),
+        subItems: _buildMoratoriosSubMenuItems(context, pago, isDarkMode),
+      ),
+    );
+    //}
+
+    // --- 2. ACCIÓN "CLIENTES A RENOVAR" ---
+    if (indicePagoActual >= totalPagos - 1) {
+      menuDefinition.add(
+        SubMenuItem(
+          maxWidth: 320.0,
+          offset: isSmallScreen
+              ? Offset(-250, 0)
+              : isRightSide
+                  ? Offset(-230, 0)
+                  : Offset(-0, 0),
+          backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+          elevation: 12,
+          child: ValueListenableBuilder<Map<String, bool>>(
+            valueListenable: _clientesSeleccionadosNotifier,
+            builder: (context, selectionMap, child) {
+              final count = selectionMap.values.where((v) => v).length;
+              final subtitle = '$count seleccionados';
+
+              return _buildTriggerItem(
+                icon: Icons.person_add_outlined,
+                title: 'Clientes a renovar',
+                subtitle: subtitle,
+                iconColor: isDarkMode ? Color(0xFF7E92FF) : Color(0xFF3D5AFE),
+                iconBackgroundColor:
+                    isDarkMode ? Colors.grey.shade800 : Color(0xFFE8EAF6),
+                isDarkMode: isDarkMode,
+              );
+            },
+          ),
+          subItems: _buildRenovacionSubMenuItems(
+            context,
+            isDarkMode,
+            pago,
+            pago.renovacionesPendientes,
+            // ▼▼▼ PASAMOS EL PARÁMETRO CLAVE AQUÍ ▼▼▼
+            pago.estaFinalizado, // Suponiendo que has añadido esta propiedad a tu objeto Pago
+          ),
+        ),
+      );
+    }
+    return menuDefinition;
+  }
+
+// =========================================================================
+// FUNCIÓN AUXILIAR QUE CONSTRUYE LA LISTA DE MODELOS PARA EL SUBMENÚ
+// =========================================================================
+  List<MenuItemModel> _buildMoratoriosSubMenuItems(
+      BuildContext context, Pago pago, bool isDarkMode) {
+    final List<MenuItemModel> items = [];
+
+    // --- Header con gradiente (usando MenuInfoItem) ---
+    items.add(MenuInfoItem(
+      child: Transform.translate(
+        offset: const Offset(0, -8.0),
+        child: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xFF5162F6).withOpacity(0.3),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(Icons.schedule, color: Colors.white, size: 18),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "Información de Moratorios",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
+
+    // --- Filas de información (usando MenuInfoItem) ---
+    if (pago.moratorios!.semanasDeRetraso > 0) {
+      items.add(MenuInfoItem(
+        child: _buildInfoRowInteligente(
+            Icons.date_range_outlined,
+            "Semanas de retraso",
+            "${pago.moratorios!.semanasDeRetraso}",
+            isDarkMode),
+      ));
+    }
+    if (pago.moratorios!.diferenciaEnDias > 0) {
+      items.add(MenuInfoItem(
+        child: _buildInfoRowInteligente(Icons.today_outlined, "Días de retraso",
+            "${pago.moratorios!.diferenciaEnDias}", isDarkMode),
+      ));
+    }
+    items.add(MenuInfoItem(
+      child: _buildInfoRowInteligente(
+          Icons.attach_money_outlined,
+          "Monto calculado",
+          "\$${formatearNumero(pago.moratorios!.moratorios)}",
+          isDarkMode,
+          isAmount: true),
+    ));
+
+    // ❌ FALTA: Monto Total
+    items.add(MenuInfoItem(
+      child: _buildInfoRowInteligente(
+          Icons.account_balance_wallet_outlined,
+          "Monto Total",
+          "\$${formatearNumero(pago.moratorios!.montoTotal)}",
+          isDarkMode,
+          isAmount: true),
+    ));
+
+    // ❌ FALTA: Mensaje de moratorios
+    if (pago.moratorios!.mensaje.isNotEmpty) {
+      items.add(MenuInfoItem(
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          margin: EdgeInsets.only(
+            left: 8,
+            right: 8,
+            top: 8, // ⬅️ Aumentar a 8 para separar del mensaje
+            bottom: 0,
+          ),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? Colors.grey[800]?.withOpacity(0.3)
+                : Colors.grey[100]?.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDarkMode
+                  ? Colors.grey[600]?.withOpacity(0.3) ?? Colors.grey
+                  : Colors.grey[300] ?? Colors.grey,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: Colors.blue,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Mensaje:",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      pago.moratorios!.mensaje,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                        //fontStyle: FontStyle.italic,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ));
+    }
+
+    // --- Checkbox personalizado (usando MenuCustomItem) ---
+    // Checkbox mejorado con animaciones usando MenuCustomItem
+    if (widget.tipoUsuario == 'Admin' && _puedeEditarPago(pago)) {
+      items.add(
+        MenuCustomItem(
+          builder: (popupContext) {
+            return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setStateInPopup) {
+                final isDisabled = pago.moratorioDesabilitado == "Si";
+
+                return AnimatedContainer(
+                  duration: Duration(milliseconds: 200),
+                  padding: EdgeInsets.all(16),
+                  margin: EdgeInsets.only(
+                    left: 8,
+                    right: 8,
+                    top: 8, // ⬅️ Aumentar a 8 para separar del mensaje
+                    bottom: 0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDisabled ? null : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDisabled
+                          ? Color(0xFF5162F6).withOpacity(0.3)
+                          : Colors.transparent,
+                      width: 1,
+                    ),
+                    boxShadow: isDisabled
+                        ? [
+                            BoxShadow(
+                              color: Color(0xFF5162F6).withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    children: [
+                      // Checkbox personalizado
+                      GestureDetector(
+                        onTap: () {
+                          setStateInPopup(() {
+                            pago.moratorioDesabilitado =
+                                isDisabled ? "No" : "Si";
+                          });
+                          setState(() {
+                            _recalcularSaldos(pago);
+                            Provider.of<PagosProvider>(context, listen: false)
+                                .actualizarPago(pago.toPagoSeleccionado());
+                          });
+                        },
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.click, // <--- AÑADE ESTO
+
+                          child: AnimatedContainer(
+                            duration: Duration(milliseconds: 200),
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              gradient: isDisabled
+                                  ? LinearGradient(
+                                      colors: [
+                                        Color(0xFF5162F6),
+                                        Color(0xFF7B68EE)
+                                      ],
+                                    )
+                                  : null,
+                              color: isDisabled ? null : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: isDisabled
+                                    ? Colors.transparent
+                                    : Color(0xFF5162F6).withOpacity(0.6),
+                                width: 2,
+                              ),
+                              boxShadow: isDisabled
+                                  ? [
+                                      BoxShadow(
+                                        color:
+                                            Color(0xFF5162F6).withOpacity(0.3),
+                                        blurRadius: 4,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: isDisabled
+                                ? Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 16),
+
+                      // Icono descriptivo
+                      Container(
+                        padding: EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Color(0xFFFF6B6B).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.block_rounded,
+                          size: 16,
+                          color: Color(0xFFFF6B6B),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Deshabilitar moratorios",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color:
+                                    isDarkMode ? Colors.white : Colors.black87,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            AnimatedOpacity(
+                              duration: Duration(milliseconds: 200),
+                              opacity: isDisabled ? 1.0 : 0.6,
+                              child: Text(
+                                isDisabled
+                                    ? "✓ Moratorios deshabilitados"
+                                    : "Toca para deshabilitar",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDisabled
+                                      ? Color(0xFF10B981)
+                                      : Color(0xFF5162F6),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      );
+    }
+
+    return items;
+  }
+
+  List<MenuItemModel> _buildRenovacionSubMenuItems(
+  BuildContext context,
+  bool isDarkMode,
+  Pago pago, // <<-- CAMBIO: Recibe el objeto 'pago' completo
+  List<RenovacionPendiente> renovacionesGuardadas,
+  bool estaFinalizado,
+) {
+  final List<MenuItemModel> items = [];
+  final String idfechaspagos = pago.idfechaspagos ?? '';
+
+  // --- 1. Header del submenú (Sin cambios) ---
+  items.add(MenuInfoItem(
+    child: Transform.translate(
+      offset: const Offset(0, -8.0),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child:
+                  Icon(Icons.group_add_outlined, color: Colors.white, size: 20),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Seleccionar Clientes a Renovar",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 13,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ));
+
+  // --- 2. Lista interactiva y botones de acción ---
+  items.add(
+    MenuCustomItem(
+      builder: (popupContext) {
+        final Set<String> idsGuardados =
+            renovacionesGuardadas.map((r) => r.idclientes).toSet();
+        final Map<String, String> amortizacionToClienteIdMap = {
+          for (var c in widget.clientesParaRenovar)
+            c.idamortizacion: c.idclientes
+        };
+
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setStateInPopup) {
+            void _toggleCliente(String idamortizacion, bool? value) {
+              final newSelection =
+                  Map<String, bool>.from(_clientesSeleccionadosNotifier.value);
+              final estadoActual = newSelection[idamortizacion] ?? false;
+              newSelection[idamortizacion] = value ?? !estadoActual;
+              _clientesSeleccionadosNotifier.value = newSelection;
+              setStateInPopup(() {});
+            }
+
+            void _toggleSeleccionarTodos(bool? value) {
+              final hayClientes =
+                  _clientesSeleccionadosNotifier.value.isNotEmpty;
+              final todosSeleccionados = hayClientes &&
+                  !_clientesSeleccionadosNotifier.value.containsValue(false);
+              final nuevoEstado = value ?? !todosSeleccionados;
+              final newSelection = {
+                for (var key in _clientesSeleccionadosNotifier.value.keys)
+                  key: idsGuardados.contains(amortizacionToClienteIdMap[key])
+                      ? true
+                      : nuevoEstado
+              };
+              _clientesSeleccionadosNotifier.value = newSelection;
+              setStateInPopup(() {});
+            }
+
+            final bool hayClientes =
+                _clientesSeleccionadosNotifier.value.isNotEmpty;
+            final bool todosSeleccionados = hayClientes &&
+                !_clientesSeleccionadosNotifier.value.containsValue(false);
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Fila "Seleccionar Todos"
+                InkWell(
+                  onTap: () => _toggleSeleccionarTodos(null),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        Checkbox(
+                          value: todosSeleccionados,
+                          onChanged: _toggleSeleccionarTodos,
+                          activeColor: Color(0xFF3F51B5),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          "Seleccionar Todos",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isDarkMode ? Colors.white70 : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Separador
+                Divider(height: 1, indent: 16, endIndent: 16, thickness: 0.5),
+
+                // Encabezados de la lista
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 4.0),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 40.0),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Nombre",
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDarkMode
+                                        ? Colors.white54
+                                        : Colors.black54)),
+                            Text("Ficha Individual",
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDarkMode
+                                        ? Colors.white54
+                                        : Colors.black54)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Lista de clientes
+                ...widget.clientesParaRenovar.map((cliente) {
+                  final bool yaEstaGuardado =
+                      idsGuardados.contains(cliente.idclientes);
+                  return InkWell(
+                    onTap: yaEstaGuardado
+                        ? null
+                        : () => _toggleCliente(cliente.idamortizacion, null),
+                    child: Opacity(
+                      opacity: yaEstaGuardado ? 0.6 : 1.0,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 6.0),
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: yaEstaGuardado
+                                  ? true
+                                  : _clientesSeleccionadosNotifier
+                                          .value[cliente.idamortizacion] ??
+                                      false,
+                              onChanged: yaEstaGuardado
+                                  ? null
+                                  : (value) => _toggleCliente(
+                                      cliente.idamortizacion, value),
+                              activeColor: Color(0xFF3F51B5),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            cliente.nombreCompleto,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.black87),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (yaEstaGuardado)
+                                          Container(
+                                            margin:
+                                                const EdgeInsets.only(left: 8),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                                color: Colors.green
+                                                    .withOpacity(0.2),
+                                                borderRadius:
+                                                    BorderRadius.circular(4)),
+                                            child: Text(
+                                              "GUARDADO",
+                                              style: TextStyle(
+                                                  fontSize: 8,
+                                                  fontWeight: FontWeight.bold,
+                                                  color:
+                                                      Colors.green.shade700),
+                                            ),
+                                          )
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                      '\$${formatearNumero(cliente.capitalMasInteres)}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDarkMode
+                                              ? Colors.white54
+                                              : Colors.black54)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+
+                // Separador antes de los botones
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Divider(
+                      height: 1, indent: 16, endIndent: 16, thickness: 0.5),
+                ),
+
+                // === SECCIÓN DE BOTONES CON LA LÓGICA CORREGIDA ===
+                if (widget.tipoUsuario == 'Admin' || !estaFinalizado)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    child: Column(
+                      children: [
+                        // BOTÓN DE ELIMINAR
+                        if (renovacionesGuardadas.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                icon: _isDeleting
+                                    ? Container()
+                                    : Icon(Icons.delete_forever_outlined,
+                                        size: 18, color: Colors.white),
+                                label: _isDeleting
+                                    ? SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Colors.white))
+                                    : Text("Eliminar Selección"),
+                                onPressed: _isSaving || _isDeleting
+                                    ? null
+                                    : () async {
+                                        final bool eliminadoExitoso =
+                                            await _eliminarSeleccionRenovacion(
+                                                popupContext,
+                                                setStateInPopup,
+                                                idfechaspagos);
+                                        if (eliminadoExitoso && mounted) {
+                                          Navigator.of(context).pop();
+                                          Navigator.of(context).pop();
+                                          await recargarPagos();
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade700,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  disabledBackgroundColor:
+                                      Colors.red.shade700.withOpacity(0.5),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        // BOTÓN DE GUARDAR
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: _isSaving
+                                ? Container()
+                                : Icon(Icons.save_alt_outlined,
+                                    size: 18, color: Colors.white),
+                            label: _isSaving
+                                ? SizedBox(
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white))
+                                : Text("Guardar Selección"),
+                            onPressed: _isSaving || _isDeleting
+                                ? null
+                                : () async {
+                                    // <<-- CAMBIO: Pasamos el objeto 'pago' -->>
+                                    final bool guardadoExitoso =
+                                        await _guardarSeleccionRenovacion(
+                                            popupContext,
+                                            setStateInPopup,
+                                            pago);
+                                    if (guardadoExitoso && mounted) {
+                                      Navigator.of(context).pop();
+                                      Navigator.of(context).pop();
+                                      await recargarPagos();
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFF3F51B5),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              disabledBackgroundColor:
+                                  Color(0xFF3F51B5).withOpacity(0.5),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    ),
+  );
+
+  return items;
+}
+
+// Widget helper mejorado para las filas de información
+  Widget _buildInfoRowInteligente(
+    IconData icon,
+    String label,
+    String value,
+    bool isDarkMode, {
+    bool isAmount = false,
+    // --- PARÁMETROS AÑADIDOS ---
+    // Hacemos que los colores del icono sean configurables.
+    // Son opcionales, por lo que el widget puede seguir usándose como antes.
+    Color? iconColor,
+    Color? iconBackgroundColor,
+  }) {
+    // --- LÓGICA DE COLORES ---
+    // Si no se proporciona un color específico, usamos el azul/púrpura por defecto.
+    // Esto mantiene el comportamiento original pero nos da el control para anular la opacidad del menú.
+    final Color finalIconColor = iconColor ?? const Color(0xFF5162F6);
+    final Color finalIconBackgroundColor = iconBackgroundColor ??
+        finalIconColor.withOpacity(isAmount ? 0.15 : 0.1);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isAmount
+            ? const Color(0xFF5162F6).withOpacity(0.05)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          // --- WIDGET DEL ICONO CORREGIDO ---
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              // Usamos el color de fondo que definimos, que no será afectado por la opacidad del menú.
+              color: finalIconBackgroundColor,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              // Usamos el color del icono que definimos, que se mostrará vibrante.
+              color: finalIconColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              ),
+            ),
+          ),
+          Container(
+            padding: isAmount
+                ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+                : EdgeInsets.zero,
+            decoration: BoxDecoration(
+              color: isAmount
+                  ? const Color(0xFF5162F6).withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: isAmount ? 13 : 12,
+                fontWeight: isAmount ? FontWeight.bold : FontWeight.w600,
+                color: isAmount
+                    ? const Color(0xFF5162F6)
+                    : (isDarkMode ? Colors.white : Colors.black87),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -4061,14 +5312,14 @@ for (int i = 0; i < pagos.length; i++) {
           Text(
             title,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
             ),
           ),
           Text(
             value,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: isApplied
                   ? (isDarkMode ? Colors.green[300] : Colors.green[800])
                   : (isDarkMode ? Colors.white : Colors.black),
@@ -4081,7 +5332,7 @@ for (int i = 0; i < pagos.length; i++) {
   }
 
   // 1. Este es el método para editar la fecha
-    void _editarFechaPago(BuildContext context, Pago pago) async {
+  void _editarFechaPago(BuildContext context, Pago pago) async {
     // 1. Detectar si el modo oscuro está activo
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
@@ -4116,8 +5367,10 @@ for (int i = 0; i < pagos.length; i++) {
             // 3. Aplicar el ColorScheme correcto basado en isDarkMode
             colorScheme: isDarkMode
                 ? ColorScheme.dark(
-                    primary: Color(0xFF5162F6), // Color principal (header, día seleccionado)
-                    onPrimary: Colors.white, // Color del texto sobre el primario
+                    primary: Color(
+                        0xFF5162F6), // Color principal (header, día seleccionado)
+                    onPrimary:
+                        Colors.white, // Color del texto sobre el primario
                     surface: Color(0xFF303030), // Fondo del calendario
                     onSurface: Colors.white, // Color del texto de los días
                   )
@@ -4129,7 +5382,9 @@ for (int i = 0; i < pagos.length; i++) {
             // Opcional: Estilizar los botones de OK/CANCELAR
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: isDarkMode ? Colors.white : Color(0xFF5162F6), // Color del texto de los botones
+                foregroundColor: isDarkMode
+                    ? Colors.white
+                    : Color(0xFF5162F6), // Color del texto de los botones
               ),
             ),
           ),
@@ -4173,7 +5428,7 @@ for (int i = 0; i < pagos.length; i++) {
               : Text(
                   content.toString(),
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     color: actualTextColor,
                     fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
                   ),
@@ -4206,8 +5461,16 @@ class Pago {
   double? sumaDepositoMoratorisos;
   Moratorios? moratorios;
   List<Map<String, dynamic>> pagosMoratorios;
-  // Ahora almacenamos el valor tal como viene en la respuesta: "Si" o "No"
-  String moratorioDesabilitado; // Usar nombre exacto del JSON
+  String moratorioDesabilitado;
+
+  // --- 1. NUEVO CAMPO AÑADIDO ---
+  // Almacenará la lista de clientes ya marcados para renovación en este pago.
+  List<RenovacionPendiente> renovacionesPendientes;
+
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ AQUÍ ESTÁ LA ÚNICA LÍNEA A AÑADIR ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+  // Es una propiedad de la clase, no del constructor. Su valor se calculará en la UI.
+  bool estaFinalizado = false;
+  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
   Pago({
     required this.semana,
@@ -4231,6 +5494,8 @@ class Pago {
     this.moratorios,
     required this.pagosMoratorios,
     required this.moratorioDesabilitado,
+    // --- 2. AÑADIR AL CONSTRUCTOR ---
+    required this.renovacionesPendientes,
   });
 
   factory Pago.fromJson(Map<String, dynamic> json) {
@@ -4242,12 +5507,26 @@ class Pago {
       }
     }
 
-    // Parsear pagosMoratorios si existen
     List<Map<String, dynamic>> pagosMoratorios =
         (json['pagosMoratorios'] as List?)
                 ?.map((moratorio) => Map<String, dynamic>.from(moratorio))
                 .toList() ??
             [];
+
+    // --- 3. LÓGICA DE PARSEO EN fromJson ---
+    // Este código maneja si la API devuelve un solo objeto, una lista, o es nulo.
+    List<RenovacionPendiente> pendientes = [];
+    if (json['RenovacionPendientes'] != null) {
+      if (json['RenovacionPendientes'] is List) {
+        pendientes = (json['RenovacionPendientes'] as List)
+            .map((i) => RenovacionPendiente.fromJson(i))
+            .toList();
+      } else if (json['RenovacionPendientes'] is Map) {
+        // Si es un solo objeto, lo convertimos en una lista de un elemento.
+        pendientes
+            .add(RenovacionPendiente.fromJson(json['RenovacionPendientes']));
+      }
+    }
 
     return Pago(
       semana: json['semana'] ?? 0,
@@ -4296,26 +5575,30 @@ class Pago {
           : null,
       pagosMoratorios: pagosMoratorios,
       moratorioDesabilitado: json['moratorioDesabilitado'] ?? "No",
+      // --- 4. PASAR LA LISTA AL CONSTRUCTOR ---
+      renovacionesPendientes: pendientes,
     );
   }
 
+  // El método toPagoSeleccionado no necesita cambios, ya que 'renovacionesPendientes'
+  // es para lógica de visualización, no para el proceso de guardar pagos.
   PagoSeleccionado toPagoSeleccionado() {
     return PagoSeleccionado(
-        semana: semana,
-        tipoPago: tipoPago,
-        deposito: deposito ?? 0.00,
-        fechaPago: this.fechaPagoCompleto.isNotEmpty
-            ? this.fechaPagoCompleto
-            : this.fechaPago,
-        idfechaspagos: idfechaspagos ?? '',
-        capitalMasInteres: capitalMasInteres,
-        moratorio: moratorios?.moratorios,
-        saldoFavor: saldoFavor,
-        saldoEnContra: saldoEnContra,
-        abonos: abonos,
-        // ¡Agregar esta línea para propagar el campo!
-        moratorioDesabilitado: this.moratorioDesabilitado, // ¡No olvidar este!
-        pagosMoratorios: pagosMoratorios);
+      semana: semana,
+      tipoPago: tipoPago,
+      deposito: deposito ?? 0.00,
+      fechaPago: this.fechaPagoCompleto.isNotEmpty
+          ? this.fechaPagoCompleto
+          : this.fechaPago,
+      idfechaspagos: idfechaspagos ?? '',
+      capitalMasInteres: capitalMasInteres,
+      moratorio: moratorios?.moratorios,
+      saldoFavor: saldoFavor,
+      saldoEnContra: saldoEnContra,
+      abonos: abonos,
+      moratorioDesabilitado: this.moratorioDesabilitado,
+      pagosMoratorios: pagosMoratorios,
+    );
   }
 }
 
@@ -4463,7 +5746,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                         Text(
                           "Monto del Abono:",
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: labelColor,
                           ),
@@ -4498,7 +5781,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                             contentPadding: EdgeInsets.symmetric(
                                 vertical: 15, horizontal: 20),
                           ),
-                          style: TextStyle(fontSize: 14, color: textColor),
+                          style: TextStyle(fontSize: 13, color: textColor),
                           onChanged: (value) {
                             setState(() {
                               montoPorAbono = double.tryParse(value) ?? 0.0;
@@ -4519,7 +5802,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                         Text(
                           "Fecha de Pago:",
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: labelColor,
                           ),
@@ -4605,7 +5888,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                                         DateFormat('dd/MM/yyyy').format(
                                             fechaPago), // Formato dd-MM-yyyy
                                         style: TextStyle(
-                                          fontSize: 14,
+                                          fontSize: 13,
                                           color: isDateButtonEnabled
                                               ? textColor
                                               : textColor.withOpacity(0.5),
@@ -4637,7 +5920,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                               child: Text(
                                 "Agregar Abono",
                                 style: TextStyle(
-                                    fontSize: 14, color: Colors.white),
+                                    fontSize: 13, color: Colors.white),
                               ),
                               onPressed: () {
                                 if (montoPorAbono > 0.0) {
@@ -4669,7 +5952,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                 Text(
                   "Abonos registrados:",
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: labelColor,
                   ),
@@ -4691,7 +5974,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                           title: Text(
                             "Monto: \$${abonos[index]['deposito']} - Fecha: ${_formatearFecha(abonos[index]['fechaDeposito'])}",
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w500,
                               color: textColor,
                             ),
@@ -4711,7 +5994,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                   Text(
                     "Total Abonado: \$${totalAbonos.toStringAsFixed(2)}",
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
@@ -4720,7 +6003,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                   /* Text(
                     "Monto a Pagar: \$${widget.montoAPagar.toStringAsFixed(2)}",
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
@@ -4728,7 +6011,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                   Text(
                     "Falta: \$${montoFaltante.toStringAsFixed(2)}",
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
@@ -4753,7 +6036,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                     ),
                     child: Text(
                       "Cancelar",
-                      style: TextStyle(fontSize: 14, color: Colors.white),
+                      style: TextStyle(fontSize: 13, color: Colors.white),
                     ),
                     onPressed: () {
                       Navigator.of(context).pop();
@@ -4772,7 +6055,7 @@ class _AbonosDialogState extends State<AbonosDialog> {
                     ),
                     child: Text(
                       "Confirmar",
-                      style: TextStyle(fontSize: 14, color: Colors.white),
+                      style: TextStyle(fontSize: 13, color: Colors.white),
                     ),
                     onPressed: () {
                       for (var abono in abonos) {
@@ -4793,12 +6076,13 @@ class _AbonosDialogState extends State<AbonosDialog> {
 }
 
 // Clase PaginaIntegrantes: Widget que muestra la tabla
-class PaginaIntegrantes extends StatelessWidget {
+class PaginaIntegrantes extends StatefulWidget {
   final List<ClienteMonto> clientesMontosInd;
   final String tipoPlazo;
   final double pagoCuota;
   final int plazo;
   final String garantia;
+  final String idgrupo; // <--- NUEVO: Necesitamos el ID del grupo
 
   const PaginaIntegrantes({
     Key? key,
@@ -4807,94 +6091,163 @@ class PaginaIntegrantes extends StatelessWidget {
     required this.pagoCuota,
     required this.plazo,
     required this.garantia,
+    required this.idgrupo, // <--- NUEVO
   }) : super(key: key);
+
+  @override
+  _PaginaIntegrantesState createState() => _PaginaIntegrantesState();
+}
+
+class _PaginaIntegrantesState extends State<PaginaIntegrantes> {
+  // <--- NUEVO: Variables de estado para manejar la carga de descuentos --->
+  bool _cargandoDescuentos = true;
+  String? _errorDescuentos;
+  Map<String, double> _descuentosRenovacion = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // <--- NUEVO: Hacemos la llamada a la API al iniciar el widget --->
+    _fetchDescuentosRenovacion();
+  }
+
+  // <--- NUEVO: La función para obtener los descuentos (adaptada de tu otra pantalla) --->
+  Future<void> _fetchDescuentosRenovacion() async {
+    setState(() {
+      _cargandoDescuentos = true;
+      _errorDescuentos = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final url = Uri.parse(
+          '$baseUrl/api/v1/grupodetalles/renovacion/${widget.idgrupo}');
+
+      final response = await http.get(url, headers: {'tokenauth': token});
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final Map<String, double> descuentosObtenidos = {};
+        for (var item in data) {
+          // <<< ¡AQUÍ ESTÁ LA LÓGICA CLAVE! >>>
+          // Comparamos el ID del grupo actual con el ID del grupo que viene en los datos de renovación.
+          if (item['idclientes'] != null &&
+              item['descuento'] != null &&
+              widget.idgrupo != item['idgrupos']) {
+            // <-- NUEVA CONDICIÓN
+            descuentosObtenidos[item['idclientes']] =
+                (item['descuento'] as num).toDouble();
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _descuentosRenovacion = descuentosObtenidos;
+            _cargandoDescuentos = false;
+          });
+        }
+      } else if (response.statusCode == 404) {
+        // No es un error, simplemente no hay descuentos para este grupo.
+        if (mounted) {
+          setState(() {
+            _cargandoDescuentos = false;
+          });
+        }
+      } else {
+        throw Exception('Error al cargar descuentos: ${response.body}');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorDescuentos = 'No se pudieron cargar los descuentos.';
+          _cargandoDescuentos = false;
+        });
+      }
+    }
+  }
 
   String formatearNumero(double numero) {
     final formatter = NumberFormat("#,##0.00", "en_US");
     return formatter.format(numero);
   }
 
+  // <--- NUEVO: Helper para crear las filas del desglose en el tooltip --->
+  Widget _buildDesgloseRow(String label, String value, bool isDarkMode,
+      {bool isTotal = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              color: isDarkMode ? Colors.white : Colors.black,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Sort the list by capitalIndividual in descending order
-/*     final sortedClientesMontosInd = List<ClienteMonto>.from(clientesMontosInd)
-      ..sort((a, b) => b.capitalIndividual.compareTo(a.capitalIndividual)); */
+    if (_cargandoDescuentos) {
+      return Center(child: CircularProgressIndicator());
+    }
+    if (_errorDescuentos != null) {
+      return Center(
+          child: Text(_errorDescuentos!, style: TextStyle(color: Colors.red)));
+    }
 
-    final themeProvider = Provider.of<ThemeProvider>(context,
-        listen: false); // Obtén el ThemeProvider
-    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
 
-    // Variables para el estilo del texto
     const headerTextStyle = TextStyle(
-      color: Colors.white,
-      fontWeight: FontWeight.bold,
-      fontSize: 13, // Tamaño de fuente del encabezado
-    );
-
+        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13);
     final contentTextStyle = TextStyle(
-      fontSize: 12, // Tamaño de fuente del contenido
-      color: isDarkMode ? Colors.white : Colors.black87,
-    );
-
-    // Estilo para la fila de totales
+        fontSize: 11, color: isDarkMode ? Colors.white : Colors.black87);
     const totalRowTextStyle = TextStyle(
-      color: Colors.white,
-      fontWeight: FontWeight.bold,
-      fontSize: 13,
-    );
+        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13);
 
-    // Método para construir las celdas del encabezado
-    Widget _buildHeaderCell(String text) {
-      return Expanded(
+    Widget _buildHeaderCell(String text) => Expanded(
         child: Padding(
-          padding: const EdgeInsets.all(4.0),
-          child:
-              Text(text, style: headerTextStyle, textAlign: TextAlign.center),
-        ),
-      );
-    }
-
-    // Método para construir las celdas de datos
-    Widget _buildDataCell(String text) {
-      return Expanded(
+            padding: const EdgeInsets.all(4.0),
+            child: Text(text,
+                style: headerTextStyle, textAlign: TextAlign.center)));
+    Widget _buildDataCell(Widget child) => Expanded(
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child:
-              Text(text, style: contentTextStyle, textAlign: TextAlign.center),
-        ),
-      );
-    }
-
-    // Método para construir las celdas de totales
-    Widget _buildTotalCell(String text) {
-      return Expanded(
+            padding: const EdgeInsets.all(8.0),
+            child: child)); // Modificado para aceptar Widget
+    Widget _buildTotalCell(String text) => Expanded(
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child:
-              Text(text, style: totalRowTextStyle, textAlign: TextAlign.center),
-        ),
-      );
-    }
+            padding: const EdgeInsets.all(8.0),
+            child: Text(text,
+                style: totalRowTextStyle, textAlign: TextAlign.center)));
 
-    const totalRowColor = Color(0xFF5162F6); // Rojo para la fila de totales
-
-    // Verifica el tipo de plazo y ajusta el texto de los encabezados
-    final pagoColumnText = tipoPlazo == 'Semanal' ? 'Pago Sem.' : 'Pago Qna.';
+    const totalRowColor = Color(0xFF5162F6);
+    final pagoColumnText =
+        widget.tipoPlazo == 'Semanal' ? 'Pago Sem.' : 'Pago Qna.';
     final capitalColumnText =
-        tipoPlazo == 'Semanal' ? 'Capital Sem.' : 'Capital Qna.';
+        widget.tipoPlazo == 'Semanal' ? 'Capital Sem.' : 'Capital Qna.';
     final interesColumnText =
-        tipoPlazo == 'Semanal' ? 'Interés Sem.' : 'Interés Qna.';
+        widget.tipoPlazo == 'Semanal' ? 'Interés Sem.' : 'Interés Qna.';
 
-    // Convertir garantía de String a decimal (por ejemplo: "10%" -> 0.10)
-    final garantiaDecimal =
-        double.tryParse(garantia.replaceAll('%', '').trim()) ?? 0.0;
-    final factorDesembolso = 1 - garantiaDecimal / 100;
+    final garantiaPorcentaje =
+        double.tryParse(widget.garantia.replaceAll('%', '').trim()) ?? 0.0;
 
-    print('factorDesembolso: $factorDesembolso');
-
-    // Inicializar sumatorias
     double sumCapitalIndividual = 0;
     double sumMontoDesembolsado = 0;
+    // ... otras sumatorias
     double sumPeriodoCapital = 0;
     double sumPeriodoInteres = 0;
     double sumTotalCapital = 0;
@@ -4902,12 +6255,16 @@ class PaginaIntegrantes extends StatelessWidget {
     double sumCapitalMasInteres = 0;
     double sumTotal = 0;
 
-    for (var cliente in clientesMontosInd) {
+    for (var cliente in widget.clientesMontosInd) {
+      final descuentoDirecto = _descuentosRenovacion[cliente.idclientes] ?? 0.0;
+      final garantiaIndividual =
+          cliente.capitalIndividual * (garantiaPorcentaje / 100);
       final montoDesembolsadoIndividual =
-          cliente.capitalIndividual * factorDesembolso;
+          cliente.capitalIndividual - descuentoDirecto - garantiaIndividual;
 
       sumCapitalIndividual += cliente.capitalIndividual;
       sumMontoDesembolsado += montoDesembolsadoIndividual;
+      // ... sumar el resto
       sumPeriodoCapital += cliente.periodoCapital;
       sumPeriodoInteres += cliente.periodoInteres;
       sumTotalCapital += cliente.totalCapital;
@@ -4916,126 +6273,248 @@ class PaginaIntegrantes extends StatelessWidget {
       sumTotal += cliente.total;
     }
 
-    final sumTotalRedondeado = pagoCuota * plazo;
+    final sumTotalRedondeado = widget.pagoCuota * widget.plazo;
 
     return Container(
+      // ... (el resto del Container y LayoutBuilder se mantiene igual)
       padding: const EdgeInsets.symmetric(horizontal: 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
           double tableWidth = constraints.maxWidth;
-
           return SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: Container(
-              width: tableWidth,
-              child: Column(
-                children: [
-                  // Encabezado de la tabla (como un Row con fondo y bordes redondeados)
-                  Container(
-                    height: 50,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: Color(0xFF5162F6), // Fondo del encabezado
-                    ),
-                    child: Row(
-                      children: [
-                        _buildHeaderCell("Nombre"),
-                        _buildHeaderCell("Autorizado"),
-                        _buildHeaderCell("Desembolsado"), // Nueva columna
-                        _buildHeaderCell(capitalColumnText),
-                        _buildHeaderCell(interesColumnText),
-                        _buildHeaderCell("Total Capital"),
-                        _buildHeaderCell("Total Interes"),
-                        _buildHeaderCell(pagoColumnText),
-                        _buildHeaderCell("Pago Total"),
-                      ],
-                    ),
-                  ),
-                  // Cuerpo de la tabla: Lista de datos (Rows)
-                  for (var cliente in clientesMontosInd)
-                    Row(
-                      children: [
-                        _buildDataCell(cliente.nombreCompleto),
-                        _buildDataCell(
-                            "\$${formatearNumero(cliente.capitalIndividual)}"),
-                        _buildDataCell(
-                            "\$${formatearNumero(cliente.capitalIndividual * factorDesembolso)}"),
-                        _buildDataCell(
-                            "\$${formatearNumero(cliente.periodoCapital)}"),
-                        _buildDataCell(
-                            "\$${formatearNumero(cliente.periodoInteres)}"),
-                        _buildDataCell(
-                            "\$${formatearNumero(cliente.totalCapital)}"),
-                        _buildDataCell(
-                            "\$${formatearNumero(cliente.totalIntereses)}"),
-                        _buildDataCell(
-                            "\$${formatearNumero(cliente.capitalMasInteres)}"),
-                        _buildDataCell("\$${formatearNumero(cliente.total)}"),
-                      ],
-                    ),
-                  // Fila de totales (con color y bordes redondeados)
-                  Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: totalRowColor,
-                      borderRadius: (pagoCuota != sumCapitalMasInteres)
-                          ? BorderRadius.only(
-                              topLeft: Radius.circular(12),
-                              topRight: Radius.circular(12),
-                            )
-                          : BorderRadius.circular(
-                              12), // Todos los bordes redondeados
-                    ),
-                    child: Row(
-                      children: [
-                        _buildTotalCell("Totales"),
-                        _buildTotalCell(
-                            "\$${formatearNumero(sumCapitalIndividual)}"),
-                        _buildTotalCell(
-                            "\$${formatearNumero(sumMontoDesembolsado)}"), // Nueva celda total
-                        _buildTotalCell(
-                            "\$${formatearNumero(sumPeriodoCapital)}"),
-                        _buildTotalCell(
-                            "\$${formatearNumero(sumPeriodoInteres)}"),
-                        _buildTotalCell(
-                            "\$${formatearNumero(sumTotalCapital)}"),
-                        _buildTotalCell(
-                            "\$${formatearNumero(sumTotalIntereses)}"),
-                        _buildTotalCell(
-                            "\$${formatearNumero(sumCapitalMasInteres)}"),
-                        _buildTotalCell("\$${formatearNumero(sumTotal)}"),
-                      ],
-                    ),
-                  ),
-                  // Mostrar la fila "Redondeado" solo si corresponde
-                  if (pagoCuota != sumCapitalMasInteres)
+            child: Padding(
+              padding: const EdgeInsets.only(top: 50),
+              child: Container(
+                width: tableWidth,
+                child: Column(
+                  children: [
                     Container(
-                      height: 40,
-                      margin: EdgeInsets.only(top: 0),
+                      // ... (encabezado sin cambios)
+                      height: 50,
                       decoration: BoxDecoration(
-                        color: totalRowColor,
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(20),
-                          bottomRight: Radius.circular(20),
-                        ),
-                      ),
+                          borderRadius: BorderRadius.circular(12),
+                          color: Color(0xFF5162F6)),
                       child: Row(
                         children: [
-                          _buildTotalCell("Redondeado"),
-                          _buildTotalCell(""),
-                          _buildTotalCell(
-                              ""), // Celda vacía para la nueva columna
-                          _buildTotalCell(""),
-                          _buildTotalCell(""),
-                          _buildTotalCell(""),
-                          _buildTotalCell(""),
-                          _buildTotalCell("\$${formatearNumero(pagoCuota)}"),
-                          _buildTotalCell(
-                              "\$${formatearNumero(sumTotalRedondeado)}"),
+                          _buildHeaderCell("Nombre"),
+                          _buildHeaderCell("Autorizado"),
+                          _buildHeaderCell("Desembolsado"),
+                          _buildHeaderCell(capitalColumnText),
+                          _buildHeaderCell(interesColumnText),
+                          _buildHeaderCell("Total Capital"),
+                          _buildHeaderCell("Total Interes"),
+                          _buildHeaderCell(pagoColumnText),
+                          _buildHeaderCell("Pago Total"),
                         ],
                       ),
                     ),
-                ],
+                    for (var cliente in widget.clientesMontosInd)
+                      () {
+                        final descuentoDirecto =
+                            _descuentosRenovacion[cliente.idclientes] ?? 0.0;
+                        final garantiaIndividual = cliente.capitalIndividual *
+                            (garantiaPorcentaje / 100);
+                        final montoDesembolsadoIndividual =
+                            cliente.capitalIndividual -
+                                descuentoDirecto -
+                                garantiaIndividual;
+                        final bool tieneDescuento = descuentoDirecto > 0;
+
+                        final estiloDesembolso = TextStyle(
+                            fontSize: 11,
+                            color: tieneDescuento
+                                ? (isDarkMode
+                                    ? Colors.greenAccent[400]
+                                    : Colors.green[800])
+                                : (isDarkMode ? Colors.white : Colors.black87),
+                            fontWeight: tieneDescuento
+                                ? FontWeight.bold
+                                : FontWeight.normal);
+
+                        return Row(
+                          children: [
+                            _buildDataCell(Text(cliente.nombreCompleto,
+                                style: contentTextStyle,
+                                textAlign: TextAlign.center)),
+                            _buildDataCell(Text(
+                                "\$${formatearNumero(cliente.capitalIndividual)}",
+                                style: contentTextStyle,
+                                textAlign: TextAlign.center)),
+
+                            // <--- CELDA MODIFICADA CON TEXTO E ÍCONO/TOOLTIP CONDICIONAL --->
+                            _buildDataCell(Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                    "\$${formatearNumero(montoDesembolsadoIndividual)}",
+                                    style: estiloDesembolso,
+                                    textAlign: TextAlign.center),
+                                // El ícono solo aparece si hay descuento
+                                if (tieneDescuento)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 4.0),
+                                    child: Tooltip(
+                                      padding: EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                          color: isDarkMode
+                                              ? Colors.grey[800]
+                                              : Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          boxShadow: [
+                                            BoxShadow(
+                                                color: Colors.black26,
+                                                blurRadius: 5,
+                                                offset: Offset(0, 2))
+                                          ]),
+                                      richMessage: WidgetSpan(
+                                          child: ConstrainedBox(
+                                        constraints:
+                                            BoxConstraints(maxWidth: 220),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text("Desglose del Desembolso",
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                    color: isDarkMode
+                                                        ? Colors.white
+                                                        : Colors.black)),
+                                            Divider(
+                                                color: isDarkMode
+                                                    ? Colors.white30
+                                                    : Colors.black26,
+                                                height: 15),
+                                            _buildDesgloseRow(
+                                                "Monto Autorizado",
+                                                "\$${formatearNumero(cliente.capitalIndividual)}",
+                                                isDarkMode),
+                                            _buildDesgloseRow(
+                                                "(-) Garantía",
+                                                "-\$${formatearNumero(garantiaIndividual)}",
+                                                isDarkMode),
+                                            _buildDesgloseRow(
+                                                "(-) Descuento Renov.",
+                                                "-\$${formatearNumero(descuentoDirecto)}",
+                                                isDarkMode),
+                                            Divider(
+                                                color: isDarkMode
+                                                    ? Colors.white30
+                                                    : Colors.black26,
+                                                height: 10),
+                                            _buildDesgloseRow(
+                                                "(=) Total a Recibir",
+                                                "\$${formatearNumero(montoDesembolsadoIndividual)}",
+                                                isDarkMode,
+                                                isTotal: true),
+                                          ],
+                                        ),
+                                      )),
+                                      child: Icon(
+                                        Icons.info_outline,
+                                        size: 14,
+                                        color: isDarkMode
+                                            ? Colors.white70
+                                            : Colors.grey[600],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            )),
+
+                            _buildDataCell(Text(
+                                "\$${formatearNumero(cliente.periodoCapital)}",
+                                style: contentTextStyle,
+                                textAlign: TextAlign.center)),
+                            _buildDataCell(Text(
+                                "\$${formatearNumero(cliente.periodoInteres)}",
+                                style: contentTextStyle,
+                                textAlign: TextAlign.center)),
+                            _buildDataCell(Text(
+                                "\$${formatearNumero(cliente.totalCapital)}",
+                                style: contentTextStyle,
+                                textAlign: TextAlign.center)),
+                            _buildDataCell(Text(
+                                "\$${formatearNumero(cliente.totalIntereses)}",
+                                style: contentTextStyle,
+                                textAlign: TextAlign.center)),
+                            _buildDataCell(Text(
+                                "\$${formatearNumero(cliente.capitalMasInteres)}",
+                                style: contentTextStyle,
+                                textAlign: TextAlign.center)),
+                            _buildDataCell(Text(
+                                "\$${formatearNumero(cliente.total)}",
+                                style: contentTextStyle,
+                                textAlign: TextAlign.center)),
+                          ],
+                        );
+                      }(),
+                    Container(
+                      // ... (fila de totales sin cambios)
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: totalRowColor,
+                        borderRadius: (widget.pagoCuota != sumCapitalMasInteres)
+                            ? BorderRadius.only(
+                                topLeft: Radius.circular(12),
+                                topRight: Radius.circular(12))
+                            : BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildTotalCell("Totales"),
+                          _buildTotalCell(
+                              "\$${formatearNumero(sumCapitalIndividual)}"),
+                          _buildTotalCell(
+                              "\$${formatearNumero(sumMontoDesembolsado)}"),
+                          _buildTotalCell(
+                              "\$${formatearNumero(sumPeriodoCapital)}"),
+                          _buildTotalCell(
+                              "\$${formatearNumero(sumPeriodoInteres)}"),
+                          _buildTotalCell(
+                              "\$${formatearNumero(sumTotalCapital)}"),
+                          _buildTotalCell(
+                              "\$${formatearNumero(sumTotalIntereses)}"),
+                          _buildTotalCell(
+                              "\$${formatearNumero(sumCapitalMasInteres)}"),
+                          _buildTotalCell("\$${formatearNumero(sumTotal)}"),
+                        ],
+                      ),
+                    ),
+                    if (widget.pagoCuota != sumCapitalMasInteres)
+                      Container(
+                        // ... (fila de redondeo sin cambios)
+                        height: 40,
+                        margin: EdgeInsets.only(top: 0),
+                        decoration: BoxDecoration(
+                          color: totalRowColor,
+                          borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(20),
+                              bottomRight: Radius.circular(20)),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildTotalCell("Redondeado"),
+                            _buildTotalCell(""),
+                            _buildTotalCell(""),
+                            _buildTotalCell(""),
+                            _buildTotalCell(""),
+                            _buildTotalCell(""),
+                            _buildTotalCell(""),
+                            _buildTotalCell(
+                                "\$${formatearNumero(widget.pagoCuota)}"),
+                            _buildTotalCell(
+                                "\$${formatearNumero(sumTotalRedondeado)}"),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           );
@@ -5426,17 +6905,20 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          /*  _buildInfoRow('Tipo:', widget.tipo),
-          const SizedBox(height: 4),
-          _buildInfoRow('Folio:', widget.folio),
-          const SizedBox(height: 20), */
-          _buildBotonesDescarga(),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(top: 50),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /*  _buildInfoRow('Tipo:', widget.tipo),
+            const SizedBox(height: 4),
+            _buildInfoRow('Folio:', widget.folio),
+            const SizedBox(height: 20), */
+            _buildBotonesDescarga(),
+          ],
+        ),
       ),
     );
   }
@@ -5448,14 +6930,14 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
         Text('$titulo ',
             style: TextStyle(
               color: Colors.grey[600],
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             )),
         Expanded(
           child: Text(valor,
               style: TextStyle(
                 color: Colors.grey[800],
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
               )),
         ),
@@ -5532,19 +7014,6 @@ class _PaginaDescargablesState extends State<PaginaDescargables> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: _buildButtonContent(titulo, icono, estaDescargando),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingIndicator() {
-    return const Center(
-      child: SizedBox(
-        width: 24,
-        height: 24,
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          color: Colors.white,
         ),
       ),
     );

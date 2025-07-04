@@ -2860,639 +2860,76 @@ class _nClienteDialogState extends State<nClienteDialog>
   }
 
   void _mostrarDialogReferencia({int? index, Map<String, dynamic>? item}) {
-    // Obtener estado del tema
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final isDarkMode = themeProvider.isDarkMode;
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
 
-    final GlobalKey<FormState> dialogAddReferenciasFormKey =
-        GlobalKey<FormState>();
+  // Creamos una clave para acceder al estado del formulario desde fuera.
+  final GlobalKey<_DialogoReferenciaFormState> formStateKey = GlobalKey<_DialogoReferenciaFormState>();
+  
+  final width = MediaQuery.of(context).size.width * 0.7;
+  final height = MediaQuery.of(context).size.height * 0.55;
 
-    // Inicialización de los valores del dropdown
-    String? selectedParentesco = (item != null &&
-            item['parentescoRef'] != null &&
-            ['Padre', 'Madre', 'Hermano/a', 'Amigo/a', 'Vecino', 'Otro']
-                .contains(item['parentescoRef']))
-        ? item['parentescoRef']
-        : null;
-
-    String? selectedTipoDomicilioRef = (item != null &&
-            item['tipoDomicilioRef'] != null &&
-            ['Propio', 'Alquilado', 'Prestado', 'Otro']
-                .contains(item['tipoDomicilioRef']))
-        ? item['tipoDomicilioRef']
-        : null;
-
-    // Controladores
-    final nombresRefController =
-        TextEditingController(text: item?['nombresRef'] ?? '');
-    final apellidoPRefController =
-        TextEditingController(text: item?['apellidoPRef'] ?? '');
-    final apellidoMRefController =
-        TextEditingController(text: item?['apellidoMRef'] ?? '');
-    final telefonoRefController =
-        TextEditingController(text: item?['telefonoRef'] ?? '');
-    final tiempoConocerRefController =
-        TextEditingController(text: item?['tiempoConocerRef'] ?? '');
-
-    // Controladores de domicilio de referencia
-    final nombrePropietarioRefController =
-        TextEditingController(text: item?['nombrePropietarioRef'] ?? '');
-    final calleRefController =
-        TextEditingController(text: item?['calleRef'] ?? '');
-    final nExtRefController =
-        TextEditingController(text: item?['nExtRef'] ?? '');
-    final nIntRefController =
-        TextEditingController(text: item?['nIntRef'] ?? '');
-    final entreCalleRefController =
-        TextEditingController(text: item?['entreCalleRef'] ?? '');
-    final parentescoRefPropController =
-        TextEditingController(text: item?['parentescoRefProp'] ?? '');
-    final coloniaRefController =
-        TextEditingController(text: item?['coloniaRef'] ?? '');
-    final cpRefController = TextEditingController(text: item?['cpRef'] ?? '');
-    final estadoRefController =
-        TextEditingController(text: item?['estadoRef'] ?? '');
-    final municipioRefController =
-        TextEditingController(text: item?['municipioRef'] ?? '');
-    final tiempoViviendoRefController =
-        TextEditingController(text: item?['tiempoViviendoRef'] ?? '');
-
-    // Crear dos FocusScopeNode separados, uno para cada sección
-    final infoPersonalFocusScope = FocusScopeNode();
-    final domicilioFocusScope = FocusScopeNode();
-
-    // Crear FocusNodes para cada campo - Sección Información Personal
-    final nombresFocusNode = FocusNode();
-    final apellidoPFocusNode = FocusNode();
-    final apellidoMFocusNode = FocusNode();
-    final parentescoFocusNode = FocusNode();
-    final telefonoFocusNode = FocusNode();
-    final tiempoConocerFocusNode = FocusNode();
-
-    // Crear FocusNodes para cada campo - Sección Domicilio
-    final tipoDomicilioFocusNode = FocusNode();
-    final calleFocusNode = FocusNode();
-    final nombrePropietarioFocusNode = FocusNode();
-    final parentescoPropFocusNode = FocusNode();
-    final nExtFocusNode = FocusNode();
-    final nIntFocusNode = FocusNode();
-    final entreCalleFocusNode = FocusNode();
-    final coloniaFocusNode = FocusNode();
-    final cpFocusNode = FocusNode();
-    final estadoFocusNode = FocusNode();
-    final municipioFocusNode = FocusNode();
-    final tiempoViviendoFocusNode = FocusNode();
-
-    // Configuración del diálogo
-    final width = MediaQuery.of(context).size.width * 0.7;
-    final height = MediaQuery.of(context).size.height * 0.55;
-
-    // Lista para controlar los Focus Nodes y poder disponer de ellos después
-    final List<FocusNode> allFocusNodes = [
-      nombresFocusNode,
-      apellidoPFocusNode,
-      apellidoMFocusNode,
-      parentescoFocusNode,
-      telefonoFocusNode,
-      tiempoConocerFocusNode,
-      tipoDomicilioFocusNode,
-      calleFocusNode,
-      nombrePropietarioFocusNode,
-      parentescoPropFocusNode,
-      nExtFocusNode,
-      nIntFocusNode,
-      entreCalleFocusNode,
-      coloniaFocusNode,
-      cpFocusNode,
-      estadoFocusNode,
-      municipioFocusNode,
-      tiempoViviendoFocusNode
-    ];
-
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
-        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        title: Center(
-          child: Text(
-            index == null ? 'Nueva Referencia' : 'Editar Referencia',
-            style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.black),
-          ),
+  showDialog(
+    barrierDismissible: false,
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+       // ----- CORRECCIÓN AQUÍ -----
+      title: Center(
+        child: Text(
+          index == null ? 'Nueva Referencia' : 'Editar Referencia', // Lógica del título restaurada
+          style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isDarkMode ? Colors.white : Colors.black),
         ),
-        content: StatefulBuilder(
-          builder: (context, setState) => Container(
-            width: width,
-            height: height,
-            child: SingleChildScrollView(
-              child: Form(
-                key: dialogAddReferenciasFormKey,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: FocusScope(
-                        node: infoPersonalFocusScope,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Información de la persona de referencia',
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w600),
-                              ),
-                              Divider(color: Colors.grey[300]),
-                              SizedBox(height: 10),
-                              _buildTextField(
-                                controller: nombresRefController,
-                                label: 'Nombres',
-                                icon: Icons.person,
-                                focusNode: nombresFocusNode,
-                                onEditingComplete: () =>
-                                    apellidoPFocusNode.requestFocus(),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                      RegExp(r'[a-zA-ZÀ-ÿ ]')),
-                                ],
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Por favor, ingrese el nombre';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              SizedBox(height: 10),
-                              _buildTextField(
-                                controller: apellidoPRefController,
-                                label: 'Apellido Paterno',
-                                icon: Icons.person_outline,
-                                focusNode: apellidoPFocusNode,
-                                onEditingComplete: () =>
-                                    apellidoMFocusNode.requestFocus(),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                      RegExp(r'[a-zA-ZÀ-ÿ ]')),
-                                ],
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Por favor, ingrese el apellido paterno';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              SizedBox(height: 10),
-                              _buildTextField(
-                                controller: apellidoMRefController,
-                                label: 'Apellido Materno',
-                                icon: Icons.person_outline,
-                                focusNode: apellidoMFocusNode,
-                                onEditingComplete: () =>
-                                    parentescoFocusNode.requestFocus(),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                      RegExp(r'[a-zA-ZÀ-ÿ ]')),
-                                ],
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Por favor, ingrese el apellido materno';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              SizedBox(height: 10),
-                              _buildDropdown(
-                                value: selectedParentesco,
-                                hint: 'Parentesco',
-                                items: [
-                                  'Padre',
-                                  'Madre',
-                                  'Esposo/a',
-                                  'Hermano/a',
-                                  'Amigo/a',
-                                  'Vecino',
-                                  'Otro'
-                                ],
-                                focusNode: parentescoFocusNode,
-                                onChanged: (value) {
-                                  setState(() {
-                                    selectedParentesco = value;
-                                  });
-                                  if (value != null) {
-                                    // Después de seleccionar, mover al siguiente campo
-                                    telefonoFocusNode.requestFocus();
-                                  }
-                                },
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Por favor, seleccione el parentesco';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              SizedBox(height: 10),
-                              _buildTextField(
-                                controller: telefonoRefController,
-                                label: 'Teléfono',
-                                icon: Icons.phone,
-                                focusNode: telefonoFocusNode,
-                                onEditingComplete: () =>
-                                    tiempoConocerFocusNode.requestFocus(),
-                                keyboardType: TextInputType.phone,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly
-                                ],
-                                maxLength: 10,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Por favor ingrese el teléfono';
-                                  } else if (value.length != 10) {
-                                    return 'Debe tener 10 dígitos';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              SizedBox(height: 10),
-                              _buildTextField(
-                                controller: tiempoConocerRefController,
-                                label: 'Tiempo de conocer',
-                                icon: Icons.timelapse_rounded,
-                                focusNode: tiempoConocerFocusNode,
-                                onEditingComplete: () {
-                                  // Mover foco al primer campo del domicilio usando el FocusScope del domicilio
-                                  FocusScope.of(context)
-                                      .requestFocus(tipoDomicilioFocusNode);
-                                },
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Por favor, ingrese el tiempo de conocer';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 20),
-                    Expanded(
-                      child: FocusScope(
-                        node: domicilioFocusScope,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Datos del domicilio de la referencia',
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w600),
-                              ),
-                              Divider(color: Colors.grey[300]),
-                              Text(
-                                'Los datos de domicilio de la referencia son opcionales',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: isDarkMode
-                                        ? Colors.white
-                                        : Colors.grey[700]),
-                              ),
-                              SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: _buildDropdown(
-                                      value: selectedTipoDomicilioRef,
-                                      hint: 'Tipo Domicilio',
-                                      items: [
-                                        'Propio',
-                                        'Alquilado',
-                                        'Prestado',
-                                        'Otro'
-                                      ],
-                                      focusNode: tipoDomicilioFocusNode,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          selectedTipoDomicilioRef = value;
-                                        });
-                                        if (value != null) {
-                                          // Después de seleccionar, mover al siguiente campo
-                                          calleFocusNode.requestFocus();
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Expanded(
-                                    flex: 6,
-                                    child: _buildTextField(
-                                      controller: calleRefController,
-                                      label: 'Calle',
-                                      icon: Icons.location_on,
-                                      focusNode: calleFocusNode,
-                                      onEditingComplete: () {
-                                        if (selectedTipoDomicilioRef != null &&
-                                            selectedTipoDomicilioRef !=
-                                                'Propio') {
-                                          nombrePropietarioFocusNode
-                                              .requestFocus();
-                                        } else {
-                                          nExtFocusNode.requestFocus();
-                                        }
-                                      },
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.allow(
-                                            RegExp(r'[a-zA-ZÀ-ÿ ]')),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (selectedTipoDomicilioRef != null &&
-                                  selectedTipoDomicilioRef != 'Propio') ...[
-                                SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      flex: 4,
-                                      child: _buildTextField(
-                                        controller:
-                                            nombrePropietarioRefController,
-                                        label: 'Nombre del Propietario',
-                                        icon: Icons.person,
-                                        focusNode: nombrePropietarioFocusNode,
-                                        onEditingComplete: () =>
-                                            parentescoPropFocusNode
-                                                .requestFocus(),
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter.allow(
-                                              RegExp(r'[a-zA-ZÀ-ÿ ]')),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Expanded(
-                                      flex: 4,
-                                      child: _buildTextField(
-                                        controller: parentescoRefPropController,
-                                        label: 'Parentesco con propietario',
-                                        icon: Icons.family_restroom,
-                                        focusNode: parentescoPropFocusNode,
-                                        onEditingComplete: () =>
-                                            nExtFocusNode.requestFocus(),
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter.allow(
-                                              RegExp(r'[a-zA-ZÀ-ÿ ]')),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    flex: 2,
-                                    child: _buildTextField(
-                                      controller: nExtRefController,
-                                      label: 'No. Ext',
-                                      icon: Icons.house,
-                                      focusNode: nExtFocusNode,
-                                      onEditingComplete: () =>
-                                          nIntFocusNode.requestFocus(),
-                                      keyboardType: TextInputType.number,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly
-                                      ],
-                                    ),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Expanded(
-                                    flex: 2,
-                                    child: _buildTextField(
-                                      controller: nIntRefController,
-                                      label: 'No. Int',
-                                      icon: Icons.house,
-                                      focusNode: nIntFocusNode,
-                                      onEditingComplete: () =>
-                                          entreCalleFocusNode.requestFocus(),
-                                      keyboardType: TextInputType.number,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 10),
-                              _buildTextField(
-                                controller: entreCalleRefController,
-                                label: 'Entre Calle',
-                                icon: Icons.location_on,
-                                focusNode: entreCalleFocusNode,
-                                onEditingComplete: () =>
-                                    coloniaFocusNode.requestFocus(),
-                              ),
-                              SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildTextField(
-                                      controller: coloniaRefController,
-                                      label: 'Colonia',
-                                      icon: Icons.location_city,
-                                      focusNode: coloniaFocusNode,
-                                      onEditingComplete: () =>
-                                          cpFocusNode.requestFocus(),
-                                    ),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Expanded(
-                                    child: _buildTextField(
-                                      controller: cpRefController,
-                                      label: 'Código Postal',
-                                      icon: Icons.mail,
-                                      focusNode: cpFocusNode,
-                                      onEditingComplete: () =>
-                                          estadoFocusNode.requestFocus(),
-                                      keyboardType: TextInputType.number,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly
-                                      ],
-                                      maxLength: 5,
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty) {
-                                          return null;
-                                        }
-                                        if (value.length != 5) {
-                                          return 'Debe tener 5 dígitos';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                  )
-                                ],
-                              ),
-                              SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildDropdown(
-                                      value: estadoRefController.text.isNotEmpty
-                                          ? estadoRefController.text
-                                          : null,
-                                      hint: 'Estado',
-                                      items: ['Guerrero'],
-                                      focusNode: estadoFocusNode,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          estadoRefController.text =
-                                              value ?? '';
-                                        });
-                                        municipioFocusNode.requestFocus();
-                                      },
-                                    ),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Expanded(
-                                    child: _buildTextField(
-                                      controller: municipioRefController,
-                                      label: 'Municipio',
-                                      icon: Icons.map,
-                                      focusNode: municipioFocusNode,
-                                      onEditingComplete: () =>
-                                          tiempoViviendoFocusNode
-                                              .requestFocus(),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 10),
-                              _buildTextField(
-                                controller: tiempoViviendoRefController,
-                                label: 'Tiempo Viviendo',
-                                icon: Icons.timelapse,
-                                focusNode: tiempoViviendoFocusNode,
-                                // Este es el último campo de esta sección
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // Liberar todos los recursos
-              infoPersonalFocusScope.dispose();
-              domicilioFocusScope.dispose();
-              for (var node in allFocusNodes) {
-                node.dispose();
-              }
-              Navigator.of(context).pop();
-            },
-            child: Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (dialogAddReferenciasFormKey.currentState!.validate()) {
-                // Recoger los datos y guardar
-                final nuevaReferencia = {
-                  'nombresRef': nombresRefController.text.isNotEmpty
-                      ? nombresRefController.text
-                      : '',
-                  'apellidoPRef': apellidoPRefController.text.isNotEmpty
-                      ? apellidoPRefController.text
-                      : '',
-                  'apellidoMRef': apellidoMRefController.text.isNotEmpty
-                      ? apellidoMRefController.text
-                      : '',
-                  'parentescoRef': selectedParentesco ?? '',
-                  'telefonoRef': telefonoRefController.text.isNotEmpty
-                      ? telefonoRefController.text
-                      : '',
-                  'tiempoConocerRef': tiempoConocerRefController.text.isNotEmpty
-                      ? tiempoConocerRefController.text
-                      : '',
-                  'tipoDomicilioRef': selectedTipoDomicilioRef ?? '',
-                  'calleRef': calleRefController.text.isNotEmpty
-                      ? calleRefController.text
-                      : '',
-                  'nExtRef': nExtRefController.text.isNotEmpty
-                      ? nExtRefController.text
-                      : '',
-                  'nIntRef': nIntRefController.text.isNotEmpty
-                      ? nIntRefController.text
-                      : '',
-                  'entreCalleRef': entreCalleRefController.text.isNotEmpty
-                      ? entreCalleRefController.text
-                      : '',
-                  'coloniaRef': coloniaRefController.text.isNotEmpty
-                      ? coloniaRefController.text
-                      : '',
-                  'cpRef': cpRefController.text.isNotEmpty
-                      ? cpRefController.text
-                      : '',
-                  'estadoRef': estadoRefController.text.isNotEmpty
-                      ? estadoRefController.text
-                      : '',
-                  'municipioRef': municipioRefController.text.isNotEmpty
-                      ? municipioRefController.text
-                      : '',
-                  'tiempoViviendoRef':
-                      tiempoViviendoRefController.text.isNotEmpty
-                          ? tiempoViviendoRefController.text
-                          : '',
-                  if (selectedTipoDomicilioRef != 'Propio')
-                    'nombrePropietarioRef':
-                        nombrePropietarioRefController.text.isNotEmpty
-                            ? nombrePropietarioRefController.text
-                            : '',
-                  if (selectedTipoDomicilioRef != 'Propio')
-                    'parentescoRefProp':
-                        parentescoRefPropController.text.isNotEmpty
-                            ? parentescoRefPropController.text
-                            : '',
-                };
-
-                setState(() {
-                  if (index == null) {
-                    referencias.add(nuevaReferencia);
-                  } else {
-                    referencias[index] = nuevaReferencia;
-                  }
-                });
-
-                // Liberar recursos
-                infoPersonalFocusScope.dispose();
-                domicilioFocusScope.dispose();
-                for (var node in allFocusNodes) {
-                  node.dispose();
-                }
-
-                Navigator.pop(context);
-              }
-            },
-            child: Text(index == null ? 'Añadir' : 'Guardar'),
-          ),
-        ],
       ),
-    );
-  }
+      // ---------------------------
+      content: Container(
+        width: width,
+        height: height,
+        child: SingleChildScrollView(
+          // Usamos nuestro widget con estado, pasándole la clave y los datos iniciales
+          child: _DialogoReferenciaForm(
+            key: formStateKey,
+            initialData: item,
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            // Simplemente cierra el diálogo. Flutter se encargará del dispose().
+            Navigator.of(context).pop();
+          },
+          child: Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () {
+            // Validamos y guardamos usando la clave para acceder al estado del formulario
+            final state = formStateKey.currentState;
+            if (state != null && state.formKey.currentState!.validate()) {
+              final nuevaReferencia = state.getFormData();
+
+              setState(() {
+                if (index == null) {
+                  referencias.add(nuevaReferencia);
+                } else {
+                  referencias[index] = nuevaReferencia;
+                }
+              });
+              
+              // Cierra el diálogo. Flutter se encargará del dispose().
+              Navigator.of(context).pop();
+            }
+          },
+          child: Text(index == null ? 'Añadir' : 'Guardar'),
+        ),
+      ],
+    ),
+  );
+}
 
   void _mostrarDialogIngresoEgreso({int? index, Map<String, dynamic>? item}) {
     // Ajustar el valor seleccionado
@@ -4304,4 +3741,385 @@ class _nClienteDialogState extends State<nClienteDialog>
       _showSnackbar(context, '$mensajeBase: Error desconocido', Colors.red);
     }
   }
+}
+
+
+// Pega esta clase completa al final de tu archivo.
+
+class _DialogoReferenciaForm extends StatefulWidget {
+  final Map<String, dynamic>? initialData;
+
+  const _DialogoReferenciaForm({Key? key, this.initialData}) : super(key: key);
+
+  @override
+  _DialogoReferenciaFormState createState() => _DialogoReferenciaFormState();
+}
+
+class _DialogoReferenciaFormState extends State<_DialogoReferenciaForm> {
+  final formKey = GlobalKey<FormState>();
+
+  // ----- Controladores -----
+  late TextEditingController nombresRefController;
+  late TextEditingController apellidoPRefController;
+  late TextEditingController apellidoMRefController;
+  late TextEditingController telefonoRefController;
+  late TextEditingController tiempoConocerRefController;
+  late TextEditingController nombrePropietarioRefController;
+  late TextEditingController calleRefController;
+  late TextEditingController nExtRefController;
+  late TextEditingController nIntRefController;
+  late TextEditingController entreCalleRefController;
+  late TextEditingController parentescoRefPropController;
+  late TextEditingController coloniaRefController;
+  late TextEditingController cpRefController;
+  late TextEditingController estadoRefController;
+  late TextEditingController municipioRefController;
+  late TextEditingController tiempoViviendoRefController;
+
+  // ----- Focus Nodes -----
+  // Generamos una lista de nodos de foco. Les daremos un orden lógico.
+  final List<FocusNode> allFocusNodes = List.generate(18, (_) => FocusNode());
+
+  // ----- Dropdown State -----
+  String? selectedParentesco;
+  String? selectedTipoDomicilioRef;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.initialData;
+
+    nombresRefController = TextEditingController(text: item?['nombresRef'] ?? '');
+    apellidoPRefController = TextEditingController(text: item?['apellidoPRef'] ?? '');
+    apellidoMRefController = TextEditingController(text: item?['apellidoMRef'] ?? '');
+    telefonoRefController = TextEditingController(text: item?['telefonoRef'] ?? '');
+    tiempoConocerRefController = TextEditingController(text: item?['tiempoConocerRef'] ?? '');
+    nombrePropietarioRefController = TextEditingController(text: item?['nombrePropietarioRef'] ?? '');
+    calleRefController = TextEditingController(text: item?['calleRef'] ?? '');
+    nExtRefController = TextEditingController(text: item?['nExtRef'] ?? '');
+    nIntRefController = TextEditingController(text: item?['nIntRef'] ?? '');
+    entreCalleRefController = TextEditingController(text: item?['entreCalleRef'] ?? '');
+    parentescoRefPropController = TextEditingController(text: item?['parentescoRefProp'] ?? '');
+    coloniaRefController = TextEditingController(text: item?['coloniaRef'] ?? '');
+    cpRefController = TextEditingController(text: item?['cpRef'] ?? '');
+    estadoRefController = TextEditingController(text: item?['estadoRef'] ?? '');
+    municipioRefController = TextEditingController(text: item?['municipioRef'] ?? '');
+    tiempoViviendoRefController = TextEditingController(text: item?['tiempoViviendoRef'] ?? '');
+
+    selectedParentesco = (item != null && item['parentescoRef'] != null && ['Padre', 'Madre', 'Esposo/a', 'Hermano/a', 'Amigo/a', 'Vecino', 'Otro'].contains(item['parentescoRef'])) ? item['parentescoRef'] : null;
+    selectedTipoDomicilioRef = (item != null && item['tipoDomicilioRef'] != null && ['Propio', 'Alquilado', 'Prestado', 'Otro'].contains(item['tipoDomicilioRef'])) ? item['tipoDomicilioRef'] : null;
+  }
+
+  @override
+  void dispose() {
+    // Flutter llamará a esto en el momento perfecto y seguro.
+    nombresRefController.dispose();
+    apellidoPRefController.dispose();
+    apellidoMRefController.dispose();
+    telefonoRefController.dispose();
+    tiempoConocerRefController.dispose();
+    nombrePropietarioRefController.dispose();
+    calleRefController.dispose();
+    nExtRefController.dispose();
+    nIntRefController.dispose();
+    entreCalleRefController.dispose();
+    parentescoRefPropController.dispose();
+    coloniaRefController.dispose();
+    cpRefController.dispose();
+    estadoRefController.dispose();
+    municipioRefController.dispose();
+    tiempoViviendoRefController.dispose();
+
+    for (var node in allFocusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  Map<String, dynamic> getFormData() {
+    return {
+      'nombresRef': nombresRefController.text.isNotEmpty ? nombresRefController.text : '',
+      'apellidoPRef': apellidoPRefController.text.isNotEmpty ? apellidoPRefController.text : '',
+      'apellidoMRef': apellidoMRefController.text.isNotEmpty ? apellidoMRefController.text : '',
+      'parentescoRef': selectedParentesco ?? '',
+      'telefonoRef': telefonoRefController.text.isNotEmpty ? telefonoRefController.text : '',
+      'tiempoConocerRef': tiempoConocerRefController.text.isNotEmpty ? tiempoConocerRefController.text : '',
+      'tipoDomicilioRef': selectedTipoDomicilioRef ?? '',
+      'calleRef': calleRefController.text.isNotEmpty ? calleRefController.text : '',
+      'nExtRef': nExtRefController.text.isNotEmpty ? nExtRefController.text : '',
+      'nIntRef': nIntRefController.text.isNotEmpty ? nIntRefController.text : '',
+      'entreCalleRef': entreCalleRefController.text.isNotEmpty ? entreCalleRefController.text : '',
+      'coloniaRef': coloniaRefController.text.isNotEmpty ? coloniaRefController.text : '',
+      'cpRef': cpRefController.text.isNotEmpty ? cpRefController.text : '',
+      'estadoRef': estadoRefController.text.isNotEmpty ? estadoRefController.text : '',
+      'municipioRef': municipioRefController.text.isNotEmpty ? municipioRefController.text : '',
+      'tiempoViviendoRef': tiempoViviendoRefController.text.isNotEmpty ? tiempoViviendoRefController.text : '',
+      if (selectedTipoDomicilioRef != 'Propio')
+        'nombrePropietarioRef': nombrePropietarioRefController.text.isNotEmpty ? nombrePropietarioRefController.text : '',
+      if (selectedTipoDomicilioRef != 'Propio')
+        'parentescoRefProp': parentescoRefPropController.text.isNotEmpty ? parentescoRefPropController.text : '',
+    };
+  }
+  
+  // ----- Funciones de construcción de Widgets (movidas aquí) -----
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+    double fontSize = 12.0,
+    int? maxLength,
+    List<TextInputFormatter>? inputFormatters,
+    bool enabled = true,
+    FocusNode? focusNode,
+    Function()? onEditingComplete,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: TextStyle(fontSize: fontSize),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        labelStyle: TextStyle(fontSize: fontSize),
+      ),
+      textCapitalization: TextCapitalization.characters,
+      validator: validator,
+      enabled: enabled,
+      focusNode: focusNode,
+      onEditingComplete: onEditingComplete,
+      textInputAction: TextInputAction.next,
+      inputFormatters: [
+        if (maxLength != null) LengthLimitingTextInputFormatter(maxLength),
+        ...(inputFormatters ?? []),
+      ],
+      contextMenuBuilder:
+          (BuildContext context, EditableTextState editableTextState) {
+        final buttonItems = editableTextState.contextMenuButtonItems;
+
+        List<ContextMenuButtonItem> reorderedItems = [];
+        if (buttonItems.length >= 2) {
+          reorderedItems.add(buttonItems[1]);
+          reorderedItems.add(buttonItems[0]);
+          reorderedItems.addAll(buttonItems.sublist(2));
+        } else {
+          reorderedItems.addAll(buttonItems);
+        }
+
+        return AdaptiveTextSelectionToolbar.buttonItems(
+          anchors: editableTextState.contextMenuAnchors,
+          buttonItems: reorderedItems,
+        );
+      },
+    );
+  }
+
+  Widget _buildDropdown({
+    required String? value,
+    required String hint,
+    required List<String> items,
+    required void Function(String?) onChanged,
+    double fontSize = 12.0,
+    String? Function(String?)? validator,
+    FocusNode? focusNode,
+  }) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final borderColor = isDarkMode ? Colors.grey.shade500 : Colors.grey.shade700;
+    final focusedBorderColor = isDarkMode ? Color(0xFF5162F6) : Colors.black;
+
+    return DropdownButtonFormField<String>(
+      value: value,
+      focusNode: focusNode,
+      hint: value == null
+          ? Text(
+              hint,
+              style: TextStyle(
+                  fontSize: fontSize,
+                  color: isDarkMode ? Colors.grey[300] : Colors.black),
+            )
+          : null,
+      items: items.map((item) {
+        return DropdownMenuItem(
+          value: item,
+          child: Text(
+            item,
+            style: TextStyle(fontSize: fontSize, color: textColor),
+          ),
+        );
+      }).toList(),
+      onChanged: onChanged,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: value != null ? hint : null,
+        labelStyle: TextStyle(color: isDarkMode ? Colors.grey[300] : null),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: borderColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: borderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: focusedBorderColor),
+        ),
+        fillColor: isDarkMode ? Color(0xFF303030) : Colors.white,
+        filled: true,
+      ),
+      style: TextStyle(fontSize: fontSize, color: textColor),
+      dropdownColor: isDarkMode ? Colors.grey[800] : Colors.white,
+      icon: Icon(Icons.arrow_drop_down,
+          color: isDarkMode ? Colors.grey[300] : Colors.black),
+    );
+  }
+
+  @override
+Widget build(BuildContext context) {
+  final themeProvider = Provider.of<ThemeProvider>(context);
+  final isDarkMode = themeProvider.isDarkMode;
+
+  // Los nodos de foco siguen siendo necesarios para asignarlos a los campos.
+  int i = 0;
+  final nombresFN = allFocusNodes[i++];
+  final apellidoPFN = allFocusNodes[i++];
+  final apellidoMFN = allFocusNodes[i++];
+  final parentescoFN = allFocusNodes[i++];
+  final telefonoFN = allFocusNodes[i++];
+  final tiempoConocerFN = allFocusNodes[i++];
+  final tipoDomicilioFN = allFocusNodes[i++];
+  final calleFN = allFocusNodes[i++];
+  final nombrePropietarioFN = allFocusNodes[i++];
+  final parentescoPropFN = allFocusNodes[i++];
+  final nExtFN = allFocusNodes[i++];
+  final nIntFN = allFocusNodes[i++];
+  final entreCalleFN = allFocusNodes[i++];
+  final coloniaFN = allFocusNodes[i++];
+  final cpFN = allFocusNodes[i++];
+  final estadoFN = allFocusNodes[i++];
+  final municipioFN = allFocusNodes[i++];
+  final tiempoViviendoFN = allFocusNodes[i++];
+
+  return Form(
+    key: formKey,
+    child: FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // --- COLUMNA IZQUIERDA (Información Personal) ---
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Información de la persona de referencia', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Divider(color: Colors.grey[300]),
+                  SizedBox(height: 10),
+                  
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(1.0),
+                    child: _buildTextField(controller: nombresRefController, label: 'Nombres', icon: Icons.person, focusNode: nombresFN, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ ]'))], validator: (value) => (value == null || value.isEmpty) ? 'Por favor, ingrese el nombre' : null)),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(2.0),
+                    child: _buildTextField(controller: apellidoPRefController, label: 'Apellido Paterno', icon: Icons.person_outline, focusNode: apellidoPFN, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ ]'))], validator: (value) => (value == null || value.isEmpty) ? 'Por favor, ingrese el apellido paterno' : null)),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(3.0),
+                    child: _buildTextField(controller: apellidoMRefController, label: 'Apellido Materno', icon: Icons.person_outline, focusNode: apellidoMFN, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ ]'))], validator: (value) => (value == null || value.isEmpty) ? 'Por favor, ingrese el apellido materno' : null)),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(4.0),
+                    child: _buildDropdown(value: selectedParentesco, hint: 'Parentesco', items: ['Padre', 'Madre', 'Esposo/a', 'Hermano/a', 'Amigo/a', 'Vecino', 'Otro'], focusNode: parentescoFN, onChanged: (value) => setState(() => selectedParentesco = value), validator: (value) => (value == null || value.isEmpty) ? 'Por favor, seleccione el parentesco' : null)),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(5.0),
+                    child: _buildTextField(controller: telefonoRefController, label: 'Teléfono', icon: Icons.phone, focusNode: telefonoFN, keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly], maxLength: 10, validator: (value) { if (value == null || value.isEmpty) return 'Por favor ingrese el teléfono'; if (value.length != 10) return 'Debe tener 10 dígitos'; return null; })),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(6.0),
+                    child: _buildTextField(controller: tiempoConocerRefController, label: 'Tiempo de conocer', icon: Icons.timelapse_rounded, focusNode: tiempoConocerFN, validator: (value) => (value == null || value.isEmpty) ? 'Por favor, ingrese el tiempo de conocer' : null)),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(width: 20),
+          // --- COLUMNA DERECHA (Domicilio) ---
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Datos del domicilio de la referencia', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  Divider(color: Colors.grey[300]),
+                  Text('Los datos de domicilio de la referencia son opcionales', style: TextStyle(fontSize: 12, color: isDarkMode ? Colors.white : Colors.grey[700])),
+                  SizedBox(height: 10),
+                  
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(7.0),
+                    child: _buildDropdown(value: selectedTipoDomicilioRef, hint: 'Tipo Domicilio', items: ['Propio', 'Alquilado', 'Prestado', 'Otro'], focusNode: tipoDomicilioFN, onChanged: (value) => setState(() => selectedTipoDomicilioRef = value))),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(8.0),
+                    child: _buildTextField(controller: calleRefController, label: 'Calle', icon: Icons.location_on, focusNode: calleFN, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ ]'))])),
+                  if (selectedTipoDomicilioRef != 'Propio' && selectedTipoDomicilioRef != null) ...[
+                    SizedBox(height: 10),
+                    FocusTraversalOrder(
+                        order: NumericFocusOrder(9.0),
+                        child: _buildTextField(controller: nombrePropietarioRefController, label: 'Nombre del Propietario', icon: Icons.person, focusNode: nombrePropietarioFN, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ ]'))])),
+                    SizedBox(height: 10),
+                    FocusTraversalOrder(
+                        order: NumericFocusOrder(10.0),
+                        child: _buildTextField(controller: parentescoRefPropController, label: 'Parentesco con propietario', icon: Icons.family_restroom, focusNode: parentescoPropFN, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZÀ-ÿ ]'))])),
+                  ],
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(11.0),
+                    child: _buildTextField(controller: nExtRefController, label: 'No. Ext', icon: Icons.house, focusNode: nExtFN, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(12.0),
+                    child: _buildTextField(controller: nIntRefController, label: 'No. Int', icon: Icons.house, focusNode: nIntFN, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(13.0),
+                    child: _buildTextField(controller: entreCalleRefController, label: 'Entre Calle', icon: Icons.location_on, focusNode: entreCalleFN)),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(14.0),
+                    child: _buildTextField(controller: coloniaRefController, label: 'Colonia', icon: Icons.location_city, focusNode: coloniaFN)),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(15.0),
+                    child: _buildTextField(controller: cpRefController, label: 'Código Postal', icon: Icons.mail, focusNode: cpFN, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], maxLength: 5, validator: (value) => (value != null && value.isNotEmpty && value.length != 5) ? 'Debe tener 5 dígitos' : null)),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(16.0),
+                    child: _buildDropdown(value: estadoRefController.text.isNotEmpty ? estadoRefController.text : null, hint: 'Estado', items: ['Guerrero'], focusNode: estadoFN, onChanged: (value) { setState(() { estadoRefController.text = value ?? ''; }); })),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(17.0),
+                    child: _buildTextField(controller: municipioRefController, label: 'Municipio', icon: Icons.map, focusNode: municipioFN)),
+                  SizedBox(height: 10),
+                  FocusTraversalOrder(
+                    order: NumericFocusOrder(18.0),
+                    child: _buildTextField(controller: tiempoViviendoRefController, label: 'Tiempo Viviendo', icon: Icons.timelapse, focusNode: tiempoViviendoFN)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 }

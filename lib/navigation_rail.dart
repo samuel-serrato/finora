@@ -62,63 +62,72 @@ class _NavigationScreenState extends State<NavigationScreen> {
       pages.add(ReportesScreen());
     }
 
-    if (userData.tipoUsuario == 'Admin') {
+    if (userData.tipoUsuario == 'Admin' || userData.tipoUsuario == 'Contador') {
       pages.add(BitacoraScreen()); // Bitácora al final
     }
 
     return pages;
   }
 
-  List<SideMenuItem> _buildMenuItems() {
-    final userData = Provider.of<UserDataProvider>(context, listen: false);
-    List<SideMenuItem> items = [
-      SideMenuItem(
-          title: 'Home',
-          onTap: (index, _) => sideMenu.changePage(0),
-          icon: const Icon(Icons.home)),
-      SideMenuItem(
-          title: 'Créditos',
-          onTap: (index, _) => sideMenu.changePage(1),
-          icon: const Icon(Icons.request_page)),
-      SideMenuItem(
-          title: 'Grupos',
-          onTap: (index, _) => sideMenu.changePage(2),
-          icon: const Icon(Icons.group)),
-      SideMenuItem(
-          title: 'Clientes',
-          onTap: (index, _) => sideMenu.changePage(3),
-          icon: const Icon(Icons.person)),
-      SideMenuItem(
-          title: 'Simulador',
-          onTap: (index, _) => sideMenu.changePage(4),
-          icon: const Icon(Icons.edit_document)),
-    ];
+  // Reemplaza tu función _buildMenuItems completa con esta:
+List<SideMenuItem> _buildMenuItems() {
+  final userData = Provider.of<UserDataProvider>(context, listen: false);
+  
+  // Usamos el índice que nos da el callback `onTap` para evitar errores.
+  // El índice del menú coincidirá con el de la página si los construimos en el mismo orden.
+  final changePage = (int index) => sideMenu.changePage(index);
 
-    if (userData.tipoUsuario == 'Admin') {
-      items.add(SideMenuItem(
-          title: 'Usuarios',
-          onTap: (index, _) => sideMenu.changePage(5),
-          icon: const Icon(Icons.manage_accounts)));
+  List<SideMenuItem> items = [
+    SideMenuItem(
+        title: 'Home',
+        onTap: (index, _) => changePage(index),
+        icon: const Icon(Icons.home_outlined)),
+    SideMenuItem(
+        title: 'Créditos',
+        onTap: (index, _) => changePage(index),
+        icon: const Icon(Icons.wallet_outlined)),
+    SideMenuItem(
+        title: 'Grupos',
+        onTap: (index, _) => changePage(index),
+        icon: const Icon(Icons.groups_2_outlined)),
+    SideMenuItem(
+        title: 'Clientes',
+        onTap: (index, _) => changePage(index),
+        icon: const Icon(Icons.person_outline)),
+    SideMenuItem(
+        title: 'Simulador',
+        onTap: (index, _) => changePage(index),
+        icon: const Icon(Icons.tune_outlined)),
+  ];
 
-      if (userData.tipoUsuario != 'Invitado') {
-        int reportesIndex = userData.tipoUsuario == 'Admin' ? 6 : 5;
-        items.add(SideMenuItem(
-            title: 'Reportes',
-            onTap: (index, _) => sideMenu.changePage(reportesIndex),
-            icon: const Icon(Icons.insert_chart_rounded)));
-      }
-
-      if (userData.tipoUsuario == 'Admin') {
-        // Bitácora al final - índice 7 para Admin
-        items.add(SideMenuItem(
-            title: 'Bitácora',
-            onTap: (index, _) => sideMenu.changePage(7),
-            icon: const Icon(Icons.history)));
-      }
-    }
-
-    return items;
+  // La lógica ahora es IDÉNTICA a la de _buildPages
+  
+  // 1. Añadir Usuarios si es Admin
+  if (userData.tipoUsuario == 'Admin') {
+    items.add(SideMenuItem(
+        title: 'Usuarios',
+        onTap: (index, _) => changePage(index),
+        icon: const Icon(Icons.manage_accounts_outlined)));
   }
+
+  // 2. Añadir Reportes si NO es Invitado (esto ahora está fuera del bloque de Admin)
+  if (userData.tipoUsuario != 'Invitado') {
+    items.add(SideMenuItem(
+        title: 'Reportes',
+        onTap: (index, _) => changePage(index),
+        icon: const Icon(Icons.insert_chart_outlined)));
+  }
+  
+  // 3. Añadir Bitácora si es Admin (al final)
+  if (userData.tipoUsuario == 'Admin' || userData.tipoUsuario == 'Contador') {
+    items.add(SideMenuItem(
+        title: 'Bitácora',
+        onTap: (index, _) => changePage(index),
+        icon: const Icon(Icons.history)));
+  }
+
+  return items;
+}
 
   @override
   Widget build(BuildContext context) {

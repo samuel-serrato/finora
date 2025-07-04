@@ -12,6 +12,7 @@ import 'package:finora/ip.dart';
 import 'package:finora/screens/login.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:animations/animations.dart'; // <-- AÑADE ESTA LÍNEA
 
 class TasaInteres {
   final int idtipointeres;
@@ -130,6 +131,11 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
   TextEditingController _otroValorController = TextEditingController();
 
+  // Primero, necesitas agregar estas variables en tu clase State:
+  bool _showTooltip = false;
+  OverlayEntry? _overlayEntry;
+  final GlobalKey _iconKey = GlobalKey();
+
   List<Grupo> listaGrupos = [];
   String? selectedGrupo;
   bool isLoading = true;
@@ -137,6 +143,9 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   bool noGroupsFound = false;
   bool dialogShown = false;
   Timer? _timer;
+
+  Map<String, double> _descuentosRenovacion = {};
+  bool _cargandoDescuentos = false;
 
   String _formatearFecha(DateTime fecha) {
     return DateFormat('dd/MM/yyyy').format(fecha);
@@ -194,6 +203,79 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         isLoading = false;
         _cargandoConfig = false;
       });
+    }
+  }
+
+  // --- NUEVO: Función para obtener descuentos por renovación ---
+  // --- NUEVO: Función para obtener descuentos por renovación ---
+  Future<void> _fetchDescuentosRenovacion(String idgrupo) async {
+    // Si no hay ID de grupo, no hacemos nada.
+    if (idgrupo.isEmpty) return;
+
+    setState(() {
+      _cargandoDescuentos = true;
+      _descuentosRenovacion.clear(); // Limpiamos descuentos anteriores
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final url =
+          Uri.parse('$baseUrl/api/v1/grupodetalles/renovacion/$idgrupo');
+
+      // ========== PRINTS PARA DEBUG ==========
+      print('🔗 URL de la petición: $url');
+      print('🔑 Token enviado: $token');
+      print('📤 Método: GET');
+      print('📋 Headers: {tokenauth: $token}');
+      print('=======================================');
+
+      final response = await http.get(
+        url,
+        headers: {'tokenauth': token},
+      );
+
+      // Print de la respuesta
+      print('📥 Status Code: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+
+      // Mapa temporal para construir los resultados
+      final Map<String, double> descuentosObtenidos = {};
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        print('✅ Datos decodificados: $data');
+
+        // Llenamos el mapa temporal
+        for (var item in data) {
+          if (item['idclientes'] != null && item['descuento'] != null) {
+            descuentosObtenidos[item['idclientes']] =
+                (item['descuento'] as num).toDouble();
+          }
+        }
+
+        print('💰 Descuentos procesados: $descuentosObtenidos');
+      } else {
+        // Si la respuesta no es 200 (ej. 404 si no hay renovaciones), simplemente lo registramos
+        // y continuamos, ya que no es un error crítico.
+        print(
+            '⚠️ Respuesta de descuentos no fue 200: ${response.statusCode} - ${response.body}');
+      }
+
+      // Actualizamos el estado una vez con los datos finales (o un mapa vacío si no hubo)
+      if (mounted) {
+        setState(() {
+          _descuentosRenovacion = descuentosObtenidos;
+          _cargandoDescuentos = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error al obtener descuentos de renovación: $e');
+      if (mounted) {
+        setState(() {
+          _cargandoDescuentos = false;
+        });
+      }
     }
   }
 
@@ -972,6 +1054,13 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                     .firstWhere((g) => g.nombreGrupo == value);
                                 integrantes = grupoSeleccionado.clientes;
                                 montosIndividuales.clear();
+
+                                // --- CAMBIO: Llamamos a la nueva función de descuentos ---
+                                _fetchDescuentosRenovacion(
+                                    grupoSeleccionado.idgrupos);
+                              } else {
+                                // Si se deselecciona el grupo, limpiamos los descuentos
+                                _descuentosRenovacion.clear();
                               }
                             });
                           },
@@ -1163,50 +1252,73 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   // Lista para almacenar los controladores de los TextFields
   List<TextEditingController> _controladoresIntegrantes = [];
 
+  // --- NUEVO: Función para obtener el porcentaje numérico de la garantía ---
+  double _getGarantiaPorcentaje() {
+    if (garantia == null || garantia == "Sin garantía") {
+      return 0.0;
+    }
+    // Extrae el número del string "5%" o "10%" y lo convierte a decimal (0.05 o 0.10)
+    final valorNumerico =
+        double.tryParse(garantia!.replaceAll('%', '').trim()) ?? 0.0;
+    return valorNumerico / 100.0;
+  }
+
+  // --- MODIFICADO: PÁGINA DE INTEGRANTES ---
+  // --- MODIFICADO: PÁGINA DE INTEGRANTES CON TOTAL DE GARANTÍA ---
   Widget _paginaIntegrantes() {
-    final themeProvider = Provider.of<ThemeProvider>(context,
-        listen: false); // Obtén el ThemeProvider
-    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+    int pasoActual = 2;
 
-    int pasoActual = 2; // Paso actual para esta página
-
-// Línea corregida
-    if (_controladoresIntegrantes.length != integrantes.length) {
-      // Obtener el grupo seleccionado
-      var grupoSeleccionado = listaGrupos.firstWhere((grupo) =>
-          grupo.nombreGrupo ==
-          selectedGrupo); // Seleccionamos el grupo por nombre
-
-      // Usamos los clientes del grupo seleccionado
-      integrantes = grupoSeleccionado.clientes;
-
-      // Inicializamos los montos individuales en 0.0 para cada cliente
-      for (var i = 0; i < integrantes.length; i++) {
-        montosIndividuales[integrantes[i].idclientes] =
-            0.0; // Asignamos explícitamente 0.0
-      }
-
-      // Inicializamos los controladores asociados a cada integrante
-      // Inicializamos los controladores asociados a cada integrante
-      _controladoresIntegrantes = List.generate(
-        integrantes.length,
-        (index) =>
-            TextEditingController(), // <-- CAMBIO CLAVE: Sin texto inicial
+    // --- Indicador de carga ---
+    if (_cargandoDescuentos) {
+      return Row(
+        children: [
+          _recuadroPasos(pasoActual),
+          SizedBox(width: 50),
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF5162F6)),
+                  SizedBox(height: 10),
+                  Text("Buscando descuentos por renovación...")
+                ],
+              ),
+            ),
+          )
+        ],
       );
     }
 
-    // Calculamos la suma total aquí para asegurar que se recalcula cada vez que se renderiza el widget
-    double sumaTotal = 0.0;
-    montosIndividuales.forEach((key, value) {
-      sumaTotal += value ?? 0.0;
-    });
+    if (_controladoresIntegrantes.length != integrantes.length) {
+      var grupoSeleccionado =
+          listaGrupos.firstWhere((grupo) => grupo.nombreGrupo == selectedGrupo);
+      integrantes = grupoSeleccionado.clientes;
+      for (var i = 0; i < integrantes.length; i++) {
+        montosIndividuales[integrantes[i].idclientes] = 0.0;
+      }
+      _controladoresIntegrantes = List.generate(
+        integrantes.length,
+        (index) => TextEditingController(),
+      );
+    }
+
+    // --- Cálculos para los totales ---
+    double sumaTotal =
+        montosIndividuales.values.fold(0.0, (sum, amount) => sum + amount);
+    double descuentoTotal = _descuentosRenovacion.values
+        .fold(0.0, (sum, discount) => sum + discount);
+
+    // --- NUEVO: Calcular el total de la garantía ---
+    final double porcentajeGarantia = _getGarantiaPorcentaje();
+    final double totalGarantia = sumaTotal * porcentajeGarantia;
 
     return Row(
       children: [
-        _recuadroPasos(pasoActual), // Recuadro de pasos
-        SizedBox(width: 50), // Espacio entre el recuadro y el contenido
-
-        // Contenido de la página
+        _recuadroPasos(pasoActual),
+        SizedBox(width: 50),
         Expanded(
           child: Form(
             key: _miembrosGrupoFormKey,
@@ -1218,64 +1330,124 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 20),
-
-                // Lista de integrantes
                 Expanded(
                   child: ListView.builder(
                     itemCount: integrantes.length,
                     itemBuilder: (context, index) {
                       final cliente = integrantes[index];
+                      final double? descuentoRenovacion =
+                          _descuentosRenovacion[cliente.idclientes];
+
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 5.0),
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
                               flex: 2,
-                              child: Text(
-                                cliente.nombres ?? 'Integrante ${index + 1}',
-                                style: TextStyle(fontSize: 16),
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 15.0),
+                                child: Text(
+                                  cliente.nombres,
+                                  style: TextStyle(fontSize: 16),
+                                ),
                               ),
                             ),
                             SizedBox(width: 10),
                             Expanded(
                               flex: 1,
-                              child: _buildTextField(
-                                context,
-                                controller: _controladoresIntegrantes[index],
-                                label: 'Monto',
-                                icon: Icons.attach_money,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                      RegExp(r'[\d\.]')),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildTextField(
+                                          context,
+                                          controller:
+                                              _controladoresIntegrantes[index],
+                                          label: 'Monto Solicitado',
+                                          icon: Icons.attach_money,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.allow(
+                                                RegExp(r'[\d\.]')),
+                                          ],
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                  decimal: true),
+                                          validator: (value) {
+                                            if (value == null || value.isEmpty)
+                                              return 'Ingrese monto';
+                                            return null;
+                                          },
+                                          onChanged: (value) {
+                                            String formatted =
+                                                formatMonto(value);
+                                            if (_controladoresIntegrantes[index]
+                                                    .text !=
+                                                formatted) {
+                                              _controladoresIntegrantes[index]
+                                                  .value = TextEditingValue(
+                                                text: formatted,
+                                                selection:
+                                                    TextSelection.collapsed(
+                                                        offset:
+                                                            formatted.length),
+                                              );
+                                            }
+                                            double parsedValue =
+                                                double.tryParse(formatted
+                                                        .replaceAll(',', '')) ??
+                                                    0.0;
+                                            setState(() {
+                                              montosIndividuales[cliente
+                                                  .idclientes] = parsedValue;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                      if (descuentoRenovacion != null &&
+                                          descuentoRenovacion > 0)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 8.0),
+                                          child: Container(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 6),
+                                            decoration: BoxDecoration(
+                                                color: isDarkMode
+                                                    ? Colors.green
+                                                        .withOpacity(0.2)
+                                                    : Colors.green[50],
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                    color: isDarkMode
+                                                        ? Colors.green[700]!
+                                                        : Colors.green[200]!)),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.arrow_downward,
+                                                    color: Colors.green[700],
+                                                    size: 14),
+                                                SizedBox(width: 3),
+                                                Text(
+                                                  'Descuento: ${formatearNumero(descuentoRenovacion)}',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.green[800],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  // --- ELIMINADO: Ya no se muestra la retención individual aquí ---
                                 ],
-                                keyboardType: TextInputType.numberWithOptions(
-                                    decimal: true),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty)
-                                    return 'Ingrese monto';
-                                  return null;
-                                },
-                                onChanged: (value) {
-                                  String formatted = formatMonto(value);
-                                  if (_controladoresIntegrantes[index].text !=
-                                      formatted) {
-                                    _controladoresIntegrantes[index].value =
-                                        TextEditingValue(
-                                      text: formatted,
-                                      selection: TextSelection.collapsed(
-                                          offset: formatted.length),
-                                    );
-                                  }
-                                  // Actualizar mapa de montos
-                                  double parsedValue = double.tryParse(
-                                          formatted.replaceAll(',', '')) ??
-                                      0.0;
-                                  montosIndividuales[cliente.idclientes] =
-                                      parsedValue;
-
-                                  // Actualizar la UI para reflejar el nuevo total
-                                  setState(() {});
-                                },
                               ),
                             ),
                           ],
@@ -1284,12 +1456,10 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                     },
                   ),
                 ),
-
                 SizedBox(height: 20),
-
-                // Sección de suma total de montos
+                // --- MODIFICADO: Contenedor de totales ---
                 Container(
-                  padding: EdgeInsets.all(10),
+                  padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: isDarkMode
                         ? const Color.fromARGB(255, 48, 48, 48)
@@ -1297,30 +1467,89 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
                     children: [
-                      Text(
-                        'Suma Total:',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.white : Colors.black,
-                        ),
+                      // Siempre mostramos la suma del solicitado
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Suma Solicitado:',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.bold)),
+                          Text('\$${formatearNumero(sumaTotal)}',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDarkMode
+                                      ? Colors.white
+                                      : Colors.black)),
+                        ],
                       ),
-                      Text(
-                        '\$${formatearNumero(sumaTotal)}',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.white : Color(0xFF5162F6),
+
+                      // Mostramos descuentos si existen
+                      if (descuentoTotal > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Total Descuentos Aplicados:',
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[600])),
+                              Text('-\$${formatearNumero(descuentoTotal)}',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green[600])),
+                            ],
+                          ),
                         ),
+
+                      // --- NUEVO: Fila para el total de la garantía ---
+                      if (totalGarantia > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Total Garantía Retenida:',
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFE53888))),
+                              Text('-\$${formatearNumero(totalGarantia)}',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFFE53888))),
+                            ],
+                          ),
+                        ),
+
+                      Divider(height: 20),
+
+                      // Siempre mostramos el monto neto final
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Monto Neto a Financiar:',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.bold)),
+                          Text(
+                              // --- MODIFICADO: Cálculo del neto final ---
+                              '\$${formatearNumero(sumaTotal - descuentoTotal - totalGarantia)}',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF5162F6))),
+                        ],
                       ),
                     ],
                   ),
                 ),
-
-                SizedBox(height: 20),
+                SizedBox(height: 10),
               ],
             ),
           ),
@@ -1359,10 +1588,73 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         Duration(days: diasSumar)); // Sumamos los días a la fecha de inicio
   }
 
+  // --- NUEVO: Helper para las filas del desglose ---
+  // Coloca este método dentro de tu clase _nCreditoDialogState
+  Widget _buildDesgloseRow(String label, String value, {bool isTotal = false}) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+                fontSize: 12,
+              color: isDarkMode ? Colors.white70 : Colors.black54,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+               fontSize: 12,
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              color: isDarkMode ? Colors.white : Colors.black,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// NUEVO WIDGET para las filas dentro de las columnas
+  Widget _buildColumnRow(String title, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: TextStyle(fontSize: 12)),
+          Text(value,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   Widget _paginaResumen() {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final isDarkMode = themeProvider.isDarkMode;
     int pasoActual = 3;
+
+    // --- Validación ---
+    if (_duracionSeleccionada == null || _tasaSeleccionada == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.info_outline, size: 48, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('Datos incompletos',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Por favor, complete los Datos Generales para ver el resumen.',
+                textAlign: TextAlign.center),
+          ],
+        ),
+      );
+    }
 
     // --- CAMBIO CLAVE: Añadir validación ---
     // Si no se han seleccionado los datos, muestra un mensaje y no intentes calcular.
@@ -1386,6 +1678,19 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       );
     }
 
+    double calcularMontoGarantia(String garantiaTexto, double montoAutorizado) {
+      if (garantiaTexto == "Sin garantía") {
+        return 0.0;
+      }
+      RegExp regex = RegExp(r'(\d+(\.\d+)?)');
+      Match? match = regex.firstMatch(garantiaTexto);
+      if (match != null) {
+        double porcentajeGarantia = double.parse(match.group(1)!);
+        return montoAutorizado * (porcentajeGarantia / 100);
+      }
+      return 0.0;
+    }
+
     // --- CAMBIO CLAVE: Obtener datos de los modelos seleccionados ---
     final double monto = obtenerMontoReal(montoController.text);
     final int plazoNumerico = _duracionSeleccionada!
@@ -1393,6 +1698,16 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     final double tasaInteresMensualCalculada =
         _tasaSeleccionada!.mensual; // <-- CAMBIO: Leer de _tasaSeleccionada
     final String tasaInteres = "${tasaInteresMensualCalculada}%";
+
+    // --- NUEVO: Cálculo de descuentos y garantía para el desglose ---
+    final double totalDescuentos = _descuentosRenovacion.values
+        .fold(0.0, (sum, discount) => sum + discount);
+    final double montoGarantia = calcularMontoGarantia(garantia ?? "", monto);
+    // --- CORREGIDO: El monto a desembolsar debe restar ambas cosas ---
+    final double montoDesembolsadoNumerico =
+        monto - montoGarantia - totalDescuentos;
+    final String montoDesembolsadoFormateado =
+        formatearNumero(montoDesembolsadoNumerico);
 
     // Cálculos de resumen (ahora correctos)
     double capitalPago = 0.0;
@@ -1428,24 +1743,6 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
     DateTime fechaTerminoCalculada =
         calcularFechaTermino(fechaInicio, frecuenciaPago!, plazoNumerico);
-
-    double calcularMontoGarantia(String garantiaTexto, double montoAutorizado) {
-      if (garantiaTexto == "Sin garantía") {
-        return 0.0;
-      }
-      RegExp regex = RegExp(r'(\d+(\.\d+)?)');
-      Match? match = regex.firstMatch(garantiaTexto);
-      if (match != null) {
-        double porcentajeGarantia = double.parse(match.group(1)!);
-        return montoAutorizado * (porcentajeGarantia / 100);
-      }
-      return 0.0;
-    }
-
-    double montoGarantia = calcularMontoGarantia(garantiaTexto, monto);
-    double montoDesembolsadoNumerico = monto - montoGarantia;
-    String montoDesembolsadoFormateado =
-        formatearNumero(montoDesembolsadoNumerico);
 
     // El resto de tu widget puede permanecer igual, ya que ahora las variables tienen los valores correctos.
     // ... (El código de la UI del resumen que ya tienes)
@@ -1517,99 +1814,200 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         Divider(),
                         // Fila 1
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _infoRow(
-                                'Monto autorizado: ', '\$${montoAutorizado}'),
-                            _infoRow('Monto Desembolsado: ',
-                                '\$${montoDesembolsadoFormateado}'),
-                          ],
-                        ),
-                        // Fila 2
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow('Garantía: ', garantiaTexto),
-                            _infoRow('Tasa de interés mensual: ', tasaInteres),
-                          ],
-                        ),
-                        // Fila 3
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow('Monto Garantía: ',
-                                '\$${formatearNumero(montoGarantia)}'),
-                            _infoRow(
-                              frecuenciaPago == "Semanal"
-                                  ? 'Interés Semanal (%): '
-                                  : 'Interés Quincenal (%): ',
-                              '${interesPorcentaje.toStringAsFixed(2)} %',
+                            // --- Columna Izquierda ---
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  _buildColumnRow('Monto autorizado:',
+                                      '\$${montoAutorizado}'),
+                                  _buildColumnRow('Garantía:', garantiaTexto),
+                                  _buildColumnRow('Monto Garantía:',
+                                      '\$${formatearNumero(montoGarantia)}'),
+                                  _buildColumnRow('Frecuencia de pago:',
+                                      frecuenciaPagoTexto),
+                                  _buildColumnRow('Interés Global:',
+                                      '${formatearNumero(interesGlobal)}%'),
+                                  _buildColumnRow(
+                                      frecuenciaPago == "Semanal"
+                                          ? 'Capital Semanal:'
+                                          : 'Capital Quincenal:',
+                                      '\$${formatearNumero(capitalPago)}'),
+                                  _buildColumnRow(
+                                      frecuenciaPago == "Semanal"
+                                          ? 'Pago Semanal:'
+                                          : 'Pago Quincenal:',
+                                      '\$${formatearNumero(pagoTotal)}'),
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                                width:
+                                    200), // Aumentar espacio entre columnas si es necesario
+                            // --- Columna Derecha ---
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  // Fila especial para Monto Desembolsado con Popup
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Monto Desembolsado:',
+                                          style: TextStyle(fontSize: 12)),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '\$${montoDesembolsadoFormateado}',
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          SizedBox(width: 2),
+                                          Container(
+                                            height: 20,
+                                            width: 20,
+                                            child: Tooltip(
+                                              waitDuration: Duration.zero,
+                                              showDuration:
+                                                  Duration(seconds: 5),
+                                              richMessage: WidgetSpan(
+                                                // ==========================================================
+                                                // =====> SOLUCIÓN CORRECTA: Usar Transform.translate
+                                                // ==========================================================
+                                                child: Transform.translate(
+                                                  offset: Offset(-120,
+                                                      -10), // <-- Mueve el tooltip a la izquierda
+                                                  child: Container(
+                                                    padding: EdgeInsets.all(12),
+                                                    constraints: BoxConstraints(
+                                                        maxWidth: 250),
+                                                    decoration: BoxDecoration(
+                                                      color: isDarkMode
+                                                          ? Colors.grey[800]
+                                                          : Color(0xFFF7F8FA),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.black
+                                                              .withOpacity(0.5),
+                                                          blurRadius: 8,
+                                                          offset: Offset(0, 2),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          "Desglose del Desembolso",
+                                                          style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 13,
+                                                            color: isDarkMode
+                                                                ? Colors.white
+                                                                : Colors.black,
+                                                          ),
+                                                        ),
+                                                        Container(
+                                                          margin: EdgeInsets
+                                                              .symmetric(
+                                                                  vertical: 8),
+                                                          height: 1,
+                                                          color: (isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black)
+                                                              .withOpacity(0.2),
+                                                        ),
+                                                        _buildDesgloseRow(
+                                                            'Monto Autorizado',
+                                                            '\$${formatearNumero(monto)}'),
+                                                        if (montoGarantia > 0)
+                                                          _buildDesgloseRow(
+                                                              '(-) Garantía',
+                                                              '-\$${formatearNumero(montoGarantia)}'),
+                                                        if (totalDescuentos > 0)
+                                                          _buildDesgloseRow(
+                                                              '(-) Descuento Renov.',
+                                                              '-\$${formatearNumero(totalDescuentos)}'),
+                                                        Container(
+                                                          margin: EdgeInsets
+                                                              .symmetric(
+                                                                  vertical: 4),
+                                                          height: 1,
+                                                          color: (isDarkMode
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black)
+                                                              .withOpacity(0.2),
+                                                        ),
+                                                        _buildDesgloseRow(
+                                                            '(=) Total a Recibir',
+                                                            '\$${montoDesembolsadoFormateado}',
+                                                            isTotal: true),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              decoration:
+                                                  BoxDecoration(), // Remueve la decoración por defecto
+                                              child: MouseRegion(
+                                                cursor:
+                                                    SystemMouseCursors.click,
+                                                child: Icon(
+                                                  Icons.info_outline,
+                                                  size: 16,
+                                                  color: Color(0xFF5162F6),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  _buildColumnRow(
+                                      'Tasa de interés mensual:', tasaInteres),
+                                  _buildColumnRow('Interés Semanal (%):',
+                                      '${interesPorcentaje.toStringAsFixed(2)} %'),
+                                  _buildColumnRow(
+                                      'Plazo:', plazoNumerico.toString()),
+                                  _buildColumnRow('Día de pago:',
+                                      diaPago ?? "No especificado"),
+                                  _buildColumnRow(
+                                      frecuenciaPago == "Semanal"
+                                          ? 'Interés Semanal (\$):'
+                                          : 'Interés Quincenal (\$):',
+                                      '\$${formatearNumero(interesPago)}'),
+                                  _buildColumnRow('Interés Total:',
+                                      '\$${formatearNumero(interesTotal)}'),
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                        // Fila 4
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow(
-                                'Frecuencia de pago: ', frecuenciaPagoTexto),
-                            _infoRow('Plazo: ', plazoNumerico.toString()),
-                          ],
-                        ),
-                        // Fila 5
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow('Interés Global: ',
-                                '${formatearNumero(interesGlobal)}%'),
-                            _infoRow(
-                                'Día de pago: ', diaPago ?? "No especificado"),
-                          ],
-                        ),
-                        // Fila 6
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow(
-                                frecuenciaPago == "Semanal"
-                                    ? 'Capital Semanal: '
-                                    : 'Capital Quincenal: ',
-                                '\$${formatearNumero(capitalPago)}'),
-                            _infoRow(
-                                frecuenciaPago == "Semanal"
-                                    ? 'Interés Semanal (\$): '
-                                    : 'Interés Quincenal (\$): ',
-                                '\$${formatearNumero(interesPago)}'),
-                          ],
-                        ),
-                        // Fila 7
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow(
-                              frecuenciaPago == "Semanal"
-                                  ? 'Pago Semanal: '
-                                  : 'Pago Quincenal: ',
-                              '\$${formatearNumero(redondearDecimales(pagoTotal, context))}',
-                            ),
-                            _infoRow('Interés Total: ',
-                                '\$${formatearNumero(interesTotal)}'),
-                          ],
-                        ),
-                        // Fila 8
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _infoRow('Total a Recuperar: ',
-                                '\$${formatearNumero(totalARecuperar)}'),
-                            Expanded(child: SizedBox()),
-                          ],
-                        ),
+                        Divider(),
+                        // Fila para el total a recuperar, que ocupa todo el ancho
+                        _infoRow('Total a Recuperar:',
+                            '\$${formatearNumero(totalARecuperar)}'),
                       ],
                     ),
                   ),
 
                   SizedBox(height: 20),
+                  // Sección Integrantes y Montos
+                  // Sección Integrantes y Montos
                   // Sección Integrantes y Montos
                   Container(
                     margin: EdgeInsets.symmetric(vertical: 10),
@@ -1639,59 +2037,44 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                         integrantes.isNotEmpty
                             ? Scrollbar(
                                 thickness: 7,
-                                thumbVisibility:
-                                    true, // Hace visible el thumb del Scrollbar
-                                trackVisibility:
-                                    true, // Hace visible el track del Scrollbar
-                                controller:
-                                    _scrollControllerIntegrantes, // Controlador del Scrollbar
+                                thumbVisibility: true,
+                                trackVisibility: true,
+                                controller: _scrollControllerIntegrantes,
                                 child: SingleChildScrollView(
                                   scrollDirection: Axis.horizontal,
                                   controller: _scrollControllerIntegrantes,
                                   child: DataTable(
-                                    columnSpacing:
-                                        20, // Espaciado entre columnas
+                                    columnSpacing: 20,
                                     columns: [
                                       DataColumn(
-                                          label: Text(
-                                        'Integrante',
-                                        style: TextStyle(fontSize: 12),
-                                      )),
+                                          label: Text('Integrante',
+                                              style: TextStyle(fontSize: 12))),
                                       DataColumn(
-                                          label: Text(
-                                        'Monto Individual',
-                                        style: TextStyle(fontSize: 12),
-                                      )),
+                                          label: Text('Monto Solicitado',
+                                              style: TextStyle(fontSize: 12))),
                                       DataColumn(
-                                          label: Text(
-                                        'Capital Semanal',
-                                        style: TextStyle(fontSize: 12),
-                                      )),
+                                          label: Text('Monto Desembolsado',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                              ))),
                                       DataColumn(
-                                          label: Text(
-                                        'Interés Semanal',
-                                        style: TextStyle(fontSize: 12),
-                                      )),
+                                          label: Text('Capital Semanal',
+                                              style: TextStyle(fontSize: 12))),
                                       DataColumn(
-                                          label: Text(
-                                        'Total Capital',
-                                        style: TextStyle(fontSize: 12),
-                                      )),
+                                          label: Text('Interés Semanal',
+                                              style: TextStyle(fontSize: 12))),
                                       DataColumn(
-                                          label: Text(
-                                        'Total Intereses',
-                                        style: TextStyle(fontSize: 12),
-                                      )),
+                                          label: Text('Total Capital',
+                                              style: TextStyle(fontSize: 12))),
                                       DataColumn(
-                                          label: Text(
-                                        'Pago Semanal',
-                                        style: TextStyle(fontSize: 12),
-                                      )),
+                                          label: Text('Total Intereses',
+                                              style: TextStyle(fontSize: 12))),
                                       DataColumn(
-                                          label: Text(
-                                        'Pago Total',
-                                        style: TextStyle(fontSize: 12),
-                                      )),
+                                          label: Text('Pago Semanal',
+                                              style: TextStyle(fontSize: 12))),
+                                      DataColumn(
+                                          label: Text('Pago Total',
+                                              style: TextStyle(fontSize: 12))),
                                     ],
                                     rows:
                                         integrantes.map<DataRow>((integrante) {
@@ -1699,14 +2082,58 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                           montosIndividuales[
                                                   integrante.idclientes] ??
                                               0.0;
-                                      final pagosTotales =
-                                          (frecuenciaPago == "Semanal")
-                                              ? plazoNumerico
-                                              // ANTES: : plazoNumerico * 2;
-                                              : plazoNumerico; // <-- CAMBIO
 
-                                      final capitalSemanal =
-                                          (montoIndividual / pagosTotales);
+                                      final descuentoIndividual =
+                                          _descuentosRenovacion[
+                                                  integrante.idclientes] ??
+                                              0.0;
+
+                                      double proporcion = 0.0;
+                                      if (monto > 0) {
+                                        proporcion = montoIndividual / monto;
+                                      }
+                                      final garantiaIndividual =
+                                          montoGarantia * proporcion;
+
+                                      final montoDesembolsadoIndividual =
+                                          montoIndividual -
+                                              descuentoIndividual -
+                                              garantiaIndividual;
+
+                                      // ==========================================================
+                                      // <--- LÓGICA VISUAL (AQUÍ ESTÁ EL CAMBIO FINAL) --->
+                                      // ==========================================================
+
+                                      final bool tieneDescuento =
+                                          descuentoIndividual > 0;
+
+                                      // Se definen el fontWeight y el color de forma condicional
+                                      final FontWeight fontWeightEstilo =
+                                          tieneDescuento
+                                              ? FontWeight.bold
+                                              : FontWeight.normal;
+                                      final Color colorEstilo = tieneDescuento
+                                          ? (isDarkMode
+                                              ? Colors.greenAccent[400]!
+                                              : Colors.green[800]!)
+                                          : (isDarkMode
+                                              ? Colors.white
+                                              : Colors.black87);
+
+                                      final TextStyle estiloDesembolso =
+                                          TextStyle(
+                                        fontSize: 12,
+                                        fontWeight:
+                                            fontWeightEstilo, // Asignación condicional de negrita
+                                        color:
+                                            colorEstilo, // Asignación condicional de color
+                                      );
+
+                                      // Demás cálculos...
+                                      final pagosTotales = plazoNumerico;
+                                      final capitalSemanal = (pagosTotales > 0)
+                                          ? (montoIndividual / pagosTotales)
+                                          : 0.0;
                                       final interesSemanal = (montoIndividual *
                                           (tasaInteresMensualCalculada /
                                               (frecuenciaPago == "Semanal"
@@ -1724,38 +2151,37 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
                                       return DataRow(cells: [
                                         DataCell(Text(
-                                          integrante.nombres ??
-                                              'No especificado',
-                                          style: TextStyle(fontSize: 12),
-                                        )),
+                                            integrante.nombres ??
+                                                'No especificado',
+                                            style: TextStyle(fontSize: 12))),
                                         DataCell(Text(
-                                          '\$${formatearNumero(montoIndividual)}',
-                                          style: TextStyle(fontSize: 12),
-                                        )),
+                                            '\$${formatearNumero(montoIndividual)}',
+                                            style: TextStyle(fontSize: 12))),
+                                        DataCell(
+                                          Text(
+                                            '\$${formatearNumero(montoDesembolsadoIndividual)}',
+                                            style:
+                                                estiloDesembolso, // <--- Aplicamos el estilo totalmente dinámico
+                                          ),
+                                        ),
                                         DataCell(Text(
-                                          '\$${formatearNumero(capitalSemanal)}',
-                                          style: TextStyle(fontSize: 12),
-                                        )),
+                                            '\$${formatearNumero(capitalSemanal)}',
+                                            style: TextStyle(fontSize: 12))),
                                         DataCell(Text(
-                                          '\$${formatearNumero(interesSemanal)}',
-                                          style: TextStyle(fontSize: 12),
-                                        )),
+                                            '\$${formatearNumero(interesSemanal)}',
+                                            style: TextStyle(fontSize: 12))),
                                         DataCell(Text(
-                                          '\$${formatearNumero(totalCapital)}',
-                                          style: TextStyle(fontSize: 12),
-                                        )),
+                                            '\$${formatearNumero(totalCapital)}',
+                                            style: TextStyle(fontSize: 12))),
                                         DataCell(Text(
-                                          '\$${formatearNumero(totalIntereses)}',
-                                          style: TextStyle(fontSize: 12),
-                                        )),
+                                            '\$${formatearNumero(totalIntereses)}',
+                                            style: TextStyle(fontSize: 12))),
                                         DataCell(Text(
-                                          '\$${formatearNumero(pagoSemanal)}',
-                                          style: TextStyle(fontSize: 12),
-                                        )),
+                                            '\$${formatearNumero(pagoSemanal)}',
+                                            style: TextStyle(fontSize: 12))),
                                         DataCell(Text(
-                                          '\$${formatearNumero(pagoTotal)}',
-                                          style: TextStyle(fontSize: 12),
-                                        )),
+                                            '\$${formatearNumero(pagoTotal)}',
+                                            style: TextStyle(fontSize: 12))),
                                       ]);
                                     }).toList(),
                                   ),
@@ -2258,6 +2684,36 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   String formatearNumero(double numero) {
     final formatter = NumberFormat("#,##0.00", "en_US"); // Formato español
     return formatter.format(numero);
+  }
+
+  /// Calcula el monto final que se le desembolsará a un solo cliente/integrante.
+  /// Adaptado para usar tu clase Cliente.
+  double calcularMontoDesembolsadoIndividual({
+    required Cliente cliente,
+    required double totalMontoAutorizado,
+    required double totalGarantia,
+    required double totalDescuentos,
+  }) {
+    // Manejamos el caso de que el monto individual sea nulo.
+    final montoIndividual = cliente.montoIndividual ?? 0.0;
+
+    // Evitar división por cero.
+    if (totalMontoAutorizado == 0) {
+      return 0;
+    }
+
+    // 1. Calcular la proporción del cliente sobre el total.
+    final double proporcion = montoIndividual / totalMontoAutorizado;
+
+    // 2. Calcular qué parte de la garantía y descuentos le corresponde.
+    final double garantiaIndividual = totalGarantia * proporcion;
+    final double descuentosIndividual = totalDescuentos * proporcion;
+
+    // 3. Calcular el monto final.
+    final double montoDesembolsado =
+        montoIndividual - garantiaIndividual - descuentosIndividual;
+
+    return montoDesembolsado;
   }
 
 // Widget para cada sección del resumen

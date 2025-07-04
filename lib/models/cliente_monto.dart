@@ -1,6 +1,9 @@
 class ClienteMonto {
   final String idamortizacion;
+  final String iddetallegrupos;
+  final String idgrupos;
   final String nombreCompleto;
+  final String idclientes;
   final String cargo;
   final double capitalIndividual;
   final double periodoCapital;
@@ -13,7 +16,10 @@ class ClienteMonto {
 
   ClienteMonto({
     required this.idamortizacion,
+    required this.iddetallegrupos,
+    required this.idgrupos,
     required this.nombreCompleto,
+    required this.idclientes,
     required this.cargo,
     required this.capitalIndividual,
     required this.periodoCapital,
@@ -28,7 +34,10 @@ class ClienteMonto {
   factory ClienteMonto.fromJson(Map<String, dynamic> json) {
     return ClienteMonto(
       idamortizacion: json['idamortizacion'],
+      iddetallegrupos: json['iddetallegrupos'],
+      idgrupos: json['idgrupos'],
       nombreCompleto: json['nombreCompleto'],
+      idclientes: json['idclientes'],
       cargo: json['cargo'],
       capitalIndividual: json['capitalIndividual'].toDouble(),
       periodoCapital: json['periodoCapital'].toDouble(),

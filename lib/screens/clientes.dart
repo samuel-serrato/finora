@@ -1193,7 +1193,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                           fontSize: textHeaderTableSize))),
                               _buildSortableColumn(
                                   'Nombre', 'nombrecompleto'), // Clave API
-                            /*   DataColumn(
+                              /*   DataColumn(
                                   label: Text('F. Nac',
                                       style: TextStyle(
                                           fontSize: textHeaderTableSize))), */
@@ -1230,7 +1230,7 @@ class _ClientesScreenState extends State<ClientesScreen> {
                                       '${cliente.nombres ?? 'N/A'} ${cliente.apellidoP ?? 'N/A'} ${cliente.apellidoM ?? 'N/A'}',
                                       style:
                                           TextStyle(fontSize: textTableSize))),
-                               /*    DataCell(Text(
+                                  /*    DataCell(Text(
                                       formatDate(cliente.fechaNac) ?? 'N/A',
                                       style:
                                           TextStyle(fontSize: textTableSize))), */
@@ -1363,6 +1363,11 @@ class _ClientesScreenState extends State<ClientesScreen> {
             ? Color(0xFF059212)
                 .withOpacity(0.4) // Fondo más oscuro para modo oscuro
             : Color(0xFF059212).withOpacity(0.1); // Fondo claro para modo claro
+      case 'Disponible Extra':
+        return isDarkMode
+            ? Color(0xFFE53888)
+                .withOpacity(0.4) // Fondo más oscuro para modo oscuro
+            : Color(0xFFE53888).withOpacity(0.1); // Fondo claro para modo claro
       default:
         return isDarkMode
             ? Colors.grey.withOpacity(0.4) // Fondo más oscuro para modo oscuro
@@ -1389,6 +1394,9 @@ class _ClientesScreenState extends State<ClientesScreen> {
               .withOpacity(0.8); // Color original para "En Grupo"
         case 'Disponible':
           return Color(0xFF059212)
+              .withOpacity(0.8); // Color original para "Disponible"
+        case 'Disponible Extra':
+          return Color(0xFFE53888)
               .withOpacity(0.8); // Color original para "Disponible"
         default:
           return Colors.grey.withOpacity(0.8); // Color original por defecto

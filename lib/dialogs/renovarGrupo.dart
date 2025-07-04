@@ -14,7 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class renovarGrupoDialog extends StatefulWidget {
   final VoidCallback onGrupoRenovado;
-  final String idGrupo; // Nuevo parámetro para recibir el idGrupo
+  final String idGrupo;
 
   renovarGrupoDialog({required this.onGrupoRenovado, required this.idGrupo});
 
@@ -34,20 +34,13 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
 
   Map<String, String> _originalCargos = {};
 
-  List<String> _clientesEliminados =
-      []; // Lista para almacenar los IDs de los clientes eliminados
+  List<String> _clientesEliminados = [];
 
   String? selectedTipo;
 
-  List<String> tiposGrupo = [
-    'Grupal',
-    'Individual',
-    'Selecto',
-  ];
-
+  List<String> tiposGrupo = ['Grupal', 'Individual', 'Selecto'];
   List<String> cargos = ['Miembro', 'Presidente/a', 'Tesorero/a'];
 
-  // Agregamos un mapa para guardar el rol de cada persona seleccionada
   Map<String, String> _cargosSeleccionados = {};
 
   late TabController _tabController;
@@ -59,9 +52,14 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
 
   bool _isLoading = false;
   Map<String, dynamic> grupoData = {};
-  Timer? _timer; // Temporizador para el tiempo de espera
-  bool dialogShown = false; // Evitar mostrar múltiples diálogos de error
+  Timer? _timer;
+  bool dialogShown = false;
   bool _dialogShown = false;
+
+  // <-- NUEVO: Variables de estado para los descuentos de renovación
+  bool _cargandoDescuentos = false;
+  Map<String, double> _descuentosRenovacion = {};
+
 
   @override
   void initState() {
@@ -72,12 +70,72 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
         _currentIndex = _tabController.index;
       });
     });
-    fetchGrupoData(); // Llamar a la función para obtener los datos del grupo
+    fetchGrupoData();
+    _fetchDescuentosRenovacion(widget.idGrupo); // <-- NUEVO: Llamamos a la función para obtener los adeudos
 
-    print('Grupo seleccionado: ${widget.idGrupo}');
+    print('Grupo seleccionado para renovar: ${widget.idGrupo}');
   }
 
+  // <-- NUEVO: La función que me proporcionaste para obtener los adeudos
+  Future<void> _fetchDescuentosRenovacion(String idgrupo) async {
+    // Si no hay ID de grupo, no hacemos nada.
+    if (idgrupo.isEmpty) return;
+
+    if (!mounted) return;
+    setState(() {
+      _cargandoDescuentos = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final url = Uri.parse('$baseUrl/api/v1/grupodetalles/renovacion/$idgrupo');
+
+      final response = await http.get(
+        url,
+        headers: {'tokenauth': token},
+      );
+      
+      final Map<String, double> descuentosObtenidos = {};
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        for (var item in data) {
+          // <<< ¡AQUÍ ESTÁ LA LÓGICA CLAVE! >>>
+          // Comparamos el ID del grupo actual con el ID del grupo que viene en los datos de renovación.
+          if (item['idclientes'] != null &&
+              item['descuento'] != null &&
+              idgrupo != item['idgrupoNuevo']) {
+            // <-- NUEVA CONDICIÓN
+            descuentosObtenidos[item['idclientes']] =
+                (item['descuento'] as num).toDouble();
+          }
+        }
+        print("Adeudos de renovación encontrados: $descuentosObtenidos");
+      } else {
+        print('Respuesta de descuentos no fue 200: ${response.statusCode} - ${response.body}');
+      }
+
+      if (mounted) {
+        setState(() {
+          _descuentosRenovacion = descuentosObtenidos;
+          _cargandoDescuentos = false;
+        });
+      }
+
+    } catch (e) {
+      print('Error al obtener descuentos de renovación: $e');
+      if (mounted) {
+        setState(() {
+          _cargandoDescuentos = false;
+        });
+      }
+    }
+  }
+
+
   // Función para obtener los detalles del grupo
+  // Función para obtener los detalles del grupo con manejo de token y errores
   // Función para obtener los detalles del grupo con manejo de token y errores
   Future<void> fetchGrupoData() async {
     if (!mounted) return;
@@ -337,200 +395,201 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
   }
 
   void _renovarGrupo() async {
-    if (!mounted) return;
+  if (!mounted) return;
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    _timer = Timer(const Duration(seconds: 10), () {
-      if (mounted && _isLoading && !_dialogShown) {
-        setState(() => _isLoading = false);
-        mostrarDialogoError(
-          'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
-        );
-        _dialogShown = true;
-      }
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-
-      final Map<String, dynamic> data = {
-        'idgrupos': widget.idGrupo,
-        'nombreGrupo': nombreGrupoController.text,
-        'detalles': descripcionController.text,
-        'tipoGrupo': selectedTipo,
-      };
-
-      print('Sending data: $data'); // Debugging
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/grupos/renovacion'),
-        headers: {
-          'Content-Type': 'application/json',
-          'tokenauth': token,
-        },
-        body: json.encode(data),
+  _timer = Timer(const Duration(seconds: 10), () {
+    if (mounted && _isLoading && !_dialogShown) {
+      setState(() => _isLoading = false);
+      mostrarDialogoError(
+        'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
       );
+      _dialogShown = true;
+    }
+  });
 
-      if (!mounted) return;
-      _timer?.cancel();
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
 
-      if (response.statusCode == 201) {
-        final responseBody = jsonDecode(response.body);
-        final idNuevoGrupo = responseBody['idgrupos'];
+    final Map<String, dynamic> data = {
+      'idgrupos': widget.idGrupo,
+      'nombreGrupo': nombreGrupoController.text,
+      'detalles': descripcionController.text,
+      'tipoGrupo': selectedTipo,
+    };
 
-        if (_selectedPersons.isNotEmpty) {
-          await _enviarMiembros(idNuevoGrupo, token);
-        }
+    final url = '$baseUrl/api/v1/grupos/renovacion';
 
-        if (mounted) {
-          widget.onGrupoRenovado?.call();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Grupo renovado correctamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        // Intentamos decodificar la respuesta para verificar mensajes específicos de error
-        try {
-          final errorData = json.decode(response.body);
+    print('🔁 Renovando grupo...');
+    print('⏩ POST $url');
+    print('📤 Headers: {Content-Type: application/json, tokenauth: $token}');
+    print('📤 Body: $data');
 
-          // Verificar si es el mensaje específico de sesión cambiada
-          if (errorData["Error"] != null &&
-              errorData["Error"]["Message"] ==
-                  "La sesión ha cambiado. Cerrando sesión...") {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'tokenauth': token,
+      },
+      body: json.encode(data),
+    );
 
-            // Mostrar diálogo y redirigir al login
-            mostrarDialogoCierreSesion(
-                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false, // Elimina todas las rutas anteriores
-              );
-            });
-            return;
-          }
-          // Manejar error JWT expirado
-          else if (response.statusCode == 404 &&
-              errorData["Error"] != null &&
-              errorData["Error"]["Message"] == "jwt expired") {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
+    print('📥 Código de respuesta: ${response.statusCode}');
+    print('📦 Cuerpo de respuesta: ${response.body}');
 
-            mostrarDialogoError(
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                onClose: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
-            });
-            return;
-          }
-          // Otros errores
-          else {
-            _handleApiError(response, 'Error renovando grupo');
-          }
-        } catch (parseError) {
-          // Si no podemos parsear la respuesta, delegamos al manejador de errores existente
+    if (!mounted) return;
+    _timer?.cancel();
+
+    if (response.statusCode == 201) {
+      final responseBody = jsonDecode(response.body);
+      final idNuevoGrupo = responseBody['idgrupos'];
+
+      if (_selectedPersons.isNotEmpty) {
+        await _enviarMiembros(idNuevoGrupo, token);
+      }
+
+      if (mounted) {
+        widget.onGrupoRenovado?.call();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Grupo renovado correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      try {
+        final errorData = json.decode(response.body);
+        if (errorData["Error"] != null &&
+            errorData["Error"]["Message"] ==
+                "La sesión ha cambiado. Cerrando sesión...") {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('tokenauth');
+
+          mostrarDialogoCierreSesion(
+              'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => LoginScreen()),
+              (route) => false,
+            );
+          });
+          return;
+        } else if (response.statusCode == 404 &&
+            errorData["Error"]?["Message"] == "jwt expired") {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('tokenauth');
+
+          mostrarDialogoError(
+              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+              onClose: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => LoginScreen()),
+            );
+          });
+          return;
+        } else {
           _handleApiError(response, 'Error renovando grupo');
         }
-      }
-    } catch (e) {
-      _handleNetworkError(e);
-    } finally {
-      if (mounted && _isLoading) {
-        setState(() => _isLoading = false);
+      } catch (parseError) {
+        _handleApiError(response, 'Error renovando grupo');
       }
     }
+  } catch (e) {
+    print('❌ Excepción renovando grupo: $e');
+    _handleNetworkError(e);
+  } finally {
+    if (mounted && _isLoading) {
+      setState(() => _isLoading = false);
+    }
   }
+}
+
 
   Future<void> _enviarMiembros(String idGrupo, String token) async {
-    try {
-      final miembros = _selectedPersons
-          .map((persona) => {
-                'idclientes': persona['idclientes'],
-                'nomCargo':
-                    _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
-              })
-          .toList();
+  try {
+    final miembros = _selectedPersons
+        .map((persona) => {
+              'idclientes': persona['idclientes'],
+              'nomCargo':
+                  _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
+            })
+        .toList();
 
-      final requestBody = {
-        'idgrupos': idGrupo,
-        'clientes': miembros,
-        'idusuarios': grupoData['idusuario'],
-      };
+    final requestBody = {
+      'idgrupos': idGrupo,
+      'clientes': miembros,
+      'idusuarios': grupoData['idusuario'],
+    };
 
-      print('Sending members: $requestBody'); // Debugging
+    final url = '$baseUrl/api/v1/grupodetalles/renovacion';
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/grupodetalles/renovacion'),
-        headers: {
-          'Content-Type': 'application/json',
-          'tokenauth': token,
-        },
-        body: json.encode(requestBody),
-      );
+    print('👥 Enviando miembros...');
+    print('⏩ POST $url');
+    print('📤 Headers: {Content-Type: application/json, tokenauth: $token}');
+    print('📤 Body: $requestBody');
 
-      // Manejar respuestas de error específicas
-      if (response.statusCode != 201) {
-        try {
-          final errorData = json.decode(response.body);
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'tokenauth': token,
+      },
+      body: json.encode(requestBody),
+    );
 
-          // Verificar si es el mensaje específico de sesión cambiada
-          if (errorData["Error"] != null &&
-              errorData["Error"]["Message"] ==
-                  "La sesión ha cambiado. Cerrando sesión...") {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
+    print('📥 Código de respuesta: ${response.statusCode}');
+    print('📦 Cuerpo de respuesta: ${response.body}');
 
-            // Mostrar diálogo y redirigir al login
-            mostrarDialogoCierreSesion(
-                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false, // Elimina todas las rutas anteriores
-              );
-            });
-            return;
-          }
-          // Manejar error JWT expirado
-          else if (response.statusCode == 404 &&
-              errorData["Error"] != null &&
-              errorData["Error"]["Message"] == "jwt expired") {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
+    if (response.statusCode != 201) {
+      try {
+        final errorData = json.decode(response.body);
 
-            mostrarDialogoError(
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                onClose: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
-            });
-            return;
-          }
-          // Otros errores
-          else {
-            _handleApiError(response, 'Error agregando miembros');
-          }
-        } catch (parseError) {
-          // Si no podemos parsear la respuesta, delegamos al manejador de errores existente
+        if (errorData["Error"] != null &&
+            errorData["Error"]["Message"] ==
+                "La sesión ha cambiado. Cerrando sesión...") {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('tokenauth');
+
+          mostrarDialogoCierreSesion(
+              'La sesión ha cambiado. Cerrando sesión...', onClose: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => LoginScreen()),
+              (route) => false,
+            );
+          });
+          return;
+        } else if (response.statusCode == 404 &&
+            errorData["Error"]?["Message"] == "jwt expired") {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('tokenauth');
+
+          mostrarDialogoError(
+              'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
+              onClose: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => LoginScreen()),
+            );
+          });
+          return;
+        } else {
           _handleApiError(response, 'Error agregando miembros');
         }
+      } catch (parseError) {
+        _handleApiError(response, 'Error agregando miembros');
       }
-    } catch (e) {
-      _handleNetworkError(e);
     }
+  } catch (e) {
+    print('❌ Excepción al enviar miembros: $e');
+    _handleNetworkError(e);
   }
+}
+
 
   void _handleApiError(http.Response response, String mensajeBase) {
     try {
@@ -576,7 +635,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
     }
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context,
         listen: false); // Obtén el ThemeProvider
@@ -1057,202 +1116,185 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
                       final fechaNac =
                           person['fechaNacimiento'] ?? 'No disponible';
 
-                      return ListTile(
-                        title: Row(
-                          children: [
-                            // Mostrar numeración antes del nombre
-                            Text(
-                              '${index + 1}. ', // Numeración
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: isDarkMode ? Colors.white : Colors.black,
-                              ),
-                            ),
-                            // Nombre completo
-                            Expanded(
-                              child: Text(
-                                '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color:
-                                      isDarkMode ? Colors.white : Colors.black,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        subtitle: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Teléfono
-                            Text(
-                              'Teléfono: $telefono',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: isDarkMode
-                                    ? Colors.grey[400]
-                                    : Colors.grey[700],
-                              ),
-                            ),
-                            // Fecha de nacimiento
-                            SizedBox(width: 30),
-                            Text(
-                              'F. de Nacimiento: $fechaNac',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: isDarkMode
-                                    ? Colors.grey[400]
-                                    : Colors.grey[700],
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            // Container para el estado
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 0),
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(person['estado']),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: _getStatusColor(person['estado'])
-                                      .withOpacity(
-                                          0.6), // Borde con el mismo color pero más fuerte
-                                  width: 1, // Grosor del borde
-                                ),
-                              ),
-                              child: Text(
-                                person['estado'] ?? 'N/A',
-                                style: TextStyle(
-                                  color: _getStatusColor(person['estado'])
-                                      .withOpacity(
-                                          0.8), // Color del texto más oscuro
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Dropdown para seleccionar cargo
-                            Theme(
-                              data: Theme.of(context).copyWith(
-                                canvasColor: isDarkMode
-                                    ? Colors.grey[850]
-                                    : Colors.white,
-                              ),
-                              child: DropdownButton<String>(
-                                value: _cargosSeleccionados[
-                                        person['idclientes']] ??
-                                    'Miembro',
-                                onChanged: (nuevoCargo) {
-                                  setState(() {
-                                    _cargosSeleccionados[person['idclientes']] =
-                                        nuevoCargo!;
-                                  });
-                                },
-                                items: cargos
-                                    .map<DropdownMenuItem<String>>((cargo) {
-                                  return DropdownMenuItem<String>(
-                                    value: cargo,
-                                    child: Text(
-                                      cargo,
-                                      style: TextStyle(
-                                        color: isDarkMode
-                                            ? Colors.white
-                                            : Colors.black,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                                dropdownColor: isDarkMode
-                                    ? Colors.grey[850]
-                                    : Colors.white,
-                                style: TextStyle(
-                                  color:
-                                      isDarkMode ? Colors.white : Colors.black,
-                                ),
-                                icon: Icon(
-                                  Icons.arrow_drop_down,
-                                  color:
-                                      isDarkMode ? Colors.white : Colors.black,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                                width:
-                                    8), // Espaciado entre el dropdown y el ícono
-                            // Ícono de eliminar
-                            IconButton(
-                              onPressed: () async {
-                                final confirmDelete = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    backgroundColor: isDarkMode
-                                        ? Colors.grey[850]
-                                        : Colors.white,
-                                    title: Text(
-                                      'Confirmar eliminación',
-                                      style: TextStyle(
-                                        color: isDarkMode
-                                            ? Colors.white
-                                            : Colors.black,
-                                      ),
-                                    ),
-                                    content: Text(
-                                      '¿Estás seguro de que quieres eliminar a ${nombre} ${person['apellidoP'] ?? ''}?',
-                                      style: TextStyle(
-                                        color: isDarkMode
-                                            ? Colors.white
-                                            : Colors.black,
-                                      ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(false),
-                                        child: Text(
-                                          'Cancelar',
-                                          style: TextStyle(
-                                            color: isDarkMode
-                                                ? Colors.grey[300]
-                                                : Colors.grey[700],
-                                          ),
-                                        ),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(true),
-                                        child: Text(
-                                          'Eliminar',
-                                          style: TextStyle(
-                                            color: isDarkMode
-                                                ? Colors.red[300]
-                                                : Colors.red,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
+                      // <-- MODIFICADO: Lógica para verificar el adeudo
+                      final tieneAdeudo = _descuentosRenovacion.containsKey(idCliente);
+                      final montoAdeudo = tieneAdeudo ? _descuentosRenovacion[idCliente] : 0.0;
 
-                                if (confirmDelete == true) {
-                                  setState(() {
-                                    _clientesEliminados.add(idCliente);
-                                    _selectedPersons.removeAt(index);
-                                  });
-                                }
-                              },
-                              icon: Icon(Icons.delete, color: Colors.red),
-                            ),
-                          ],
-                        ),
-                      );
+                      return // OPCIÓN 1: Mover el ícono al trailing junto con los otros controles
+ListTile(
+  title: Row(
+    children: [
+      // Mostrar numeración antes del nombre
+      Text(
+        '${index + 1}. ', // Numeración
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+          color: isDarkMode ? Colors.white : Colors.black,
+        ),
+      ),
+      // Nombre completo
+      Expanded(
+        child: Text(
+          '${nombre} ${person['apellidoP'] ?? ''} ${person['apellidoM'] ?? ''}',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+      ),
+    ],
+  ),
+  subtitle: Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Teléfono
+      Text(
+        'Teléfono: $telefono',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+        ),
+      ),
+      // Fecha de nacimiento
+      SizedBox(width: 30),
+      Text(
+        'F. de Nacimiento: $fechaNac',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+        ),
+      ),
+      SizedBox(width: 10),
+      // Container para el estado
+      Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        decoration: BoxDecoration(
+          color: _getStatusColor(person['estado']),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: _getStatusColor(person['estado']).withOpacity(0.6),
+            width: 1,
+          ),
+        ),
+        child: Text(
+          person['estado'] ?? 'N/A',
+          style: TextStyle(
+            color: _getStatusColor(person['estado']).withOpacity(0.8),
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    ],
+  ),
+  trailing: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      // ÍCONO DE WARNING AQUÍ - mejor alineado
+      if (tieneAdeudo)
+        Tooltip(
+          message: 'Adeudo anterior: \$${montoAdeudo?.toStringAsFixed(2)}',
+          child: Container(
+            margin: EdgeInsets.only(right: 8.0),
+            child: Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orange,
+              size: 20,
+            ),
+          ),
+        ),
+        SizedBox(width: 8),
+      // Dropdown para seleccionar cargo
+      Theme(
+        data: Theme.of(context).copyWith(
+          canvasColor: isDarkMode ? Colors.grey[850] : Colors.white,
+        ),
+        child: DropdownButton<String>(
+          value: _cargosSeleccionados[person['idclientes']] ?? 'Miembro',
+          onChanged: (nuevoCargo) {
+            setState(() {
+              _cargosSeleccionados[person['idclientes']] = nuevoCargo!;
+            });
+          },
+          items: cargos.map<DropdownMenuItem<String>>((cargo) {
+            return DropdownMenuItem<String>(
+              value: cargo,
+              child: Text(
+                cargo,
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+            );
+          }).toList(),
+          dropdownColor: isDarkMode ? Colors.grey[850] : Colors.white,
+          style: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+          icon: Icon(
+            Icons.arrow_drop_down,
+            color: isDarkMode ? Colors.white : Colors.black,
+          ),
+        ),
+      ),
+      SizedBox(width: 8),
+      // Ícono de eliminar
+      IconButton(
+        onPressed: () async {
+          final confirmDelete = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+              title: Text(
+                'Confirmar eliminación',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              content: Text(
+                '¿Estás seguro de que quieres eliminar a ${nombre} ${person['apellidoP'] ?? ''}?',
+                style: TextStyle(
+                  color: isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(
+                    'Cancelar',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    'Eliminar',
+                    style: TextStyle(
+                      color: isDarkMode ? Colors.red[300] : Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+
+          if (confirmDelete == true) {
+            setState(() {
+              _clientesEliminados.add(idCliente);
+              _selectedPersons.removeAt(index);
+            });
+          }
+        },
+        icon: Icon(Icons.delete, color: Colors.red),
+      ),
+    ],
+  ),
+);
                     },
                   ),
                 )
@@ -1263,6 +1305,7 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
       ),
     );
   }
+
 
   Color _getStatusColor(String? estado) {
     switch (estado) {

@@ -340,7 +340,8 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                     title: 'Personalizar logo',
                     items: [_buildLogoUploader(context)],
                     isExpandable: true,
-                    enabled: userData.tipoUsuario == 'Admin',
+                    enabled: userData.tipoUsuario == 'Admin' ||
+                        userData.tipoUsuario == 'Contador',
                   ),
                   const SizedBox(height: 15),
                   _buildBankAccountsSection(context),
@@ -370,10 +371,12 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
                                   ? Colors.grey[400]
                                   : Colors.grey[600],
                             ),
-                            enabled: userData.tipoUsuario == 'Admin'),
+                            enabled: userData.tipoUsuario == 'Admin' ||
+                                userData.tipoUsuario == 'Contador'),
                       ),
                     ],
-                    enabled: userData.tipoUsuario == 'Admin',
+                    enabled: userData.tipoUsuario == 'Admin' ||
+                        userData.tipoUsuario == 'Contador',
                   ),
                 ],
               ),
@@ -1812,7 +1815,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
         Padding(
           padding: EdgeInsets.all(16),
           child: ElevatedButton.icon(
-            onPressed: userData.tipoUsuario == 'Admin'
+            onPressed: userData.tipoUsuario == 'Admin' || userData.tipoUsuario == 'Contador'
                 ? _showAddCuentaDialog
                 : null, // Deshabilitar si no es Admin
             icon: Icon(
@@ -1832,7 +1835,7 @@ class _ConfiguracionDialogState extends State<ConfiguracionDialog> {
         ),
       ],
       isExpandable: true,
-      enabled: userData.tipoUsuario == 'Admin', // Solo habilitado para Admin
+      enabled: userData.tipoUsuario == 'Admin' || userData.tipoUsuario == 'Contador', // Solo habilitado para Admin
     );
   }
 

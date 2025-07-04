@@ -22,26 +22,100 @@ class InfoCliente extends StatefulWidget {
   _InfoClienteState createState() => _InfoClienteState();
 }
 
-class _InfoClienteState extends State<InfoCliente> {
+class _InfoClienteState extends State<InfoCliente>
+    with SingleTickerProviderStateMixin {
+  // Estado para la información general
   Map<String, dynamic>? clienteData;
   bool isLoading = true;
+  bool errorDeConexion = false;
+
+  // --- NUEVAS VARIABLES DE ESTADO PARA EL HISTORIAL ---
+  List<Map<String, dynamic>>? historialData;
+  bool _isHistorialLoading = true;
+  bool _historialError = false;
+  // --- FIN DE NUEVAS VARIABLES ---
+
+  bool _isUpdating = false;
   Timer? _timer;
   bool dialogShown = false;
-  bool errorDeConexion = false;
   late ScrollController _scrollController;
+  late TabController _tabController;
 
   @override
   void initState() {
-    _scrollController = ScrollController();
     super.initState();
+    _scrollController = ScrollController();
+    _tabController = TabController(length: 2, vsync: this);
+
+    // Iniciar ambas cargas de datos
     fetchClienteData();
+    _fetchHistorialCliente();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    super.dispose();
     _scrollController.dispose();
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // --- NUEVA FUNCIÓN PARA OBTENER EL HISTORIAL ---
+  Future<void> _fetchHistorialCliente() async {
+    if (!mounted) return;
+    setState(() {
+      _isHistorialLoading = true;
+      _historialError = false;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final url =
+          '$baseUrl/api/v1/grupodetalles/historial/clientes/${widget.idCliente}';
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'tokenauth': token, 'Content-Type': 'application/json'},
+      );
+
+      if (mounted) {
+        // CASO 1: Éxito, se encontró historial
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as List;
+          setState(() {
+            historialData =
+                data.map((item) => item as Map<String, dynamic>).toList();
+            _isHistorialLoading = false;
+          });
+        }
+        // << NUEVO: Manejo específico para el 404 "No Encontrado" >>
+        else if (response.statusCode == 404) {
+          // Esto NO es un error, significa que el historial está vacío.
+          setState(() {
+            historialData = []; // Asignamos una lista vacía.
+            _isHistorialLoading = false;
+            _historialError =
+                false; // Nos aseguramos que no se marque como error.
+          });
+        }
+        // CASO 3: Es un error real del servidor o de otro tipo
+        else {
+          setState(() {
+            _isHistorialLoading = false;
+            _historialError = true; // Ahora sí marcamos como error.
+          });
+        }
+      }
+    } catch (e) {
+      // Si ocurre una excepción de red (ej. sin conexión a internet)
+      if (mounted) {
+        setState(() {
+          _isHistorialLoading = false;
+          _historialError = true;
+        });
+      }
+    }
   }
 
   Future<void> fetchClienteData() async {
@@ -106,7 +180,6 @@ class _InfoClienteState extends State<InfoCliente> {
       }
     }
 
-    // Configurar el timer solo si no se ha obtenido respuesta
     _timer = Timer(Duration(seconds: 10), () {
       if (mounted && !localDialogShown && isLoading) {
         setState(() {
@@ -147,23 +220,17 @@ class _InfoClienteState extends State<InfoCliente> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            backgroundColor: isDarkMode
-                ? Colors.grey[900]
-                : Colors.white, // Fondo oscuro o claro
+            backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
             title: Text(
               'Error',
               style: TextStyle(
-                color: isDarkMode
-                    ? Colors.white
-                    : Colors.black, // Texto oscuro o claro
+                color: isDarkMode ? Colors.white : Colors.black,
               ),
             ),
             content: Text(
               mensaje,
               style: TextStyle(
-                color: isDarkMode
-                    ? Colors.white
-                    : Colors.black, // Texto oscuro o claro
+                color: isDarkMode ? Colors.white : Colors.black,
               ),
             ),
             actions: [
@@ -175,9 +242,7 @@ class _InfoClienteState extends State<InfoCliente> {
                 child: Text(
                   'OK',
                   style: TextStyle(
-                    color: isDarkMode
-                        ? Colors.white
-                        : Colors.black, // Texto oscuro o claro
+                    color: isDarkMode ? Colors.white : Colors.black,
                   ),
                 ),
               ),
@@ -188,66 +253,185 @@ class _InfoClienteState extends State<InfoCliente> {
     }
   }
 
-  // Función simplificada para formatear la fecha de yyyy/mm/dd a dd/mm/yyyy
   String _formatearFecha(String fechaStr) {
     try {
-      // Verificar si el formato es yyyy/mm/dd
-      if (RegExp(r'^\d{4}/\d{2}/\d{2}$').hasMatch(fechaStr)) {
-        // Dividir la fecha en sus componentes
-        List<String> partes = fechaStr.split('/');
+      //Intenta parsear la fecha con hora
+      final fecha = DateTime.parse(fechaStr);
+      // Formatear a dd/MM/yyyy
+      return DateFormat('dd/MM/yyyy').format(fecha);
+    } catch (e) {
+      // Si falla, es posible que no tenga hora, intenta sin ella
+      try {
+        if (RegExp(r'^\d{4}/\d{2}/\d{2}$').hasMatch(fechaStr)) {
+          List<String> partes = fechaStr.split('/');
+          return '${partes[2]}/${partes[1]}/${partes[0]}';
+        }
+        return 'Fecha inválida';
+      } catch (e2) {
+        return 'Fecha inválida';
+      }
+    }
+  }
 
-        // Reorganizar al formato dd/mm/yyyy
-        return '${partes[2]}/${partes[1]}/${partes[0]}';
-      }
-      // Si ya está en formato dd/mm/yyyy, devolverlo tal cual
-      else if (RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(fechaStr)) {
-        return fechaStr;
-      }
-      // Alternativamente, podemos usar DateFormat si necesitamos más precisión
-      else {
-        // Parsear la fecha en formato yyyy/mm/dd
-        final fecha = DateTime.parse(fechaStr.replaceAll('/', '-'));
-        // Formatear a dd/mm/yyyy
-        return DateFormat('dd/MM/yyyy').format(fecha);
+  Future<void> _habilitarMultigrupo() async {
+    setState(() {
+      _isUpdating = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final url =
+          '$baseUrl/api/v1/clientes/estado/creditonuevo/${widget.idCliente}';
+
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {'tokenauth': token},
+      );
+
+      if (mounted) {
+        if (response.statusCode == 200) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Estado del cliente actualizado correctamente.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          final errorBody = json.decode(response.body);
+          final errorMessage =
+              errorBody['Error']?['Message'] ?? 'Ocurrió un error desconocido.';
+          mostrarDialogoError('Error: $errorMessage');
+        }
       }
     } catch (e) {
-      // En caso de error, devolver un mensaje o la fecha original
-      return 'Fecha inválida';
+      if (mounted) {
+        mostrarDialogoError(
+            'Error de conexión. No se pudo completar la operación.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+        });
+      }
     }
+  }
+
+  void _mostrarDialogoConfirmacion() {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+          backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 450),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(25, 25, 25, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.person_add_alt_1,
+                      size: 60, color: Color(0xFF5162F6)),
+                  SizedBox(height: 15),
+                  Text(
+                    'Confirmar Acción',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black87),
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    '¿Realmente quiere habilitar a este cliente?\n\nEste cliente cambiará de estado para permitir entrar a otro grupo, pero una vez esté en otro grupo volverá a su estado normal.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 16,
+                        color: isDarkMode ? Colors.white70 : Colors.grey[700],
+                        height: 1.4),
+                  ),
+                  SizedBox(height: 25),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor:
+                                isDarkMode ? Colors.white70 : Colors.grey[700],
+                            side: BorderSide(
+                                color: isDarkMode
+                                    ? Colors.grey[600]!
+                                    : Colors.grey[400]!),
+                            backgroundColor: Colors.transparent,
+                            padding: EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: Text('Cancelar'),
+                        ),
+                      ),
+                      SizedBox(width: 15),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF5162F6),
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            Navigator.of(dialogContext).pop();
+                            _habilitarMultigrupo();
+                          },
+                          child: Text('Confirmar',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider =
-        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
-    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
 
     final width = MediaQuery.of(context).size.width * 0.8;
     final height = MediaQuery.of(context).size.height * 0.8;
 
     return Dialog(
-      backgroundColor: isDarkMode
-          ? Colors.grey[900]
-          : Color(0xFFF7F8FA), // Fondo oscuro o claro
+      backgroundColor: isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: EdgeInsets.all(16),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 50),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 30),
         width: width,
         height: height,
         child: isLoading
             ? Center(
                 child: CircularProgressIndicator(
-                  color: isDarkMode
-                      ? Colors.white
-                      : Color(0xFF5162F6), // Color del indicador de carga
-                ),
-              )
+                    color: isDarkMode ? Colors.white : Color(0xFF5162F6)))
             : clienteData != null
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Columna izquierda fija y centrada
                       Expanded(
                         flex: 25,
                         child: Container(
@@ -258,332 +442,110 @@ class _InfoClienteState extends State<InfoCliente> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.account_circle,
-                                size: 150,
-                                color: Colors.white,
-                              ),
-                              SizedBox(height: 16),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8.0),
-                                child: Text(
-                                  'Información General',
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white),
-                                ),
-                              ),
-                              /*   _buildDetailRow(
-                                  'ID:', clienteData!['idclientes']), */
-                              _buildDetailRowIG('',
-                                  '${clienteData!['nombres']} ${clienteData!['apellidoP']} ${clienteData!['apellidoM']}'),
-                              _buildDetailRowIG('Fecha Nac:',
+                              Icon(Icons.account_circle,
+                                  size: 100, color: Colors.white),
+                              _buildDetailRowIGFlexible('',
+                                  '${clienteData!['nombres']} ${clienteData!['apellidoP']} ${clienteData!['apellidoM']}',
+                                  isTitle: true),
+                              SizedBox(height: 8),
+                              _buildDetailRowIGFlexible('Fecha Nac:',
                                   _formatearFecha(clienteData!['fechaNac'])),
-                              _buildDetailRowIG('Tipo Cliente:',
+                              _buildDetailRowIGFlexible('Tipo Cliente:',
                                   clienteData!['tipo_cliente']),
-                              _buildDetailRowIG('Sexo:', clienteData!['sexo']),
-                              _buildDetailRowIG(
+                              _buildDetailRowIGFlexible(
+                                  'Sexo:', clienteData!['sexo']),
+                              _buildDetailRowIGFlexible(
                                   'Ocupación:', clienteData!['ocupacion']),
-                              _buildDetailRowIG(
+                              _buildDetailRowIGFlexible(
                                   'Teléfono:', clienteData!['telefono']),
-                              _buildDetailRowIG(
+                              _buildDetailRowIGFlexible(
                                   'Estado Civil:', clienteData!['eCivil']),
-                              _buildDetailRowIG('Dependientes Económicos:',
+                              _buildDetailRowIGFlexible(
+                                  'Dependientes Económicos:',
                                   clienteData!['dependientes_economicos']),
-                              _buildDetailRowIG('Email:',
+                              _buildDetailRowIGFlexible('Email:',
                                   _getValidatedValue(clienteData!['email'])),
-                              _buildDetailRowIG(
+                              _buildDetailRowIGFlexible(
                                   'Estado:', clienteData!['estado'] ?? 'N/A'),
-                              _buildDetailRowIG(
-                                'F. Creación:',
-                                clienteData!['fCreacion'] != null
-                                    ? clienteData!['fCreacion']
-                                        .split(' ')[0] // Solo la fecha
-                                    : 'N/A',
-                                tooltip: clienteData!['fCreacion'] ??
-                                    'N/A', // Fecha completa en tooltip
+                              _buildDetailRowIGFlexible(
+                                  'F. Creación:',
+                                  clienteData!['fCreacion'] != null
+                                      ? _formatearFecha(
+                                          clienteData!['fCreacion'])
+                                      : 'N/A'),
+                              SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: _isUpdating
+                                    ? null
+                                    : _mostrarDialogoConfirmacion,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: Color(0xFF5162F6),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20)),
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 32, vertical: 16),
+                                  disabledBackgroundColor:
+                                      Colors.white.withOpacity(0.5),
+                                ),
+                                child: _isUpdating
+                                    ? SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                            color: Color(0xFF5162F6),
+                                            strokeWidth: 2.0),
+                                      )
+                                    : Text("Habilitar multigrupo",
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold)),
                               ),
                             ],
                           ),
                         ),
                       ),
                       SizedBox(width: 16),
-                      // Columna derecha deslizable
                       Expanded(
                         flex: 75,
-                        child: SingleChildScrollView(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Fila para Cuentas de Banco y Domicilios
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment
-                                      .spaceEvenly, // Distribuye los elementos con espacio uniforme
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Columna para Cuentas de Banco
-                                    Expanded(
-                                      flex: 2,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          _buildSectionTitle(
-                                              'Cuentas de Banco', isDarkMode),
-                                          Container(
-                                            margin: EdgeInsets.symmetric(
-                                                horizontal: 4.0, vertical: 4.0),
-                                            height: 180,
-                                            width: double.infinity,
-                                            padding: EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              color: isDarkMode
-                                                  ? Colors.grey[800]
-                                                  : Colors
-                                                      .white, // Fondo oscuro o claro
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: isDarkMode
-                                                      ? Colors.black
-                                                      : Colors
-                                                          .black26, // Sombra oscura o clara
-                                                  blurRadius: 3,
-                                                  offset: Offset(0, 1),
-                                                ),
-                                              ],
-                                            ),
-                                            child: SingleChildScrollView(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  if (clienteData![
-                                                      'cuentabanco'] is List)
-                                                    for (var cuenta
-                                                        in clienteData![
-                                                            'cuentabanco']) ...[
-                                                      _buildDetailRow(
-                                                          'Banco:',
-                                                          _getValidatedValue(
-                                                              cuenta[
-                                                                  'nombreBanco']),
-                                                          isDarkMode),
-                                                      _buildDetailRow(
-                                                          'Núm. de Cuenta:',
-                                                          _getValidatedValue(
-                                                              cuenta[
-                                                                  'numCuenta']),
-                                                          isDarkMode),
-                                                      _buildDetailRow(
-                                                          'CLABE Interbancaria:',
-                                                          _getValidatedValue(
-                                                              cuenta[
-                                                                  'clbIntBanc']),
-                                                          isDarkMode),
-                                                      _buildDetailRow(
-                                                          'Núm. de Tarjeta:',
-                                                          _getValidatedValue(
-                                                              cuenta[
-                                                                  'numTarjeta']),
-                                                          isDarkMode),
-                                                      SizedBox(height: 16),
-                                                    ],
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    // Columna para Datos Adicionales
-                                    Expanded(
-                                      flex: 2,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          _buildSectionTitle(
-                                              'Datos Adicionales', isDarkMode),
-                                          Container(
-                                            margin: EdgeInsets.symmetric(
-                                                horizontal: 4.0, vertical: 4.0),
-                                            height: 180,
-                                            width: double.infinity,
-                                            padding: EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              color: isDarkMode
-                                                  ? Colors.grey[800]
-                                                  : Colors
-                                                      .white, // Fondo oscuro o claro
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: isDarkMode
-                                                      ? Colors.black
-                                                      : Colors
-                                                          .black26, // Sombra oscura o clara
-                                                  blurRadius: 3,
-                                                  offset: Offset(0, 1),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                if (clienteData!['adicionales']
-                                                    is List)
-                                                  for (var adicional
-                                                      in clienteData![
-                                                          'adicionales']) ...[
-                                                    _buildDetailRow(
-                                                        'CURP:',
-                                                        adicional['curp'],
-                                                        isDarkMode),
-                                                    _buildDetailRow(
-                                                        'RFC:',
-                                                        adicional['rfc'],
-                                                        isDarkMode),
-                                                    _buildDetailRow(
-                                                        'Clv Elector:',
-                                                        adicional['clvElector'],
-                                                        isDarkMode),
-                                                    /*   _buildDetailRow(
-                                                        'Fecha de Creación:',
-                                                        adicional['fCreacion'],
-                                                        isDarkMode), */
-                                                    SizedBox(height: 16),
-                                                  ],
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Expanded(
-                                      flex: 2,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          _buildSectionTitle(
-                                              'Inf. del Cónyuge', isDarkMode),
-                                          Container(
-                                            margin: EdgeInsets.symmetric(
-                                                horizontal: 4.0, vertical: 4.0),
-                                            height: 180,
-                                            width: double.infinity,
-                                            padding: EdgeInsets.all(16),
-                                            decoration: BoxDecoration(
-                                              color: isDarkMode
-                                                  ? Colors.grey[800]
-                                                  : Colors
-                                                      .white, // Fondo oscuro o claro
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: isDarkMode
-                                                      ? Colors.black
-                                                      : Colors
-                                                          .black26, // Sombra oscura o clara
-                                                  blurRadius: 3,
-                                                  offset: Offset(0, 1),
-                                                ),
-                                              ],
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                _buildDetailRow(
-                                                  'Nombre:',
-                                                  _getConyugeValue(
-                                                      'nombreConyuge'), // Función para obtener el valor
-                                                  isDarkMode,
-                                                ),
-                                                _buildDetailRow(
-                                                  'Teléfono:',
-                                                  _getConyugeValue(
-                                                      'telefonoConyuge'), // Función para obtener el valor
-                                                  isDarkMode,
-                                                ),
-                                                _buildDetailRow(
-                                                  'Ocupacion:',
-                                                  _getConyugeValue(
-                                                      'ocupacionConyuge'), // Función para obtener el valor
-                                                  isDarkMode,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 16),
-                                // Sección de Domicilio
-                                _buildSectionTitle('Domicilio', isDarkMode),
-                                if (clienteData!['domicilios'] is List)
-                                  Container(
-                                    margin: EdgeInsets.symmetric(
-                                        horizontal: 4.0, vertical: 4.0),
-                                    padding: EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: isDarkMode
-                                          ? Colors.grey[800]
-                                          : Colors
-                                              .white, // Fondo oscuro o claro
-                                      borderRadius: BorderRadius.circular(8),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: isDarkMode
-                                              ? Colors.black
-                                              : Colors
-                                                  .black26, // Sombra oscura o clara
-                                          blurRadius: 3,
-                                          offset: Offset(0, 1),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        for (var domicilio
-                                            in clienteData!['domicilios']) ...[
-                                          _buildAddresses(
-                                              domicilio, isDarkMode),
-                                          SizedBox(height: 16),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                SizedBox(height: 16),
-                                _buildSectionTitle(
-                                    'Ingresos y Egresos', isDarkMode),
-                                if (clienteData!['ingresos_egresos'] is List)
-                                  _buildIncomeInfo(
-                                      clienteData!['ingresos_egresos'],
-                                      isDarkMode),
-                                SizedBox(height: 16),
-                                _buildSectionTitle('Referencias', isDarkMode),
-                                if (clienteData!['referencias'] is List)
-                                  _buildReferences(
-                                      clienteData!['referencias'], isDarkMode),
-                              ],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                  color: isDarkMode
+                                      ? Colors.transparent
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: TabBar(
+                                controller: _tabController,
+                                labelColor: isDarkMode
+                                    ? Colors.white
+                                    : Color(0xFF5162F6),
+                                unselectedLabelColor: Colors.grey,
+                                indicatorColor: Color(0xFF5162F6),
+                                indicator: BoxDecoration(
+                                    border: Border(
+                                        bottom: BorderSide(
+                                            color: Color(0xFF5162F6),
+                                            width: 3))),
+                                tabs: [
+                                  Tab(text: 'Información General'),
+                                  Tab(text: 'Historial del Cliente'),
+                                ],
+                              ),
                             ),
-                          ),
+                            SizedBox(height: 16),
+                            Expanded(
+                              child: TabBarView(
+                                controller: _tabController,
+                                children: [
+                                  _buildInformacionGeneralTab(isDarkMode),
+                                  _buildHistorialClienteTab(isDarkMode),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -592,20 +554,14 @@ class _InfoClienteState extends State<InfoCliente> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          'Error al cargar datos del cliente',
-                          style: TextStyle(
-                            color: isDarkMode
-                                ? Colors.white
-                                : Colors.black, // Texto oscuro o claro
-                          ),
-                        ),
+                        Text('Error al cargar datos del cliente',
+                            style: TextStyle(
+                                color:
+                                    isDarkMode ? Colors.white : Colors.black)),
                         SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: () {
-                            setState(() {
-                              isLoading = true;
-                            });
+                            setState(() => isLoading = true);
                             fetchClienteData();
                           },
                           child: Text('Recargar'),
@@ -617,8 +573,7 @@ class _InfoClienteState extends State<InfoCliente> {
                             shape: MaterialStateProperty.all<
                                 RoundedRectangleBorder>(
                               RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                                  borderRadius: BorderRadius.circular(20)),
                             ),
                           ),
                         ),
@@ -629,442 +584,717 @@ class _InfoClienteState extends State<InfoCliente> {
     );
   }
 
+  // --- WIDGET PARA LA PESTAÑA DE HISTORIAL ---
+  Widget _buildHistorialClienteTab(bool isDarkMode) {
+    if (_isHistorialLoading) {
+      return Center(
+          child: CircularProgressIndicator(
+              color: isDarkMode ? Colors.white : Color(0xFF5162F6)));
+    }
+
+    if (_historialError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: Colors.red, size: 48),
+            SizedBox(height: 16),
+            Text(
+              'No se pudo cargar el historial',
+              style: TextStyle(
+                  color: isDarkMode ? Colors.white70 : Colors.black54),
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchHistorialCliente,
+              child: Text('Reintentar'),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF5162F6),
+                  foregroundColor: Colors.white),
+            )
+          ],
+        ),
+      );
+    }
+
+    if (historialData == null || historialData!.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history_toggle_off,
+                size: 60,
+                color: isDarkMode ? Colors.white54 : Colors.grey[400]),
+            SizedBox(height: 20),
+            Text(
+              'Este cliente no tiene historial de grupos.',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: historialData!.length,
+      itemBuilder: (context, index) {
+        final grupo = historialData![index];
+        return _buildHistorialCard(grupo, isDarkMode);
+      },
+    );
+  }
+
+  // --- WIDGET PARA CADA TARJETA DEL HISTORIAL ---
+  Widget _buildHistorialCard(Map<String, dynamic> grupo, bool isDarkMode) {
+    final estado = _getValidatedValue(grupo['estado']);
+    final Color estadoColor = _getColorForEstado(estado);
+    final String nombreGrupo = _getValidatedValue(grupo['nombreGrupo']);
+    final String detalles = _getValidatedValue(grupo['detalles']);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey[850] : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: isDarkMode
+                ? Colors.black.withOpacity(0.2)
+                : Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Texto adicional a la izquierda
+              /*  Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isDarkMode ? Colors.blue[900] : Colors.blue[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'GRUPO', // Puedes cambiar este texto por el que necesites
+                style: TextStyle(
+                  color: isDarkMode ? Colors.blue[300] : Colors.blue[800],
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+            SizedBox(width: 12), */
+              // Nombre del grupo con detalles
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: nombreGrupo,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: isDarkMode ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' - ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color:
+                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                        ),
+                      ),
+                      TextSpan(
+                        text: detalles,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 16,
+                          color:
+                              isDarkMode ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(width: 12),
+              // Estado a la derecha
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: estadoColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Text(
+                  estado,
+                  style: TextStyle(
+                    color: estadoColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Divider(
+              color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+              height: 24),
+          Row(
+            children: [
+              Expanded(
+                  flex: 3,
+                  child: _buildDetailRow('Folio del Crédito:',
+                      _getValidatedValue(grupo['folio']), isDarkMode)),
+              Expanded(
+                  flex: 2,
+                  child: _buildDetailRow('Tipo:',
+                      _getValidatedValue(grupo['tipoGrupo']), isDarkMode)),
+            ],
+          ),
+          SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                  flex: 3,
+                  child: _buildDetailRow('Adicional:',
+                      _getValidatedValue(grupo['isAdicional']), isDarkMode)),
+              Expanded(
+                  flex: 2,
+                  child: _buildDetailRow('Fecha Creación:',
+                      _formatearFecha(grupo['fCreacion']), isDarkMode)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getColorForEstado(String estado) {
+    switch (estado.toLowerCase()) {
+      case 'liquidado':
+        return Color(0xFFFAA300);
+      case 'disponible':
+        return Colors.green;
+      case 'finalizado':
+        return Colors.red;
+      case 'activo':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget _buildInformacionGeneralTab(bool isDarkMode) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle('Cuentas de Banco', isDarkMode),
+                      Container(
+                        margin: EdgeInsets.symmetric(
+                            horizontal: 4.0, vertical: 4.0),
+                        height: 180,
+                        width: double.infinity,
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDarkMode ? Colors.grey[800] : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                                color:
+                                    isDarkMode ? Colors.black : Colors.black26,
+                                blurRadius: 3,
+                                offset: Offset(0, 1)),
+                          ],
+                        ),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (clienteData!['cuentabanco'] is List)
+                                for (var cuenta
+                                    in clienteData!['cuentabanco']) ...[
+                                  _buildDetailRow(
+                                      'Banco:',
+                                      _getValidatedValue(cuenta['nombreBanco']),
+                                      isDarkMode),
+                                  _buildDetailRow(
+                                      'Núm. de Cuenta:',
+                                      _getValidatedValue(cuenta['numCuenta']),
+                                      isDarkMode),
+                                  _buildDetailRow(
+                                      'CLABE Interbancaria:',
+                                      _getValidatedValue(cuenta['clbIntBanc']),
+                                      isDarkMode),
+                                  _buildDetailRow(
+                                      'Núm. de Tarjeta:',
+                                      _getValidatedValue(cuenta['numTarjeta']),
+                                      isDarkMode),
+                                  SizedBox(height: 16),
+                                ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle('Datos Adicionales', isDarkMode),
+                      Container(
+                        margin: EdgeInsets.symmetric(
+                            horizontal: 4.0, vertical: 4.0),
+                        height: 180,
+                        width: double.infinity,
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDarkMode ? Colors.grey[800] : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                                color:
+                                    isDarkMode ? Colors.black : Colors.black26,
+                                blurRadius: 3,
+                                offset: Offset(0, 1))
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (clienteData!['adicionales'] is List)
+                              for (var adicional
+                                  in clienteData!['adicionales']) ...[
+                                _buildDetailRow(
+                                    'CURP:', adicional['curp'], isDarkMode),
+                                _buildDetailRow(
+                                    'RFC:', adicional['rfc'], isDarkMode),
+                                _buildDetailRow('Clv Elector:',
+                                    adicional['clvElector'], isDarkMode),
+                                SizedBox(height: 16),
+                              ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle('Inf. del Cónyuge', isDarkMode),
+                      Container(
+                        margin: EdgeInsets.symmetric(
+                            horizontal: 4.0, vertical: 4.0),
+                        height: 180,
+                        width: double.infinity,
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isDarkMode ? Colors.grey[800] : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                                color:
+                                    isDarkMode ? Colors.black : Colors.black26,
+                                blurRadius: 3,
+                                offset: Offset(0, 1))
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildDetailRow('Nombre:',
+                                _getConyugeValue('nombreConyuge'), isDarkMode),
+                            _buildDetailRow(
+                                'Teléfono:',
+                                _getConyugeValue('telefonoConyuge'),
+                                isDarkMode),
+                            _buildDetailRow(
+                                'Ocupacion:',
+                                _getConyugeValue('ocupacionConyuge'),
+                                isDarkMode),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            _buildSectionTitle('Domicilio', isDarkMode),
+            if (clienteData!['domicilios'] is List)
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[800] : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                        color: isDarkMode ? Colors.black : Colors.black26,
+                        blurRadius: 3,
+                        offset: Offset(0, 1))
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var domicilio in clienteData!['domicilios']) ...[
+                      _buildAddresses(domicilio, isDarkMode),
+                      SizedBox(height: 16),
+                    ],
+                  ],
+                ),
+              ),
+            SizedBox(height: 16),
+            _buildSectionTitle('Ingresos y Egresos', isDarkMode),
+            if (clienteData!['ingresos_egresos'] is List)
+              _buildIncomeInfo(clienteData!['ingresos_egresos'], isDarkMode),
+            SizedBox(height: 16),
+            _buildSectionTitle('Referencias', isDarkMode),
+            if (clienteData!['referencias'] is List)
+              _buildReferences(clienteData!['referencias'], isDarkMode),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- El resto de tus widgets (_buildDetailRow, etc.) no necesitan cambios ---
+  // ... (Pega aquí el resto de tus funciones helper sin modificar) ...
+
   String _getConyugeValue(String key) {
-    if (clienteData == null || !clienteData!.containsKey(key)) {
+    if (clienteData == null || !clienteData!.containsKey(key))
       return 'No asignado';
-    }
     final value = clienteData![key];
-    if (value == null ||
-        value == "null" ||
-        (value is String && value.isEmpty)) {
+    if (value == null || value == "null" || (value is String && value.isEmpty))
       return 'No asignado';
-    }
-    return value.toString(); // Asegura que el valor sea una cadena
+    return value.toString();
   }
 
   Widget _buildSectionTitle(String title, bool isDarkMode) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color:
-              isDarkMode ? Colors.white : Colors.black, // Texto oscuro o claro
-        ),
-      ),
-    );
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Text(title,
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isDarkMode ? Colors.white : Colors.black)));
   }
 
   Widget _buildDetailRow(String title, String? value, bool isDarkMode) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Text(
-        '$title $value',
-        style: TextStyle(
-          fontSize: 12,
-          color:
-              isDarkMode ? Colors.white : Colors.black, // Texto oscuro o claro
-        ),
-      ),
-    );
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: RichText(
+          text: TextSpan(
+            style: TextStyle(
+                fontSize: 12,
+                color: isDarkMode ? Colors.white70 : Colors.black87,
+                fontFamily: 'Roboto'),
+            children: [
+              TextSpan(
+                  text: '$title ',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              TextSpan(text: value ?? 'N/A'),
+            ],
+          ),
+        ));
   }
 
-  Widget _buildDetailRowIG(String title, String? value, {String? tooltip}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: tooltip != null
-          ? Tooltip(
-              message: tooltip,
-              child: Text(
-                '$title $value',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white,
-                ),
-              ),
-            )
-          : Text(
-              '$title $value',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white,
-              ),
-            ),
-    );
+  Widget _buildDetailRowIGFlexible(String title, String? value,
+      {String? tooltip, bool isTitle = false, double? fontSize}) {
+    double finalFontSize = fontSize ?? (isTitle ? 16.0 : 12.0);
+    FontWeight fontWeight = isTitle ? FontWeight.bold : FontWeight.normal;
+    Widget textWidget = Text('$title ${value ?? ''}',
+        style: TextStyle(
+            fontSize: finalFontSize,
+            fontWeight: fontWeight,
+            color: Colors.white),
+        textAlign: isTitle ? TextAlign.center : TextAlign.center,
+        overflow: TextOverflow.visible,
+        softWrap: true,
+        maxLines: isTitle ? 3 : 2);
+    return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+        child: tooltip != null
+            ? Tooltip(message: tooltip, child: textWidget)
+            : textWidget);
   }
 
   Widget _buildIncomeInfo(List<dynamic> ingresos, bool isDarkMode) {
-    final List<dynamic> ingresosValidos = ingresos.where((ingreso) {
-      return ingreso != null &&
-          (ingreso['tipo_info'] != null ||
-              ingreso['años_actividad'] != null ||
-              ingreso['descripcion'] != null ||
-              ingreso['monto_semanal'] != null ||
-              ingreso['fCreacion'] != null);
-    }).toList();
-
-    if (ingresosValidos.isEmpty) {
+    final List<dynamic> ingresosValidos = ingresos
+        .where((ingreso) =>
+            ingreso != null &&
+            (ingreso['tipo_info'] != null ||
+                ingreso['años_actividad'] != null ||
+                ingreso['descripcion'] != null ||
+                ingreso['monto_semanal'] != null ||
+                ingreso['fCreacion'] != null))
+        .toList();
+    if (ingresosValidos.isEmpty)
       return Center(
-        child: Text(
-          'No hay ingresos disponibles',
-          style: TextStyle(
-            fontSize: 16,
-            color:
-                isDarkMode ? Colors.white : Colors.grey, // Texto oscuro o claro
-          ),
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        SingleChildScrollView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          physics: ClampingScrollPhysics(),
-          child: Row(
+          child: Text('No hay ingresos disponibles',
+              style: TextStyle(
+                  fontSize: 16,
+                  color: isDarkMode ? Colors.white : Colors.grey)));
+    return Stack(children: [
+      SingleChildScrollView(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        physics: ClampingScrollPhysics(),
+        child: Row(
             children: ingresosValidos.map<Widget>((ingreso) {
-              double montoSemanal;
-              if (ingreso['monto_semanal'] is String) {
-                montoSemanal = double.tryParse(ingreso['monto_semanal']) ?? 0.0;
-              } else {
-                montoSemanal = ingreso['monto_semanal'] ?? 0.0;
-              }
-
-              String montoFormateado =
-                  montoSemanal.toString().replaceAll(RegExp(r'\.0*$'), '');
-
-              return Container(
-                margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-                decoration: BoxDecoration(
-                  color: isDarkMode
-                      ? Colors.grey[800]
-                      : Colors.white, // Fondo oscuro o claro
+          double montoSemanal = (ingreso['monto_semanal'] is String
+                  ? double.tryParse(ingreso['monto_semanal'])
+                  : ingreso['monto_semanal']) ??
+              0.0;
+          String montoFormateado =
+              montoSemanal.toString().replaceAll(RegExp(r'\.0*$'), '');
+          return Container(
+              margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+              decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[800] : Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: isDarkMode
-                          ? Colors.black
-                          : Colors.black26, // Sombra oscura o clara
-                      blurRadius: 3,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildDetailRow(
-                        'Tipo de Info:', ingreso['tipo_info'], isDarkMode),
-                    _buildDetailRow('Años de Actividad:',
-                        ingreso['años_actividad'], isDarkMode),
-                    _buildDetailRow(
-                        'Descripción:', ingreso['descripcion'], isDarkMode),
-                    _buildDetailRow(
-                        'Monto Semanal:', montoFormateado, isDarkMode),
-                    /*  _buildDetailRow(
-                        'Fecha Creación:', ingreso['fCreacion'], isDarkMode), */
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        Positioned(
+                        color: isDarkMode ? Colors.black : Colors.black26,
+                        blurRadius: 3,
+                        offset: Offset(0, 2))
+                  ]),
+              padding: const EdgeInsets.all(8.0),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                _buildDetailRow(
+                    'Tipo de Info:', ingreso['tipo_info'], isDarkMode),
+                _buildDetailRow('Años de Actividad:', ingreso['años_actividad'],
+                    isDarkMode),
+                _buildDetailRow(
+                    'Descripción:', ingreso['descripcion'], isDarkMode),
+                _buildDetailRow('Monto Semanal:', montoFormateado, isDarkMode)
+              ]));
+        }).toList()),
+      ),
+      Positioned(
           left: 0,
           top: 50,
           child: IconButton(
-            icon:
-                Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
-            onPressed: () {
-              if (_scrollController.hasClients) {
-                _scrollController
-                    .jumpTo(_scrollController.position.pixels - 100);
-              }
-            },
-          ),
-        ),
-        Positioned(
+              icon: Icon(Icons.arrow_back_ios,
+                  color: Color(0xFF5162F6), size: 20),
+              onPressed: () => _scrollController.hasClients
+                  ? _scrollController
+                      .jumpTo(_scrollController.position.pixels - 100)
+                  : null)),
+      Positioned(
           right: 0,
           top: 50,
           child: IconButton(
-            icon: Icon(Icons.arrow_forward_ios,
-                color: Color(0xFF5162F6), size: 20),
-            onPressed: () {
-              if (_scrollController.hasClients) {
-                _scrollController
-                    .jumpTo(_scrollController.position.pixels + 100);
-              }
-            },
-          ),
-        ),
-      ],
-    );
+              icon: Icon(Icons.arrow_forward_ios,
+                  color: Color(0xFF5162F6), size: 20),
+              onPressed: () => _scrollController.hasClients
+                  ? _scrollController
+                      .jumpTo(_scrollController.position.pixels + 100)
+                  : null)),
+    ]);
   }
 
   Widget _buildReferences(List<dynamic> referencias, bool isDarkMode) {
     final ScrollController _scrollController = ScrollController();
-
-    final List<dynamic> referenciasValidas = referencias.where((referencia) {
-      return referencia != null &&
-          (referencia['nombres'] != null ||
-              referencia['apellidoP'] != null ||
-              referencia['apellidoM'] != null ||
-              referencia['parentescoRefProp'] != null ||
-              referencia['telefono'] != null ||
-              referencia['timepoCo'] != null ||
-              (referencia['domicilio_ref'] is List &&
-                  referencia['domicilio_ref'].isNotEmpty));
-    }).toList();
-
-    if (referenciasValidas.isEmpty) {
+    final List<dynamic> referenciasValidas = referencias
+        .where((ref) =>
+            ref != null &&
+            (ref['nombres'] != null ||
+                ref['apellidoP'] != null ||
+                ref['apellidoM'] != null ||
+                ref['parentescoRefProp'] != null ||
+                ref['telefono'] != null ||
+                ref['timepoCo'] != null ||
+                (ref['domicilio_ref'] is List &&
+                    ref['domicilio_ref'].isNotEmpty)))
+        .toList();
+    if (referenciasValidas.isEmpty)
       return Center(
-        child: Text(
-          'No hay referencias disponibles',
-          style: TextStyle(
-            fontSize: 16,
-            color:
-                isDarkMode ? Colors.white : Colors.grey, // Texto oscuro o claro
-          ),
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        SingleChildScrollView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          physics: NeverScrollableScrollPhysics(),
-          child: Row(
+          child: Text('No hay referencias disponibles',
+              style: TextStyle(
+                  fontSize: 16,
+                  color: isDarkMode ? Colors.white : Colors.grey)));
+    return Stack(children: [
+      SingleChildScrollView(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        physics: NeverScrollableScrollPhysics(),
+        child: Row(
             children: referenciasValidas.map<Widget>((referencia) {
-              return Container(
-                width: 650,
-                margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-                decoration: BoxDecoration(
-                  color: isDarkMode
-                      ? Colors.grey[800]
-                      : Colors.white, // Fondo oscuro o claro
+          return Container(
+              width: 650,
+              margin: EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
+              decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.grey[800] : Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: isDarkMode
-                          ? Colors.black
-                          : Colors.black26, // Sombra oscura o clara
-                      blurRadius: 3,
-                      offset: Offset(0, 2),
-                    )
-                  ],
-                ),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}',
-                            style: TextStyle(
+                        color: isDarkMode ? Colors.black : Colors.black26,
+                        blurRadius: 3,
+                        offset: Offset(0, 2))
+                  ]),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Row(children: [
+                  Expanded(
+                      child: Text(
+                          '${referencia['nombres']} ${referencia['apellidoP']} ${referencia['apellidoM']}',
+                          style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: isDarkMode
-                                  ? Colors.white
-                                  : Colors.black, // Texto oscuro o claro
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDetailRow('Parentesco:',
-                              referencia['parentescoRefProp'], isDarkMode),
-                        ),
-                        Expanded(
-                          child: _buildDetailRow(
-                              'Teléfono:', referencia['telefono'], isDarkMode),
-                        ),
-                        Expanded(
-                          child: _buildDetailRow('Tiempo de Conocer:',
-                              referencia['tiempoCo'], isDarkMode),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(
-                            'Domicilio',
-                            style: TextStyle(
+                              color: isDarkMode ? Colors.white : Colors.black)))
+                ]),
+                Row(children: [
+                  Expanded(
+                      child: _buildDetailRow('Parentesco:',
+                          referencia['parentescoRefProp'], isDarkMode)),
+                  Expanded(
+                      child: _buildDetailRow(
+                          'Teléfono:', referencia['telefono'], isDarkMode)),
+                  Expanded(
+                      child: _buildDetailRow('Tiempo de Conocer:',
+                          referencia['tiempoCo'], isDarkMode))
+                ]),
+                Row(children: [
+                  Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text('Domicilio',
+                          style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: isDarkMode
-                                  ? Colors.white
-                                  : Colors.black, // Texto oscuro o claro
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Determinar si hay al menos un domicilio válido
-                    Builder(
-                      builder: (context) {
-                        // Verificamos si hay algún domicilio válido
-                        bool hayDomicilioValido = false;
-                        if (referencia['domicilio_ref'] is List &&
-                            referencia['domicilio_ref'].isNotEmpty) {
-                          for (var domicilio in referencia['domicilio_ref']) {
-                            if (!_isDomicilioEmpty(domicilio)) {
-                              hayDomicilioValido = true;
-                              break;
-                            }
-                          }
-                        }
-
-                        // Si hay al menos un domicilio válido, mostramos solo los domicilios válidos
-                        if (hayDomicilioValido) {
-                          return Column(
-                            children: (referencia['domicilio_ref'] as List)
-                                .where((domicilio) =>
-                                    !_isDomicilioEmpty(domicilio))
-                                .map<Widget>((domicilio) =>
-                                    _buildAddresses(domicilio, isDarkMode))
-                                .toList(),
-                          );
-                        }
-                        // Si no hay domicilios válidos, mostramos el mensaje una sola vez
-                        else {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              'Esta referencia no cuenta con domicilio',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isDarkMode
-                                    ? Colors.white
-                                    : Colors.grey, // Texto oscuro o claro
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        Positioned(
+                              color: isDarkMode ? Colors.white : Colors.black)))
+                ]),
+                Builder(builder: (context) {
+                  bool hayDomicilioValido =
+                      (referencia['domicilio_ref'] is List &&
+                              referencia['domicilio_ref'].isNotEmpty) &&
+                          (referencia['domicilio_ref'] as List)
+                              .any((dom) => !_isDomicilioEmpty(dom));
+                  if (hayDomicilioValido)
+                    return Column(
+                        children: (referencia['domicilio_ref'] as List)
+                            .where((dom) => !_isDomicilioEmpty(dom))
+                            .map<Widget>(
+                                (dom) => _buildAddresses(dom, isDarkMode))
+                            .toList());
+                  return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text('Esta referencia no cuenta con domicilio',
+                          style: TextStyle(
+                              fontSize: 14,
+                              color: isDarkMode ? Colors.white : Colors.grey)));
+                }),
+              ]));
+        }).toList()),
+      ),
+      Positioned(
           left: 0,
           top: 80,
           child: IconButton(
-            icon:
-                Icon(Icons.arrow_back_ios, color: Color(0xFF5162F6), size: 20),
-            onPressed: () {
-              if (_scrollController.hasClients) {
-                _scrollController
-                    .jumpTo(_scrollController.position.pixels - 600);
-              }
-            },
-          ),
-        ),
-        Positioned(
+              icon: Icon(Icons.arrow_back_ios,
+                  color: Color(0xFF5162F6), size: 20),
+              onPressed: () => _scrollController.hasClients
+                  ? _scrollController
+                      .jumpTo(_scrollController.position.pixels - 600)
+                  : null)),
+      Positioned(
           right: 0,
           top: 80,
           child: IconButton(
-            icon: Icon(Icons.arrow_forward_ios,
-                color: Color(0xFF5162F6), size: 20),
-            onPressed: () {
-              if (_scrollController.hasClients) {
-                _scrollController
-                    .jumpTo(_scrollController.position.pixels + 600);
-              }
-            },
-          ),
-        ),
-      ],
-    );
+              icon: Icon(Icons.arrow_forward_ios,
+                  color: Color(0xFF5162F6), size: 20),
+              onPressed: () => _scrollController.hasClients
+                  ? _scrollController
+                      .jumpTo(_scrollController.position.pixels + 600)
+                  : null)),
+    ]);
   }
 
   Widget _buildAddresses(Map<String, dynamic> domicilio, bool isDarkMode) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            SizedBox(height: 8),
-            Expanded(
-              child: _buildDetailRow('Tipo Domicilio:',
-                  _getValidatedValue(domicilio['tipo_domicilio']), isDarkMode),
-            ),
-            Expanded(
-              child: _buildDetailRow(
-                  'Propietario:',
-                  _getValidatedValue(domicilio['nombre_propietario']),
-                  isDarkMode),
-            ),
-            Expanded(
-              child: _buildDetailRow('Parentesco:',
-                  _getValidatedValue(domicilio['parentesco']), isDarkMode),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            Expanded(
-                child: _buildDetailRow('Calle:',
-                    _getValidatedValue(domicilio['calle']), isDarkMode)),
-            Expanded(
-                child: _buildDetailRow('Número Ext:',
-                    _getValidatedValue(domicilio['nExt']), isDarkMode)),
-            Expanded(
-                child: _buildDetailRow('Número Int:',
-                    _getValidatedValue(domicilio['nInt']), isDarkMode)),
-          ],
-        ),
-        Row(
-          children: [
-            Expanded(
-                child: _buildDetailRow('Colonia:',
-                    _getValidatedValue(domicilio['colonia']), isDarkMode)),
-            Expanded(
-                child: _buildDetailRow('Estado:',
-                    _getValidatedValue(domicilio['estado']), isDarkMode)),
-            Expanded(
-                child: _buildDetailRow('Municipio:',
-                    _getValidatedValue(domicilio['municipio']), isDarkMode)),
-          ],
-        ),
-        Row(
-          children: [
-            Expanded(
-                child: _buildDetailRow('Código Postal:',
-                    _getValidatedValue(domicilio['cp']), isDarkMode)),
-            Expanded(
-                child: _buildDetailRow('Entre Calles:',
-                    _getValidatedValue(domicilio['entreCalle']), isDarkMode)),
-            Expanded(
-                child: _buildDetailRow(
-                    'Tiempo Viviendo:',
-                    _getValidatedValue(domicilio['tiempoViviendo']),
-                    isDarkMode)),
-          ],
-        ),
-      ],
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        SizedBox(height: 8),
+        Expanded(
+            child: _buildDetailRow('Tipo Domicilio:',
+                _getValidatedValue(domicilio['tipo_domicilio']), isDarkMode)),
+        Expanded(
+            child: _buildDetailRow(
+                'Propietario:',
+                _getValidatedValue(domicilio['nombre_propietario']),
+                isDarkMode)),
+        Expanded(
+            child: _buildDetailRow('Parentesco:',
+                _getValidatedValue(domicilio['parentesco']), isDarkMode))
+      ]),
+      Row(children: [
+        Expanded(
+            child: _buildDetailRow(
+                'Calle:', _getValidatedValue(domicilio['calle']), isDarkMode)),
+        Expanded(
+            child: _buildDetailRow('Número Ext:',
+                _getValidatedValue(domicilio['nExt']), isDarkMode)),
+        Expanded(
+            child: _buildDetailRow('Número Int:',
+                _getValidatedValue(domicilio['nInt']), isDarkMode))
+      ]),
+      Row(children: [
+        Expanded(
+            child: _buildDetailRow('Colonia:',
+                _getValidatedValue(domicilio['colonia']), isDarkMode)),
+        Expanded(
+            child: _buildDetailRow('Estado:',
+                _getValidatedValue(domicilio['estado']), isDarkMode)),
+        Expanded(
+            child: _buildDetailRow('Municipio:',
+                _getValidatedValue(domicilio['municipio']), isDarkMode))
+      ]),
+      Row(children: [
+        Expanded(
+            child: _buildDetailRow('Código Postal:',
+                _getValidatedValue(domicilio['cp']), isDarkMode)),
+        Expanded(
+            child: _buildDetailRow('Entre Calles:',
+                _getValidatedValue(domicilio['entreCalle']), isDarkMode)),
+        Expanded(
+            child: _buildDetailRow('Tiempo Viviendo:',
+                _getValidatedValue(domicilio['tiempoViviendo']), isDarkMode))
+      ]),
+    ]);
   }
 
-// Función para verificar si un domicilio está vacío (todos sus campos relevantes son null o vacíos)
   bool _isDomicilioEmpty(Map<String, dynamic> domicilio) {
-    // Lista de los campos que representan información esencial del domicilio
     final camposDomicilio = [
       'tipo_domicilio',
       'nombre_propietario',
@@ -1079,25 +1309,13 @@ class _InfoClienteState extends State<InfoCliente> {
       'entreCalle',
       'tiempoViviendo'
     ];
-
-    // Verifica cada campo
-    bool todosVacios = true;
-    for (var campo in camposDomicilio) {
-      if (domicilio[campo] != null &&
-          domicilio[campo].toString().trim().isNotEmpty) {
-        todosVacios = false;
-        break; // Si al menos un campo tiene valor, el domicilio no está vacío
-      }
-    }
-
-    return todosVacios; // Si todos los campos están vacíos o son null
+    return camposDomicilio.every((campo) =>
+        domicilio[campo] == null || domicilio[campo].toString().trim().isEmpty);
   }
 
-  // Helper method to handle null and empty values
   String _getValidatedValue(dynamic value) {
-    if (value == null || (value is String && value.trim().isEmpty)) {
+    if (value == null || (value is String && value.trim().isEmpty))
       return 'No asignado';
-    }
     return value.toString();
   }
 }
