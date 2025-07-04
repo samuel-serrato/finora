@@ -530,72 +530,39 @@ class _BitacoraScreenState extends State<BitacoraScreen> {
     DateTime? picked = await showDatePicker(
       context: context,
       initialDate: selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
+      firstDate: DateTime(1900),
       lastDate: DateTime.now(),
       helpText: 'Selecciona fecha',
       cancelText: 'Cancelar',
       confirmText: 'Confirmar',
+      locale: const Locale('es', 'ES'),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            datePickerTheme: DatePickerThemeData(
-              backgroundColor: isDarkMode ? Color(0xFF3A3D4E) : Colors.white,
-              headerBackgroundColor:
-                  isDarkMode ? Color(0xFF5162F6) : Colors.blue,
-              headerForegroundColor: Colors.white,
-              dayForegroundColor: MaterialStateProperty.resolveWith(
-                (states) => states.contains(MaterialState.selected)
-                    ? Colors.white
-                    : isDarkMode
-                        ? Colors.white
-                        : null,
-              ),
-              yearForegroundColor: MaterialStateProperty.resolveWith(
-                (states) => states.contains(MaterialState.selected)
-                    ? Colors.white
-                    : isDarkMode
-                        ? Colors.white
-                        : null,
-              ),
-              dayBackgroundColor: MaterialStateProperty.resolveWith(
-                (states) => states.contains(MaterialState.selected)
-                    ? isDarkMode
-                        ? Color(0xFF5162F6)
-                        : Colors.blue
-                    : null,
-              ),
-              yearBackgroundColor: MaterialStateProperty.resolveWith(
-                (states) => states.contains(MaterialState.selected)
-                    ? isDarkMode
-                        ? Color(0xFF5162F6)
-                        : Colors.blue
-                    : null,
-              ),
-              weekdayStyle: TextStyle(
-                color: isDarkMode ? Colors.white70 : Colors.black87,
-              ),
-            ),
-            colorScheme: ColorScheme(
-              brightness: isDarkMode ? Brightness.dark : Brightness.light,
-              primary: isDarkMode ? Color(0xFF5162F6) : Colors.blue,
-              onPrimary: Colors.white,
-              secondary: isDarkMode ? Color(0xFF5162F6) : Colors.blue,
-              onSecondary: Colors.white,
-              error: isDarkMode ? Colors.redAccent : Colors.red,
-              onError: Colors.white,
-              background: isDarkMode ? Color(0xFF2A2D3E) : Colors.white,
-              onBackground: isDarkMode ? Colors.white : Colors.black,
-              surface: isDarkMode ? Color(0xFF3A3D4E) : Colors.white,
-              onSurface: isDarkMode ? Colors.white : Colors.black,
-            ),
-          ),
+          data: isDarkMode
+              ? ThemeData.dark().copyWith(
+                  colorScheme: ColorScheme.dark().copyWith(
+                    primary: const Color(0xFF5162F6),
+                    surface: const Color(0xFF303030),
+                    onSurface: Colors.white,
+                  ),
+                  dialogBackgroundColor: const Color(0xFF2B2B2B),
+                )
+              : ThemeData.light().copyWith(
+                  colorScheme: ColorScheme.light().copyWith(
+                    primary: const Color(0xFF5162F6),
+                    onPrimary: Colors.white,
+                  ),
+                ),
           child: child!,
         );
       },
     );
 
     if (picked != null) {
-      setState(() => selectedDate = picked);
+      setState(() {
+        selectedDate = picked;
+        // No se usa _fechaController aquí
+      });
     }
   }
 
