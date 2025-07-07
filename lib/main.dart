@@ -244,8 +244,84 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WindowListener {
+
+    // <<< CAMBIO: Añadimos initState para configurar el listener
+  @override
+  void initState() {
+    super.initState();
+    windowManager.addListener(this);
+    _init();
+  }
+
+   // <<< CAMBIO: Función auxiliar para el código asíncrono
+  void _init() async {
+    // Esto previene que la ventana se cierre de golpe
+    await windowManager.setPreventClose(true);
+    // Un setState vacío puede ayudar a refrescar si es necesario, aunque a menudo no lo es.
+    setState(() {});
+  }
+
+  // <<< CAMBIO: No olvides remover el listener para evitar fugas de memoria
+  @override
+  void dispose() {
+    windowManager.removeListener(this);
+    super.dispose();
+  }
+
+   // <<< CAMBIO: Aquí está la magia. Se ejecuta al presionar la 'X'
+  @override
+  void onWindowClose() {
+    // Obtenemos el UserDataProvider para ver si el usuario ha iniciado sesión.
+    // Usamos `listen: false` porque estamos fuera del árbol de widgets del build.
+    // Asumo que tu UserDataProvider tiene una propiedad booleana como `isLoggedIn`.
+    // Si la propiedad se llama diferente, ajústala aquí.
+    final userDataProvider = Provider.of<UserDataProvider>(context, listen: false);
+
+    // Si el usuario ha iniciado sesión, mostramos el diálogo.
+    if (userDataProvider.isLoggedIn) { // <-- AJUSTA `isLoggedIn` si tu variable se llama diferente
+      showDialog(
+        context: context, // Podemos usar `context` directamente aquí
+        builder: (_) {
+          // Usamos el ThemeProvider para que el diálogo se vea bien en modo claro/oscuro
+          final themeProvider = Provider.of<ThemeProvider>(context);
+          return AlertDialog(
+            title: const Text('¿Cerrar Finora?'),
+            content: const Text(
+                'Por seguridad, te recomendamos cerrar sesión desde tu perfil antes de salir de la aplicación.'),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancelar'),
+                onPressed: () {
+                  Navigator.of(context).pop(); // Cierra solo el diálogo
+                },
+              ),
+              // Botón para cerrar de todas formas
+              TextButton(
+                child: Text('Cerrar de todos modos', style: TextStyle(color: themeProvider.isDarkMode ? Colors.red.shade300 : Colors.red.shade700)),
+                onPressed: () async {
+                  // Cierra el diálogo y luego destruye la ventana de la app
+                  Navigator.of(context).pop();
+                  await windowManager.destroy();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      // Si el usuario no ha iniciado sesión (está en el login), cerramos sin preguntar.
+      windowManager.destroy();
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {

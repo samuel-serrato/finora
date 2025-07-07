@@ -20,6 +20,10 @@ class UserDataProvider extends ChangeNotifier {
   String get idusuario => _idusuario;
   double get redondeo => _redondeo;
 
+  // <<< AÑADE ESTE GETTER
+  // Devuelve `true` si el _idusuario NO está vacío, `false` en caso contrario.
+  bool get isLoggedIn => _idusuario.isNotEmpty;
+
   // Setters
   void setUserData({
     required String nombreNegocio,
@@ -38,6 +42,18 @@ class UserDataProvider extends ChangeNotifier {
     _idusuario = idusuario;
     _redondeo = redondeo;
     notifyListeners(); // Notifica a los listeners que los datos han cambiado
+  }
+
+    // <<< OPCIONAL PERO RECOMENDADO: Un método para limpiar los datos al cerrar sesión
+  void clearUserData() {
+    _nombreNegocio = '';
+    _imagenes = [];
+    _nombreUsuario = '';
+    _tipoUsuario = '';
+    _idnegocio = '';
+    _idusuario = '';
+    _redondeo = 0;
+    notifyListeners();
   }
 
   // En el UserDataProvider, añade este método
