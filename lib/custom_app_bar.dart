@@ -29,7 +29,41 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       required this.toggleDarkMode,
       required this.title});
 
+  // --- FUNCIÓN MODIFICADA ---
   Future<void> _logoutUser(BuildContext context) async {
+    // 1. Mostrar el diálogo de carga ANTES de iniciar la petición.
+    showDialog(
+      context: context,
+      barrierDismissible: false, // El usuario no puede cerrar el diálogo
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: Container(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: Color(0xFF5162F6),
+                  /*  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).primaryColor,
+                  ), */
+                ),
+                SizedBox(height: 20),
+                Text(
+                  'Cerrando sesión...',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('tokenauth') ?? '';
 
@@ -43,6 +77,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           'Content-Type': 'application/json',
         },
       );
+
+      // Es buena práctica verificar si el widget sigue montado antes de usar el context.
+      if (!context.mounted) return;
+
+      // 2. Cerrar el diálogo de carga DESPUÉS de recibir la respuesta.
+      Navigator.pop(context);
 
       if (response.statusCode == 200) {
         await prefs.remove('tokenauth');
@@ -62,6 +102,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         );
       }
     } catch (e) {
+      if (!context.mounted) return;
+
+      // 2. Cerrar el diálogo también si ocurre un error.
+      Navigator.pop(context);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error de conexión: $e')),
       );

@@ -1,6 +1,9 @@
 // providers/user_data_provider.dart
+import 'package:finora/ip.dart';
 import 'package:finora/models/image_data.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UserDataProvider extends ChangeNotifier {
   String _nombreNegocio = '';
@@ -44,7 +47,7 @@ class UserDataProvider extends ChangeNotifier {
     notifyListeners(); // Notifica a los listeners que los datos han cambiado
   }
 
-    // <<< OPCIONAL PERO RECOMENDADO: Un método para limpiar los datos al cerrar sesión
+  // <<< OPCIONAL PERO RECOMENDADO: Un método para limpiar los datos al cerrar sesión
   void clearUserData() {
     _nombreNegocio = '';
     _imagenes = [];
@@ -54,6 +57,40 @@ class UserDataProvider extends ChangeNotifier {
     _idusuario = '';
     _redondeo = 0;
     notifyListeners();
+  }
+
+  // ---  NUEVO MÉTODO DE LOGOUT CENTRALIZADO ---
+  // Devuelve `true` si el logout fue exitoso, `false` si no.
+  Future<bool> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+
+    // Si no hay token, no podemos hacer logout en el servidor,
+    // pero sí podemos limpiar los datos locales.
+    if (token.isEmpty) {
+      await prefs.remove('tokenauth');
+      clearUserData();
+      return true;
+    }
+
+    try {
+      // Llamada al API para invalidar el token en el backend
+      await http.post(
+        Uri.parse('$baseUrl/api/v1/auth/logout'),
+        headers: {'tokenauth': token},
+      );
+    } catch (e) {
+      // Si hay un error de conexión, lo imprimimos en la consola.
+      // Aún así, procederemos a limpiar los datos locales.
+      print('Error de conexión durante el logout: $e');
+    } finally {
+      // ESTO SE EJECUTA SIEMPRE (con éxito o con error de API).
+      // Es la forma más segura de garantizar que el usuario quede deslogueado en el dispositivo.
+      await prefs.remove('tokenauth');
+      clearUserData(); // Limpia los datos del provider y notifica a los listeners.
+      print('Datos locales y token eliminados.');
+    }
+    return true; // Asumimos éxito si se limpiaron los datos locales.
   }
 
   // En el UserDataProvider, añade este método

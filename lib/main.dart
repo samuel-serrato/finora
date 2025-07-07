@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:finora/dialogs/exit_confirmation_dialog.dart';
 import 'package:finora/ip.dart';
 import 'package:finora/providers/logo_provider.dart';
 import 'package:finora/providers/theme_provider.dart';
@@ -252,76 +253,91 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WindowListener {
-
-    // <<< CAMBIO: Añadimos initState para configurar el listener
   @override
   void initState() {
     super.initState();
+    // Añadimos esta clase como "oyente" de los eventos de la ventana.
     windowManager.addListener(this);
     _init();
   }
 
-   // <<< CAMBIO: Función auxiliar para el código asíncrono
+  // Función asíncrona para inicializar lo que necesite `await`.
+  // Es una buena práctica para no hacer el initState asíncrono.
   void _init() async {
-    // Esto previene que la ventana se cierre de golpe
+    // ESTA LÍNEA ES CRUCIAL:
+    // Le dice al sistema operativo que no cierre la ventana por defecto.
+    // En su lugar, emitirá el evento `onWindowClose`.
     await windowManager.setPreventClose(true);
-    // Un setState vacío puede ayudar a refrescar si es necesario, aunque a menudo no lo es.
-    setState(() {});
+    // Este setState es opcional, pero a veces ayuda a asegurar que el widget
+    // se reconstruya después de una operación asíncrona en init.
+    if (mounted) {
+      setState(() {});
+    }
   }
 
-  // <<< CAMBIO: No olvides remover el listener para evitar fugas de memoria
   @override
   void dispose() {
+    // Es muy importante remover el "oyente" para evitar fugas de memoria.
     windowManager.removeListener(this);
     super.dispose();
   }
 
-   // <<< CAMBIO: Aquí está la magia. Se ejecuta al presionar la 'X'
+  // ¡AQUÍ ESTÁ LA MAGIA!
+  // Este método se llama automáticamente cuando se presiona la 'X'
+  // gracias a `setPreventClose(true)`.
   @override
   void onWindowClose() {
-    // Obtenemos el UserDataProvider para ver si el usuario ha iniciado sesión.
-    // Usamos `listen: false` porque estamos fuera del árbol de widgets del build.
-    // Asumo que tu UserDataProvider tiene una propiedad booleana como `isLoggedIn`.
-    // Si la propiedad se llama diferente, ajústala aquí.
-    final userDataProvider = Provider.of<UserDataProvider>(context, listen: false);
+    // PASO DE DEPURACIÓN: Imprimimos en la consola para ver qué pasa.
+    // Revisa tu consola de depuración de VS Code o Android Studio al cerrar.
+    print("onWindowClose() ha sido llamado.");
 
-    // Si el usuario ha iniciado sesión, mostramos el diálogo.
-    if (userDataProvider.isLoggedIn) { // <-- AJUSTA `isLoggedIn` si tu variable se llama diferente
-      showDialog(
-        context: context, // Podemos usar `context` directamente aquí
-        builder: (_) {
-          // Usamos el ThemeProvider para que el diálogo se vea bien en modo claro/oscuro
-          final themeProvider = Provider.of<ThemeProvider>(context);
-          return AlertDialog(
-            title: const Text('¿Cerrar Finora?'),
-            content: const Text(
-                'Por seguridad, te recomendamos cerrar sesión desde tu perfil antes de salir de la aplicación.'),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Cancelar'),
-                onPressed: () {
-                  Navigator.of(context).pop(); // Cierra solo el diálogo
-                },
-              ),
-              // Botón para cerrar de todas formas
-              TextButton(
-                child: Text('Cerrar de todos modos', style: TextStyle(color: themeProvider.isDarkMode ? Colors.red.shade300 : Colors.red.shade700)),
-                onPressed: () async {
-                  // Cierra el diálogo y luego destruye la ventana de la app
-                  Navigator.of(context).pop();
-                  await windowManager.destroy();
-                },
-              ),
-            ],
-          );
-        },
-      );
+    // Obtenemos el UserDataProvider. `listen: false` es importante aquí
+    // porque no estamos en un método `build`.
+    final userDataProvider =
+        Provider.of<UserDataProvider>(context, listen: false);
+
+    // DEPURACIÓN: Verificamos el valor real de la variable.
+    // Si aquí ves "isLoggedIn: false", ¡ese es tu problema!
+    print("Estado de login según el provider: ${userDataProvider.isLoggedIn}");
+
+    // Verificamos si el usuario ha iniciado sesión.
+    // **ASEGÚRATE DE QUE `isLoggedIn` ES EL NOMBRE CORRECTO DE TU VARIABLE
+    // EN `UserDataProvider` Y QUE SE PONE EN `true` AL LOGUEARSE.**
+    if (userDataProvider.isLoggedIn) {
+      // ---->  CAMBIO CLAVE AQUÍ  <----
+      // Obtenemos el contexto del Navigator a través de la GlobalKey.
+      // Este contexto SÍ está "debajo" del MaterialApp y puede mostrar diálogos.
+      final BuildContext? navigatorContext = navigatorKey.currentContext;
+
+      // Si el usuario está logueado, mostramos el diálogo de confirmación.
+      // Es una buena práctica verificar que el contexto no sea nulo antes de usarlo.
+      if (navigatorContext != null) {
+        showDialog(
+          context: navigatorContext,
+          barrierDismissible: false, // El usuario debe elegir una opción
+          builder: (dialogContext) {
+            // El diálogo ahora contiene la lógica de carga internamente.
+            return ExitConfirmationDialog(
+              // La función que le pasas sigue siendo la misma.
+              // El diálogo se encargará de mostrar el "loading" mientras la ejecuta.
+              onLogoutAndExit: () async {
+                // Obtenemos el provider usando el contexto del diálogo para seguridad
+                await Provider.of<UserDataProvider>(dialogContext,
+                        listen: false)
+                    .logout();
+
+                // Si logout() fue exitoso, destruimos la ventana
+                await windowManager.destroy();
+              },
+            );
+          },
+        );
+      }
     } else {
-      // Si el usuario no ha iniciado sesión (está en el login), cerramos sin preguntar.
+      // Si no hay sesión, simplemente cierra.
       windowManager.destroy();
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
