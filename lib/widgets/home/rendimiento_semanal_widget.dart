@@ -1,7 +1,7 @@
 // lib/widgets/rendimiento_semanal_widget.dart
 
-import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:finora/providers/theme_provider.dart';
@@ -61,11 +61,11 @@ class _RendimientoSemanalWidgetState extends State<RendimientoSemanalWidget> {
           end: Alignment.bottomRight,
         ),
       ), */
-            color: isDarkMode ? Colors.grey[850] : Colors.white,
-
+      color: isDarkMode ? Colors.grey[850] : Colors.white,
       child: Row(
         children: [
-          Icon(Icons.insights_rounded, color: isDarkMode ? Colors.white : Colors.black, size: 18),
+          Icon(Icons.insights_rounded,
+              color: isDarkMode ? Colors.white : Colors.black, size: 18),
           SizedBox(width: 10),
           Text(
             'Rendimiento Semanal',
