@@ -37,7 +37,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       barrierDismissible: false, // El usuario no puede cerrar el diálogo
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor:
+              isDarkMode ? Colors.grey[800] : Colors.white, // Color dinámico
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -53,10 +54,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ), */
                 ),
                 SizedBox(height: 20),
-                Text(
-                  'Cerrando sesión...',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
+                Text('Cerrando sesión...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isDarkMode ? Colors.white : Colors.black87,
+                    ) // Color dinámico),
+                    ),
               ],
             ),
           ),
@@ -533,7 +537,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ),
                       ],
                       child: Container(
-                        height: 50,
+                        //height: 50,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
@@ -551,6 +555,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                           ],
                         ),
                         child: Row(
+                                  mainAxisSize: MainAxisSize.min, // Opcional pero recomendado para que el Row no se estire innecesariamente
+
                           children: [
                             CircleAvatar(
                               backgroundColor: Color(0xFF5162F6),

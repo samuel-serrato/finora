@@ -699,7 +699,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
             child: Theme(
               data: Theme.of(context).copyWith(
                 // 1. Color del contenedor principal del diálogo
-                dialogTheme: DialogTheme(
+                dialogTheme: DialogThemeData(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),

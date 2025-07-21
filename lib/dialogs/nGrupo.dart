@@ -48,6 +48,9 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   // Agregamos un mapa para guardar el rol de cada persona seleccionada
   Map<String, String> _rolesSeleccionados = {};
 
+  // ¡NUEVO! Mapa para guardar los montos de adeudo por id de cliente
+  final Map<String, double> _adeudosClientes = {};
+
   late TabController _tabController;
   int _currentIndex = 0;
 
@@ -252,6 +255,46 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         );
       }
       return [];
+    }
+  }
+
+  // Nueva función para verificar si un cliente tiene adeudos
+// Modificamos la función para que devuelva el monto del adeudo o null
+  Future<double?> _verificarAdeudoCliente(String idCliente) async {
+    if (idCliente.isEmpty) return null;
+
+    print('🔍 Verificando adeudos para el cliente: $idCliente');
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      final url = Uri.parse(
+          '$baseUrl/api/v1/grupodetalles/renovacion/clientes/$idCliente');
+
+      final response = await http.get(
+        url,
+        headers: {'tokenauth': token},
+      );
+
+      print(
+          '📥 Respuesta de adeudos [${response.statusCode}]: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        if (data.isNotEmpty && data[0]['descuento'] != null) {
+          // Si hay datos, extraemos el monto y lo devolvemos
+          final double montoAdeudo = (data[0]['descuento'] as num).toDouble();
+          print('⚠️ ¡El cliente tiene un adeudo de: $montoAdeudo!');
+          return montoAdeudo;
+        }
+      }
+      // Si la respuesta no es 200, o la lista está vacía, o no hay descuento, no hay adeudo.
+      print('✅ El cliente no tiene adeudos.');
+      return null; // Devolvemos null para indicar que no hay adeudo
+    } catch (e) {
+      print('❌ Error al verificar adeudos del cliente: $e');
+      return null; // En caso de error, asumimos que no hay adeudo
     }
   }
 
@@ -1318,23 +1361,97 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                       ),
                     );
                   },
-                  onSelected: (person) {
-                    // Verificar si la persona ya está en la lista usando el campo `idclientes`
+                  onSelected: (person) async {
                     bool personaYaAgregada = _selectedPersons
                         .any((p) => p['idclientes'] == person['idclientes']);
 
-                    if (!personaYaAgregada) {
-                      setState(() {
-                        _selectedPersons.add(person);
-                        _rolesSeleccionados[person['idclientes']] =
-                            roles[0]; // Rol predeterminado
-                      });
-                      _controller.clear();
-                    } else {
-                      // Opcional: Mostrar un mensaje indicando que la persona ya fue agregada
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    if (personaYaAgregada) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text(
                               'La persona ya ha sido agregada a la lista')));
+                      _controller.clear();
+                      return;
+                    }
+
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (BuildContext context) {
+                        return const Dialog(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(width: 20),
+                                Text("Verificando cliente..."),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+
+                    // La función ahora devuelve un double?
+                    final double? montoAdeudo =
+                        await _verificarAdeudoCliente(person['idclientes']);
+
+                    if (mounted) Navigator.of(context).pop();
+
+                    void agregarPersona() {
+                      if (mounted) {
+                        setState(() {
+                          _selectedPersons.add(person);
+                          _rolesSeleccionados[person['idclientes']] = roles[0];
+                          // ¡NUEVO! Si hay adeudo, lo guardamos en nuestro mapa
+                          if (montoAdeudo != null) {
+                            _adeudosClientes[person['idclientes']] =
+                                montoAdeudo;
+                          }
+                        });
+                        _controller.clear();
+                      }
+                    }
+
+                    // Comprobamos si el monto no es nulo
+                    if (montoAdeudo != null) {
+                      final bool? confirmar = await showDialog<bool>(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Row(
+                              children: [
+                                Icon(Icons.warning_amber_rounded,
+                                    color: Colors.orange),
+                                SizedBox(width: 10),
+                                Text('Cliente con Adeudo'),
+                              ],
+                            ),
+                            // Mostramos el monto en el diálogo
+                            content: Text(
+                                'Este cliente parece tener un adeudo de \$${montoAdeudo.toStringAsFixed(2)}. ¿Deseas agregarlo al grupo de todas formas?'),
+                            actions: <Widget>[
+                              TextButton(
+                                child: const Text('Cancelar'),
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                              ),
+                              ElevatedButton(
+                                child: const Text('Sí, agregar'),
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+
+                      if (confirmar == true) {
+                        agregarPersona();
+                      }
+                    } else {
+                      agregarPersona();
                     }
                   },
                   controller: _controller,
@@ -1356,6 +1473,9 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                       final person = _selectedPersons[index];
                       final nombre = person['nombres'] ?? '';
                       final idCliente = person['idclientes'];
+
+                      // ¡NUEVO! Obtenemos el monto del adeudo desde nuestro mapa
+                      final double? montoAdeudo = _adeudosClientes[idCliente];
 
                       return ListTile(
                         title: Row(
@@ -1419,6 +1539,18 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // ¡NUEVO! Mostramos el ícono y Tooltip si hay adeudo
+                            if (montoAdeudo != null)
+                              Tooltip(
+                                message:
+                                    'Adeudo anterior: \$${montoAdeudo.toStringAsFixed(2)}',
+                                child: const Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Colors.orange,
+                                ),
+                              ),
+
+                            if (montoAdeudo != null) const SizedBox(width: 8),
                             DropdownButton<String>(
                               value: _rolesSeleccionados[idCliente],
                               dropdownColor: cardBackgroundColor,
@@ -1447,9 +1579,10 @@ class _nGrupoDialogState extends State<nGrupoDialog>
                                       : Colors.red),
                               onPressed: () {
                                 setState(() {
-                                  // Eliminar de la lista y del mapa de roles
                                   _selectedPersons.removeAt(index);
                                   _rolesSeleccionados.remove(idCliente);
+                                  // ¡NUEVO! También lo quitamos de nuestro mapa de adeudos
+                                  _adeudosClientes.remove(idCliente);
                                 });
                               },
                             ),
@@ -1478,6 +1611,8 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       case 'Disponible':
         return Color(0xFF059212)
             .withOpacity(0.1); // Color suave de fondo para "Disponible"
+      case 'Disponible Extra':
+        return Color(0xFFE53888).withOpacity(0.1);
       default:
         return Colors.grey.withOpacity(0.1); // Color suave de fondo por defecto
     }

@@ -1,6 +1,7 @@
 // lib/pdf/pdf_resumen_credito.dart
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:finora/dialogs/infoCredito.dart';
 import 'package:finora/ip.dart';
@@ -60,14 +61,16 @@ class PDFResumenCredito {
     fontWeight: pw.FontWeight.bold,
   );
 
-  // --- NUEVA FUNCIÓN PARA OBTENER PAGOS (ADAPTADA) ---
+  // --- FUNCIÓN PARA OBTENER PAGOS (REPLICANDO LA LÓGICA DE TU PaginaControl) ---
+  // Esta función es correcta y es la base para los cálculos, por lo que se mantiene.
+  // --- FUNCIÓN PARA OBTENER PAGOS (CON LÓGICA DE SALDO CORREGIDA Y SIMPLIFICADA) ---
+  // --- FUNCIÓN DE CÁLCULO CORREGIDA Y DEFINITIVA ---
+  // --- FUNCIÓN DE CÁLCULO CON CORRECCIÓN DE TIPOS DE DATOS ---
+  // --- FUNCIÓN DE CÁLCULO CON CORRECCIÓN PARA SEMANA 0 ---
   static Future<List<Pago>> _fetchPagosData(String idCredito) async {
-    // No usamos 'context' ni 'widget' aquí, ya que es estático.
-    // El manejo de errores será lanzando excepciones que 'generar' capturará.
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
-
       if (token.isEmpty) {
         throw Exception('Token de autenticación no encontrado.');
       }
@@ -80,52 +83,56 @@ class PDFResumenCredito {
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
         List<Pago> pagos = data.map((pago) => Pago.fromJson(pago)).toList();
+        pagos.sort((a, b) => a.semana.compareTo(b.semana));
 
-        // La lógica de cálculo de saldos ya está en tu _fetchPagos original, la replicamos
+        // --- LÓGICA DE CÁLCULO ---
         for (var pago in pagos) {
-          double totalDeuda =
-              (pago.capitalMasInteres) + // Ya no es nullable en tu clase
-                  (pago.moratorioDesabilitado == "Si"
-                      ? 0.0
-                      : (pago.moratorios?.moratorios ?? 0.0));
+          double totalDeudaSemana = (pago.capitalMasInteres ?? 0.0) +
+              (pago.moratorioDesabilitado == "Si"
+                  ? 0.0
+                  : (pago.moratorios?.moratorios ?? 0.0));
 
+          double montoPagadoEnEfectivo = pago.abonos.fold(
+              0.0,
+              (total, abono) =>
+                  total + ((abono['deposito'] ?? 0.0) as num).toDouble());
+
+          double montoCubiertoPorRenovacion = pago.renovacionesPendientes.fold(
+              0.0,
+              (total, renovacion) =>
+                  total + ((renovacion.descuento ?? 0.0) as num).toDouble());
+
+          double totalCubierto =
+              montoPagadoEnEfectivo + montoCubiertoPorRenovacion;
           bool tieneGarantia =
               pago.abonos.any((abono) => abono['garantia'] == 'Si');
 
-          // --- CORRECCIÓN AQUÍ ---
-          double montoPagado = pago.abonos.fold(0.0, (total, itemAbono) {
-            // Renombrado 'abono' a 'itemAbono' para claridad
-            double valorDeposito = 0.0;
-            if (itemAbono['deposito'] != null) {
-              if (itemAbono['deposito'] is String) {
-                valorDeposito = double.tryParse(itemAbono['deposito']) ?? 0.0;
-              } else if (itemAbono['deposito'] is num) {
-                valorDeposito = (itemAbono['deposito'] as num).toDouble();
-              }
-            }
-            return total + valorDeposito;
-          });
-          // --- FIN DE LA CORRECCIÓN ---
-
-          pago.saldoEnContra = totalDeuda - montoPagado;
-          if (pago.saldoEnContra! < 0) pago.saldoEnContra = 0.0;
-
-          bool sinActividad = pago.abonos.isEmpty;
-
-          if (sinActividad) {
-            pago.saldoEnContra = 0.0;
-            pago.saldoFavor = 0.0;
+          // CÁLCULO DE SALDO A FAVOR (Este se mantiene igual)
+          if (montoPagadoEnEfectivo > totalDeudaSemana && !tieneGarantia) {
+            pago.saldoFavor = montoPagadoEnEfectivo - totalDeudaSemana;
           } else {
-            bool estaPagado = montoPagado >= totalDeuda;
-            pago.saldoEnContra = estaPagado ? 0.0 : totalDeuda - montoPagado;
-            pago.saldoFavor =
-                estaPagado && !tieneGarantia ? montoPagado - totalDeuda : 0.0;
-            if (pago.saldoFavor! < 0)
-              pago.saldoFavor = 0.0; // Asegurar que no sea negativo
+            pago.saldoFavor = 0.0;
           }
+
+          // >>>>>>>> INICIO DE LA CORRECCIÓN <<<<<<<<
+          // CÁLCULO DE SALDO EN CONTRA (CON CORRECCIÓN PARA SEMANA 0)
+          // Si la semana es 0 (Desembolso/Garantía), no puede haber saldo en contra.
+          if (pago.semana == 0) {
+            pago.saldoEnContra = 0.0;
+          } else {
+            // Para el resto de las semanas, aplica la lógica normal.
+            if (totalCubierto >= totalDeudaSemana) {
+              pago.saldoEnContra = 0.0;
+            } else {
+              pago.saldoEnContra = totalDeudaSemana - totalCubierto;
+            }
+          }
+          // >>>>>>>> FIN DE LA CORRECCIÓN <<<<<<<<
         }
+
         return pagos;
       } else {
+        // ... (Tu manejo de errores se mantiene igual)
         String errorMessage = 'Error al obtener pagos: ${response.statusCode}';
         try {
           final errorData = json.decode(response.body);
@@ -134,8 +141,7 @@ class PDFResumenCredito {
             errorMessage = errorData["Error"]["Message"];
             if (errorMessage == "La sesión ha cambiado. Cerrando sesión..." ||
                 errorMessage == "jwt expired") {
-              // En un contexto estático, no podemos navegar. Lanzamos una excepción específica.
-              await prefs.remove('tokenauth'); // Intentar limpiar token
+              await prefs.remove('tokenauth');
               throw Exception(
                   'Sesión inválida o expirada. Por favor, vuelve a iniciar sesión en la app.');
             }
@@ -143,13 +149,11 @@ class PDFResumenCredito {
             errorMessage = 'Error ${response.statusCode}: ${response.body}';
           }
         } catch (e) {
-          // Error al decodificar el JSON del error, usar el mensaje genérico
           print('Error al procesar la respuesta de error: $e');
         }
         throw Exception(errorMessage);
       }
     } catch (e) {
-      // Re-lanzar la excepción para que 'generar' la maneje
       print('Error en _fetchPagosData: $e');
       throw Exception('Error al obtener datos de pagos: ${e.toString()}');
     }
@@ -159,7 +163,7 @@ class PDFResumenCredito {
   static Future<void> generar(
       BuildContext context, Credito credito, String savePath) async {
     try {
-       // Currency Formatter
+      // Currency Formatter
       final currencyFormat =
           NumberFormat.currency(locale: 'es_MX', symbol: '\$');
       /* // 1. Validar permisos
@@ -256,14 +260,15 @@ class PDFResumenCredito {
             _buildGroupInfo(credito, sectionTitleStyle, currencyFormat),
             pw.SizedBox(height: 15),
             _buildLoanInfo(credito, sectionTitleStyle, fechaInicioFormateada,
-                fechaFinFormateada,  currencyFormat),
+                fechaFinFormateada, currencyFormat),
             pw.SizedBox(height: 15),
             if (credito.clientesMontosInd.isNotEmpty) ...[
               _buildClientesSection(
                   credito.clientesMontosInd
                       .map((e) => e as ClienteMonto)
                       .toList(),
-                  credito,  currencyFormat),
+                  credito,
+                  currencyFormat),
               pw.SizedBox(height: 15),
               // --- AÑADIR TABLA DE PAGOS ---
               if (errorPagos != null)
@@ -277,7 +282,7 @@ class PDFResumenCredito {
                 pw.SizedBox(height: 20),
                 pw.Text("CALENDARIO DE PAGOS", style: sectionTitleStyle),
                 pw.SizedBox(height: 10),
-                _buildPagosSection(pagosData,  currencyFormat),
+                _buildPagosSection(pagosData, currencyFormat),
                 pw.SizedBox(height: 15),
               ] else
                 pw.Padding(
@@ -453,8 +458,7 @@ class PDFResumenCredito {
       pw.TextStyle sectionTitleStyle,
       String fechaInicioFormateada,
       String fechaFinFormateada,
-      final currencyFormat
-      ) {
+      final currencyFormat) {
     final format = NumberFormat("#,##0.00");
 
     return pw.Container(
@@ -470,8 +474,10 @@ class PDFResumenCredito {
           pw.SizedBox(height: 10),
           pw.Row(children: [
             _buildInfoColumn('DÍA DE PAGO', credito.diaPago, flex: 1),
-            _buildInfoColumn('PLAZO', '${credito.plazo} SEMANAS', flex: 1),
-            _buildInfoColumn('MONTO FICHA', '${currencyFormat.format(credito.pagoCuota)}', flex: 1),
+            _buildInfoColumn('PLAZO', '${credito.plazo}', flex: 1),
+            _buildInfoColumn(
+                'MONTO FICHA', '${currencyFormat.format(credito.pagoCuota)}',
+                flex: 1),
           ]),
           pw.SizedBox(height: 8),
           pw.Row(children: [
@@ -479,7 +485,8 @@ class PDFResumenCredito {
                 '${currencyFormat.format(credito.montoDesembolsado)}',
                 flex: 1),
             _buildInfoColumn('GARANTÍA', '${credito.garantia}', flex: 1),
-            _buildInfoColumn('GARANTÍA MONTO', '${currencyFormat.format(credito.montoGarantia)}',
+            _buildInfoColumn('GARANTÍA MONTO',
+                '${currencyFormat.format(credito.montoGarantia)}',
                 flex: 1),
           ]),
           pw.SizedBox(height: 8),
@@ -489,7 +496,8 @@ class PDFResumenCredito {
                 flex: 1),
             _buildInfoColumn('TASA DE INTERÉS MENSUAL', '${credito.ti_mensual}',
                 flex: 1),
-            _buildInfoColumn('INTERÉS TOTAL', '${currencyFormat.format(credito.interesTotal)}',
+            _buildInfoColumn('INTERÉS TOTAL',
+                '${currencyFormat.format(credito.interesTotal)}',
                 flex: 1),
           ]),
           pw.SizedBox(height: 8),
@@ -498,7 +506,8 @@ class PDFResumenCredito {
                 flex: 1),
             _buildInfoColumn('FECHA TÉRMINO DE CONTRATO', fechaFinFormateada,
                 flex: 1),
-            _buildInfoColumn('MONTO A RECUPERAR', '${currencyFormat.format(credito.montoMasInteres)}',
+            _buildInfoColumn('MONTO A RECUPERAR',
+                '${currencyFormat.format(credito.montoMasInteres)}',
                 flex: 1),
           ]),
         ],
@@ -587,8 +596,8 @@ class PDFResumenCredito {
     );
   }
 
-  static pw.Widget _buildClientesSection(
-      List<ClienteMonto> clientesMontosInd, Credito credito, final currencyFormat) {
+  static pw.Widget _buildClientesSection(List<ClienteMonto> clientesMontosInd,
+      Credito credito, final currencyFormat) {
     final sumTotalRedondeado = credito.pagoCuota * credito.plazo;
 
     // Definir colores para la tabla (mismos que _paymentTable)
@@ -1028,8 +1037,7 @@ class PDFResumenCredito {
                       ),
                       child: pw.Center(
                         child: pw.Text(
-                         '${currencyFormat.format(clientesMontosInd.fold(
-                              0.0, (sum, c) => sum + c.capitalIndividual))}',
+                          '${currencyFormat.format(clientesMontosInd.fold(0.0, (sum, c) => sum + c.capitalIndividual))}',
                           style: pw.TextStyle(
                             fontSize: 6,
                             fontWeight: pw.FontWeight.bold,
@@ -1049,8 +1057,7 @@ class PDFResumenCredito {
                       ),
                       child: pw.Center(
                         child: pw.Text(
-                          '${currencyFormat.format(clientesMontosInd.fold(
-                              0.0, (sum, c) => sum + c.periodoCapital))}',
+                          '${currencyFormat.format(clientesMontosInd.fold(0.0, (sum, c) => sum + c.periodoCapital))}',
                           style: pw.TextStyle(
                             fontSize: 6,
                             fontWeight: pw.FontWeight.bold,
@@ -1070,8 +1077,7 @@ class PDFResumenCredito {
                       ),
                       child: pw.Center(
                         child: pw.Text(
-                         '${currencyFormat.format(clientesMontosInd.fold(
-                              0.0, (sum, c) => sum + c.periodoInteres))}',
+                          '${currencyFormat.format(clientesMontosInd.fold(0.0, (sum, c) => sum + c.periodoInteres))}',
                           style: pw.TextStyle(
                             fontSize: 6,
                             fontWeight: pw.FontWeight.bold,
@@ -1091,8 +1097,7 @@ class PDFResumenCredito {
                       ),
                       child: pw.Center(
                         child: pw.Text(
-                         '${currencyFormat.format(clientesMontosInd.fold(
-                              0.0, (sum, c) => sum + c.totalCapital))}',
+                          '${currencyFormat.format(clientesMontosInd.fold(0.0, (sum, c) => sum + c.totalCapital))}',
                           style: pw.TextStyle(
                             fontSize: 6,
                             fontWeight: pw.FontWeight.bold,
@@ -1112,8 +1117,7 @@ class PDFResumenCredito {
                       ),
                       child: pw.Center(
                         child: pw.Text(
-                         '${currencyFormat.format(clientesMontosInd.fold(
-                              0.0, (sum, c) => sum + c.totalIntereses))}',
+                          '${currencyFormat.format(clientesMontosInd.fold(0.0, (sum, c) => sum + c.totalIntereses))}',
                           style: pw.TextStyle(
                             fontSize: 6,
                             fontWeight: pw.FontWeight.bold,
@@ -1133,7 +1137,7 @@ class PDFResumenCredito {
                       ),
                       child: pw.Center(
                         child: pw.Text(
-                         '${currencyFormat.format(credito.pagoCuota)}',
+                          '${currencyFormat.format(credito.pagoCuota)}',
                           style: pw.TextStyle(
                             fontSize: 6,
                             fontWeight: pw.FontWeight.bold,
@@ -1153,7 +1157,7 @@ class PDFResumenCredito {
                       ),
                       child: pw.Center(
                         child: pw.Text(
-                         '${currencyFormat.format(sumTotalRedondeado)}',
+                          '${currencyFormat.format(sumTotalRedondeado)}',
                           style: pw.TextStyle(
                             fontSize: 6,
                             fontWeight: pw.FontWeight.bold,
@@ -1203,236 +1207,271 @@ class PDFResumenCredito {
   // --- MÉTODO PARA CONSTRUIR LA SECCIÓN DE PAGOS ---
   // --- MÉTODO ACTUALIZADO PARA CONSTRUIR LA SECCIÓN DE PAGOS ---
   // --- MÉTODO ACTUALIZADO PARA CONSTRUIR LA SECCIÓN DE PAGOS CON SALDO EN CONTRA ---
+  // --- MÉTODO PARA CONSTRUIR LA SECCIÓN DE PAGOS (MODIFICADO) ---
+  // --- MÉTODO PARA CONSTRUIR LA SECCIÓN DE PAGOS (CON TODAS LAS COLUMNAS) ---
+  // --- MÉTODO PARA CONSTRUIR LA SECCIÓN DE PAGOS (CON ORDEN DE COLUMNAS CORREGIDO) ---
+
+  // --- MÉTODO PARA CONSTRUIR LA SECCIÓN DE PAGOS (CON ORDEN DE TOTALES CORREGIDO) ---
+
+  // --- MÉTODO PARA CONSTRUIR LA SECCIÓN DE PAGOS (CON ORDEN DE TOTALES CORREGIDO) ---
+  // --- MÉTODO PARA CONSTRUIR LA SECCIÓN DE PAGOS (CON TOTALES CORREGIDOS) ---
+  // --- FUNCIÓN DE PRESENTACIÓN CORREGIDA Y DEFINITIVA ---
+  // --- FUNCIÓN DE PRESENTACIÓN CORREGIDA Y DEFINITIVA ---
+  // --- FUNCIÓN DE PRESENTACIÓN CON DETALLE DE GARANTÍA RESTAURADO ---
+  // --- FUNCIÓN DE PRESENTACIÓN CON CORRECCIÓN DE TIPOS DE DATOS ---
+  // --- FUNCIÓN COMPLETA Y CORREGIDA PARA CONSTRUIR LA SECCIÓN DE PAGOS ---
+  // --- FUNCIÓN COMPLETA Y CORREGIDA PARA CONSTRUIR LA SECCIÓN DE PAGOS (INCLUYENDO SEMANA 0) ---
+  // --- FUNCIÓN COMPLETA CON TOTALES DE PAGO DESGLOSADOS ---
   static pw.Widget _buildPagosSection(List<Pago> pagos, final currencyFormat) {
-    final headerColor = PdfColor.fromHex('f2f7fa');
-    final rowEvenColor = PdfColors.white;
-    final rowOddColor = PdfColors.grey100;
-    final borderColor = PdfColors.blueGrey300;
-    final headerTextStyle = pw.TextStyle(
-        fontSize: 6,
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.blueGrey900);
-    final cellTextStyle = pw.TextStyle(fontSize: 6);
+  // --- ESTILOS Y COLORES ---
+  final headerColor = PdfColor.fromHex('f2f7fa');
+  final rowEvenColor = PdfColors.white;
+  final rowOddColor = PdfColors.grey100;
+  final borderColor = PdfColors.blueGrey300;
+  final headerTextStyle = pw.TextStyle(
+      fontSize: 5,
+      fontWeight: pw.FontWeight.bold,
+      color: PdfColors.blueGrey900);
+  final cellTextStyle = pw.TextStyle(fontSize: 5);
+  final totalDetailTextStyle = pw.TextStyle(
+      fontSize: 5,
+      fontWeight: pw.FontWeight.bold,
+      color: PdfColors.blueGrey900);
 
-    List<pw.TableRow> tableRows = [];
+  List<pw.TableRow> tableRows = [];
 
-    // Encabezado
-    tableRows.add(pw.TableRow(
-      decoration: pw.BoxDecoration(color: headerColor),
-      children: [
-        _paddedCell('SEM.', headerTextStyle, alignment: pw.Alignment.center),
-        _paddedCell('F. PROGRAMADA', headerTextStyle,
-            alignment: pw.Alignment.center),
-        _paddedCell('MONTO FICHA', headerTextStyle,
-            alignment: pw.Alignment.centerRight),
-        _paddedCell('F. REALIZADO', headerTextStyle,
-            alignment: pw.Alignment.center),
-        _paddedCell('PAGOS', headerTextStyle,
-            alignment: pw.Alignment.centerRight),
-        _paddedCell('S. A FAVOR', headerTextStyle,
-            alignment: pw.Alignment.centerRight),
-        _paddedCell('S. EN CONTRA', headerTextStyle,
-            alignment: pw.Alignment.centerRight),
-        _paddedCell('MORAT. GENERADOS', headerTextStyle,
-            alignment: pw.Alignment.centerRight),
-        _paddedCell('MORAT. PAGADOS', headerTextStyle,
-            alignment: pw.Alignment.centerRight),
-        _paddedCell('TIPO PAGO', headerTextStyle,
-            alignment: pw.Alignment.center),
-        _paddedCell('ESTADO', headerTextStyle, alignment: pw.Alignment.center),
-      ],
-    ));
+  // --- ENCABEZADO DE LA TABLA ---
+  tableRows.add(pw.TableRow(
+    // ... El encabezado se mantiene igual
+    decoration: pw.BoxDecoration(color: headerColor),
+    children: [
+      _paddedCell('PAGO', headerTextStyle, alignment: pw.Alignment.center),
+      _paddedCell('F. PROGRAMADA', headerTextStyle, alignment: pw.Alignment.center),
+      _paddedCell('MONTO FICHA', headerTextStyle, alignment: pw.Alignment.centerRight),
+      _paddedCell('F. REALIZADO', headerTextStyle, alignment: pw.Alignment.center),
+      _paddedCell('PAGOS', headerTextStyle, alignment: pw.Alignment.centerRight),
+      _paddedCell('S. A FAVOR', headerTextStyle, alignment: pw.Alignment.centerRight),
+      _paddedCell('S. EN CONTRA', headerTextStyle, alignment: pw.Alignment.centerRight),
+      _paddedCell('ADEUDOS RENOVAR', headerTextStyle, alignment: pw.Alignment.centerRight),
+      _paddedCell('MORAT. GENERADOS', headerTextStyle, alignment: pw.Alignment.centerRight),
+      _paddedCell('MORAT. PAGADOS', headerTextStyle, alignment: pw.Alignment.centerRight),
+      _paddedCell('TIPO PAGO', headerTextStyle, alignment: pw.Alignment.center),
+      _paddedCell('ESTADO', headerTextStyle, alignment: pw.Alignment.center),
+    ],
+  ));
 
-    // Totales acumulados
-    double totalCuotas = 0.0;
-    double totalAbonos = 0.0;
-    double totalSaldoFavor = 0.0;
-    double totalSaldoContra = 0.0;
-    double totalMoratoriosGenerados = 0.0;
-    double totalMoratoriosPagados = 0.0;
+  // --- ACUMULADORES PARA LOS TOTALES ---
+  double totalCuotas = 0.0;
+  double totalAdeudosRenovar = 0.0;
+  double totalAbonos = 0.0;
+  double totalIngresoReal = 0.0;
+  double totalSaldoFavor = 0.0;
+  double totalSaldoContra = 0.0;
+  double totalMoratoriosGenerados = 0.0;
+  double totalMoratoriosPagados = 0.0;
 
-    // Filas de datos
-    for (int i = 0; i < pagos.length; i++) {
-      final pago = pagos[i];
-      final bool isEven = i % 2 == 0;
-      final bgColor = isEven ? rowEvenColor : rowOddColor;
+  // --- FILAS DE DATOS ---
+  for (int i = 0; i < pagos.length; i++) {
+    final pago = pagos[i];
+    final bgColor = (i % 2 == 0) ? rowEvenColor : rowOddColor;
 
-      String fechaProgramadaFormateada = _formatPdfDate(pago.fechaPago);
+    String pagosDetallados = "-";
+    String fechasDetalladas = "N/A";
+    double totalAbonosPago = 0.0;
 
-      String fechaRealizadoFormateada = "N/A";
-      if (pago.abonos.isNotEmpty) {
-        List<String> fechasFormateadas = [];
-        for (var abono in pago.abonos) {
-          if (abono['fechaDeposito'] != null) {
-            String fechaFormateada = _formatPdfDate(abono['fechaDeposito'] as String?);
-            fechasFormateadas.add(fechaFormateada);
-          }
+    if (pago.abonos.isNotEmpty) {
+      List<String> detallesPagos = [];
+      List<String> detallesFechas = [];
+
+      for (var abono in pago.abonos) {
+        double montoDeposito = ((abono['deposito'] ?? 0.0) as num).toDouble();
+        totalAbonosPago += montoDeposito;
+        bool esGarantia = abono['garantia'] == 'Si';
+
+        if (!esGarantia) {
+          totalIngresoReal += montoDeposito;
         }
-        if (fechasFormateadas.isNotEmpty) {
-          fechaRealizadoFormateada = fechasFormateadas.join('\n');
-        }
+
+        String montoFormateado = currencyFormat.format(montoDeposito);
+        detallesPagos.add("$montoFormateado${esGarantia ? " (G)" : ""}");
+        detallesFechas.add(_formatPdfDate(abono['fechaDeposito']));
       }
 
-      String tipoPagoDisplay = pago.tipoPago;
-      if (tipoPagoDisplay.isEmpty ||
-          tipoPagoDisplay.toLowerCase() == "sin asignar") {
-        tipoPagoDisplay = "N/A";
-      }
-
-      // Procesar abonos
-      String pagosDetallados = "N/A";
-      double totalAbonosPago = 0.0;
-      if (pago.abonos.isNotEmpty) {
-        List<String> detalles = [];
-        for (var abono in pago.abonos) {
-          double montoDeposito = 0.0;
-          if (abono['deposito'] != null) {
-            if (abono['deposito'] is String) {
-              montoDeposito = double.tryParse(abono['deposito']) ?? 0.0;
-            } else if (abono['deposito'] is num) {
-              montoDeposito = (abono['deposito'] as num).toDouble();
-            }
-          }
-          totalAbonosPago += montoDeposito;
-          String montoFormateado = '${currencyFormat.format(montoDeposito)}';
-          String esGarantia = (abono['garantia'] == 'Si') ? " (G)" : "";
-          detalles.add("$montoFormateado$esGarantia");
-        }
-        pagosDetallados = detalles.join('\n');
-      }
-
-      // Calcular saldo en contra
-      // Si el monto pagado es menor que el monto de la ficha, hay saldo en contra
-      double saldoContra = 0.0;
-      if (pago.semana != 0) {
-        double montoDebe = pago.capitalMasInteres;
-        if (totalAbonosPago < montoDebe) {
-          saldoContra = montoDebe - totalAbonosPago;
-        }
-      }
-
-      // Procesar moratorios
-      double moratoriosGenerados = 0.0;
-      double moratoriosPagados = 0.0;
-      
-      if (pago.pagosMoratorios.isNotEmpty) {
-        for (var moratorio in pago.pagosMoratorios) {
-          double moratorioAPagar = 0.0;
-          double sumaMoratorios = 0.0;
-          
-          if (moratorio['moratorioAPagar'] != null) {
-            if (moratorio['moratorioAPagar'] is String) {
-              moratorioAPagar = double.tryParse(moratorio['moratorioAPagar']) ?? 0.0;
-            } else if (moratorio['moratorioAPagar'] is num) {
-              moratorioAPagar = (moratorio['moratorioAPagar'] as num).toDouble();
-            }
-          }
-          
-          if (moratorio['sumaMoratorios'] != null) {
-            if (moratorio['sumaMoratorios'] is String) {
-              sumaMoratorios = double.tryParse(moratorio['sumaMoratorios']) ?? 0.0;
-            } else if (moratorio['sumaMoratorios'] is num) {
-              sumaMoratorios = (moratorio['sumaMoratorios'] as num).toDouble();
-            }
-          }
-          
-          moratoriosGenerados += moratorioAPagar;
-          moratoriosPagados += sumaMoratorios;
-        }
-      }
-
-      // Acumuladores solo si no es semana 0
-      if (pago.semana != 0) {
-        totalCuotas += pago.capitalMasInteres;
-        totalAbonos += totalAbonosPago;
-        totalSaldoFavor += pago.saldoFavor ?? 0.0;
-        totalSaldoContra += saldoContra;
-        totalMoratoriosGenerados += moratoriosGenerados;
-        totalMoratoriosPagados += moratoriosPagados;
-      }
-
-      tableRows.add(pw.TableRow(
-        decoration: pw.BoxDecoration(color: bgColor),
-        children: [
-          _paddedCell(pago.semana.toString(), cellTextStyle,
-              alignment: pw.Alignment.center),
-          _paddedCell(fechaProgramadaFormateada, cellTextStyle,
-              alignment: pw.Alignment.center),
-          _paddedCell(
-              pago.semana == 0 ? 'N/A' : '${currencyFormat.format(pago.capitalMasInteres)}',
-              cellTextStyle,
-              alignment: pw.Alignment.centerRight),
-          _paddedCell(fechaRealizadoFormateada, cellTextStyle,
-              alignment: pw.Alignment.center),
-          _paddedCell(pagosDetallados, cellTextStyle,
-              alignment: pw.Alignment.centerRight),
-          _paddedCell('${currencyFormat.format(pago.saldoFavor ?? 0.0)}', cellTextStyle,
-              alignment: pw.Alignment.centerRight),
-          _paddedCell('${currencyFormat.format(saldoContra)}', cellTextStyle,
-              alignment: pw.Alignment.centerRight),
-          _paddedCell('${currencyFormat.format(moratoriosGenerados)}', cellTextStyle,
-              alignment: pw.Alignment.centerRight),
-          _paddedCell('${currencyFormat.format(moratoriosPagados)}', cellTextStyle,
-              alignment: pw.Alignment.centerRight),
-          _paddedCell(tipoPagoDisplay, cellTextStyle,
-              alignment: pw.Alignment.center),
-          _paddedCell(pago.estado, cellTextStyle,
-              alignment: pw.Alignment.center),
-        ],
-      ));
+      pagosDetallados = detallesPagos.join('\n');
+      fechasDetalladas = detallesFechas.join('\n');
     }
 
-    // Fila de totales
+    double montoRenovacion = pago.renovacionesPendientes.fold(
+        0.0, (total, r) => total + ((r.descuento ?? 0.0) as num).toDouble());
+
+    double moratoriosGenerados =
+        ((pago.moratorios?.moratorios ?? 0.0) as num).toDouble();
+    if (pago.moratorioDesabilitado == "Si") {
+      moratoriosGenerados = 0.0;
+    }
+
+    double moratoriosPagados = pago.pagosMoratorios.fold(
+        0.0,
+        (total, m) =>
+            total + ((m['sumaMoratorios'] ?? 0.0) as num).toDouble());
+
+    // --- ACUMULAR TOTALES ---
+    if (pago.semana != 0) {
+      totalCuotas += pago.capitalMasInteres ?? 0.0;
+    }
+    
+    totalAdeudosRenovar += montoRenovacion;
+    totalAbonos += totalAbonosPago;
+    totalSaldoFavor += pago.saldoFavor ?? 0.0;
+    totalSaldoContra += pago.saldoEnContra ?? 0.0;
+    totalMoratoriosGenerados += moratoriosGenerados;
+    totalMoratoriosPagados += moratoriosPagados;
+
+    // --- CONSTRUIR LA FILA DE LA TABLA ---
     tableRows.add(pw.TableRow(
-      decoration: pw.BoxDecoration(color: headerColor),
+      // ... El bucle de filas se mantiene igual
+      decoration: pw.BoxDecoration(color: bgColor),
       children: [
+        _paddedCell(pago.semana.toString(), cellTextStyle, alignment: pw.Alignment.center),
+        _paddedCell(_formatPdfDate(pago.fechaPago), cellTextStyle, alignment: pw.Alignment.center),
         _paddedCell(
-          'TOTALES',
-          headerTextStyle,
-          alignment: pw.Alignment.center,
-        ),
-        _paddedCell('', headerTextStyle),
-        _paddedCell('${currencyFormat.format(totalCuotas)}', headerTextStyle,
+            pago.semana == 0
+                ? "-"
+                : currencyFormat.format(pago.capitalMasInteres ?? 0.0),
+            cellTextStyle,
             alignment: pw.Alignment.centerRight),
-        _paddedCell('', headerTextStyle),
-        _paddedCell('${currencyFormat.format(totalAbonos)}', headerTextStyle,
+        _paddedCell(fechasDetalladas, cellTextStyle, alignment: pw.Alignment.center),
+        _paddedCell(pagosDetallados, cellTextStyle, alignment: pw.Alignment.centerRight),
+        _paddedCell(
+            (pago.saldoFavor ?? 0.0) > 0.0
+                ? currencyFormat.format(pago.saldoFavor!)
+                : "-",
+            cellTextStyle,
             alignment: pw.Alignment.centerRight),
-        _paddedCell('${currencyFormat.format(totalSaldoFavor)}', headerTextStyle,
+        _paddedCell(
+            (pago.saldoEnContra ?? 0.0) > 0.0
+                ? currencyFormat.format(pago.saldoEnContra!)
+                : "-",
+            cellTextStyle,
             alignment: pw.Alignment.centerRight),
-        _paddedCell('${currencyFormat.format(totalSaldoContra)}', headerTextStyle,
+        _paddedCell(
+            montoRenovacion > 0
+                ? currencyFormat.format(montoRenovacion)
+                : "-",
+            cellTextStyle,
             alignment: pw.Alignment.centerRight),
-        _paddedCell('${currencyFormat.format(totalMoratoriosGenerados)}', headerTextStyle,
+        _paddedCell(
+            moratoriosGenerados > 0.0
+                ? currencyFormat.format(moratoriosGenerados)
+                : "-",
+            cellTextStyle,
             alignment: pw.Alignment.centerRight),
-        _paddedCell('${currencyFormat.format(totalMoratoriosPagados)}', headerTextStyle,
+        _paddedCell(
+            moratoriosPagados > 0.0
+                ? currencyFormat.format(moratoriosPagados)
+                : "-",
+            cellTextStyle,
             alignment: pw.Alignment.centerRight),
-        _paddedCell('', headerTextStyle),
-        _paddedCell('', headerTextStyle),
+        _paddedCell(
+            pago.tipoPago.isEmpty ? "N/A" : pago.tipoPago, cellTextStyle, alignment: pw.Alignment.center),
+        _paddedCell(pago.estado ?? "N/A", cellTextStyle, alignment: pw.Alignment.center),
       ],
     ));
+  }
 
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        //pw.Text('CALENDARIO DE PAGOS', style: sectionTitleStyle),
-        //pw.SizedBox(height: 10),
-        pw.Table(
-          border: pw.TableBorder.all(color: borderColor, width: 0.5),
-          children: tableRows,
-          columnWidths: {
-            0: pw.FlexColumnWidth(0.7), // Sem.
-            1: pw.FlexColumnWidth(1.0), // F. Programada
-            2: pw.FlexColumnWidth(0.9), // Monto Ficha
-            3: pw.FlexColumnWidth(1.0), // F. Realizado
-            4: pw.FlexColumnWidth(1.0), // Pagos
-            5: pw.FlexColumnWidth(0.8), // S. Favor
-            6: pw.FlexColumnWidth(0.8), // S. En Contra
-            7: pw.FlexColumnWidth(0.8), // Morat. Generados
-            8: pw.FlexColumnWidth(0.8), // Morat. Pagados
-            9: pw.FlexColumnWidth(0.8), // Tipo Pago
-            10: pw.FlexColumnWidth(0.7), // Estado
-          },
-        ),
-      ],
+  // <<--- CAMBIO: Calcular el total cubierto (abonos + renovaciones)
+  final double totalCubierto = totalAbonos + totalAdeudosRenovar;
+
+  // --- FILA DE TOTALES CON DETALLE EN PAGOS ---
+  tableRows.add(pw.TableRow(
+    decoration: pw.BoxDecoration(color: headerColor),
+    children: [
+      _paddedCell('TOTALES', headerTextStyle, alignment: pw.Alignment.center),
+      _paddedCell('', headerTextStyle),
+      _paddedCell(currencyFormat.format(totalCuotas), headerTextStyle,
+          alignment: pw.Alignment.centerRight),
+      _paddedCell('', headerTextStyle),
+      // --- CELDA MODIFICADA PARA PAGOS ---
+      pw.Container(
+        padding: pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        alignment: pw.Alignment.centerRight,
+        child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text('T.R.I: ${currencyFormat.format(totalIngresoReal)}',
+                  style: headerTextStyle),
+              pw.SizedBox(height: 2),
+              // <<--- CAMBIO: Usar el nuevo 'totalCubierto'
+              pw.Text('${currencyFormat.format(totalCubierto)}',
+                  style: headerTextStyle),
+            ]),
+      ),
+      _paddedCell(currencyFormat.format(totalSaldoFavor), headerTextStyle,
+          alignment: pw.Alignment.centerRight),
+      _paddedCell(currencyFormat.format(totalSaldoContra), headerTextStyle,
+          alignment: pw.Alignment.centerRight),
+      _paddedCell(currencyFormat.format(totalAdeudosRenovar), headerTextStyle,
+          alignment: pw.Alignment.centerRight),
+      _paddedCell(
+          currencyFormat.format(totalMoratoriosGenerados), headerTextStyle,
+          alignment: pw.Alignment.centerRight),
+      _paddedCell(
+          currencyFormat.format(totalMoratoriosPagados), headerTextStyle,
+          alignment: pw.Alignment.centerRight),
+      _paddedCell('', headerTextStyle),
+      _paddedCell('', headerTextStyle),
+    ],
+  ));
+
+  // --- RETORNAR TABLA CON FILA EXPLICATIVA ---
+  return pw.Column(
+    // ... El resto del widget se mantiene igual
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      pw.Table(
+        border: pw.TableBorder.all(color: borderColor, width: 0.5),
+        children: tableRows,
+        columnWidths: {
+          0: pw.FlexColumnWidth(0.5), 1: pw.FlexColumnWidth(0.9),
+          2: pw.FlexColumnWidth(0.9), 3: pw.FlexColumnWidth(0.9),
+          4: pw.FlexColumnWidth(0.9), 5: pw.FlexColumnWidth(0.8),
+          6: pw.FlexColumnWidth(0.8), 7: pw.FlexColumnWidth(0.9),
+          8: pw.FlexColumnWidth(0.9), 9: pw.FlexColumnWidth(0.9),
+          10: pw.FlexColumnWidth(0.8), 11: pw.FlexColumnWidth(0.8),
+        },
+      ),
+      pw.SizedBox(height: 8),
+      _buildExplanationRow(totalDetailTextStyle, borderColor),
+    ],
+  );
+}
+
+
+  // --- FILA EXPLICATIVA DE SIGLAS ---
+  static pw.Widget _buildExplanationRow(pw.TextStyle style, final borderColor) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: borderColor, width: 0.5),
+        color: PdfColors.grey50,
+      ),
+      padding: pw.EdgeInsets.all(6),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+        
+          pw.Wrap(
+            spacing: 15,
+            runSpacing: 2,
+            children: [
+              pw.Text('T.R.I = Total Real Ingresado', style: style),
+              pw.Text('(G) = Garantía', style: style),
+              pw.Text('F = Fecha', style: style),
+              pw.Text('S = Saldo', style: style),
+              pw.Text('MORAT = Moratorios', style: style),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1440,15 +1479,13 @@ class PDFResumenCredito {
   static pw.Widget _paddedCell(String text, pw.TextStyle style,
       {pw.Alignment alignment = pw.Alignment.centerLeft}) {
     return pw.Container(
-      padding: pw.EdgeInsets.symmetric(
-          horizontal: 4, vertical: 5), // Aumentar padding vertical
+      padding: pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
       alignment: alignment,
       child: pw.Text(text, style: style, softWrap: true),
     );
   }
 
   static pw.Widget _buildCompactFooter() {
-    // Implementa el footer según tu necesidad
     return pw.Container();
   }
 }

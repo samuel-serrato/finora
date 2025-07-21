@@ -22,6 +22,7 @@ import 'package:window_manager/window_manager.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'constants/routes.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -204,28 +205,32 @@ void main() async {
 
   await initializeDateFormatting('es_ES', null);
   Intl.defaultLocale = 'es_ES';
-  await windowManager.ensureInitialized();
+  double initialScale =
+      1.0; // Valor por defecto para la web y si no hay guardado
 
-  // Configuración de escala
-  double systemScale = await windowManager.getDevicePixelRatio();
-  // Ya no se usa SharedPreferences para guardar la versión,
-  // pero seguimos usándolo para la escala
-  final prefs = await SharedPreferences.getInstance();
+  // --- COMIENZA EL BLOQUE CONDICIONAL ---
+  if (!kIsWeb) {
+    await windowManager.ensureInitialized();
 
-  double savedScale = prefs.getDouble('scale_factor') ?? 0.0;
-  double initialScale = savedScale > 0.0
-      ? savedScale
-      : (systemScale < 1.4 ? 1.4 / systemScale : 1.0);
+    // Configuración de escala para escritorio
+    double systemScale = await windowManager.getDevicePixelRatio();
+    final prefs = await SharedPreferences.getInstance();
 
-  if (initialScale > 1.0) {
-    Size screenSize = await windowManager.getSize();
-    await windowManager.setSize(Size(
-        screenSize.width * initialScale, screenSize.height * initialScale));
+    double savedScale = prefs.getDouble('scale_factor') ?? 0.0;
+    initialScale = savedScale > 0.0
+        ? savedScale
+        : (systemScale < 1.4 ? 1.4 / systemScale : 1.0);
+
+    if (initialScale > 1.0) {
+      Size screenSize = await windowManager.getSize();
+      await windowManager.setSize(Size(
+          screenSize.width * initialScale, screenSize.height * initialScale));
+    }
+
+    // Centrar la ventana en la pantalla
+    await windowManager.center();
   }
-
-  // Centrar la ventana en la pantalla
-  await windowManager.center();
-
+  // --- TERMINA EL BLOQUE CONDICIONAL ---
   // Verificar versión antes de iniciar la app
   await checkAppVersion();
 
@@ -257,13 +262,15 @@ class _MyAppState extends State<MyApp> with WindowListener {
   void initState() {
     super.initState();
     // Añadimos esta clase como "oyente" de los eventos de la ventana.
-    windowManager.addListener(this);
-    _init();
+    if (!kIsWeb) {
+      windowManager.addListener(this);
+      _init();
+    }
   }
 
   // Función asíncrona para inicializar lo que necesite `await`.
   // Es una buena práctica para no hacer el initState asíncrono.
-  void _init() async {
+  /* void _init() async {
     // ESTA LÍNEA ES CRUCIAL:
     // Le dice al sistema operativo que no cierre la ventana por defecto.
     // En su lugar, emitirá el evento `onWindowClose`.
@@ -273,12 +280,23 @@ class _MyAppState extends State<MyApp> with WindowListener {
     if (mounted) {
       setState(() {});
     }
+  } */
+
+  void _init() async {
+    // Como _init() solo se llama desde dentro del if, no necesitamos
+    // otra condición aquí.
+    await windowManager.setPreventClose(true);
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
     // Es muy importante remover el "oyente" para evitar fugas de memoria.
-    windowManager.removeListener(this);
+    if (!kIsWeb) {
+      windowManager.removeListener(this);
+    }
     super.dispose();
   }
 
@@ -287,6 +305,10 @@ class _MyAppState extends State<MyApp> with WindowListener {
   // gracias a `setPreventClose(true)`.
   @override
   void onWindowClose() {
+    // Todo este método es para escritorio, así que no se llamará en web
+    // porque nunca añadimos el listener si kIsWeb es true.
+    // No necesita cambios, pero para mayor claridad:
+    if (kIsWeb) return; // Si por alguna razón se llamara en web, salimos.
     // PASO DE DEPURACIÓN: Imprimimos en la consola para ver qué pasa.
     // Revisa tu consola de depuración de VS Code o Android Studio al cerrar.
     print("onWindowClose() ha sido llamado.");
@@ -344,32 +366,70 @@ class _MyAppState extends State<MyApp> with WindowListener {
     final scaleProvider = Provider.of<ScaleProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
 
-    return RawKeyboardListener(
-      focusNode: FocusNode(),
-      autofocus: true,
-      onKey: (event) {
-        if (event is RawKeyDownEvent) {
-          final bool isControlPressed = event.isControlPressed;
-          double currentScale = scaleProvider.scaleFactor;
+    Widget mainContent = MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaleFactor: scaleProvider.scaleFactor,
+        devicePixelRatio: scaleProvider.scaleFactor,
+      ),
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        locale: const Locale('es', 'ES'),
+        supportedLocales: const [
+          Locale('es', 'ES'),
+          Locale('en', 'US'),
+        ],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+        ],
+        initialRoute: AppRoutes.login,
+        routes: {
+          AppRoutes.login: (context) => LoginScreen(),
+        },
+        onGenerateRoute: (settings) {
+          if (settings.name == AppRoutes.navigation) {
+            return MaterialPageRoute(
+              builder: (context) =>
+                  NavigationScreen(scaleFactor: scaleProvider.scaleFactor),
+            );
+          }
+          return _errorRoute();
+        },
+        debugShowCheckedModeBanner: false,
+        theme: themeProvider.isDarkMode ? ThemeData.dark() : ThemeData.light(),
+      ),
+    );
 
-          if (isControlPressed) {
-            if (event.logicalKey == LogicalKeyboardKey.equal ||
-                event.logicalKey == LogicalKeyboardKey.add ||
-                event.logicalKey == LogicalKeyboardKey.numpadAdd) {
-              double newScale = currentScale + 0.1;
-              if (newScale <= 2.5) scaleProvider.setScaleFactor(newScale);
-            } else if (event.logicalKey == LogicalKeyboardKey.minus ||
-                event.logicalKey == LogicalKeyboardKey.numpadSubtract) {
-              double newScale = currentScale - 0.1;
-              if (newScale >= 0.5) scaleProvider.setScaleFactor(newScale);
-            } else if (event.logicalKey == LogicalKeyboardKey.digit0 ||
-                event.logicalKey == LogicalKeyboardKey.numpad0) {
-              scaleProvider.setScaleFactor(1.4);
+    if (kIsWeb) {
+      // En la web, no necesitamos el listener de teclado para el zoom
+      return mainContent;
+    } else {
+      return RawKeyboardListener(
+        focusNode: FocusNode(),
+        autofocus: true,
+        onKey: (event) {
+          if (event is RawKeyDownEvent) {
+            final bool isControlPressed = event.isControlPressed;
+            double currentScale = scaleProvider.scaleFactor;
+
+            if (isControlPressed) {
+              if (event.logicalKey == LogicalKeyboardKey.equal ||
+                  event.logicalKey == LogicalKeyboardKey.add ||
+                  event.logicalKey == LogicalKeyboardKey.numpadAdd) {
+                double newScale = currentScale + 0.1;
+                if (newScale <= 2.5) scaleProvider.setScaleFactor(newScale);
+              } else if (event.logicalKey == LogicalKeyboardKey.minus ||
+                  event.logicalKey == LogicalKeyboardKey.numpadSubtract) {
+                double newScale = currentScale - 0.1;
+                if (newScale >= 0.5) scaleProvider.setScaleFactor(newScale);
+              } else if (event.logicalKey == LogicalKeyboardKey.digit0 ||
+                  event.logicalKey == LogicalKeyboardKey.numpad0) {
+                scaleProvider.setScaleFactor(1.4);
+              }
             }
           }
-        }
-      },
-      child: MediaQuery(
+        },
+        /* child: MediaQuery(
         data: MediaQuery.of(context).copyWith(
           textScaleFactor: scaleProvider.scaleFactor,
           devicePixelRatio: scaleProvider.scaleFactor,
@@ -402,8 +462,10 @@ class _MyAppState extends State<MyApp> with WindowListener {
           theme:
               themeProvider.isDarkMode ? ThemeData.dark() : ThemeData.light(),
         ),
-      ),
-    );
+      ), */
+        child: mainContent,
+      );
+    }
   }
 }
 

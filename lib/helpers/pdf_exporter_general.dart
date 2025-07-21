@@ -1,3 +1,5 @@
+// export_helper_general.dart
+
 import 'dart:io';
 import 'package:collection/collection.dart';
 import 'package:finora/ip.dart';
@@ -9,11 +11,12 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:file_picker/file_picker.dart';
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
-import 'package:finora/models/reporte_general.dart'; // Asegúrate de que esta ruta sea correcta
+import 'package:finora/models/reporte_general.dart';
 import 'package:flutter/services.dart' show ByteData, Uint8List, rootBundle;
 import 'package:provider/provider.dart';
 
 class ExportHelperGeneral {
+  // ... (métodos sin cambios como mostrarDialogoError, _loadNetworkImage, _loadAsset)
   static void mostrarDialogoError(BuildContext context, String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -78,7 +81,7 @@ class ExportHelperGeneral {
           'S. Contra',
           'Capital',
           'Interés',
-          'S. Favor',
+          'S. Favor', // Nombre de la columna se mantiene
           'Mor. Gen.',
           'Mor. Pag.',
         ];
@@ -98,6 +101,7 @@ class ExportHelperGeneral {
             build: (context) => [
               _buildPdfTable(headers, listaReportes, currencyFormat),
               pw.SizedBox(height: 10),
+              // --- CAMBIO: El método de totales ahora recibe la lista de reportes para cálculos locales
               _buildPdfTotals(reporteData, currencyFormat, listaReportes),
               pw.SizedBox(height: 10),
               _buildTotalsIdealPdfWidget(reporteData, currencyFormat),
@@ -147,14 +151,14 @@ class ExportHelperGeneral {
         columnWidths: {
           0: const pw.FlexColumnWidth(0.35),
           1: const pw.FlexColumnWidth(0.55),
-          2: const pw.FlexColumnWidth(1.8),
-          3: const pw.FlexColumnWidth(0.9),
-          4: const pw.FlexColumnWidth(0.7),
-          5: const pw.FlexColumnWidth(0.8),
-          6: const pw.FlexColumnWidth(0.8),
-          7: const pw.FlexColumnWidth(0.7),
-          8: const pw.FlexColumnWidth(0.7),
-          9: const pw.FlexColumnWidth(0.8),
+          2: const pw.FlexColumnWidth(1.3),
+          3: const pw.FlexColumnWidth(0.9), // Pagos
+          4: const pw.FlexColumnWidth(0.7), // Fecha
+          5: const pw.FlexColumnWidth(0.8), // M. Ficha
+          6: const pw.FlexColumnWidth(0.8), // S. Contra
+          7: const pw.FlexColumnWidth(0.7), // Capital
+          8: const pw.FlexColumnWidth(0.7), // Interés
+          9: const pw.FlexColumnWidth(0.9), // S. Favor (un poco más ancho)
           10: const pw.FlexColumnWidth(0.8),
           11: const pw.FlexColumnWidth(0.8),
         },
@@ -196,12 +200,13 @@ class ExportHelperGeneral {
                 isLastRow: isLastRow);
 
             return pw.TableRow(
+              verticalAlignment: pw.TableCellVerticalAlignment.middle,
               decoration: rowDecoration,
               children: [
                 _buildPdfCell((index + 1).toString(), isNumeric: true),
                 _buildPdfCell(reporte.tipoPago),
                 _buildPdfCell(_truncateText(reporte.grupos, 30)),
-                _buildPagosColumnPdf(reporte, currencyFormat),
+                _buildPagosColumnPdf(reporte, currencyFormat), // Modificado
                 _buildFechasColumnPdf(reporte),
                 _buildPdfCell(currencyFormat.format(reporte.montoficha),
                     isNumeric: true),
@@ -211,8 +216,8 @@ class ExportHelperGeneral {
                     isNumeric: true),
                 _buildPdfCell(currencyFormat.format(reporte.interessemanal),
                     isNumeric: true),
-                _buildPdfCell(currencyFormat.format(reporte.saldofavor),
-                    isNumeric: true),
+                // --- CAMBIO CLAVE: Usar el nuevo widget para la columna Saldo Favor
+                _buildSaldoFavorColumnPdf(reporte, currencyFormat),
                 _buildPdfCellMoratorios(
                     currencyFormat.format(moratoriosGenerados),
                     moratoriosGenerados > 0,
@@ -229,34 +234,122 @@ class ExportHelperGeneral {
     );
   }
 
+  // --- MÉTODO MODIFICADO ---
+  // Ahora muestra pagos con saldo a favor con fondo verde.
   static pw.Widget _buildPagosColumnPdf(
       ReporteGeneral reporte, NumberFormat currencyFormat) {
     if (reporte.depositos.isEmpty) {
       return _buildPdfCell(currencyFormat.format(0.0), isNumeric: true);
     }
+
+    final List<pw.Widget> paymentWidgets = [];
+    for (final deposito in reporte.depositos) {
+      // Pago en efectivo o garantía
+      if (deposito.monto > 0) {
+        final bool isGarantia = deposito.garantia == "Si";
+        paymentWidgets.add(
+          pw.Container(
+            decoration: isGarantia
+                ? pw.BoxDecoration(
+                    color: PdfColor.fromHex('#E53888'),
+                    borderRadius: pw.BorderRadius.circular(4))
+                : null,
+            padding:
+                const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1.5),
+            margin: const pw.EdgeInsets.only(bottom: 1),
+            child: pw.Text(
+              currencyFormat.format(deposito.monto),
+              style: pw.TextStyle(
+                  color: isGarantia ? PdfColors.white : PdfColors.black,
+                  fontSize: 6),
+            ),
+          ),
+        );
+      }
+      // Pago con saldo a favor
+      if (deposito.favorUtilizado > 0) {
+        paymentWidgets.add(
+          pw.Container(
+            decoration: pw.BoxDecoration(
+                color: PdfColor.fromHex('#28a745'), // Verde
+                borderRadius: pw.BorderRadius.circular(4)),
+            padding:
+                const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1.5),
+            margin: const pw.EdgeInsets.only(bottom: 1),
+            child: pw.Text(
+              currencyFormat.format(deposito.favorUtilizado),
+              style: const pw.TextStyle(color: PdfColors.white, fontSize: 6),
+            ),
+          ),
+        );
+      }
+    }
+
     return pw.Container(
       alignment: pw.Alignment.centerRight,
       padding: const pw.EdgeInsets.all(3),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
-        children: reporte.depositos.map((deposito) {
-          if (deposito.garantia == "Si") {
-            return pw.Container(
-              decoration: pw.BoxDecoration(
-                  color: PdfColor.fromHex('#E53888'),
-                  borderRadius: pw.BorderRadius.circular(4)),
-              padding:
-                  const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1.5),
-              child: pw.Text(currencyFormat.format(deposito.monto),
-                  style:
-                      const pw.TextStyle(color: PdfColors.white, fontSize: 6)),
-            );
-          }
-          return pw.Text(currencyFormat.format(deposito.monto),
-              style: const pw.TextStyle(color: PdfColors.black, fontSize: 6));
-        }).toList(),
+        children: paymentWidgets,
       ),
     );
+  }
+
+  // --- NUEVO MÉTODO ---
+  // Este método replica la lógica de la UI para la columna de "Saldo a Favor".
+  static pw.Widget _buildSaldoFavorColumnPdf(
+      ReporteGeneral reporte, NumberFormat currencyFormat) {
+    final deposito =
+        reporte.depositos.isNotEmpty ? reporte.depositos.first : null;
+
+    pw.TextStyle mainStyle =
+        const pw.TextStyle(fontSize: 6, color: PdfColors.black);
+    pw.TextStyle subStyle =
+        const pw.TextStyle(fontSize: 5, color: PdfColors.grey);
+
+    // Caso 1: No hay depósito o no se generó saldo a favor en este pago.
+    if (deposito == null || deposito.saldofavor == 0) {
+      // Aún mostramos el `reporte.saldofavor` que podría ser un saldo a favor generado en este mismo pago.
+      return _buildPdfCell(currencyFormat.format(reporte.saldofavor),
+          isNumeric: true);
+    }
+
+    // Caso 2: El saldo a favor fue utilizado completamente para otro pago.
+    if (deposito.utilizadoPago == 'Si') {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(3),
+        alignment: pw.Alignment.centerRight,
+        child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+              pw.Text(currencyFormat.format(deposito.saldofavor),
+                  style: mainStyle.copyWith(color: PdfColors.grey)),
+              pw.Text("(Utilizado)", style: subStyle),
+            ]),
+      );
+    }
+
+    // Caso 3: Se utilizó una parte del saldo a favor.
+    if (deposito.saldoUtilizado > 0) {
+      return pw.Container(
+        padding: const pw.EdgeInsets.all(3),
+        alignment: pw.Alignment.centerRight,
+        child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+              pw.Text(currencyFormat.format(deposito.saldoDisponible),
+                  style: mainStyle),
+              pw.Text("(de ${currencyFormat.format(deposito.saldofavor)})",
+                  style: subStyle),
+            ]),
+      );
+    }
+
+    // Caso 4 (Default): Se generó un saldo a favor y no se ha tocado.
+    return _buildPdfCell(currencyFormat.format(reporte.saldofavor),
+        isNumeric: true);
   }
 
   static pw.Widget _buildFechasColumnPdf(ReporteGeneral reporte) {
@@ -276,97 +369,114 @@ class ExportHelperGeneral {
     );
   }
 
+  // --- MÉTODO MODIFICADO ---
+  // Ahora muestra los totales de Saldo a Favor como en la UI (Disponible e Histórico).
   static pw.Widget _buildPdfTotals(
     ReporteGeneralData reporteData,
     NumberFormat currencyFormat,
     List<ReporteGeneral> listaReportes,
   ) {
-    // Valores que ahora vienen del servidor:
+    // Valores del servidor
     final double totalPagosFicha = reporteData.totalPagoficha;
     final double totalFicha = reporteData.totalFicha;
     final double totalCapital = reporteData.totalCapital;
     final double totalInteres = reporteData.totalInteres;
-    final double totalSaldoFavor = reporteData.totalSaldoFavor;
+    // --- CAMBIO CLAVE: Obtener ambos valores de saldo a favor ---
+    final double totalSaldoDisponible = reporteData.totalSaldoDisponible;
+    final double totalSaldoFavorHistorico = reporteData.totalSaldoFavor;
 
-    // Valores que seguimos calculando localmente:
-    double totalSaldoContra = 0.0;
-    for (final reporte in listaReportes) {
-      final double saldoContra = reporte.montoficha - reporte.pagoficha;
-      if (saldoContra > 0) {
-        totalSaldoContra += saldoContra;
-      }
-    }
-
+    // Valores calculados localmente
+    double totalSaldoContra = listaReportes.fold(0.0, (sum, r) {
+      final saldo = r.montoficha - r.pagoficha;
+      return sum + (saldo > 0 ? saldo : 0);
+    });
     final double totalMoratoriosGenerados =
         listaReportes.fold(0.0, (sum, r) => sum + r.moratoriosAPagar);
-
     final double totalMoratoriosPagados =
         listaReportes.fold(0.0, (sum, r) => sum + r.sumaMoratorio);
 
+    // --- Flex values para alinear las columnas de totales con la tabla ---
     const flexValues = {
       0: 35,
       1: 55,
-      2: 180,
+      2: 130,
       3: 90,
       4: 70,
       5: 80,
       6: 80,
       7: 70,
       8: 70,
-      9: 80,
+      9: 90,
       10: 80,
       11: 80,
     };
+    final int totalFlex = flexValues.values.reduce((a, b) => a + b);
 
     return pw.Container(
-        decoration: pw.BoxDecoration(
-          color: PdfColor.fromHex('#5162F6'),
-          borderRadius: pw.BorderRadius.circular(10),
-        ),
-        child: pw.Padding(
-          padding: const pw.EdgeInsets.symmetric(
-              horizontal: 12), // padding horizontal aquí
-          child: pw.Row(
-            children: [
-              pw.Expanded(
-                flex: flexValues[0]! + flexValues[1]!,
-                child: _buildTotalCell('Totales', alignLeft: true),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromHex('#5162F6'),
+        borderRadius: pw.BorderRadius.circular(10),
+      ),
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+              flex: (flexValues[0]! + flexValues[1]! + flexValues[2]!),
+              child: _buildTotalCell('Totales', alignLeft: true)),
+          pw.Expanded(
+              flex: flexValues[3]!,
+              child: _buildTotalCell(currencyFormat.format(totalPagosFicha))),
+          pw.Expanded(flex: flexValues[4]!, child: _buildTotalCell('')),
+          pw.Expanded(
+              flex: flexValues[5]!,
+              child: _buildTotalCell(currencyFormat.format(totalFicha))),
+          pw.Expanded(
+              flex: flexValues[6]!,
+              child: _buildTotalCell(currencyFormat.format(totalSaldoContra))),
+          pw.Expanded(
+              flex: flexValues[7]!,
+              child: _buildTotalCell(currencyFormat.format(totalCapital))),
+          pw.Expanded(
+              flex: flexValues[8]!,
+              child: _buildTotalCell(currencyFormat.format(totalInteres))),
+          // --- CAMBIO CLAVE: Celda de total para Saldo a Favor ---
+          pw.Expanded(
+            flex: flexValues[9]!,
+            child: pw.Container(
+              alignment: pw.Alignment.centerRight,
+              padding:
+                  const pw.EdgeInsets.symmetric(vertical: 2, horizontal: 3),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  pw.Text(currencyFormat.format(totalSaldoDisponible),
+                      style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 6.5)),
+                  pw.Text(
+                      "(Hist: ${currencyFormat.format(totalSaldoFavorHistorico)})",
+                      style: const pw.TextStyle(
+                          color: PdfColors.white, fontSize: 5.5)),
+                ],
               ),
-              pw.Expanded(flex: flexValues[2]!, child: _buildTotalCell('')),
-              pw.Expanded(
-                  flex: flexValues[3]!,
-                  child:
-                      _buildTotalCell(currencyFormat.format(totalPagosFicha))),
-              pw.Expanded(flex: flexValues[4]!, child: _buildTotalCell('')),
-              pw.Expanded(
-                  flex: flexValues[5]!,
-                  child: _buildTotalCell(currencyFormat.format(totalFicha))),
-              pw.Expanded(
-                  flex: flexValues[6]!,
-                  child:
-                      _buildTotalCell(currencyFormat.format(totalSaldoContra))),
-              pw.Expanded(
-                  flex: flexValues[7]!,
-                  child: _buildTotalCell(currencyFormat.format(totalCapital))),
-              pw.Expanded(
-                  flex: flexValues[8]!,
-                  child: _buildTotalCell(currencyFormat.format(totalInteres))),
-              pw.Expanded(
-                  flex: flexValues[9]!,
-                  child:
-                      _buildTotalCell(currencyFormat.format(totalSaldoFavor))),
-              pw.Expanded(
-                  flex: flexValues[10]!,
-                  child: _buildTotalCell(
-                      currencyFormat.format(totalMoratoriosGenerados))),
-              pw.Expanded(
-                  flex: flexValues[11]!,
-                  child: _buildTotalCell(
-                      currencyFormat.format(totalMoratoriosPagados))),
-            ],
+            ),
           ),
-        ));
+          pw.Expanded(
+              flex: flexValues[10]!,
+              child: _buildTotalCell(
+                  currencyFormat.format(totalMoratoriosGenerados))),
+          pw.Expanded(
+              flex: flexValues[11]!,
+              child: _buildTotalCell(
+                  currencyFormat.format(totalMoratoriosPagados))),
+        ],
+      ),
+    );
   }
+
+  // --- El resto de los métodos se mantienen igual ---
 
   static pw.Widget _buildTotalsIdealPdfWidget(
       ReporteGeneralData reporteData, NumberFormat currencyFormat) {
@@ -426,9 +536,6 @@ class ExportHelperGeneral {
     );
   }
 
-  // --- MÉTODO REINTEGRADO ---
-  // Este es el método que faltaba. Se encarga de aplicar los colores
-  // rojo (generado) y verde (pagado) a las celdas de moratorios.
   static pw.Widget _buildPdfCellMoratorios(String text, bool isPositive,
       {required bool isGenerated}) {
     final PdfColor positiveColor =

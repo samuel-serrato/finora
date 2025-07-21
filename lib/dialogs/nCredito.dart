@@ -1007,8 +1007,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
               SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: _cargarDatosIniciales,
-                icon: Icon(Icons.refresh),
-                label: Text('Reintentar'),
+                icon: Icon(Icons.refresh, color: Colors.white,),
+                label: Text('Reintentar', style: TextStyle(color: Colors.white),),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF5162F6)),
               ),
@@ -1602,14 +1602,14 @@ class _nCreditoDialogState extends State<nCreditoDialog>
           Text(
             label,
             style: TextStyle(
-                fontSize: 12,
+              fontSize: 12,
               color: isDarkMode ? Colors.white70 : Colors.black54,
             ),
           ),
           Text(
             value,
             style: TextStyle(
-               fontSize: 12,
+              fontSize: 12,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
               color: isDarkMode ? Colors.white : Colors.black,
             ),
@@ -1734,7 +1734,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
     // Si capitalPago es 0, pagoTotal será solo el interés, y viceversa.
     double pagoTotal = capitalPago + interesPago;
-    double totalARecuperar = pagoTotal * pagosTotales;
+    double totalARecuperar = redondearDecimales(pagoTotal, context) * pagosTotales;
 
     // Formatear los datos para mostrarlos
     String montoAutorizado = formatearNumero(monto);
@@ -1834,11 +1834,92 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                           ? 'Capital Semanal:'
                                           : 'Capital Quincenal:',
                                       '\$${formatearNumero(capitalPago)}'),
-                                  _buildColumnRow(
-                                      frecuenciaPago == "Semanal"
-                                          ? 'Pago Semanal:'
-                                          : 'Pago Quincenal:',
-                                      '\$${formatearNumero(pagoTotal)}'),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildColumnRow(
+                                          frecuenciaPago == "Semanal"
+                                              ? 'Pago Semanal:'
+                                              : 'Pago Quincenal:',
+                                          '\$${formatearNumero(redondearDecimales(pagoTotal, context))}',
+                                        ),
+                                      ),
+                                      SizedBox(width: 2),
+                                      Container(
+                                        height: 20,
+                                        width: 20,
+                                        child: Tooltip(
+                                          waitDuration: Duration.zero,
+                                          showDuration: Duration(seconds: 5),
+                                          richMessage: WidgetSpan(
+                                            child: Transform.translate(
+                                              offset: Offset(-50,
+                                                  -10), // Ajusta la posición del tooltip
+                                              child: Container(
+                                                padding: EdgeInsets.all(10),
+                                                constraints: BoxConstraints(
+                                                    maxWidth: 200),
+                                                decoration: BoxDecoration(
+                                                  color: isDarkMode
+                                                      ? Colors.grey[800]
+                                                      : Color(0xFFF7F8FA),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withOpacity(0.3),
+                                                      blurRadius: 6,
+                                                      offset: Offset(0, 2),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      'Valor original:',
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 13,
+                                                        color: isDarkMode
+                                                            ? Colors.white
+                                                            : Colors.black,
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: 4),
+                                                    Text(
+                                                      '\$${formatearNumero(pagoTotal)}',
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color: isDarkMode
+                                                            ? Colors.white70
+                                                            : Colors.black87,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          decoration:
+                                              BoxDecoration(), // Sin decoración por defecto
+                                          child: MouseRegion(
+                                            cursor: SystemMouseCursors.click,
+                                            child: Icon(
+                                              Icons.info_outline,
+                                              size: 16,
+                                              color: Color(0xFF5162F6),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -2473,6 +2554,8 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     final double totalARecuperar = montoTotalCredito + interesTotalCalculado;
     final double pagoPorCuota =
         redondearADosDecimales(totalARecuperar / numeroDePagos);
+        final double totalARecuperarRedondeado = redondearDecimales(pagoPorCuota, context) * numeroDePagos;
+
 
     // --- 4.5. CÁLCULO DEL INTERÉS GLOBAL (%) ---
     double interesGlobalCalculado = 0.0;
@@ -2522,7 +2605,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
         "periodoInteresPorcentaje": tasa.mensual,
         "totalCapital": capitalIndividual,
         "totalIntereses": interesTotalIndividual,
-        "capitalMasInteres": pagoCuotaIndividual,
+        "capitalMasInteres": redondearADosDecimales(pagoCuotaIndividual),
         "pagoTotal": redondearADosDecimales(pagoTotalIndividual),
       });
     }
@@ -2536,10 +2619,11 @@ class _nCreditoDialogState extends State<nCreditoDialog>
       "garantia": valorGarantiaString,
       "montoTotal": montoTotalCredito,
       "interesGlobal": redondearADosDecimales(interesGlobalCalculado),
-      "pagoCuota": pagoPorCuota,
+      "pagoCuota": redondearDecimales(pagoPorCuota, context),
       "montoGarantia": redondearADosDecimales(montoGarantiaCalculado),
       "interesTotal": interesTotalCalculado,
-      "montoMasInteres": redondearADosDecimales(totalARecuperar),
+      "montoMasInteres": (totalARecuperarRedondeado),
+
       "diaPago": diaPago,
       "fechasPago": fechasDePago,
       "clientesMontosInd": clientesMontosIndividuales,

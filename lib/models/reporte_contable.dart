@@ -26,6 +26,7 @@ class ReporteContableData {
   final double totalInteres;
   final double totalPagoficha;
   final double totalSaldoFavor;
+  final double totalSaldoDisponible; // <-- AÑADE ESTE CAMPO
   final double saldoMoratorio;
   final double totalTotal;
   final double restante;
@@ -40,6 +41,7 @@ class ReporteContableData {
     required this.totalInteres,
     required this.totalPagoficha,
     required this.totalSaldoFavor,
+    required this.totalSaldoDisponible, // <-- AÑADE AL CONSTRUCTOR
     required this.saldoMoratorio,
     required this.totalTotal,
     required this.restante,
@@ -60,11 +62,13 @@ class ReporteContableData {
       totalInteres: ParseHelpers.parseDouble(json['totalInteres']),
       totalPagoficha: ParseHelpers.parseDouble(json['totalPagoficha']),
       totalSaldoFavor: ParseHelpers.parseDouble(json['totalSaldoFavor']),
+      totalSaldoDisponible: ParseHelpers.parseDouble(json['totalSaldoDisponible']),
       saldoMoratorio: ParseHelpers.parseDouble(json['saldoMoratorio']),
       totalTotal: ParseHelpers.parseDouble(json['totalTotal']),
       restante: ParseHelpers.parseDouble(json['restante']),
       totalFicha: ParseHelpers.parseDouble(json['totalFicha']),
-      sumaTotalCapMoraFav: ParseHelpers.parseDouble(json['sumaTotalCapMoraFav']),
+      sumaTotalCapMoraFav:
+          ParseHelpers.parseDouble(json['sumaTotalCapMoraFav']),
       listaGrupos: ParseHelpers.parseList(
         json['listaGrupos'],
         (item) => ReporteContableGrupo.fromJson(item),
@@ -195,10 +199,16 @@ class Pagoficha {
 
 class Deposito {
   final double deposito;
-  final double saldofavor;
+  final double saldofavor; // Cuánto se GENERÓ con este pago
   final double pagoMoratorio;
   final String garantia;
   final String fechaDeposito;
+  // --- CAMPOS NECESARIOS AÑADIDOS (debes recibirlos del backend) ---
+  final double favorUtilizado;
+  final double saldoUtilizado;
+  final double saldoDisponible;
+  final String utilizadoPago;
+
 
   Deposito({
     required this.deposito,
@@ -206,6 +216,11 @@ class Deposito {
     required this.pagoMoratorio,
     required this.garantia,
     required this.fechaDeposito,
+    // --- AÑADIDOS AL CONSTRUCTOR ---
+    required this.favorUtilizado,
+    required this.saldoUtilizado,
+    required this.saldoDisponible,
+    required this.utilizadoPago,
   });
 
   factory Deposito.fromJson(Map<String, dynamic> json) {
@@ -214,7 +229,12 @@ class Deposito {
       saldofavor: ParseHelpers.parseDouble(json['saldofavor']),
       pagoMoratorio: ParseHelpers.parseDouble(json['pagoMoratorio']),
       garantia: json['garantia'] ?? 'No',
-      fechaDeposito: json['fechaDeposito'] ?? '', // Parse the new field
+      fechaDeposito: json['fechaDeposito'] ?? '',
+      // --- PARSEAR LOS NUEVOS CAMPOS ---
+      favorUtilizado: ParseHelpers.parseDouble(json['favorUtilizado']),
+      saldoUtilizado: ParseHelpers.parseDouble(json['saldoUtilizado']),
+      saldoDisponible: ParseHelpers.parseDouble(json['saldoDisponible']),
+      utilizadoPago: json['utilizadoPago'] ?? 'No',
     );
   }
 }

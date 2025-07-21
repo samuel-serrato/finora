@@ -28,7 +28,8 @@ class ExitConfirmationDialog extends StatelessWidget {
 
     return AlertDialog(
       // --- (Tu código de apariencia del AlertDialog se mantiene igual) ---
-      backgroundColor: isDarkMode ? const Color(0xFF2a2a2e) : Colors.white,
+      backgroundColor:
+          isDarkMode ? Colors.grey[800] : Colors.white, // Color dinámico
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
       contentPadding: const EdgeInsets.only(top: 25, bottom: 20),
       title: Column(
@@ -91,12 +92,14 @@ class ExitConfirmationDialog extends StatelessWidget {
                     barrierDismissible: false,
                     builder: (BuildContext context) {
                       return AlertDialog(
-                        backgroundColor: Colors.white,
+                        backgroundColor: isDarkMode
+                            ? Colors.grey[800]
+                            : Colors.white, // Color dinámico
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20)),
                         content: Container(
                           padding: const EdgeInsets.all(20),
-                          child: const Column(
+                          child:  Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               CircularProgressIndicator(
@@ -104,8 +107,12 @@ class ExitConfirmationDialog extends StatelessWidget {
                               SizedBox(height: 20),
                               Text('Cerrando sesión...',
                                   style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500)),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  )),
                             ],
                           ),
                         ),

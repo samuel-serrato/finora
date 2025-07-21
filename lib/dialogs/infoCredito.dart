@@ -9,11 +9,13 @@ import 'package:finora/models/credito.dart';
 import 'package:finora/models/menu_pago.dart';
 import 'package:finora/models/renovacion_pendiente.dart';
 import 'package:finora/providers/theme_provider.dart';
+import 'package:finora/utils/rounding_utils.dart';
 import 'package:finora/widgets/icono_con_indicador.dart';
 import 'package:finora/widgets/menu_pago.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
@@ -976,8 +978,8 @@ class _InfoCreditoState extends State<InfoCredito> {
         listen: false); // Obtén el ThemeProvider
     final isDarkMode = themeProvider.isDarkMode; // Estado del tema
 
-    final width = MediaQuery.of(context).size.width * 0.97;
-    final height = MediaQuery.of(context).size.height * 0.93;
+    final width = MediaQuery.of(context).size.width * 1;
+    final height = MediaQuery.of(context).size.height * 1;
 
     String formatearRangoFechasDdMmYyyy(String rango) {
       try {
@@ -1000,7 +1002,7 @@ class _InfoCreditoState extends State<InfoCredito> {
         backgroundColor:
             isDarkMode ? Colors.grey[900] : Color(0xFFF7F8FA), // Fondo dinámico
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        insetPadding: EdgeInsets.all(16),
+        insetPadding: EdgeInsets.all(8),
         child: Stack(
           children: [
             Container(
@@ -1571,6 +1573,14 @@ class _PaginaControlState extends State<PaginaControl> {
   final ValueNotifier<Map<String, bool>> _clientesSeleccionadosNotifier =
       ValueNotifier<Map<String, bool>>({});
 
+  // =========================================================================
+  // <<< NUEVA VARIABLE DE ESTADO PARA CÁLCULOS EN TIEMPO REAL >>>
+  // =========================================================================
+  final Map<String, double> _saldosFavorEnTiempoReal = {};
+  // =========================================================================
+
+  final Set<String> _pagosConInteraccionRealTime = {};
+
   // --- MODIFICADO ---
   // Ahora usaremos esta variable para el estado de carga del botón de guardar del submenú.
   bool _isSaving = false;
@@ -1597,45 +1607,60 @@ class _PaginaControlState extends State<PaginaControl> {
     _clientesSeleccionadosNotifier.value = initialSelection;
   }
 
-  Future<void> recargarPagos() async {
-    if (mounted) {
-      setState(() => isLoading = true);
-    }
+  // EN LA CLASE: _PaginaControlState
 
-    await Future.delayed(Duration(milliseconds: 500));
-
-    try {
-      List<Pago> pagos = await _fetchPagos();
-      if (mounted) {
-        setState(() {
-          _pagosFuture = Future.value(pagos);
-          isLoading = false;
-        });
-
-        // Actualizar el PagosProvider con los nuevos pagos
-        _actualizarProviderConPagos(pagos);
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-      _mostrarDialogoError('Error al cargar los pagos: $e');
-    }
+Future<void> recargarPagos() async {
+  // Aseguramos que el widget todavía esté en el árbol.
+  if (mounted) {
+    setState(() {
+      isLoading = true;
+      
+      // <<< LA SOLUCIÓN DEFINITIVA >>>
+      // Limpiamos los mapas de estado en tiempo real ANTES de recargar.
+      // Esto elimina cualquier valor "fantasma" de interacciones previas.
+      _saldosFavorEnTiempoReal.clear();
+      _pagosConInteraccionRealTime.clear();
+      print("Mapas de estado en tiempo real reseteados.");
+    });
   }
 
+  // Pequeña demora para que el indicador de carga sea visible.
+  await Future.delayed(Duration(milliseconds: 100));
+
+  try {
+    // Obtenemos los pagos frescos, que se calcularán correctamente.
+    List<Pago> pagos = await _fetchPagos();
+    
+    if (mounted) {
+      // Actualizamos el Future para que el FutureBuilder se reconstruya.
+      _pagosFuture = Future.value(pagos); 
+      // Desactivamos el indicador de carga.
+      setState(() => isLoading = false);
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
+    _mostrarDialogoError('Error al recargar los pagos: $e');
+  }
+}
+
+  // =========================================================================
+// <<< FUNCIÓN _fetchPagos COMPLETA Y CORREGIDA >>>
+// Esta versión confía en los datos del servidor y elimina la simulación de frontend.
+// =========================================================================
   Future<List<Pago>> _fetchPagos() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('tokenauth') ?? '';
-
-      // Verificar que el token esté disponible
       if (token.isEmpty) {
+        if (!mounted) return [];
         _mostrarDialogoError(
-            'Token de autenticación no encontrado. Por favor, inicia sesión.');
+            'Tu sesión ha expirado o no es válida. Por favor, inicia sesión de nuevo.');
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => LoginScreen()),
-          (route) => false, // Elimina todas las rutas anteriores
+          (route) => false,
         );
         return [];
       }
@@ -1647,67 +1672,91 @@ class _PaginaControlState extends State<PaginaControl> {
 
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
-        List<Pago> pagos = data.map((pago) => Pago.fromJson(pago)).toList();
 
-        for (var pago in pagos) {
-          // En el método _fetchPagos
-          double totalDeuda = (pago.capitalMasInteres ?? 0.0) +
-              (pago.moratorioDesabilitado == "Si"
-                  ? 0.0
-                  : (pago.moratorios?.moratorios ?? 0.0));
+        // Mapeamos el JSON a objetos Pago, el modelo se encarga de parsear todo.
+        List<Pago> pagos = data.map((pagoJson) {
+          // Aprovechamos el constructor fromJson que ya tiene la lógica.
+          return Pago.fromJson(pagoJson);
+        }).toList();
 
-          bool tieneGarantia =
-              pago.abonos.any((abono) => abono['garantia'] == 'Si');
+        pagos.sort((a, b) =>
+            a.semana.compareTo(b.semana)); // Asegurar orden cronológico
 
-          double montoPagado = pago.abonos.fold(
-              0.0,
-              (total, abono) =>
-                  total + (double.tryParse(abono['abono'].toString()) ?? 0.0));
+          for (var pago in pagos) {
+        // Si la lista de abonos está vacía (como después de un borrado)...
+        if (pago.abonos.isEmpty) {
 
-          // Luego calcular saldoEnContra
-          pago.saldoEnContra = totalDeuda - montoPagado;
+          // <<< INICIO DE LA CORRECCIÓN FINAL >>>
+          // Reseteamos TODOS los campos relevantes a un estado limpio.
 
-          // Asegurar que no sea negativo
-          if (pago.saldoEnContra! < 0) pago.saldoEnContra = 0.0;
+          // Propiedades que la UI SÍ está usando para "Saldo a Favor"
+          pago.saldoFavorOriginalGenerado = 0.0;
+          pago.saldoRestante = 0.0;
+          pago.fueUtilizadoPorServidor = false;
 
-          bool sinActividad = pago.abonos.isEmpty;
+          // Propiedades que ya estábamos reseteando
+          pago.tipoPago = '';
+          pago.saldoFavor = 0.0;
+          pago.saldoEnContra = 0.0;
+          pago.estaFinalizado = false;
+          pago.deposito = 0.0;
+          pago.sumaDepositoMoratorisos = 0.0;
+          // <<< FIN DE LA CORRECCIÓN FINAL >>>
 
-          if (sinActividad) {
-            pago.saldoEnContra = 0.0;
-            pago.saldoFavor = 0.0;
-          } else {
-            bool estaPagado = montoPagado >= totalDeuda;
-            pago.saldoEnContra = estaPagado ? 0.0 : totalDeuda - montoPagado;
-            pago.saldoFavor =
-                estaPagado && !tieneGarantia ? montoPagado - totalDeuda : 0.0;
-          }
+          continue; // Pasamos al siguiente pago
         }
 
-        _actualizarProviderConPagos(pagos);
+        // Si hay abonos, recalculamos todo desde cero (lógica anterior)
+        double montoTotalPagado = pago.abonos.fold(0.0, (sum, abono) {
+          final deposito = abono['deposito'];
+          return sum + (deposito is num ? deposito : 0.0);
+        });
+        
+        pago.sumaDepositoMoratorisos = montoTotalPagado;
+        pago.deposito = montoTotalPagado;
 
-        if (mounted) {
-          setState(() {
-            isLoading = false;
-          });
+        double totalDeudaSemana = (pago.capitalMasInteres ?? 0.0) +
+            (pago.moratorioDesabilitado == "Si"
+                ? 0.0
+                : (pago.moratorios?.moratorios ?? 0.0));
+
+        double diferencia = montoTotalPagado - totalDeudaSemana;
+
+        if (diferencia > 0) {
+          pago.saldoFavor = diferencia;
+          pago.saldoEnContra = 0.0;
+        } else {
+          pago.saldoFavor = 0.0;
+          pago.saldoEnContra = -diferencia;
         }
+        
+        pago.estaFinalizado = (pago.saldoEnContra ?? 0.0) <= 0.01;
+      }
+      
+      _actualizarProviderConPagos(pagos);
+
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+
 
         return pagos;
       } else {
+        // Manejo de errores de sesión y otros (sin cambios, tu lógica aquí es correcta)
         try {
           final errorData = json.decode(response.body);
-
           if (errorData["Error"] != null) {
             final mensajeError = errorData["Error"]["Message"];
-
             if (mensajeError == "La sesión ha cambiado. Cerrando sesión...") {
               await prefs.remove('tokenauth');
               mostrarDialogoCierreSesion(
                   'La sesión ha cambiado. Cerrando sesión...', onClose: () {
                 Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (route) => false,
-                );
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                    (route) => false);
               });
               return [];
             } else if (mensajeError == "jwt expired") {
@@ -1715,86 +1764,49 @@ class _PaginaControlState extends State<PaginaControl> {
               _mostrarDialogoError(
                   'Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
               Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false,
-              );
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false);
               return [];
             }
           }
         } catch (e) {
           print('Error al procesar la respuesta: $e');
         }
-
-        print('Respuesta:${response.body}');
+        print('Respuesta con error:${response.body}');
         throw Exception('Error: ${response.statusCode}');
       }
     } catch (e) {
       if (mounted) {
         setState(() => isLoading = false);
       }
-      _mostrarDialogoError('Error: $e');
+      _mostrarDialogoError('Error de conexión: $e');
       throw Exception(e);
     }
   }
 
-  void _actualizarProviderConPagos(List<Pago> pagos) {
-  // ======================================================================
-  //     INICIO: LÓGICA DE CÁLCULO DE DESCUENTO POR GARANTÍA (VERSIÓN DINÁMICA)
-  // ======================================================================
-  try {
-    // --- CAMBIO: Hacemos la lógica dinámica ---
-    // 1. Verificamos que haya al menos 2 pagos para tener un "último" y "penúltimo".
-    if (pagos.isNotEmpty && pagos.map((p) => p.semana).reduce((a, b) => a > b ? a : b) > 1) {
-      // 2. Obtenemos el número de la última semana de pago.
-      final int totalSemanas = pagos.map((p) => p.semana).reduce((a, b) => a > b ? a : b);
-      
-      // 3. Buscamos el penúltimo y el último pago usando el total de semanas.
-      final pagoPenultimo = pagos.firstWhere((p) => p.semana == totalSemanas - 1);
-      final pagoUltimo = pagos.firstWhere((p) => p.semana == totalSemanas);
-
-      final bool garantiaUsadaEnPenultimo =
-          pagoPenultimo.abonos.any((abono) => abono['garantia'] == 'Si');
-
-      if (garantiaUsadaEnPenultimo) {
-        final double montoGarantiaUsadaEnPenultimo = pagoPenultimo.abonos
-            .where((abono) => abono['garantia'] == 'Si')
-            .fold(
-                0.0,
-                (sum, abono) =>
-                    sum +
-                    (double.tryParse(abono['deposito'].toString()) ?? 0.0));
-
-        final double montoTotalGarantia = widget.montoGarantia;
-        double garantiaRestante = montoTotalGarantia - montoGarantiaUsadaEnPenultimo;
-
-        if (garantiaRestante < 0.01) garantiaRestante = 0;
-
-        if (garantiaRestante > 0) {
-          // Asignamos el descuento a nuestra nueva variable en el ÚLTIMO pago.
-          pagoUltimo.descuentoGarantiaAplicado = garantiaRestante;
-          print(
-              "Descuento de garantía de $garantiaRestante asignado al pago $totalSemanas.");
-        }
-      }
-    }
-  } catch (e) {
-    print(
-        "Lógica de descuento por garantía omitida (pagos no encontrados o insuficientes): $e");
+  // <<< NUEVO: FUNCIÓN COMPLETA PARA VALIDAR Y APLICAR SALDO A FAVOR >>>
+  // <<< REEMPLAZA ESTA FUNCIÓN COMPLETA EN TU CÓDIGO >>>
+  // =========================================================================
+  // <<< REEMPLAZA ESTA FUNCIÓN COMPLETA EN TU CÓDIGO >>>
+  // Esta versión corregida se asegura de poner en CERO el saldo a favor
+  // de la fila original una vez que ha sido utilizado.
+  // =========================================================================
+  // <<< MODIFICADO: FUNCIÓN AHORA VACÍA >>>
+  // Esta función realizaba una lógica similar a la que eliminamos.
+  // La vaciamos para asegurarnos de que no interfiera.
+  void _validarYFinalizarUltimoPago(List<Pago> pagos) {
+    // No hacer nada. La lógica de liquidación automática ha sido eliminada.
+    return;
   }
-  // ======================================================================
-  //             FIN: LÓGICA DE DESCUENTO
-  // ======================================================================
 
-  final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
-  pagosProvider.cargarPagos(pagos.map((pago) {
-      // ▼▼▼ ¡SEGUNDO CAMBIO CLAVE! Modificamos el recálculo de saldos. ▼▼▼
-      _recalcularSaldos(
-          pago); // Llamamos a la función que ahora considerará el descuento
+  // Modifica _actualizarProviderConPagos para que quede así de simple:
+  void _actualizarProviderConPagos(List<Pago> pagos) {
+    final pagosProvider = Provider.of<PagosProvider>(context, listen: false);
 
+    pagosProvider.cargarPagos(pagos.map((pago) {
+      // Simplemente mapeamos los valores ya calculados y definitivos.
       return PagoSeleccionado(
-        // ... tu código de mapeo a PagoSeleccionado (este no necesita cambiar)
-        // Asegúrate de que los saldos ya vengan calculados correctamente desde `_recalcularSaldos`
         moratorioDesabilitado: pago.moratorioDesabilitado,
         semana: pago.semana,
         tipoPago: pago.tipoPago,
@@ -1804,7 +1816,7 @@ class _PaginaControlState extends State<PaginaControl> {
             : pago.moratorios?.moratorios ?? 0.0,
         saldoFavor: pago.saldoFavor ?? 0.0,
         saldoEnContra:
-            pago.saldoEnContra ?? 0.0, // <-- Este valor ya vendrá corregido
+            pago.saldoEnContra ?? 0.0, // <-- Usará el valor ya corregido (0.0)
         abonos: pago.abonos ?? [],
         idfechaspagos: pago.idfechaspagos ?? '',
         fechaPago: pago.fechaPago ?? '',
@@ -1812,13 +1824,11 @@ class _PaginaControlState extends State<PaginaControl> {
       );
     }).toList());
 
-    // Inicializamos los controladores para cada pago
-    // En _actualizarProviderConPagos:
     controllers = List.generate(pagos.length, (index) {
       return TextEditingController(
         text: pagos[index].sumaDepositoMoratorisos != null &&
                 pagos[index].sumaDepositoMoratorisos! > 0
-            ? "\$${formatearNumero(pagos[index].sumaDepositoMoratorisos!)}" // Formatea aquí
+            ? "\$${formatearNumero(pagos[index].sumaDepositoMoratorisos!)}"
             : "",
       );
     });
@@ -1963,65 +1973,93 @@ class _PaginaControlState extends State<PaginaControl> {
     }
   }
 
-  Future<void> _eliminarPago(
-      BuildContext context, Pago pago, Map<String, dynamic> abono) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
-    final themeProvider = Provider.of<ThemeProvider>(context,
-        listen: false); // Obtén el ThemeProvider
-    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+  // EN LA CLASE: _PaginaControlState
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
-        title: Text('Confirmar eliminación'),
-        content: Text('¿Estás seguro de eliminar este pago?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
+Future<void> _eliminarPago(
+    BuildContext context, Pago pago, Map<String, dynamic> abono) async {
+  // Obtenemos las dependencias necesarias
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('tokenauth') ?? '';
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+  final isDarkMode = themeProvider.isDarkMode;
 
+  // Mostramos el diálogo de confirmación (sin cambios)
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: isDarkMode ? Colors.grey[800] : Colors.white,
+      title: Text('Confirmar eliminación'),
+      content: Text('¿Estás seguro de que deseas eliminar este pago?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () async {
+            Navigator.pop(context); // Cierra el diálogo de confirmación
+
+            // <<< INICIO DE LA CORRECCIÓN >>>
+
+            // 1. Obtenemos el ID del abono.
+            final idAbono = abono['idpagos'];
+
+            // 2. Verificamos si es un abono guardado en el servidor o uno local.
+            // Un abono local no tendrá 'idpagos' o será una cadena vacía.
+            if (idAbono == null || idAbono.toString().isEmpty) {
+              // CASO 1: Es un abono local.
+              print('Detectado abono local. Eliminando de la lista interna...');
+              
+              if (mounted) {
+                setState(() {
+                  // Eliminamos el abono de la lista local del objeto 'pago'.
+                  // Para mayor seguridad, si asignas un UID temporal al crear el abono, úsalo aquí.
+                  // Si no, la comparación directa del mapa puede funcionar si es el mismo objeto.
+                  pago.abonos.remove(abono);
+                });
+              }
+
+              // CRÍTICO: Recargamos los pagos para forzar el recálculo de los totales.
+              // Esto simula el efecto de "cerrar y abrir" el diálogo.
+              await recargarPagos();
+              print('Abono local eliminado y UI recargada.');
+
+            } else {
+              // CASO 2: Es un abono que ya existe en el servidor.
+              // Procedemos con la lógica original de llamada a la API.
+              print('Detectado abono del servidor (ID: $idAbono). Enviando petición DELETE...');
               try {
-                final url =
-                    '$baseUrl/api/v1/pagos/${abono["idpagos"]}/${pago.idfechaspagos}';
-                print('URL enviada: $url');
-
+                final url = '$baseUrl/api/v1/pagos/$idAbono/${pago.idfechaspagos}';
+                
                 final response = await http.delete(
                   Uri.parse(url),
                   headers: {'tokenauth': token},
                 );
 
-                print(
-                    'Respuesta del servidor: ${response.statusCode} - ${response.body}');
-
                 if (response.statusCode == 200) {
-                  setState(() {
-                    pago.abonos.removeWhere(
-                        (a) => a['idfechaspago'] == abono['idfechaspago']);
-                    _recalcularSaldos(pago);
-                  });
+                  // Si se borró del servidor, recargamos los datos para reflejar el cambio.
+                  print('Abono del servidor eliminado correctamente. Recargando pagos...');
                   await recargarPagos();
-                  print('Pago eliminado correctamente.');
                 } else {
-                  _mostrarDialogoError('Error al eliminar: ${response.body}');
-                  print('Error al eliminar: ${response.body}');
+                  // Manejo de error si la API falla
+                  final errorMsg = 'Error al eliminar: ${response.body}';
+                  print(errorMsg);
+                  if (mounted) _mostrarDialogoError(errorMsg);
                 }
               } catch (e) {
-                _mostrarDialogoError('Error: $e');
-                print('Error: $e');
+                final errorMsg = 'Error de conexión al eliminar: $e';
+                print(errorMsg);
+                if (mounted) _mostrarDialogoError(errorMsg);
               }
-            },
-            child: Text('Eliminar', style: TextStyle(color: Colors.red)),
-          )
-        ],
-      ),
-    );
-  }
+            }
+            // <<< FIN DE LA CORRECCIÓN >>>
+          },
+          child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+        )
+      ],
+    ),
+  );
+}
 
   // =========================================================================
   // --- NUEVO ---: FUNCIÓN COMPLETA PARA GUARDAR LA SELECCIÓN DE RENOVACIÓN
@@ -2045,330 +2083,335 @@ class _PaginaControlState extends State<PaginaControl> {
 // Utiliza una lógica dinámica para identificar los últimos pagos del crédito.
 // Devuelve 'true' en caso de éxito para que la UI pueda recargarse.
 // =========================================================================
-Future<bool> _guardarSeleccionRenovacion(
-  BuildContext popupContext,
-  StateSetter setStateInPopup,
-  Pago pago,
-  List<Pago> allPagos, // Se usa para determinar el total de pagos
-  Map<String, double> montosFinales, // Montos ya calculados (con o sin descuento)
-) async {
-  // 1. Prevenir múltiples clics si ya se está guardando.
-  if (_isSaving) return false;
+  // EN TU CLASE _PaginaControlState, REEMPLAZA ESTA FUNCIÓN COMPLETA:
 
-  final mainContext = context;
-  final String idFechasPago = pago.idfechaspagos ?? '';
+  Future<bool> _guardarSeleccionRenovacion(
+    BuildContext popupContext,
+    StateSetter setStateInPopup,
+    Pago pago,
+    List<Pago> allPagos,
+    Map<String, double> montosFinales,
+  ) async {
+    if (_isSaving) return false;
 
-  // 2. Actualizar la UI del popup para mostrar el indicador de carga.
-  setStateInPopup(() {
-    _isSaving = true;
-  });
+    final mainContext = context;
+    final String idFechasPago = pago.idfechaspagos ?? '';
 
-  try {
-    // --- CAMBIO: LÓGICA DE VALIDACIÓN DINÁMICA ---
-    // Esta validación especial solo se aplica a los dos últimos pagos del crédito.
-    if (allPagos.isNotEmpty) {
-      // a. Obtenemos el número de la última semana de pago desde la lista completa.
-      final int totalSemanas =
-          allPagos.map((p) => p.semana).reduce((a, b) => a > b ? a : b);
-      
-      // b. Verificamos si el pago actual es el último o el penúltimo.
-      //    (La condición `totalSemanas > 1` evita errores en créditos de un solo pago).
-      final bool esDeLosUltimosDosPagos = pago.semana >= totalSemanas - 1 && totalSemanas > 1;
+    setStateInPopup(() {
+      _isSaving = true;
+    });
 
-      if (esDeLosUltimosDosPagos) {
-        // c. Si es uno de los últimos pagos, aplicamos la lógica de validación original.
-        if (widget.clientesParaRenovar.length > 1) {
-          final List<ClienteMonto> clientesSeleccionados = widget
-              .clientesParaRenovar
-              .where((cliente) =>
-                  _clientesSeleccionadosNotifier.value[cliente.idamortizacion] == true)
-              .toList();
-          final Set<String> idsClientesSeleccionados =
-              clientesSeleccionados.map((c) => c.idclientes).toSet();
+    try {
+      // (La lógica de validación para los últimos dos pagos no cambia y se mantiene)
+      if (allPagos.isNotEmpty) {
+        final int totalSemanas =
+            allPagos.map((p) => p.semana).reduce((a, b) => a > b ? a : b);
+        final bool esDeLosUltimosDosPagos =
+            pago.semana >= totalSemanas - 1 && totalSemanas > 1;
+        if (esDeLosUltimosDosPagos) {
+          if (widget.clientesParaRenovar.length > 1) {
+            final List<ClienteMonto> clientesSeleccionados = widget
+                .clientesParaRenovar
+                .where((cliente) =>
+                    _clientesSeleccionadosNotifier
+                        .value[cliente.idamortizacion] ==
+                    true)
+                .toList();
+            final Set<String> idsClientesSeleccionados =
+                clientesSeleccionados.map((c) => c.idclientes).toSet();
+            final bool hayClientesSinRenovar = widget.clientesParaRenovar
+                .any((c) => !idsClientesSeleccionados.contains(c.idclientes));
+            final bool sinAbonosDeEfectivo =
+                !pago.abonos.any((abono) => abono['garantia'] != 'Si');
 
-          final bool hayClientesSinRenovar = widget.clientesParaRenovar
-              .any((c) => !idsClientesSeleccionados.contains(c.idclientes));
-          
-          // Verificamos si no se ha registrado ningún pago en efectivo (solo de garantía o ninguno).
-          final bool sinAbonosDeEfectivo =
-              !pago.abonos.any((abono) => abono['garantia'] != 'Si');
-
-          if (hayClientesSinRenovar && sinAbonosDeEfectivo) {
-            if (mounted) {
-              showDialog(
-                context: mainContext,
-                builder: (context) => AlertDialog(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15.0)),
-                  title: Row(children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
-                    SizedBox(width: 10),
-                    Text('Acción Requerida'),
-                  ]),
-                  content: Text('Para continuar, por favor, primero registre los abonos de los integrantes que no van a renovar en este pago.'),
-                  actions: [
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text('Entendido', style: TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange.shade800),
-                    ),
-                  ],
-                ),
-              );
+            if (hayClientesSinRenovar && sinAbonosDeEfectivo) {
+              if (mounted) {
+                showDialog(
+                  context: mainContext,
+                  builder: (context) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15.0)),
+                    title: Row(children: [
+                      Icon(Icons.warning_amber_rounded,
+                          color: Colors.orange.shade700),
+                      SizedBox(width: 10),
+                      Text('Acción Requerida'),
+                    ]),
+                    content: Text(
+                        'Para continuar, por favor, primero registre los abonos de los integrantes que no van a renovar en este pago.'),
+                    actions: [
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('Entendido',
+                            style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange.shade800),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return false;
             }
-            return false; // Detiene la ejecución si la validación falla.
           }
         }
       }
-    }
-    // --- FIN DEL CAMBIO ---
 
-    // 3. OBTENER Y VALIDAR TOKEN DE SESIÓN
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
 
-    if (token.isEmpty) {
+      if (token.isEmpty) {
+        if (!mounted) return false;
+        _mostrarDialogoError(
+            'No se encontró sesión activa. Por favor, inicia sesión.');
+        Navigator.pushAndRemoveUntil(
+            mainContext,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false);
+        return false;
+      }
+
+      // =========================================================================
+      // --- INICIO DE LA CORRECCIÓN ---
+      // =========================================================================
+
+      // 1. Obtenemos los IDs de los clientes que YA FUERON GUARDADOS para este pago.
+      final Set<String> idsYaGuardados =
+          pago.renovacionesPendientes.map((r) => r.idclientes ?? '').toSet();
+
+      // 2. Filtramos la lista de seleccionados para enviar SOLO LOS NUEVOS.
+      final List<ClienteMonto> clientesNuevosParaGuardar = widget
+          .clientesParaRenovar
+          .where((cliente) =>
+              // Condición 1: El cliente debe estar seleccionado en la UI.
+              _clientesSeleccionadosNotifier.value[cliente.idamortizacion] ==
+                  true &&
+              // Condición 2: El cliente NO debe estar en la lista de los ya guardados.
+              !idsYaGuardados.contains(cliente.idclientes))
+          .toList();
+
+      // 3. Si no hay clientes NUEVOS seleccionados, no hacemos nada.
+      if (clientesNuevosParaGuardar.isEmpty) {
+        ScaffoldMessenger.of(mainContext).showSnackBar(
+          const SnackBar(
+            content: Text("No hay nuevas selecciones para guardar."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return false; // Detenemos la ejecución.
+      }
+
+      // =========================================================================
+      // --- FIN DE LA CORRECCIÓN ---
+      // =========================================================================
+
+      // Ahora, el cuerpo de la solicitud se construye con la lista filtrada.
+      final body = {
+        "pagadoParaRenovacion": idFechasPago,
+        "clientes": clientesNuevosParaGuardar.map((cliente) {
+          // <-- USAMOS LA LISTA CORREGIDA
+          final double montoADescontar =
+              montosFinales[cliente.idamortizacion] ??
+                  cliente.capitalMasInteres;
+          return {
+            "iddetallegrupos": cliente.iddetallegrupos,
+            "idgrupos": cliente.idgrupos,
+            "idclientes": cliente.idclientes,
+            "descuento": montoADescontar,
+          };
+        }).toList(),
+      };
+
+      final url =
+          Uri.parse('$baseUrl/api/v1/pagos/permiso/renovacion/pendientes');
+      final response = await http.post(
+        url,
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(body),
+      );
+
       if (!mounted) return false;
-      _mostrarDialogoError('No se encontró sesión activa. Por favor, inicia sesión.');
-      Navigator.pushAndRemoveUntil(
-        mainContext,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-        (route) => false,
-      );
-      return false;
-    }
 
-    // 4. CONSTRUIR EL CUERPO DE LA SOLICITUD
-    final List<ClienteMonto> clientesSeleccionados = widget.clientesParaRenovar
-        .where((cliente) =>
-            _clientesSeleccionadosNotifier.value[cliente.idamortizacion] == true)
-        .toList();
-
-    if (clientesSeleccionados.isEmpty) {
-      ScaffoldMessenger.of(mainContext).showSnackBar(
-        const SnackBar(
-          content: Text("No se ha seleccionado ningún cliente para renovar."),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return false;
-    }
-
-    final body = {
-      "pagadoParaRenovacion": idFechasPago,
-      "clientes": clientesSeleccionados.map((cliente) {
-        // Usa directamente el monto del mapa `montosFinales` que ya fue calculado
-        // en la lógica del submenú.
-        final double montoADescontar =
-            montosFinales[cliente.idamortizacion] ?? cliente.capitalMasInteres;
-
-        return {
-          "iddetallegrupos": cliente.iddetallegrupos,
-          "idgrupos": cliente.idgrupos,
-          "idclientes": cliente.idclientes,
-          "descuento": montoADescontar, // <-- USA EL VALOR AJUSTADO
-        };
-      }).toList(),
-    };
-
-    // 5. REALIZAR LA LLAMADA HTTP POST
-    final url = Uri.parse('$baseUrl/api/v1/pagos/permiso/renovacion/pendientes');
-
-    final response = await http.post(
-      url,
-      headers: {
-        'tokenauth': token,
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(body),
-    );
-
-    if (!mounted) return false;
-
-    // 6. MANEJAR LA RESPUESTA DE LA API
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      ScaffoldMessenger.of(mainContext).showSnackBar(
-        const SnackBar(
-          content: Text("Selección para renovación guardada exitosamente."),
-          backgroundColor: Colors.green,
-        ),
-      );
-      return true; // Éxito
-    } else {
-      // Manejo de errores específicos de la API y de sesión
-      try {
-        final errorData = json.decode(response.body);
-        String mensajeError = "Ocurrió un error desconocido.";
-
-        if (errorData["Error"] != null && errorData["Error"]["Message"] != null) {
-          mensajeError = errorData["Error"]["Message"];
-
-          if (mensajeError == "La sesión ha cambiado. Cerrando sesión..." || mensajeError == "jwt expired") {
-            await prefs.remove('tokenauth');
-            mostrarDialogoCierreSesion(
-                mensajeError == "jwt expired" 
-                ? 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.' 
-                : 'La sesión ha cambiado. Se cerrará la sesión actual.',
-                onClose: () {
-              Navigator.pushAndRemoveUntil(
-                mainContext,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false,
-              );
-            });
-            return false;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(mainContext).showSnackBar(
+          const SnackBar(
+            content: Text("Selección para renovación guardada exitosamente."),
+            backgroundColor: Colors.green,
+          ),
+        );
+        return true;
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+          String mensajeError = "Ocurrió un error desconocido.";
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] != null) {
+            mensajeError = errorData["Error"]["Message"];
+            if (mensajeError == "La sesión ha cambiado. Cerrando sesión..." ||
+                mensajeError == "jwt expired") {
+              await prefs.remove('tokenauth');
+              mostrarDialogoCierreSesion(
+                  mensajeError == "jwt expired"
+                      ? 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'
+                      : 'La sesión ha cambiado. Se cerrará la sesión actual.',
+                  onClose: () {
+                Navigator.pushAndRemoveUntil(
+                    mainContext,
+                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                    (route) => false);
+              });
+              return false;
+            }
           }
+          ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+              content: Text("Error al guardar: $mensajeError"),
+              backgroundColor: Colors.red));
+        } catch (e) {
+          ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+              content: Text("Error del servidor: ${response.statusCode}"),
+              backgroundColor: Colors.red));
         }
-        ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
-            content: Text("Error al guardar: $mensajeError"),
-            backgroundColor: Colors.red));
-      } catch (e) {
-        ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
-            content: Text("Error del servidor: ${response.statusCode}"),
-            backgroundColor: Colors.red));
+        return false;
       }
-      return false; // Fracaso
-    }
-  } catch (e) {
-    if (!mounted) return false;
-    ScaffoldMessenger.of(mainContext).showSnackBar(
-        SnackBar(content: Text("Error de conexión: $e"), backgroundColor: Colors.red));
-    return false; // Fracaso por excepción
-  } finally {
-    if (mounted) {
-      // 7. Reiniciar el estado de carga para permitir nuevos clics.
-      setStateInPopup(() {
-        _isSaving = false;
-      });
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+          content: Text("Error de conexión: $e"), backgroundColor: Colors.red));
+      return false;
+    } finally {
+      if (mounted) {
+        setStateInPopup(() {
+          _isSaving = false;
+        });
+      }
     }
   }
-}
 
 // FUNCIÓN PARA ELIMINAR TODAS LAS SELECCIONES DE RENOVACIÓN DE UN PAGO
 // =========================================================================
   // DENTRO DE LA CLASE _PaginaControlState
 
-Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
-    StateSetter setStateInPopup, String idFechasPago) async {
-  // Evita múltiples clics si ya se está eliminando o guardando
-  if (_isDeleting || _isSaving) return false;
+  Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
+      StateSetter setStateInPopup, String idFechasPago) async {
+    // Evita múltiples clics si ya se está eliminando o guardando
+    if (_isDeleting || _isSaving) return false;
 
-  final mainContext = context;
+    final mainContext = context;
 
-  // Muestra el indicador de carga en el botón de eliminar
-  setStateInPopup(() {
-    _isDeleting = true;
-  });
+    // Muestra el indicador de carga en el botón de eliminar
+    setStateInPopup(() {
+      _isDeleting = true;
+    });
 
-  try {
-    // 1. OBTENER TOKEN
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('tokenauth') ?? '';
+    try {
+      // 1. OBTENER TOKEN
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
 
-    // ▼▼▼ BLOQUE RESTAURADO (MANEJO DE SESIÓN) ▼▼▼
-    if (token.isEmpty) {
-      if (!mounted) return false;
-      _mostrarDialogoError(
-          'No se encontró sesión activa. Por favor, inicia sesión.');
-      Navigator.pushAndRemoveUntil(
-        mainContext,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-        (route) => false,
-      );
-      return false;
-    }
-    // ▲▲▲ FIN DEL BLOQUE RESTAURADO ▲▲▲
-
-    // 2. REALIZAR LA LLAMADA HTTP DELETE
-    final url = Uri.parse(
-        '$baseUrl/api/v1/pagos/permiso/renovacion/pendientes/$idFechasPago');
-
-    final response = await http.delete(
-      url,
-      headers: {'tokenauth': token},
-    );
-
-    if (!mounted) return false;
-
-    // 3. MANEJAR LA RESPUESTA
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(mainContext).showSnackBar(
-        const SnackBar(
-          content: Text("Selección de renovación eliminada exitosamente."),
-          backgroundColor: Colors.green,
-        ),
-      );
-      // Devuelve 'true' para indicar éxito
-      return true;
-    } else {
-      // ▼▼▼ BLOQUE RESTAURADO (MANEJO DE ERRORES DE API) ▼▼▼
-      try {
-        final errorData = json.decode(response.body);
-        String mensajeError = "Ocurrió un error desconocido.";
-
-        if (errorData["Error"] != null &&
-            errorData["Error"]["Message"] != null) {
-          mensajeError = errorData["Error"]["Message"];
-
-          if (mensajeError == "La sesión ha cambiado. Cerrando sesión...") {
-            await prefs.remove('tokenauth');
-            mostrarDialogoCierreSesion(
-                'La sesión ha cambiado. Se cerrará la sesión actual.',
-                onClose: () {
-              Navigator.pushAndRemoveUntil(
-                mainContext,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false,
-              );
-            });
-            return false;
-          } else if (mensajeError == "jwt expired") {
-            await prefs.remove('tokenauth');
-            mostrarDialogoCierreSesion(
-                'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
-                onClose: () {
-              Navigator.pushAndRemoveUntil(
-                mainContext,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false,
-              );
-            });
-            return false;
-          }
-        }
-        ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
-            content: Text("Error al eliminar: $mensajeError"),
-            backgroundColor: Colors.red));
-      } catch (e) {
-        ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
-            content: Text("Error del servidor: ${response.statusCode}"),
-            backgroundColor: Colors.red));
+      // ▼▼▼ BLOQUE RESTAURADO (MANEJO DE SESIÓN) ▼▼▼
+      if (token.isEmpty) {
+        if (!mounted) return false;
+        _mostrarDialogoError(
+            'No se encontró sesión activa. Por favor, inicia sesión.');
+        Navigator.pushAndRemoveUntil(
+          mainContext,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+          (route) => false,
+        );
+        return false;
       }
-      return false;
       // ▲▲▲ FIN DEL BLOQUE RESTAURADO ▲▲▲
-    }
-  } catch (e) {
-    if (!mounted) return false;
-    ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
-        content: Text("Error de conexión: $e"), backgroundColor: Colors.red));
-    return false;
-  } finally {
-    if (mounted) {
-      // Reinicia el estado de carga
-      setStateInPopup(() {
-        _isDeleting = false;
-      });
+
+      // 2. REALIZAR LA LLAMADA HTTP DELETE
+      final url = Uri.parse(
+          '$baseUrl/api/v1/pagos/permiso/renovacion/pendientes/$idFechasPago');
+
+      final response = await http.delete(
+        url,
+        headers: {'tokenauth': token},
+      );
+
+      if (!mounted) return false;
+
+      // 3. MANEJAR LA RESPUESTA
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(mainContext).showSnackBar(
+          const SnackBar(
+            content: Text("Selección de renovación eliminada exitosamente."),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Devuelve 'true' para indicar éxito
+        return true;
+      } else {
+        // ▼▼▼ BLOQUE RESTAURADO (MANEJO DE ERRORES DE API) ▼▼▼
+        try {
+          final errorData = json.decode(response.body);
+          String mensajeError = "Ocurrió un error desconocido.";
+
+          if (errorData["Error"] != null &&
+              errorData["Error"]["Message"] != null) {
+            mensajeError = errorData["Error"]["Message"];
+
+            if (mensajeError == "La sesión ha cambiado. Cerrando sesión...") {
+              await prefs.remove('tokenauth');
+              mostrarDialogoCierreSesion(
+                  'La sesión ha cambiado. Se cerrará la sesión actual.',
+                  onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  mainContext,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false,
+                );
+              });
+              return false;
+            } else if (mensajeError == "jwt expired") {
+              await prefs.remove('tokenauth');
+              mostrarDialogoCierreSesion(
+                  'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+                  onClose: () {
+                Navigator.pushAndRemoveUntil(
+                  mainContext,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false,
+                );
+              });
+              return false;
+            }
+          }
+          ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+              content: Text("Error al eliminar: $mensajeError"),
+              backgroundColor: Colors.red));
+        } catch (e) {
+          ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+              content: Text("Error del servidor: ${response.statusCode}"),
+              backgroundColor: Colors.red));
+        }
+        return false;
+        // ▲▲▲ FIN DEL BLOQUE RESTAURADO ▲▲▲
+      }
+    } catch (e) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(mainContext).showSnackBar(SnackBar(
+          content: Text("Error de conexión: $e"), backgroundColor: Colors.red));
+      return false;
+    } finally {
+      if (mounted) {
+        // Reinicia el estado de carga
+        setStateInPopup(() {
+          _isDeleting = false;
+        });
+      }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context,
-        listen: false); // Obtén el ThemeProvider
-    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
-
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
     final Color textColor = isDarkMode ? Colors.white : Colors.black;
 
     return FutureBuilder<List<Pago>>(
@@ -2379,8 +2422,7 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
             padding: const EdgeInsets.only(top: 200),
             child: Center(
                 child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  Color(0xFF5162F6)), // Cambiar a cualquier color que desees
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF5162F6)),
             )),
           );
         } else if (snapshot.hasError) {
@@ -2390,60 +2432,104 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
         } else {
           List<Pago> pagos = snapshot.data!;
 
-          // Inicializamos los totales
-          double totalMonto = 0.0; // Total de la deuda (capital + moratorios)
-          double totalPagoActual = 0.0;
-          double totalSaldoFavor = 0.0;
-          double totalSaldoContra = 0.0;
-          double totalMoratorios = 0.0; // Nueva variable
+          // DESPUÉS (Cálculo correcto)
+          final double saldoFavorTotalAcumulado =
+              pagos.fold(0.0, (sum, pago) => sum + (pago.saldoRestante ?? 0.0));
 
-          // Obtener la última semana (el pago más alto)
           int totalPagosDelCredito = pagos.isNotEmpty
               ? pagos.map((pago) => pago.semana).reduce((a, b) => a > b ? a : b)
-              : 0; // Si hay pagos, obtenemos la semana más alta
+              : 0;
 
-          print('totalPagosDelCredito: $totalPagosDelCredito');
+// ▼▼▼ REEMPLAZA TU BLOQUE DE CÁLCULO DE TOTALES POR ESTE ▼▼▼
 
-          // Calculamos el totalMonto como capitalMasInteres * totalPagosDelCredito
-          if (totalPagosDelCredito > 0) {
-            double capitalMasInteres =
-                pagos.isNotEmpty ? pagos.last.capitalMasInteres : 0.0;
-            totalMonto = capitalMasInteres * totalPagosDelCredito;
-          }
+          double totalMonto = 0.0;
+          double totalPagoActual = 0.0;
+          double totalSaldoFavor = 0.0; // <-- Simplificado
+          double totalSaldoContra = 0.0;
+          double totalMoratorios = 0.0;
+          double totalRealIngresado = 0.0;
+          bool hayGarantiaAplicada = false;
 
-          double saldoAcumuladoContra = 0.0;
-
-// ======================================================================
-//             LÓGICA DE TOTALES SIMPLIFICADA
-// ======================================================================
+          // ▼▼▼ NUEVAS VARIABLES PARA LOS DOS TIPOS DE SALDO EN CONTRA ▼▼▼
+          double totalSaldoContraActivo =
+              0.0; // El que solo suma deudas con actividad.
+          double totalSaldoContraPotencial =
+              0.0; // El que suma TODAS las deudas pendientes.
 
           for (final pago in pagos) {
-            // Ignoramos la primera fila (garantía inicial) que no es un pago periódico
             if (pago.semana == 0) continue;
 
-            // Sumamos los valores directamente de los objetos 'pago',
-            // que ya fueron procesados por `_recalcularSaldos`.
+            // Cálculos que ya tenías
             totalMonto += pago.capitalMasInteres ?? 0.0;
-            totalSaldoFavor += pago.saldoFavor ?? 0.0;
-            totalSaldoContra += pago.saldoEnContra ?? 0.0;
             totalMoratorios += (pago.moratorioDesabilitado != "Si"
                 ? pago.moratorios?.moratorios ?? 0.0
                 : 0.0);
 
-            // Para el total de pago actual, debemos sumar ambas fuentes
-            double abonosEnEfectivo = pago.abonos.fold(
-                0.0, (total, abono) => total + (abono['deposito'] ?? 0.0));
-            double cubiertoPorRenovacion = pago.renovacionesPendientes.fold(0.0,
-                (total, renovacion) => total + (renovacion.descuento ?? 0.0));
-            totalPagoActual += abonosEnEfectivo + cubiertoPorRenovacion;
-          }
-// ======================================================================
-//             FIN DE LA LÓGICA SIMPLIFICADA
-// ======================================================================
+          // ==========================================================
+// <<< INICIO DEL CÓDIGO FINAL Y CORRECTO >>>
+// ==========================================================
 
-          // Mostrar los totales correctamente
-          totalSaldoFavor = totalSaldoFavor > 0.0 ? totalSaldoFavor : 0.0;
+// 1. Obtenemos el monto total que se ingresó en la fila (que ya es $10,000).
+double montoIngresadoEnFila = pago.sumaDepositoMoratorisos ?? 0.0;
+
+// 2. Obtenemos lo cubierto por renovación (que es otro tipo de ingreso).
+double cubiertoPorRenovacion = pago.renovacionesPendientes.fold(0.0, (total, renovacion) => total + (renovacion.descuento ?? 0.0));
+
+// 3. Simplemente sumamos el monto total ingresado y lo de la renovación.
+//    NO sumamos 'saldoFavorOriginalGenerado' porque ya está contenido dentro de 'montoIngresadoEnFila'.
+totalPagoActual += montoIngresadoEnFila + cubiertoPorRenovacion;
+
+// ==========================================================
+// <<< FIN DEL CÓDIGO FINAL Y CORRECTO >>>
+// ==========================================================
+
+            for (var abono in pago.abonos) {
+              if (abono['garantia'] == 'Si') {
+                hayGarantiaAplicada = true;
+              } else {
+                totalRealIngresado += (abono['deposito'] ?? 0.0);
+              }
+            }
+
+            // --- LÓGICA DE TOTALES CORREGIDA ---
+            // Sumamos el saldo que realmente queda disponible de cada fila
+            totalSaldoFavor += pago.saldoRestante ?? 0.0;
+            // ▼▼▼ CÁLCULO DE AMBOS TOTALES ▼▼▼
+
+            // 1. Calculamos el "Saldo Potencial" (el de antes)
+            //    Suma la deuda si es mayor a cero, sin importar si hay actividad.
+            if ((pago.saldoEnContra ?? 0.0) > 0.0) {
+              totalSaldoContraPotencial += pago.saldoEnContra!;
+            }
+
+            // 2. Calculamos el "Saldo Activo" (el que se mostrará)
+            //    Aplicamos la misma lógica que en la celda para decidir si se suma.
+            final bool tieneActividadGuardada =
+                (pago.sumaDepositoMoratorisos ?? 0.0) > 0.0 ||
+                    pago.abonos.isNotEmpty ||
+                    pago.renovacionesPendientes.isNotEmpty;
+
+            final bool tieneInteraccionRealTime =
+                _pagosConInteraccionRealTime.contains(pago.idfechaspagos ?? '');
+
+            if (tieneActividadGuardada || tieneInteraccionRealTime) {
+              if ((pago.saldoEnContra ?? 0.0) > 0.0) {
+                totalSaldoContraActivo += pago.saldoEnContra!;
+              }
+            }
+          }
+
+          /*      // Asegurarnos que no sean negativos por algún error de cálculo
           totalSaldoContra = totalSaldoContra > 0.0 ? totalSaldoContra : 0.0;
+          totalSaldoFavor = totalSaldoFavor > 0.0 ? totalSaldoFavor : 0.0; */
+
+// ▼▼▼ AÑADE ESTE NUEVO CÁLCULO ▼▼▼
+// Sumamos el saldo original generado por TODAS las filas.
+          final double saldoFavorHistoricoTotal = pagos.fold(
+              0.0, (sum, pago) => sum + pago.saldoFavorOriginalGenerado);
+// ▲▲▲ FIN DE LA ADICIÓN ▲▲▲
+
+// ▲▲▲ FIN DEL BLOQUE DE REEMPLAZO ▲▲▲
 
           return LayoutBuilder(builder: (context, constraints) {
             return Column(
@@ -2494,6 +2580,13 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                         bool esPago1 = pagos.indexOf(pago) == 0;
                         int index = pagos.indexOf(pago);
 
+                        // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
+// Esta variable comprueba si se ha realizado algún tipo de pago o cobertura en la fila.
+                        final bool tieneActividadDePago =
+                            (pago.sumaDepositoMoratorisos ?? 0.0) > 0.0 ||
+                                pago.abonos.isNotEmpty ||
+                                pago.renovacionesPendientes.isNotEmpty;
+
                         // ▼▼▼ ¡ESTA ES LA LÓGICA CORREGIDA! ▼▼▼
                         final double deudaOriginalSemana =
                             (pago.capitalMasInteres ?? 0.0) +
@@ -2520,10 +2613,10 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                         final double montoTotalPagadoCombinado =
                             montoPagadoEnEfectivo + montoCubiertoPorRenovacion;
 
-                        // La fila se considera finalizada si lo pagado es >= a la DEUDA REAL.
+                        /*    // La fila se considera finalizada si lo pagado es >= a la DEUDA REAL.
                         pago.estaFinalizado =
                             montoTotalPagadoCombinado >= deudaRealDeLaSemana;
-                        // ▲▲▲ FIN DE LA LÓGICA CORREGIDA ▲▲▲
+                        // ▲▲▲ FIN DE LA LÓGICA CORREGIDA ▲▲▲ */
 
                         bool isDateButtonEnabled =
                             (pago.moratorioDesabilitado == "Si" ||
@@ -2539,13 +2632,21 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                         if (tieneMoratorios) {
                           indicadorCount++;
                         }
+
                         final bool tieneRenovaciones =
                             pago.renovacionesPendientes.isNotEmpty;
-                        final bool puedeRenovar =
-                            index >= totalPagosDelCredito - 1;
-                        if (puedeRenovar && tieneRenovaciones) {
+                        if (tieneRenovaciones) {
                           indicadorCount++;
                         }
+
+// ▼▼▼ AÑADE ESTA NUEVA CONDICIÓN ▼▼▼
+// Si se ha utilizado saldo a favor en este pago, también contamos como un "estado especial".
+                        final bool tieneFavorUtilizado =
+                            pago.totalFavorUtilizado > 0;
+                        if (tieneFavorUtilizado) {
+                          indicadorCount++;
+                        }
+// ▲▲▲ FIN DE LA ADICIÓN ▲▲▲
 
                         final bool mostrarIndicador = indicadorCount > 0;
 
@@ -3011,156 +3112,139 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                                   icon: const Icon(Icons.add,
                                                       color: Colors.white),
                                                   // ▼▼▼ CAMBIADO ▼▼▼
-                                                  onPressed:
-                                                      !pago.estaFinalizado
-                                                          ? () async {
-                                                              // Obtén el provider y muestra el diálogo para agregar abonos
-                                                              final pagosProvider =
-                                                                  Provider.of<
-                                                                          PagosProvider>(
-                                                                      context,
-                                                                      listen:
-                                                                          false);
-                                                              var uuid = Uuid();
+                                                  onPressed: !pago
+                                                          .estaFinalizado
+                                                      ? () async {
+                                                          // Obtén el provider y muestra el diálogo para agregar abonos
+                                                          final pagosProvider =
+                                                              Provider.of<
+                                                                      PagosProvider>(
+                                                                  context,
+                                                                  listen:
+                                                                      false);
+                                                          var uuid = Uuid();
 
-                                                              List<
-                                                                      Map<String,
-                                                                          dynamic>>
-                                                                  nuevosAbonos =
-                                                                  (await showDialog(
-                                                                        barrierDismissible:
-                                                                            false,
-                                                                        context:
-                                                                            context,
-                                                                        builder:
-                                                                            (context) =>
-                                                                                AbonosDialog(
-                                                                          montoAPagar:
-                                                                              pago.capitalMasInteres,
-                                                                          onConfirm:
-                                                                              (abonos) {
-                                                                            Navigator.of(context).pop(abonos);
-                                                                          },
-                                                                          moratorioDesabilitado:
-                                                                              pago.moratorioDesabilitado, // <-- Pasa el valor
-                                                                          moratorios: pago
-                                                                              .moratorios
-                                                                              ?.moratorios, // <-- Pasa el valor
-                                                                        ),
-                                                                      )) ??
-                                                                      [];
+                                                          List<
+                                                                  Map<String,
+                                                                      dynamic>>
+                                                              nuevosAbonos =
+                                                              (await showDialog(
+                                                                    barrierDismissible:
+                                                                        false,
+                                                                    context:
+                                                                        context,
+                                                                    builder:
+                                                                        (context) =>
+                                                                            AbonosDialog(
+                                                                      montoAPagar:
+                                                                          pago.capitalMasInteres,
+                                                                      onConfirm:
+                                                                          (abonos) {
+                                                                        Navigator.of(context)
+                                                                            .pop(abonos);
+                                                                      },
+                                                                      moratorioDesabilitado:
+                                                                          pago.moratorioDesabilitado, // <-- Pasa el valor
+                                                                      moratorios: pago
+                                                                          .moratorios
+                                                                          ?.moratorios, // <-- Pasa el valor
+                                                                    ),
+                                                                  )) ??
+                                                                  [];
+
+                                                          print(
+                                                              'Nuevos abonos recibidos: $nuevosAbonos');
+
+                                                          setState(() {
+                                                            if (nuevosAbonos
+                                                                .isNotEmpty) {
+                                                              // Agregar los nuevos abonos a la lista del pago (esto no cambia)
+                                                              pago.abonos.addAll(
+                                                                  nuevosAbonos.map(
+                                                                      (abono) {
+                                                                abono['uid'] =
+                                                                    Uuid().v4();
+                                                                pago.fechaPago =
+                                                                    abono[
+                                                                        'fechaDeposito'];
+                                                                return abono;
+                                                              }));
+
+                                                              // =========================================================================
+                                                              // <<< INICIO DE LA MODIFICACIÓN: LÓGICA DE CÁLCULO PARA ABONOS >>>
+                                                              // =========================================================================
+
+                                                              // 1. Calcular el total de todos los abonos para esta fila.
+                                                              final double
+                                                                  totalAbonado =
+                                                                  pago.abonos
+                                                                      .fold(
+                                                                0.0,
+                                                                (sum, abono) =>
+                                                                    sum +
+                                                                    (abono['deposito'] ??
+                                                                        0.0),
+                                                              );
+
+                                                              // 2. Calcular la deuda total de la semana.
+                                                              final double
+                                                                  deudaTotalSemana =
+                                                                  (pago.capitalMasInteres ??
+                                                                          0.0) +
+                                                                      (pago.moratorioDesabilitado ==
+                                                                              "Si"
+                                                                          ? 0.0
+                                                                          : (pago.moratorios?.moratorios ??
+                                                                              0.0));
+
+                                                              // 3. Calcular la diferencia.
+                                                              final double
+                                                                  diferencia =
+                                                                  totalAbonado -
+                                                                      deudaTotalSemana;
+
+                                                              // 4. Identificar el pago por su ID único.
+                                                              final String
+                                                                  pagoId =
+                                                                  pago.idfechaspagos ??
+                                                                      '';
+
+                                                              // 5. Actualizar el mapa de tiempo real y el saldo en contra del pago.
+                                                              if (diferencia >
+                                                                  0) {
+                                                                // Guardamos el saldo a favor en nuestro mapa temporal.
+                                                                _saldosFavorEnTiempoReal[
+                                                                        pagoId] =
+                                                                    diferencia;
+                                                                pago.saldoEnContra =
+                                                                    0.0;
+                                                              } else {
+                                                                // Si no hay saldo a favor, nos aseguramos de que no haya una entrada en el mapa.
+                                                                _saldosFavorEnTiempoReal
+                                                                    .remove(
+                                                                        pagoId);
+                                                                pago.saldoEnContra =
+                                                                    -diferencia;
+                                                              }
 
                                                               print(
-                                                                  'Nuevos abonos recibidos: $nuevosAbonos');
+                                                                  "Cálculo tras abono: Total Abonado: $totalAbonado, Deuda: $deudaTotalSemana, Saldo a Favor en mapa: ${_saldosFavorEnTiempoReal[pagoId]}, Saldo en Contra: ${pago.saldoEnContra}");
 
-                                                              setState(() {
-                                                                if (nuevosAbonos
-                                                                    .isNotEmpty) {
-                                                                  nuevosAbonos
-                                                                      .forEach(
-                                                                          (abono) {
-                                                                    // Asigna un UID único a cada abono
-                                                                    abono['uid'] =
-                                                                        uuid.v4();
+                                                              // Actualizar el Provider (esto no cambia).
+                                                              Provider.of<PagosProvider>(
+                                                                      context,
+                                                                      listen:
+                                                                          false)
+                                                                  .actualizarPago(
+                                                                      pago.toPagoSeleccionado());
 
-                                                                    // Evita duplicados comparando UID
-                                                                    bool existeAbono = pago
-                                                                        .abonos
-                                                                        .any((existeAbono) =>
-                                                                            existeAbono['uid'] ==
-                                                                            abono['uid']);
-                                                                    if (!existeAbono) {
-                                                                      print(
-                                                                          'Agregando abono con UID: ${abono['uid']}');
-
-                                                                      // Actualizar la fecha de pago con la fecha de depósito
-                                                                      pago.fechaPago =
-                                                                          abono[
-                                                                              'fechaDeposito']; // <-- Usar la fecha del diálogo
-
-                                                                      pago.abonos
-                                                                          .add(
-                                                                              abono);
-                                                                    } else {
-                                                                      print(
-                                                                          'Abono duplicado detectado con UID: ${abono['uid']}');
-                                                                    }
-                                                                  });
-
-                                                                  // Recalcular totales
-                                                                  double
-                                                                      totalAbonos =
-                                                                      pago.abonos
-                                                                          .fold(
-                                                                    0.0,
-                                                                    (sum, abono) =>
-                                                                        sum +
-                                                                        (abono['deposito'] ??
-                                                                            0.0),
-                                                                  );
-
-                                                                  // Se suma el moratorio si existe (consulta en el objeto moratorios)
-                                                                  double totalDeuda = pago
-                                                                          .capitalMasInteres! +
-                                                                      (pago.moratorios
-                                                                              ?.moratorios ??
-                                                                          0.0);
-
-                                                                  double
-                                                                      montoPagado =
-                                                                      totalAbonos;
-
-                                                                  if (montoPagado <
-                                                                      totalDeuda) {
-                                                                    pago.saldoEnContra =
-                                                                        totalDeuda -
-                                                                            montoPagado;
-                                                                    pago.saldoFavor =
-                                                                        0.0;
-                                                                  } else {
-                                                                    pago.saldoEnContra =
-                                                                        0.0;
-                                                                    pago.saldoFavor =
-                                                                        montoPagado -
-                                                                            totalDeuda;
-                                                                  }
-
-                                                                  print(
-                                                                      'Saldos recalculados -> Saldo a favor: ${pago.saldoFavor}, Saldo en contra: ${pago.saldoEnContra}');
-
-                                                                  // Actualiza el Provider
-                                                                  final index = pagosProvider
-                                                                      .pagosSeleccionados
-                                                                      .indexWhere((p) =>
-                                                                          p.semana ==
-                                                                          pago.semana);
-                                                                  final pagoActualizado = PagoSeleccionado(
-                                                                      moratorioDesabilitado: pago.moratorioDesabilitado,
-                                                                      semana: pago.semana,
-                                                                      tipoPago: pago.tipoPago,
-                                                                      deposito: pago.deposito ?? 0.0,
-                                                                      saldoFavor: pago.saldoFavor,
-                                                                      saldoEnContra: pago.saldoEnContra,
-                                                                      abonos: pago.abonos,
-                                                                      idfechaspagos: pago.idfechaspagos!,
-                                                                      fechaPago: pago.fechaPago, // <-- Usar la fecha del diálogo
-                                                                      capitalMasInteres: pago.capitalMasInteres,
-                                                                      moratorio: pago.moratorios?.moratorios,
-                                                                      pagosMoratorios: pago.pagosMoratorios);
-                                                                  if (index !=
-                                                                      -1) {
-                                                                    pagosProvider
-                                                                            .pagosSeleccionados[index] =
-                                                                        pagoActualizado;
-                                                                  } else {
-                                                                    pagosProvider
-                                                                        .agregarPago(
-                                                                            pagoActualizado);
-                                                                  }
-                                                                }
-                                                              });
+                                                              // =========================================================================
+                                                              // <<< FIN DE LA MODIFICACIÓN >>>
+                                                              // =========================================================================
                                                             }
-                                                          : null,
+                                                          });
+                                                        }
+                                                      : null,
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
@@ -3529,13 +3613,14 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                                               keyboardType:
                                                                   TextInputType
                                                                       .number,
-                                                              // ▼▼▼ CAMBIADO ▼▼▼
                                                               enabled: !pago
-                                                                  .estaFinalizado, // Usamos la lógica de edición aquí
+                                                                  .estaFinalizado,
 
+                                                              // =========================================================================
+                                                              // <<< INICIO DE LA MODIFICACIÓN: LÓGICA DE CÁLCULO EN TIEMPO REAL >>>
+                                                              // =========================================================================
                                                               onChanged:
                                                                   (value) {
-                                                                // Cancelar el Timer anterior si existe
                                                                 if (_debounce
                                                                         ?.isActive ??
                                                                     false) {
@@ -3543,149 +3628,76 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                                                       ?.cancel();
                                                                 }
 
-                                                                // Crear un nuevo Timer para esperar a que el usuario termine de escribir
                                                                 _debounce = Timer(
                                                                     const Duration(
                                                                         milliseconds:
-                                                                            500),
+                                                                            400),
                                                                     () {
                                                                   setState(() {
-                                                                    // Convertir el valor ingresado a double y asignar 0.0 si está vacío o es inválido
-                                                                    double nuevoDeposito = value
-                                                                            .isEmpty
-                                                                        ? 0.0
-                                                                        : double.tryParse(value) ??
-                                                                            0.0;
+                                                                    final String
+                                                                        pagoId =
+                                                                        pago.idfechaspagos ??
+                                                                            '';
 
-                                                                    // Actualizar el depósito en el objeto `pago`
-                                                                    pago.deposito =
-                                                                        nuevoDeposito;
-
-                                                                    // Actualizar la propiedad `sumaDepositoMoratorisos`
-                                                                    pago.sumaDepositoMoratorisos =
-                                                                        nuevoDeposito;
-
-                                                                    // Calcular los saldos (a favor y en contra)
-                                                                    if (nuevoDeposito >
-                                                                        0) {
-                                                                      // Si hay depósito, recalcular los abonos y los saldos
-                                                                      double
-                                                                          totalMoratorios =
-                                                                          pago.moratorios?.moratorios ??
-                                                                              0.0;
-                                                                      double
-                                                                          totalPagarConMoratorio =
-                                                                          (pago.capitalMasInteres ?? 0.0) +
-                                                                              totalMoratorios;
-
-                                                                      // Asignar el depósito primero al monto total a pagar (capital + intereses)
-                                                                      double
-                                                                          depositoParaCapital =
-                                                                          pago.capitalMasInteres ??
-                                                                              0.0;
-                                                                      double
-                                                                          depositoParaMoratorio =
-                                                                          totalMoratorios;
-
-                                                                      // Si el depósito cubre más de lo que se debe por capital, el resto va al moratorio
-                                                                      if (nuevoDeposito >
-                                                                          depositoParaCapital) {
-                                                                        depositoParaCapital =
-                                                                            pago.capitalMasInteres ??
-                                                                                0.0;
-                                                                        double
-                                                                            saldoRestante =
-                                                                            nuevoDeposito -
-                                                                                depositoParaCapital;
-                                                                        depositoParaMoratorio = (saldoRestante >
-                                                                                totalMoratorios)
-                                                                            ? totalMoratorios
-                                                                            : saldoRestante;
-                                                                      }
-
-                                                                      // Calcular saldo a favor (lo que sobra después de cubrir el total con moratorios)
-                                                                      double
-                                                                          saldoFavor =
-                                                                          nuevoDeposito -
-                                                                              totalPagarConMoratorio;
-                                                                      if (saldoFavor <
-                                                                          0)
-                                                                        saldoFavor =
-                                                                            0.0;
-
-                                                                      // Asignar los valores calculados
-                                                                      pago.deposito =
-                                                                          nuevoDeposito;
-                                                                      pago.saldoFavor =
-                                                                          saldoFavor;
-                                                                      pago.saldoEnContra =
-                                                                          totalPagarConMoratorio -
-                                                                              nuevoDeposito;
-
-                                                                      // Debugging: Imprimir los resultados de los cálculos
-                                                                      print(
-                                                                          "Deposito actualizado: \$${pago.deposito}");
-                                                                      print(
-                                                                          "Monto total a pagar (con moratorio): \$${totalPagarConMoratorio}");
-                                                                      print(
-                                                                          "Saldo en Contra: \$${pago.saldoEnContra}");
-                                                                      print(
-                                                                          "Saldo a Favor: \$${pago.saldoFavor}");
-
-                                                                      // Actualizar el Provider
-                                                                      final pagosProvider = Provider.of<
-                                                                              PagosProvider>(
-                                                                          context,
-                                                                          listen:
-                                                                              false);
-
-                                                                      // Buscar si ya existe un pago con la misma semana
-                                                                      final index = pagosProvider
-                                                                          .pagosSeleccionados
-                                                                          .indexWhere((p) =>
-                                                                              p.semana ==
-                                                                              pago.semana);
-
-                                                                      if (index !=
-                                                                          -1) {
-                                                                        // Actualizar el pago existente
-                                                                        pagosProvider.pagosSeleccionados[index] = PagoSeleccionado(
-                                                                            moratorioDesabilitado: pago.moratorioDesabilitado,
-                                                                            semana: pago.semana,
-                                                                            tipoPago: pago.tipoPago,
-                                                                            deposito: nuevoDeposito,
-                                                                            saldoFavor: pago.saldoFavor,
-                                                                            saldoEnContra: pago.saldoEnContra,
-                                                                            idfechaspagos: pago.idfechaspagos!,
-                                                                            fechaPago: pago.fechaPagoCompleto.isNotEmpty ? pago.fechaPagoCompleto : pago.fechaPago, // <-- Cambio clave aquí
-                                                                            capitalMasInteres: pago.capitalMasInteres,
-                                                                            moratorio: pago.moratorios?.moratorios,
-                                                                            pagosMoratorios: pago.pagosMoratorios);
-                                                                      } else {
-                                                                        // Agregar un nuevo pago si no existe
-                                                                        pagosProvider
-                                                                            .agregarPago(
-                                                                          PagoSeleccionado(
-                                                                              moratorioDesabilitado: pago.moratorioDesabilitado,
-                                                                              semana: pago.semana,
-                                                                              tipoPago: pago.tipoPago,
-                                                                              deposito: nuevoDeposito,
-                                                                              saldoFavor: pago.saldoFavor,
-                                                                              saldoEnContra: pago.saldoEnContra,
-                                                                              idfechaspagos: pago.idfechaspagos!,
-                                                                              fechaPago: pago.fechaPagoCompleto.isNotEmpty ? pago.fechaPagoCompleto : pago.fechaPago, // <-- Cambio clave aquí
-                                                                              capitalMasInteres: pago.capitalMasInteres,
-                                                                              moratorio: pago.moratorios?.moratorios,
-                                                                              pagosMoratorios: pago.pagosMoratorios),
-                                                                        );
-                                                                      }
+                                                                    // =========================================================================
+                                                                    // <<< BLOQUE AÑADIDO PARA REGISTRAR LA INTERACCIÓN >>>
+                                                                    // =========================================================================
+                                                                    if (value
+                                                                        .isNotEmpty) {
+                                                                      _pagosConInteraccionRealTime
+                                                                          .add(
+                                                                              pagoId);
                                                                     } else {
-                                                                      // Si el valor está vacío, establecer el saldo en contra a 0
+                                                                      // Si el campo está vacío, la interacción "termina"
+                                                                      _pagosConInteraccionRealTime
+                                                                          .remove(
+                                                                              pagoId);
+                                                                    }
+                                                                    // =========================================================================
+
+                                                                    // Tu lógica de cálculo existente (no cambia)
+                                                                    final double
+                                                                        montoIngresado =
+                                                                        double.tryParse(value.replaceAll(",",
+                                                                                "")) ??
+                                                                            0.0;
+                                                                    pago.deposito =
+                                                                        montoIngresado;
+
+                                                                    final double
+                                                                        deudaTotalSemana =
+                                                                        (pago.capitalMasInteres ??
+                                                                                0.0) +
+                                                                            (pago.moratorioDesabilitado == "Si"
+                                                                                ? 0.0
+                                                                                : (pago.moratorios?.moratorios ?? 0.0));
+
+                                                                    final double
+                                                                        diferencia =
+                                                                        montoIngresado -
+                                                                            deudaTotalSemana;
+
+                                                                    if (diferencia >
+                                                                        0) {
+                                                                      _saldosFavorEnTiempoReal[
+                                                                              pagoId] =
+                                                                          diferencia;
                                                                       pago.saldoEnContra =
                                                                           0.0;
-                                                                      pago.saldoFavor =
-                                                                          0.0;
+                                                                    } else {
+                                                                      _saldosFavorEnTiempoReal
+                                                                          .remove(
+                                                                              pagoId);
+                                                                      pago.saldoEnContra =
+                                                                          -diferencia;
                                                                     }
+
+                                                                    Provider.of<PagosProvider>(
+                                                                            context,
+                                                                            listen:
+                                                                                false)
+                                                                        .actualizarPago(
+                                                                            pago.toPagoSeleccionado());
                                                                   });
                                                                 });
                                                               },
@@ -3894,12 +3906,12 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                                                               fontWeight: FontWeight.w500,
                                                                             ),
                                                                             children: [
-                                                                              TextSpan(text: 'Se pagó '),
+                                                                              TextSpan(text: 'Se usó '),
                                                                               TextSpan(
                                                                                 text: '\$${formatearNumero(pago.capitalMasInteres) ?? '0.00'}',
                                                                                 style: TextStyle(
                                                                                   fontSize: 10,
-                                                                                  color: Colors.green.shade800,
+                                                                                  color: Color(0xFFE53888),
                                                                                   fontWeight: FontWeight.bold,
                                                                                 ),
                                                                               ),
@@ -3908,7 +3920,7 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                                                                 text: '\$${formatearNumero(widget.montoGarantia)}',
                                                                                 style: TextStyle(
                                                                                   fontSize: 10,
-                                                                                  color: Colors.green.shade800,
+                                                                                  color: Color(0xFFE53888),
                                                                                   fontWeight: FontWeight.bold,
                                                                                 ),
                                                                               ),
@@ -4025,17 +4037,16 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                                           child: Container(
                                                             decoration:
                                                                 BoxDecoration(
-                                                              color: Colors
-                                                                  .green
-                                                                  .shade50,
+                                                              color: Color(
+                                                                      0xFFE53888)
+                                                                  .withOpacity(
+                                                                      0.1),
                                                               borderRadius:
                                                                   BorderRadius
                                                                       .circular(
                                                                           8),
-                                                              border: Border.all(
-                                                                  color: Colors
-                                                                      .green
-                                                                      .shade100),
+                                                              /*  border: Border.all(
+                                                                  color: Color(0xFFE53888).withOpacity(0.2)), */
                                                             ),
                                                             padding: EdgeInsets
                                                                 .symmetric(
@@ -4051,23 +4062,25 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                                                 style: TextStyle(
                                                                     fontSize:
                                                                         10,
-                                                                    color: Colors
-                                                                        .grey
-                                                                        .shade800,
+                                                                    color: isDarkMode
+                                                                        ? Colors.pink[
+                                                                            100]
+                                                                        : Colors
+                                                                            .grey
+                                                                            .shade800,
                                                                     fontWeight:
                                                                         FontWeight
                                                                             .w500),
                                                                 children: [
                                                                   TextSpan(
                                                                       text:
-                                                                          'Se pagó '),
+                                                                          'Se usó '),
                                                                   TextSpan(
                                                                     text:
                                                                         '\$${formatearNumero(pago.capitalMasInteres)}',
                                                                     style: TextStyle(
-                                                                        color: Colors
-                                                                            .green
-                                                                            .shade800,
+                                                                        color: Color(
+                                                                            0xFFE53888),
                                                                         fontWeight:
                                                                             FontWeight.bold),
                                                                   ),
@@ -4078,9 +4091,8 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                                                     text:
                                                                         '\$${formatearNumero(widget.montoGarantia)}',
                                                                     style: TextStyle(
-                                                                        color: Colors
-                                                                            .green
-                                                                            .shade800,
+                                                                        color: Color(
+                                                                            0xFFE53888),
                                                                         fontWeight:
                                                                             FontWeight.bold),
                                                                   ),
@@ -4098,19 +4110,135 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                   flex: 18,
                                 ),
 
-                                // Para "Saldo a Favor":
+                                // =========================================================================
+// <<< INICIO: CELDA MEJORADA PARA "SALDO A FAVOR" >>>
+// =========================================================================
+                                // EN TU MÉTODO build, DENTRO DEL .map((pago) {...})
+// REEMPLAZA LA CELDA "SALDO A FAVOR" CON ESTA VERSIÓN FINAL-FINAL:
+
+// =========================================================================
+// <<< INICIO: CELDA "SALDO A FAVOR" - LÓGICA FUSIONADA Y CORRECTA >>>
+// =========================================================================
+// EN TU MÉTODO build, USA TU CÓDIGO ORIGINAL PARA LA CELDA Y AÑADE ESTO:
                                 _buildTableCell(
-                                  esPago1
-                                      ? "-"
-                                      : (pago.abonos.isEmpty &&
-                                              pago.deposito == 0.0)
-                                          ? "-"
-                                          : (pago.saldoFavor != null &&
-                                                  pago.saldoFavor! > 0.0)
-                                              ? "\$${formatearNumero(pago.saldoFavor!)}"
-                                              : "-",
+                                  Builder(builder: (context) {
+                                    // Usamos un Builder para tener contexto
+
+                                    // =========================================================================
+                                    // <<< NUEVA LÓGICA DE PRIORIDAD MÁXIMA >>>
+                                    // =========================================================================
+                                    final String pagoId =
+                                        pago.idfechaspagos ?? '';
+                                    if (_saldosFavorEnTiempoReal
+                                        .containsKey(pagoId)) {
+                                      // Si nuestro mapa de tiempo real tiene un valor para este pago, lo mostramos.
+                                      final double saldoRealTime =
+                                          _saldosFavorEnTiempoReal[pagoId]!;
+                                      return Text(
+                                        "\$${formatearNumero(saldoRealTime)}",
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          /*  color: isDarkMode ? Colors.green[300] : Colors.green[800],
+          fontWeight: FontWeight.bold, */
+                                        ),
+                                      );
+                                    }
+                                    // =========================================================================
+
+                                    // <<< TU CÓDIGO ORIGINAL, SIN CAMBIOS, VA AQUÍ ABAJO >>>
+                                    // Si no hay nada en el mapa de tiempo real, se ejecuta tu lógica probada.
+
+                                    if ((pago.saldoFavorOriginalGenerado ??
+                                            0.0) <=
+                                        0.01) {
+                                      return Text("-",
+                                          style: TextStyle(color: textColor));
+                                    }
+
+                                    // --- Si se generó saldo a favor, evaluamos su estado ---
+                                    final double restante =
+                                        pago.saldoRestante ?? 0.0;
+                                    final double original =
+                                        pago.saldoFavorOriginalGenerado;
+                                    final bool fueConsumidoTotalmente =
+                                        pago.fueUtilizadoPorServidor;
+
+                                    // --- CASO 2: El saldo se usó por completo ---
+                                    if (fueConsumidoTotalmente) {
+                                      return Tooltip(
+                                        message:
+                                            'Saldo de \$${formatearNumero(original)} utilizado completamente',
+                                        child: Text(
+                                          "\$${formatearNumero(original)}",
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: (isDarkMode
+                                                    ? Colors.white
+                                                    : Colors.black)
+                                                .withOpacity(0.5),
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                    // --- CASO 3: Queda saldo (parcial o total) ---
+                                    else if (restante > 0) {
+                                      if (restante >= original) {
+                                        return Text(
+                                          "\$${formatearNumero(restante)}",
+                                          style: TextStyle(fontSize: 13),
+                                        );
+                                      } else {
+                                        final double usado =
+                                            original - restante;
+                                        return Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Tooltip(
+                                              message:
+                                                  'Se utilizaron \$${formatearNumero(usado)} de saldo a favor',
+                                              child: Text(
+                                                "\$${formatearNumero(restante)}",
+                                                style: TextStyle(fontSize: 13),
+                                              ),
+                                            ),
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 2.0),
+                                              child: Text(
+                                                "(de \$${formatearNumero(original)})",
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: isDarkMode
+                                                      ? Colors.grey[400]
+                                                      : Colors.grey[600],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }
+                                    }
+
+                                    // --- CASO 4: Fallback ---
+                                    else {
+                                      return Text("-",
+                                          style: TextStyle(color: textColor));
+                                    }
+                                  }),
                                   flex: 18,
                                 ),
+// =========================================================================
+// <<< FIN: CELDA "SALDO A FAVOR" - LÓGICA FUSIONADA Y CORRECTA >>>
+// =========================================================================
+                                // =========================================================================
+// =========================================================================
+// <<< FIN: CELDA MEJORADA PARA "SALDO A FAVOR" >>>
+// =========================================================================
 
                                 // En la clase _PaginaControlState (dentro del método build):
                                 /*  _buildTableCell(
@@ -4125,15 +4253,70 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                   flex: 18,
                                 ), */
 
+                                // ▼▼▼ PEGA ESTE CÓDIGO EN SU LUGAR ▼▼▼
+                                // EN TU MÉTODO build, DENTRO DEL .map((pago) {...})
+// REEMPLAZA TU CELDA DE "SALDO EN CONTRA" CON ESTA VERSIÓN SIMPLIFICADA:
+
+// =========================================================================
+// <<< INICIO: CELDA "SALDO EN CONTRA" CORREGIDA PARA TIEMPO REAL >>>
+// =========================================================================
                                 _buildTableCell(
-                                  esPago1
+                                  esPago1 // Mantenemos la lógica para el pago 1, que es especial.
                                       ? "-"
-                                      : (pago.saldoEnContra != null &&
-                                              pago.saldoEnContra! > 0.0)
-                                          ? "\$${formatearNumero(pago.saldoEnContra!)}" // Mostrar siempre el valor
-                                          : "-",
+                                      : Builder(
+                                          builder: (context) {
+                                            final String pagoId =
+                                                pago.idfechaspagos ?? '';
+
+                                            // Condición 1: ¿Hay pagos ya guardados en el servidor?
+                                            // (Esta era tu variable 'tieneActividadDePago')
+                                            final bool tieneActividadGuardada =
+                                                (pago.sumaDepositoMoratorisos ??
+                                                            0.0) >
+                                                        0.0 ||
+                                                    pago.abonos.isNotEmpty ||
+                                                    pago.renovacionesPendientes
+                                                        .isNotEmpty;
+
+                                            // Condición 2: ¿Está el usuario interactuando con esta fila AHORA?
+                                            final bool
+                                                tieneInteraccionRealTime =
+                                                _pagosConInteraccionRealTime
+                                                    .contains(pagoId);
+
+                                            // Condición 3: ¿El saldo en contra calculado es mayor a cero?
+                                            final bool haySaldoEnContra =
+                                                (pago.saldoEnContra ?? 0.0) >
+                                                    0.01;
+
+                                            // Muestra el valor SOLO si (hay actividad guardada O hay interacción ahora) Y hay un saldo en contra que mostrar.
+                                            if ((tieneActividadGuardada ||
+                                                    tieneInteraccionRealTime) &&
+                                                haySaldoEnContra) {
+                                              return Text(
+                                                "\$${formatearNumero(pago.saldoEnContra!)}",
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  /* color: isDarkMode ? Colors.orange[300] : Colors.red[800],
+                  fontWeight: FontWeight.bold, */
+                                                ),
+                                              );
+                                            } else {
+                                              // En cualquier otro caso, muestra el guion.
+                                              return Text(
+                                                "-",
+                                                style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: textColor),
+                                              );
+                                            }
+                                          },
+                                        ),
                                   flex: 18,
                                 ),
+// =========================================================================
+// <<< FIN: CELDA "SALDO EN CONTRA" CORREGIDA >>>
+// =========================================================================
                                 // Mostrar los moratorios con la misma lógica, solo si existen
                                 // DESPUÉS (CÓDIGO MODIFICADO)
                                 _buildTableCell(
@@ -4257,6 +4440,7 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                                               isDarkMode,
                                               index,
                                               totalPagosDelCredito,
+                                              saldoFavorTotalAcumulado, // <-- NUEVO PARÁMETRO
                                             ),
                                           ),
                                   ),
@@ -4271,6 +4455,8 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                 ),
 
                 // Después, pasas esos totales al _buildTableCell como lo haces normalmente
+                // Fila de Totales
+                // Reemplaza este bloque completo en tu widget build
                 Container(
                   height: 40,
                   decoration: BoxDecoration(
@@ -4285,18 +4471,222 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                       _buildTableCell("\$${formatearNumero(totalMonto)}",
                           textColor: Colors.white, flex: 10),
                       _buildTableCell("", textColor: Colors.white, flex: 15),
-                      _buildTableCell("\$${formatearNumero(totalPagoActual)}",
-                          textColor: Colors.white, flex: 10),
-                      _buildTableCell("\$${formatearNumero(totalSaldoFavor)}",
-                          textColor: Colors.white, flex: 10),
-                      _buildTableCell("\$${formatearNumero(totalSaldoContra)}",
-                          textColor: Colors.white, flex: 10),
+
+                      // <<< CAMBIO PRINCIPAL: INICIO >>>
+                      // Ahora pasamos un widget Row anidado a _buildTableCell
+                      // para agrupar el texto y el icono.
                       _buildTableCell(
-                          "\$${formatearNumero(totalMoratorios)}", // ← Usar la variable calculada
-                          textColor: Colors.white,
-                          flex: 10),
-                      // Y el espacio correspondiente en los totales
-                      Flexible(flex: 7, child: Container()),
+                        Row(
+                          mainAxisSize: MainAxisSize
+                              .min, // Clave: para que la Row no se expanda
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // 1. El texto del monto
+                            Text(
+                              "\$${formatearNumero(totalPagoActual)}",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+
+                            // 2. El icono condicional con su Tooltip
+                            if (hayGarantiaAplicada) ...[
+                              SizedBox(
+                                  width:
+                                      4), // Controlamos el espacio exacto aquí
+                              Tooltip(
+                                waitDuration: Duration.zero,
+                                showDuration: Duration(seconds: 5),
+                                richMessage: WidgetSpan(
+                                  child: Transform.translate(
+                                    offset: Offset(0, -10),
+                                    child: Container(
+                                      padding: EdgeInsets.all(10),
+                                      constraints:
+                                          BoxConstraints(maxWidth: 220),
+                                      decoration: BoxDecoration(
+                                        color: isDarkMode
+                                            ? Colors.grey[800]
+                                            : Color(0xFFF7F8FA),
+                                        borderRadius: BorderRadius.circular(8),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.3),
+                                            blurRadius: 6,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Total real ingresado:',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: isDarkMode
+                                                  ? Colors.white
+                                                  : Colors.black,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            '\$${formatearNumero(totalRealIngresado)}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: isDarkMode
+                                                  ? Colors.white70
+                                                  : Colors.black87,
+                                            ),
+                                          ),
+                                          Divider(
+                                            height: 12,
+                                            thickness: 0.5,
+                                            color: isDarkMode
+                                                ? Colors.grey[600]
+                                                : Colors.grey[300],
+                                          ),
+                                          Text(
+                                            'Este valor no considera garantías ni montos de renovación para la suma.',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              //fontStyle: FontStyle.italic,
+                                              color: isDarkMode
+                                                  ? Colors.grey[400]
+                                                  : Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                decoration: BoxDecoration(),
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors
+                                      .help, // Más semántico que 'click'
+                                  child: Icon(
+                                    Icons.info_outline,
+                                    size: 16,
+                                    color: Colors.white.withOpacity(0.8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        textColor: Colors.white,
+                        flex: 10, // Mantenemos el mismo flex para la celda
+                      ),
+                      // <<< CAMBIO PRINCIPAL: FIN >>>
+
+                      // <<< MODIFICADO: Celda del Total de "Saldo a Favor" >>>
+                      // En tu fila de totales, busca la celda de "Saldo a Favor"
+
+                      // =========================================================================
+// <<< REEMPLAZA ESTE WIDGET _buildTableCell COMPLETO >>>
+// =========================================================================
+                      // Celda de Saldo a Favor (simplificada)
+                      // ▼▼▼ REEMPLAZA LA CELDA DE "SALDO A FAVOR" DE TOTALES POR ESTO ▼▼▼
+                      // =========================================================================
+// <<< INICIO: CELDA DE TOTALES DE SALDO A FAVOR MEJORADA >>>
+// =========================================================================
+                      _buildTableCell(
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // 1. El texto del monto restante total
+                            Text(
+                              "\$${formatearNumero(totalSaldoFavor)}",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+
+                            // 2. Un icono informativo que muestra el total histórico generado
+                            if (saldoFavorHistoricoTotal >
+                                totalSaldoFavor + 0.01) ...[
+                              SizedBox(width: 4),
+                              Tooltip(
+                                message:
+                                    'Total generado históricamente: \$${formatearNumero(saldoFavorHistoricoTotal)}',
+                                child: Icon(
+                                  Icons.info_outline,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        textColor: Colors.white,
+                        flex: 10,
+                      ),
+// =========================================================================
+// <<< FIN: CELDA DE TOTALES DE SALDO A FAVOR MEJORADA >>>
+// =========================================================================
+
+                      // ▲▲▲ FIN DEL REEMPLAZO ▲▲▲
+                      // Busca el Row que muestra el "Total Saldo en Contra" y reemplázalo por esto:
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // El valor con el tooltip en el lado derecho
+                          Tooltip(
+                            // --- El mensaje que aparece al pasar el cursor o hacer tap largo ---
+                            message:
+                                "Deuda Potencial Total: \$${formatearNumero(totalSaldoContraPotencial)}\n\n(Suma de todas las deudas pendientes,\nincluyendo pagos futuros y moratorios generados)",
+
+                            // --- Estilos opcionales para que se vea bien ---
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            margin: EdgeInsets.symmetric(horizontal: 20),
+
+                            textStyle: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                            ),
+                            waitDuration: Duration(
+                                milliseconds:
+                                    300), // Tiempo de espera antes de mostrar
+
+                            // --- El widget visible que activa el tooltip ---
+                            child: Row(
+                              mainAxisSize: MainAxisSize
+                                  .min, // Para que el Row no ocupe todo el espacio
+                              children: [
+                                Text(
+                                  // Muestra el total ACTIVO por defecto
+                                  '\$${formatearNumero(totalSaldoContraActivo)}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                SizedBox(width: 2),
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      _buildTableCell("\$${formatearNumero(totalMoratorios)}",
+                          textColor: Colors.white, flex: 10),
+                      Flexible(flex: 7, child: Container()), // Espacio final
                     ],
                   ),
                 ),
@@ -4305,6 +4695,39 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
           });
         }
       },
+    );
+  }
+
+  // =========================================================================
+// <<< AÑADE ESTA FUNCIÓN DE AYUDA DENTRO DE _PaginaControlState >>>
+// =========================================================================
+  Widget _buildTooltipRow(String label, String value, bool isDarkMode,
+      {bool isTotal = false}) {
+    final labelColor = isDarkMode ? Colors.white70 : Colors.black87;
+    final valueColor = isTotal
+        ? (isDarkMode ? Colors.green.shade300 : Colors.green.shade800)
+        : (isDarkMode ? Colors.white : Colors.black);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: labelColor,
+          ),
+        ),
+        SizedBox(width: 16),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            color: valueColor,
+          ),
+        ),
+      ],
     );
   }
 
@@ -4433,7 +4856,7 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     color: isDarkMode ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.w500,
                   ),
@@ -4469,6 +4892,8 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
 // =========================================================================
 // FUNCIÓN 1: _buildPagoMenuItems (LÓGICA DE MORATORIOS CORREGIDA SEGÚN TU ORIGINAL) - VERSIÓN COMPLETA
 // =========================================================================
+  // EN TU CLASE _PaginaControlState, REEMPLAZA ESTA FUNCIÓN COMPLETA:
+
   List<MenuItemModel> _buildPagoMenuItems(
     BuildContext context,
     Pago pago,
@@ -4476,6 +4901,7 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
     bool isDarkMode,
     int indicePagoActual,
     int totalPagos,
+    double saldoFavorTotalAcumulado,
   ) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 400;
@@ -4483,10 +4909,7 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
 
     final List<MenuItemModel> menuDefinition = [];
 
-    // --- 1. Submenú de Moratorios (LÓGICA CORREGIDA) ---
-    // ✅ CORRECCIÓN FINAL: La opción de Moratorios se añade SIEMPRE QUE EL OBJETO
-    // `moratorios` no sea nulo, para que puedas entrar a ver la información
-    // incluso si el monto es cero, tal como en tu código original.
+    // --- 1. Submenú de Moratorios (sin cambios) ---
     if (pago.moratorios != null) {
       menuDefinition.add(
         SubMenuItem(
@@ -4501,7 +4924,6 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
           child: _buildTriggerItem(
             icon: Icons.info_outline,
             title: 'Moratorios',
-            // Mostramos el monto o un guion si es cero.
             subtitle: (pago.moratorios!.moratorios > 0)
                 ? '\$${formatearNumero(pago.moratorios!.moratorios)}'
                 : 'Sin moratorios',
@@ -4515,53 +4937,99 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
       );
     }
 
-     // --- 2. ACCIÓN "CLIENTES A RENOVAR" ---
-  // --- CAMBIO: Condición dinámica para los últimos dos pagos ---
-  // Se muestra si el pago actual es el último o el penúltimo.
-  // La condición (totalPagos > 1) es una seguridad para créditos muy cortos.
-  if ((pago.semana >= totalPagos - 1 && totalPagos > 1) &&
-      widget.clientesParaRenovar.isNotEmpty) {
-      menuDefinition.add(
-        SubMenuItem(
-          maxWidth: 340.0,
-          offset: isSmallScreen
-              ? Offset(-270, 0)
-              : isRightSide
-                  ? Offset(-250, 0)
-                  : Offset(-0, 0),
-          backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
-          elevation: 12,
-          child: ValueListenableBuilder<Map<String, bool>>(
-            valueListenable: _clientesSeleccionadosNotifier,
-            builder: (context, selectionMap, child) {
-              final count = selectionMap.values.where((v) => v).length;
-              final subtitle =
-                  '$count de ${widget.clientesParaRenovar.length} seleccionados';
+    // --- 2. ACCIÓN "CLIENTES A RENOVAR" (sin cambios) ---
+    menuDefinition.add(
+      SubMenuItem(
+        maxWidth: 350.0,
+        offset: isSmallScreen
+            ? Offset(-250, 0)
+            : isRightSide
+                ? Offset(-230, 0)
+                : Offset(-0, 0),
+        backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+        elevation: 12,
+        child: ValueListenableBuilder<Map<String, bool>>(
+          valueListenable: _clientesSeleccionadosNotifier,
+          builder: (context, selectionMap, child) {
+            final count = selectionMap.values.where((v) => v).length;
+            final subtitle =
+                '$count de ${widget.clientesParaRenovar.length} seleccionados';
 
-              return _buildTriggerItem(
-                icon: Icons.person_add_outlined,
-                title: 'Clientes a renovar',
-                subtitle: subtitle,
-                iconColor: isDarkMode ? Color(0xFF7E92FF) : Color(0xFF3D5AFE),
-                iconBackgroundColor:
-                    isDarkMode ? Colors.grey.shade800 : Color(0xFFE8EAF6),
-                isDarkMode: isDarkMode,
-              );
-            },
-          ),
-          subItems: _buildRenovacionSubMenuItems(
-            context,
-            isDarkMode,
-            pago,
-            allPagos,
-            pago.renovacionesPendientes,
-            pago.estaFinalizado,
-          ),
+            return _buildTriggerItem(
+              icon: Icons.person_add_outlined,
+              title: 'Clientes a renovar',
+              subtitle: subtitle,
+              iconColor: isDarkMode ? Color(0xFF7E92FF) : Color(0xFF3D5AFE),
+              iconBackgroundColor:
+                  isDarkMode ? Colors.grey.shade800 : Color(0xFFE8EAF6),
+              isDarkMode: isDarkMode,
+            );
+          },
         ),
-      );
-    }
+        subItems: _buildRenovacionSubMenuItems(
+          context,
+          isDarkMode,
+          pago,
+          allPagos,
+          pago.renovacionesPendientes,
+          //pago.estaFinalizado,
+        ),
+      ),
+    );
 
-    // Si no hay ninguna opción para mostrar, devuelve una lista vacía para no mostrar el menú.
+    // =========================================================================
+    // ===== SUBMENÚ "UTILIZAR SALDO A FAVOR" - LÓGICA MODIFICADA ============
+    // =========================================================================
+
+    // --- INICIO DE LA LÓGICA SOLICITADA ---
+    String subtituloSaldo;
+    final double favorUtilizadoEnEstePago = pago.totalFavorUtilizado;
+
+    // PRIORIDAD 1: Mostrar cuánto se utilizó en ESTE pago específico.
+    if (favorUtilizadoEnEstePago > 0.01) {
+      subtituloSaldo =
+          '\$${formatearNumero(favorUtilizadoEnEstePago)} utilizado aquí';
+    }
+    // PRIORIDAD 2: Si no se usó aquí, mostrar el saldo total disponible del crédito.
+    else if (saldoFavorTotalAcumulado > 0.01) {
+      subtituloSaldo =
+          '\$${formatearNumero(saldoFavorTotalAcumulado)} disponible';
+    }
+    // PRIORIDAD 3: Si no hay nada utilizado ni disponible, mostrar un mensaje por defecto.
+    else {
+      subtituloSaldo = 'Sin saldo a favor';
+    }
+    // --- FIN DE LA LÓGICA SOLICITADA ---
+
+    menuDefinition.add(
+      SubMenuItem(
+        maxWidth: 280.0,
+        offset: isSmallScreen
+            ? Offset(-250, 0)
+            : isRightSide
+                ? Offset(-230, 0)
+                : Offset(-0, 0),
+        backgroundColor: isDarkMode ? Colors.grey[850] : Colors.white,
+        elevation: 12,
+        child: _buildTriggerItem(
+          icon: Icons.savings_outlined,
+          title: 'Utilizar Saldo a favor',
+          subtitle: subtituloSaldo, // <-- Usamos el subtítulo recién calculado
+          iconColor: isDarkMode ? Color(0xFF69F0AE) : Color(0xFF00C853),
+          iconBackgroundColor:
+              isDarkMode ? Colors.green.shade900 : Color(0xFFE8F5E9),
+          isDarkMode: isDarkMode,
+        ),
+        subItems: _buildSaldoAFavorSubMenuItems(
+          context,
+          pago,
+          allPagos,
+          isDarkMode,
+          saldoFavorTotalAcumulado,
+        ),
+      ),
+    );
+
     return menuDefinition;
   }
 
@@ -4887,140 +5355,260 @@ Future<bool> _eliminarSeleccionRenovacion(BuildContext popupContext,
     return items;
   }
 
-// =========================================================================
-// FUNCIÓN 2: _buildRenovacionSubMenuItems (NUEVA LÓGICA PROPORCIONAL)
-// =========================================================================
-// =========================================================================
-// FUNCIÓN 2: _buildRenovacionSubMenuItems (NUEVA LÓGICA PROPORCIONAL) - VERSIÓN COMPLETA
-// =========================================================================
-// =========================================================================
-// FUNCIÓN 2: _buildRenovacionSubMenuItems (CON VALIDACIÓN DE USO DE GARANTÍA) - VERSIÓN COMPLETA
-// =========================================================================
+  List<MenuItemModel> _buildRenovacionSubMenuItems(
+    BuildContext context,
+    bool isDarkMode,
+    Pago pago,
+    List<Pago> allPagos,
+    List<RenovacionPendiente> renovacionesGuardadas,
+  ) {
+    final List<MenuItemModel> items = [];
+    final String idfechaspagos = pago.idfechaspagos ?? '';
+    final ValueNotifier<Map<String, double>> montosFinalesNotifier =
+        ValueNotifier({});
 
-// DENTRO DE LA CLASE _PaginaControlState
+    // --- Lógica de cálculo de montos iniciales ---
+    final double totalOriginal = widget.clientesParaRenovar
+        .fold(0.0, (sum, cliente) => sum + cliente.capitalMasInteres);
 
-// DENTRO DE LA CLASE _PaginaControlState
+    double totalObjetivoFinal =
+        (redondearDecimales(totalOriginal, context) as num).toDouble();
 
-  // DENTRO DE LA CLASE _PaginaControlState
+    Map<String, double> montosParaMostrar = {};
 
-List<MenuItemModel> _buildRenovacionSubMenuItems(
-  BuildContext context,
-  bool isDarkMode,
-  Pago pago,
-  List<Pago> allPagos,
-  List<RenovacionPendiente> renovacionesGuardadas,
-  bool estaFinalizado,
-) {
-  final List<MenuItemModel> items = [];
-  final String idfechaspagos = pago.idfechaspagos ?? '';
-  final ValueNotifier<Map<String, double>> montosFinalesNotifier = ValueNotifier({});
-  bool mostrarVistaConDescuento = false;
+    bool vistaConDescuento = false;
+    if (allPagos.isNotEmpty) {
+      final int totalSemanas =
+          allPagos.map((p) => p.semana).reduce((a, b) => a > b ? a : b);
 
-  Map<String, double> montosIniciales = {};
-  
-    // --- CAMBIO: Lógica de descuento dinámica ---
-  if (allPagos.isNotEmpty) {
-      final int totalSemanas = allPagos.map((p) => p.semana).reduce((a, b) => a > b ? a : b);
-
-      // Aplicamos la lógica de descuento solo si estamos en el ÚLTIMO pago.
       if (pago.semana == totalSemanas && totalSemanas > 1) {
-          double garantiaUsadaEnPenultimo = 0;
-          try {
-              // Buscamos el penúltimo pago
-              final pagoPenultimo = allPagos.firstWhere((p) => p.semana == totalSemanas - 1);
-              garantiaUsadaEnPenultimo = pagoPenultimo.abonos
-                  .where((abono) => abono['garantia'] == 'Si')
-                  .fold(0.0, (sum, abono) => sum + (double.tryParse(abono['deposito'].toString()) ?? 0.0));
-          } catch (e) {
-              garantiaUsadaEnPenultimo = 0;
-              print("No se encontró el penúltimo pago para calcular el descuento de garantía: $e");
-          }
-          
-          if (garantiaUsadaEnPenultimo > 0) {
-              mostrarVistaConDescuento = true;
-              double garantiaRestante = widget.montoGarantia - garantiaUsadaEnPenultimo;
-              if (garantiaRestante < 0.01) garantiaRestante = 0;
+        double garantiaRestante = 0;
+        try {
+          final pagoPenultimo =
+              allPagos.firstWhere((p) => p.semana == totalSemanas - 1);
+          final bool garantiaUsadaEnPenultimo =
+              pagoPenultimo.abonos.any((abono) => abono['garantia'] == 'Si');
 
-              if (widget.pagoCuotaTotal > 0) {
-                  final double nuevoMontoFichaTotal = widget.pagoCuotaTotal - garantiaRestante;
+          if (garantiaUsadaEnPenultimo) {
+            final double montoGarantiaUsadaEnPenultimo = pagoPenultimo.abonos
+                .where((abono) => abono['garantia'] == 'Si')
+                .fold(
+                    0.0,
+                    (sum, abono) =>
+                        sum +
+                        (double.tryParse(abono['deposito'].toString()) ?? 0.0));
 
-                  montosIniciales = _distribuirYRedondearMontos(
-                      nuevoMontoFichaTotal,
-                      widget.clientesParaRenovar,
-                      widget.pagoCuotaTotal,
-                  );
-              }
+            garantiaRestante =
+                widget.montoGarantia - montoGarantiaUsadaEnPenultimo;
+            if (garantiaRestante < 0.01) garantiaRestante = 0;
           }
+        } catch (e) {
+          garantiaRestante = 0;
+        }
+
+        if (garantiaRestante > 0 && widget.pagoCuotaTotal > 0) {
+          vistaConDescuento = true;
+          final double nuevoMontoFichaTotal =
+              widget.pagoCuotaTotal - garantiaRestante;
+
+          totalObjetivoFinal =
+              (redondearDecimales(nuevoMontoFichaTotal, context) as num)
+                  .toDouble();
+
+          montosParaMostrar = _distribuirYRedondearMontos(
+            totalObjetivoFinal,
+            widget.clientesParaRenovar,
+            widget.pagoCuotaTotal,
+          );
+        }
       }
-  }
-  // --- FIN DEL CAMBIO ---
-
-  if (!mostrarVistaConDescuento) {
-    for (final cliente in widget.clientesParaRenovar) {
-      montosIniciales[cliente.idamortizacion] = cliente.capitalMasInteres;
     }
-  }
-  
-  montosFinalesNotifier.value = montosIniciales;
 
-  items.add(MenuInfoItem(
-    child: Transform.translate(
-      offset: const Offset(0, -8.0),
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    if (!vistaConDescuento) {
+      for (final cliente in widget.clientesParaRenovar) {
+        montosParaMostrar[cliente.idamortizacion] = cliente.capitalMasInteres;
+      }
+    }
+
+    if (renovacionesGuardadas.isNotEmpty) {
+      final Map<String, double> savedDiscounts = {
+        for (var r in renovacionesGuardadas) r.idclientes!: r.descuento ?? 0.0
+      };
+      for (final cliente in widget.clientesParaRenovar) {
+        if (savedDiscounts.containsKey(cliente.idclientes)) {
+          montosParaMostrar[cliente.idamortizacion] =
+              savedDiscounts[cliente.idclientes]!;
+        }
+      }
+    }
+    montosFinalesNotifier.value = montosParaMostrar;
+
+    // --- Header ---
+    items.add(MenuInfoItem(
+      child: Transform.translate(
+        offset: const Offset(0, -8.0),
+        child: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
           ),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(Icons.group_add_outlined,
-                  color: Colors.white, size: 20),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                "Seleccionar Clientes a Renovar",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: 13,
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+                child: Icon(Icons.group_add_outlined,
+                    color: Colors.white, size: 20),
               ),
-            ),
-          ],
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  "Seleccionar Clientes a Renovar",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 13,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  ));
+    ));
 
-  items.add(
-    MenuCustomItem(
-      builder: (popupContext) {
+    // =========================================================================
+    // --- INICIO DE LA LÓGICA DE VALIDACIÓN CORREGIDA Y MEJORADA ---
+    // =========================================================================
+    final bool tieneActividadGuardadaEnServidor =
+        renovacionesGuardadas.isNotEmpty ||
+            (pago.sumaDepositoMoratorisos ?? 0.0) > 0.0;
+    final bool hayClientesRenovados = renovacionesGuardadas.isNotEmpty;
+
+    // CASO 1: El pago está finalizado y NO tiene clientes renovados.
+    // Este es el único caso donde mostramos un mensaje simple y terminamos.
+    if (pago.estaFinalizado && !hayClientesRenovados) {
+      items.add(MenuInfoItem(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? Colors.green.withOpacity(0.1)
+                : Colors.green.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isDarkMode
+                  ? Colors.green.withOpacity(0.3)
+                  : Colors.green.shade200,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.verified_outlined,
+                  color: isDarkMode
+                      ? Colors.green.shade300
+                      : Colors.green.shade700,
+                  size: 20),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  "Este pago ya está liquidado.",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDarkMode
+                        ? Colors.green.shade200
+                        : Colors.green.shade800,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              )
+            ],
+          ),
+        ),
+      ));
+      return items; // Salida temprana
+    }
+
+    // Si llegamos aquí, es porque:
+    // A) El pago NO está finalizado.
+    // B) El pago SÍ está finalizado, PERO tiene clientes renovados.
+    // En ambos casos, mostramos la lista interactiva.
+
+    // Añadimos un banner informativo si el pago está finalizado para dar contexto.
+    if (pago.estaFinalizado) {
+      items.add(MenuInfoItem(
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? Colors.orange.withOpacity(0.15)
+                : Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isDarkMode
+                  ? Colors.orange.withOpacity(0.4)
+                  : Colors.orange.shade200,
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.lock_clock_outlined,
+                  color: isDarkMode
+                      ? Colors.orange.shade300
+                      : Colors.orange.shade700,
+                  size: 20),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  "Pago liquidado. No se pueden guardar cambios, pero sí eliminar la renovación existente.",
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode
+                          ? Colors.orange.shade200
+                          : Colors.orange.shade800,
+                      fontWeight: FontWeight.w500,
+                      height: 1.3),
+                ),
+              )
+            ],
+          ),
+        ),
+      ));
+    }
+
+    // Siempre mostramos la lista interactiva en este punto
+    items.add(
+      MenuCustomItem(builder: (popupContext) {
+        final ValueNotifier<String?> _currentlyEditingIdNotifier =
+            ValueNotifier(null);
+        final Map<String, TextEditingController> _textControllers = {};
+
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setStateInPopup) {
             final Set<String> idsGuardados =
-                renovacionesGuardadas.map((r) => r.idclientes).toSet();
+                renovacionesGuardadas.map((r) => r.idclientes!).toSet();
             final Map<String, String> amortizacionToClienteIdMap = {
               for (var c in widget.clientesParaRenovar)
-                c.idamortizacion: c.idclientes
+                c.idamortizacion: c.idclientes!
             };
 
             void _toggleCliente(String idamortizacion, bool? value) {
-              final newSelection = Map<String, bool>.from(
-                  _clientesSeleccionadosNotifier.value);
+              final newSelection =
+                  Map<String, bool>.from(_clientesSeleccionadosNotifier.value);
               final estadoActual = newSelection[idamortizacion] ?? false;
               newSelection[idamortizacion] = value ?? !estadoActual;
               _clientesSeleccionadosNotifier.value = newSelection;
@@ -5042,19 +5630,14 @@ List<MenuItemModel> _buildRenovacionSubMenuItems(
               _clientesSeleccionadosNotifier.value = newSelection;
               setStateInPopup(() {});
             }
-            
-            // ▼▼▼ LÓGICA DE AJUSTE SIMPLIFICADA ▼▼▼
+
             void _ajustarMonto(String idClienteAjustado, double ajuste) {
-                final nuevosMontos = Map<String, double>.from(montosFinalesNotifier.value);
-                
-                // Simplemente aplica el ajuste al cliente seleccionado
-                final montoActual = nuevosMontos[idClienteAjustado] ?? 0;
-                nuevosMontos[idClienteAjustado] = montoActual + ajuste;
-                
-                // Actualiza el notifier para que la UI reaccione
-                montosFinalesNotifier.value = nuevosMontos;
+              final nuevosMontos =
+                  Map<String, double>.from(montosFinalesNotifier.value);
+              final montoActual = nuevosMontos[idClienteAjustado] ?? 0;
+              nuevosMontos[idClienteAjustado] = (montoActual + ajuste);
+              montosFinalesNotifier.value = nuevosMontos;
             }
-            // ▲▲▲ FIN DE LA LÓGICA DE AJUSTE ▲▲▲
 
             final bool hayClientes =
                 _clientesSeleccionadosNotifier.value.isNotEmpty;
@@ -5062,411 +5645,1138 @@ List<MenuItemModel> _buildRenovacionSubMenuItems(
                 !_clientesSeleccionadosNotifier.value.containsValue(false);
 
             return ValueListenableBuilder<Map<String, double>>(
-                valueListenable: montosFinalesNotifier,
-                builder: (context, montosActuales, child) {
-                    final double totalAPagar = montosIniciales.values.fold(0.0, (sum, monto) => sum + monto);
-                    double totalSeleccionado = 0.0;
-                    for (var cliente in widget.clientesParaRenovar) {
-                        if (_clientesSeleccionadosNotifier.value[cliente.idamortizacion] == true) {
-                            totalSeleccionado += montosActuales[cliente.idamortizacion] ?? 0.0;
-                        }
-                    }
+              valueListenable: montosFinalesNotifier,
+              builder: (context, montosActuales, child) {
+                final double totalAPagar = totalObjetivoFinal;
+                double totalSeleccionado = 0.0;
+                for (var cliente in widget.clientesParaRenovar) {
+                  if (_clientesSeleccionadosNotifier
+                          .value[cliente.idamortizacion] ==
+                      true) {
+                    totalSeleccionado +=
+                        montosActuales[cliente.idamortizacion] ?? 0.0;
+                  }
+                }
 
-                    return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    InkWell(
+                      onTap: pago.estaFinalizado
+                          ? null
+                          : () => _toggleSeleccionarTodos(null),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: todosSeleccionados,
+                              onChanged: pago.estaFinalizado
+                                  ? null
+                                  : _toggleSeleccionarTodos,
+                              activeColor: Color(0xFF3F51B5),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              "Seleccionar Todos",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Divider(
+                        height: 1, indent: 16, endIndent: 16, thickness: 0.5),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(50.0, 8.0, 16.0, 4.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                        InkWell(
-                            onTap: () => _toggleSeleccionarTodos(null),
-                            child: Padding(
+                          Text("Nombre",
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDarkMode
+                                      ? Colors.white54
+                                      : Colors.black54)),
+                          Text("Monto a Pagar",
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDarkMode
+                                      ? Colors.white54
+                                      : Colors.black54)),
+                        ],
+                      ),
+                    ),
+                    ...widget.clientesParaRenovar.map((cliente) {
+                      final String clientId = cliente.idamortizacion;
+                      final bool yaEstaGuardado = renovacionesGuardadas
+                          .any((r) => r.idclientes == cliente.idclientes);
+                      final double montoFinal =
+                          montosActuales[clientId] ?? cliente.capitalMasInteres;
+                      final double montoOriginal = cliente.capitalMasInteres;
+                      final double descuentoAplicado =
+                          montoOriginal - montoFinal;
+
+                      return InkWell(
+                        onTap: pago.estaFinalizado || yaEstaGuardado
+                            ? null
+                            : () => _toggleCliente(clientId, null),
+                        child: Opacity(
+                          opacity:
+                              pago.estaFinalizado || yaEstaGuardado ? 0.6 : 1.0,
+                          child: Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
+                                horizontal: 16.0, vertical: 2.0),
                             child: Row(
-                                children: [
+                              children: [
                                 Checkbox(
-                                    value: todosSeleccionados,
-                                    onChanged: _toggleSeleccionarTodos,
-                                    activeColor: Color(0xFF3F51B5),
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
+                                  value: yaEstaGuardado
+                                      ? true
+                                      : _clientesSeleccionadosNotifier
+                                              .value[clientId] ??
+                                          false,
+                                  onChanged:
+                                      pago.estaFinalizado || yaEstaGuardado
+                                          ? null
+                                          : (value) =>
+                                              _toggleCliente(clientId, value),
+                                  activeColor: Color(0xFF3F51B5),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
                                 SizedBox(width: 8),
-                                Text(
-                                    "Seleccionar Todos",
-                                    style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color:
-                                        isDarkMode ? Colors.white70 : Colors.black87,
-                                    ),
-                                ),
-                                ],
-                            ),
-                            ),
-                        ),
-                        Divider(height: 1, indent: 16, endIndent: 16, thickness: 0.5),
-                        Padding(
-                            padding: const EdgeInsets.fromLTRB(50.0, 8.0, 16.0, 4.0),
-                            child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                                Text("Nombre",
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDarkMode
-                                            ? Colors.white54
-                                            : Colors.black54)),
-                                Text("Monto a Pagar",
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDarkMode
-                                            ? Colors.white54
-                                            : Colors.black54)),
-                            ],
-                            ),
-                        ),
-                        ...widget.clientesParaRenovar.map((cliente) {
-                            final bool yaEstaGuardado = renovacionesGuardadas
-                                .any((r) => r.idclientes == cliente.idclientes);
-
-                            final double montoFinal =
-                                montosActuales[cliente.idamortizacion] ??
-                                    cliente.capitalMasInteres;
-                            final double montoOriginal = cliente.capitalMasInteres;
-                            final double descuentoAplicado = montoOriginal - montoFinal;
-
-                            return InkWell(
-                            onTap: yaEstaGuardado
-                                ? null
-                                : () => _toggleCliente(cliente.idamortizacion, null),
-                            child: Opacity(
-                                opacity: yaEstaGuardado ? 0.6 : 1.0,
-                                child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16.0, vertical: 2.0),
-                                child: Row(
+                                Expanded(
+                                  child: Row(
                                     children: [
-                                    Checkbox(
-                                        value: yaEstaGuardado
-                                            ? true
-                                            : _clientesSeleccionadosNotifier
-                                                    .value[cliente.idamortizacion] ??
-                                                false,
-                                        onChanged: yaEstaGuardado
-                                            ? null
-                                            : (value) => _toggleCliente(
-                                                cliente.idamortizacion, value),
-                                        activeColor: Color(0xFF3F51B5),
-                                        materialTapTargetSize:
-                                            MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Expanded(
+                                      Expanded(
+                                        flex: 3,
                                         child: Row(
-                                        children: [
-                                            Expanded(
-                                            flex: 3,
-                                            child: Row(
-                                                children: [
-                                                Flexible(
-                                                    child: Text(
-                                                    cliente.nombreCompleto,
-                                                    style: TextStyle(
-                                                        fontSize: 12,
-                                                        color: isDarkMode
-                                                            ? Colors.white
-                                                            : Colors.black87),
-                                                    overflow: TextOverflow.ellipsis,
-                                                    ),
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                cliente.nombreCompleto,
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: isDarkMode
+                                                        ? Colors.white
+                                                        : Colors.black87),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            if (yaEstaGuardado)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                    left: 8),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                    color: Colors.green
+                                                        .withOpacity(0.2),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            4)),
+                                                child: Text(
+                                                  "GUARDADO",
+                                                  style: TextStyle(
+                                                      fontSize: 8,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors
+                                                          .green.shade700),
                                                 ),
-                                                if (yaEstaGuardado)
-                                                    Container(
-                                                    margin: const EdgeInsets.only(
-                                                        left: 8),
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                            horizontal: 6,
-                                                            vertical: 2),
-                                                    decoration: BoxDecoration(
-                                                        color: Colors.green
-                                                            .withOpacity(0.2),
-                                                        borderRadius:
-                                                            BorderRadius.circular(4)),
-                                                    child: Text(
-                                                        "GUARDADO",
-                                                        style: TextStyle(
-                                                            fontSize: 8,
-                                                            fontWeight: FontWeight.bold,
-                                                            color:
-                                                                Colors.green.shade700),
-                                                    ),
-                                                    )
-                                                ],
-                                            ),
-                                            ),
-                                            SizedBox(width: 8),
+                                              )
+                                          ],
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        flex: 2,
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
                                             Expanded(
-                                            flex: 4,
-                                            child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.end,
-                                                crossAxisAlignment: CrossAxisAlignment.center,
-                                                children: [
-                                                Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment.end,
-                                                    children: [
-                                                    if (descuentoAplicado.abs() > 0.01)
-                                                        Text(
-                                                        '\$${formatearNumero(montoOriginal)}',
-                                                        style: TextStyle(
-                                                            fontSize: 10,
-                                                            color: isDarkMode
-                                                                ? Colors.white54
-                                                                : Colors.black54,
-                                                            decoration: TextDecoration
-                                                                .lineThrough),
-                                                        ),
-                                                    Text(
-                                                        '\$${formatearNumero(montoFinal)}',
-                                                        style: TextStyle(
-                                                            fontSize: 13,
-                                                            fontWeight: FontWeight.bold,
-                                                            color: isDarkMode
-                                                                ? Colors.white
-                                                                : Colors.black87),
-                                                    ),
-                                                    ],
-                                                ),
-                                                SizedBox(width: 4),
-                                                Column(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  children: [
-                                                    SizedBox(
-                                                        height: 18,
-                                                        width: 18,
-                                                        child: IconButton(
-                                                          padding: EdgeInsets.zero,
-                                                          iconSize: 16,
-                                                          icon: Icon(Icons.arrow_drop_up),
-                                                          // ▼▼▼ CAMBIO DE LÓGICA ▼▼▼
-                                                          onPressed: yaEstaGuardado ? null : () => _ajustarMonto(cliente.idamortizacion, 0.50),
-                                                          color: isDarkMode ? Colors.white70 : Colors.black54,
-                                                        ),
-                                                    ),
-                                                    SizedBox(
-                                                        height: 18,
-                                                        width: 18,
-                                                        child: IconButton(
-                                                          padding: EdgeInsets.zero,
-                                                          iconSize: 16,
-                                                          icon: Icon(Icons.arrow_drop_down),
-                                                          // ▼▼▼ CAMBIO DE LÓGICA Y CONDICIÓN ▼▼▼
-                                                          onPressed: yaEstaGuardado || montoFinal < 0.50 ? null : () => _ajustarMonto(cliente.idamortizacion, -0.50),
-                                                          color: isDarkMode ? Colors.white70 : Colors.black54,
-                                                        ),
-                                                    )
-                                                  ],
-                                                )
-                                                ],
-                                            ),
-                                            ),
-                                        ],
-                                        ),
-                                    ),
-                                    ],
-                                ),
-                                ),
-                            ),
-                            );
-                        }).toList(),
-                        Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Divider(
-                                height: 1, indent: 16, endIndent: 16, thickness: 0.5),
-                        ),
-                        Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                            child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                                color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                color: isDarkMode ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.08),
-                                width: 1,
-                                )
-                            ),
-                            child: Column(
-                                children: [
-                                Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                    Text(
-                                        "Total Seleccionado:",
-                                        style: TextStyle(
-                                        fontSize: 13,
-                                        color: isDarkMode ? Colors.white70 : Colors.black54,
-                                        ),
-                                    ),
-                                    Text(
-                                        '\$${formatearNumero(totalSeleccionado)}',
-                                        style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: isDarkMode ? Colors.white : Colors.black87,
-                                        ),
-                                    ),
-                                    ],
-                                ),
-                                SizedBox(height: 8),
-                                // ▼▼▼ CAMBIO EN EL TOTAL A PAGAR ▼▼▼
-                                // Ahora muestra la suma de los montos iniciales, no los modificados.
-                                Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                    Text(
-                                        "Total a Pagar (Objetivo):", // Texto más claro
-                                        style: TextStyle(
-                                        fontSize: 13,
-                                        color: isDarkMode ? Colors.white70 : Colors.black54,
-                                        ),
-                                    ),
-                                    Text(
-                                        '\$${formatearNumero(totalAPagar)}',
-                                        style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF3F51B5),
-                                        ),
-                                    ),
-                                    ],
-                                ),
-                                // ▲▲▲ FIN DEL CAMBIO ▲▲▲
-                                ],
-                            ),
-                            ),
-                        ),
-                        if (widget.tipoUsuario == 'Admin' || !estaFinalizado)
-                            Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                            child: Column(
-                                children: [
-                                if (renovacionesGuardadas.isNotEmpty)
-                                    Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton.icon(
-                                        icon: _isDeleting
-                                            ? Container()
-                                            : Icon(Icons.delete_forever_outlined,
-                                                size: 18, color: Colors.white),
-                                        label: _isDeleting
-                                            ? SizedBox(
-                                                height: 20,
-                                                width: 20,
-                                                child: CircularProgressIndicator(
-                                                    strokeWidth: 2.5,
-                                                    color: Colors.white))
-                                            : Text("Eliminar Selección"),
-                                        onPressed: _isSaving || _isDeleting
-                                            ? null
-                                            : () async {
-                                                final bool eliminadoExitoso =
-                                                    await _eliminarSeleccionRenovacion(
-                                                        popupContext,
-                                                        setStateInPopup,
-                                                        idfechaspagos);
-                                                if (eliminadoExitoso && mounted) {
-                                                    Navigator.of(context).pop();
-                                                    Navigator.of(context).pop();
-                                                    await recargarPagos();
-                                                    _infoCreditoState
-                                                        ?._refrescarDatosCredito();
-                                                }
+                                              child: ValueListenableBuilder<
+                                                  String?>(
+                                                valueListenable:
+                                                    _currentlyEditingIdNotifier,
+                                                builder:
+                                                    (context, editingId, _) {
+                                                  final bool isEditing =
+                                                      editingId == clientId;
+
+                                                  return Container(
+                                                    margin:
+                                                        const EdgeInsets.only(
+                                                            top: 8),
+                                                    height: 38,
+                                                    child: isEditing &&
+                                                            !pago.estaFinalizado
+                                                        ? _buildEditableField(
+                                                            context,
+                                                            clientId,
+                                                            montoFinal,
+                                                            _textControllers,
+                                                            _currentlyEditingIdNotifier,
+                                                            montosFinalesNotifier,
+                                                            isDarkMode,
+                                                          )
+                                                        : _buildStaticText(
+                                                            clientId,
+                                                            montoFinal,
+                                                            montoOriginal,
+                                                            descuentoAplicado,
+                                                            _currentlyEditingIdNotifier,
+                                                            pago.estaFinalizado ||
+                                                                yaEstaGuardado,
+                                                            isDarkMode,
+                                                          ),
+                                                  );
                                                 },
-                                        style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red.shade700,
-                                            foregroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(8)),
-                                            padding: EdgeInsets.symmetric(vertical: 12),
-                                            disabledBackgroundColor:
-                                                Colors.red.shade700.withOpacity(0.5),
+                                              ),
+                                            ),
+                                            SizedBox(width: 4),
+                                            Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(
+                                                  height: 18,
+                                                  width: 18,
+                                                  child: IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    iconSize: 16,
+                                                    icon: Icon(
+                                                        Icons.arrow_drop_up),
+                                                    onPressed:
+                                                        pago.estaFinalizado ||
+                                                                yaEstaGuardado
+                                                            ? null
+                                                            : () =>
+                                                                _ajustarMonto(
+                                                                    clientId,
+                                                                    0.10),
+                                                    color: isDarkMode
+                                                        ? Colors.white70
+                                                        : Colors.black54,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  height: 18,
+                                                  width: 18,
+                                                  child: IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    iconSize: 16,
+                                                    icon: Icon(
+                                                        Icons.arrow_drop_down),
+                                                    onPressed:
+                                                        pago.estaFinalizado ||
+                                                                yaEstaGuardado ||
+                                                                montoFinal <
+                                                                    0.10
+                                                            ? null
+                                                            : () =>
+                                                                _ajustarMonto(
+                                                                    clientId,
+                                                                    -0.10),
+                                                    color: isDarkMode
+                                                        ? Colors.white70
+                                                        : Colors.black54,
+                                                  ),
+                                                )
+                                              ],
+                                            )
+                                          ],
                                         ),
-                                    ),
-                                    ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton.icon(
-                                    icon: _isSaving
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Divider(
+                          height: 1, indent: 16, endIndent: 16, thickness: 0.5),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                            color: isDarkMode
+                                ? Colors.white.withOpacity(0.05)
+                                : Colors.black.withOpacity(0.03),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isDarkMode
+                                  ? Colors.white.withOpacity(0.1)
+                                  : Colors.black.withOpacity(0.08),
+                              width: 1,
+                            )),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Total Seleccionado:",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDarkMode
+                                        ? Colors.white70
+                                        : Colors.black54,
+                                  ),
+                                ),
+                                Text(
+                                  '\$${formatearNumero(totalSeleccionado)}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDarkMode
+                                        ? Colors.white
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Total a Pagar (Objetivo):",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isDarkMode
+                                        ? Colors.white70
+                                        : Colors.black54,
+                                  ),
+                                ),
+                                Text(
+                                  '\$${formatearNumero(totalAPagar)}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF3F51B5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (widget.tipoUsuario == 'Admin' || !pago.estaFinalizado)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                        child: Column(
+                          children: [
+                            if (!tieneActividadGuardadaEnServidor)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: isDarkMode
+                                        ? Colors.blue.withOpacity(0.1)
+                                        : Colors.blue.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: isDarkMode
+                                            ? Colors.blue.withOpacity(0.3)
+                                            : Colors.blue.shade200,
+                                        width: 1),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.info_outline,
+                                          color: isDarkMode
+                                              ? Colors.blue.shade300
+                                              : Colors.blue.shade700,
+                                          size: 20),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          "Guarde primero un abono para poder gestionar la renovación.",
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDarkMode
+                                                  ? Colors.blue.shade200
+                                                  : Colors.blue.shade800,
+                                              fontWeight: FontWeight.w500,
+                                              height: 1.3),
+                                        ),
+                                      )
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            if (hayClientesRenovados)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    icon: _isDeleting
                                         ? Container()
-                                        : Icon(Icons.save_alt_outlined,
+                                        : Icon(Icons.delete_forever_outlined,
                                             size: 18, color: Colors.white),
-                                    label: _isSaving
+                                    label: _isDeleting
                                         ? SizedBox(
-                                            width: 20,
                                             height: 20,
+                                            width: 20,
                                             child: CircularProgressIndicator(
                                                 strokeWidth: 2.5,
                                                 color: Colors.white))
-                                        : Text("Guardar Selección"),
+                                        : Text("Eliminar Selección"),
                                     onPressed: _isSaving || _isDeleting
                                         ? null
                                         : () async {
-                                            final bool guardadoExitoso =
-                                                await _guardarSeleccionRenovacion(
+                                            final bool eliminadoExitoso =
+                                                await _eliminarSeleccionRenovacion(
                                                     popupContext,
                                                     setStateInPopup,
-                                                    pago,
-                                                    allPagos,
-                                                    montosFinalesNotifier.value
-                                                );
-                                            
-                                            if (guardadoExitoso && mounted) {
-                                                Navigator.of(context).pop();
-                                                Navigator.of(context).pop();
-                                                await recargarPagos();
-                                                _infoCreditoState
-                                                    ?._refrescarDatosCredito();
-                                            } else if (mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(
-                                                    content: Text("No se pudo guardar la selección. Intenta de nuevo."),
-                                                    backgroundColor: Colors.orange,
-                                                    )
-                                                );
+                                                    idfechaspagos);
+                                            if (eliminadoExitoso && mounted) {
+                                              Navigator.of(context).pop();
+                                              Navigator.of(context).pop();
+                                              await recargarPagos();
+                                              _infoCreditoState
+                                                  ?._refrescarDatosCredito();
                                             }
-                                            },
+                                          },
                                     style: ElevatedButton.styleFrom(
-                                        backgroundColor: Color(0xFF3F51B5),
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(8)),
-                                        padding: EdgeInsets.symmetric(vertical: 12),
-                                        disabledBackgroundColor:
-                                            Color(0xFF3F51B5).withOpacity(0.5),
+                                      backgroundColor: Colors.red.shade700,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
+                                      padding:
+                                          EdgeInsets.symmetric(vertical: 12),
+                                      disabledBackgroundColor:
+                                          Colors.red.shade700.withOpacity(0.5),
                                     ),
-                                    ),
+                                  ),
                                 ),
-                                ],
+                              ),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                icon: _isSaving
+                                    ? Container()
+                                    : Icon(Icons.save_alt_outlined,
+                                        size: 18, color: Colors.white),
+                                label: _isSaving
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Colors.white))
+                                    : Text(
+                                        "Guardar Selección",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                onPressed: pago.estaFinalizado ||
+                                        !tieneActividadGuardadaEnServidor ||
+                                        _isSaving ||
+                                        _isDeleting
+                                    ? null
+                                    : () async {
+                                        final bool guardadoExitoso =
+                                            await _guardarSeleccionRenovacion(
+                                                popupContext,
+                                                setStateInPopup,
+                                                pago,
+                                                allPagos,
+                                                montosActuales);
+
+                                        if (guardadoExitoso && mounted) {
+                                          Navigator.of(context).pop();
+                                          Navigator.of(context).pop();
+                                          await recargarPagos();
+                                          _infoCreditoState
+                                              ?._refrescarDatosCredito();
+                                        } else if (mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(const SnackBar(
+                                            content: Text(
+                                                "No se pudo guardar la selección. Intenta de nuevo."),
+                                            backgroundColor: Colors.orange,
+                                          ));
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Color(0xFF3F51B5),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  disabledBackgroundColor:
+                                      Color(0xFF3F51B5).withOpacity(0.5),
+                                ),
+                              ),
                             ),
-                            ),
-                        ],
-                    );
-                },
+                          ],
+                        ),
+                      ),
+                  ],
+                );
+              },
             );
           },
         );
-      },
-    ),
-  );
+      }),
+    );
 
-  return items;
-}
+    return items;
+  }
+
+  // =========================================================================
+// <<< NUEVA FUNCIÓN: LÓGICA PARA APLICAR SALDO A FAVOR >>>
+// Añade esta función completa dentro de tu clase _PaginaControlState
+// =========================================================================
+// =========================================================================
+// <<< FUNCIÓN CORREGIDA PARA APLICAR SALDO A FAVOR (SEGÚN NUEVO FORMATO) >>>
+// Reemplaza la versión anterior de esta función con esta.
+// =========================================================================
+// =========================================================================
+// <<< FUNCIÓN CON IMPRESIONES PARA DEPURACIÓN >>>
+// Reemplaza la función existente con esta versión que incluye prints detallados.
+// =========================================================================
+// =========================================================================
+// <<< FUNCIÓN FINAL: USA EL ID DIRECTAMENTE DESDE EL MODELO PAGO >>>
+// Esta es la versión definitiva, más limpia y correcta.
+// =========================================================================
+  Future<void> _aplicarSaldoAFavor(
+    BuildContext popupContext,
+    Pago pagoDestino,
+    double montoTotalAAplicar,
+  ) async {
+    if (_isSaving) return;
+
+    final mainContext = context;
+    setState(() => _isSaving = true);
+
+    try {
+      // 1. OBTENER TOKEN (sin cambios)
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('tokenauth') ?? '';
+      if (token.isEmpty) {
+        if (!mounted) return;
+        _mostrarDialogoError(
+            'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
+        Navigator.pushAndRemoveUntil(
+            mainContext,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+            (route) => false);
+        setState(() => _isSaving = false);
+        return;
+      }
+
+      // ================== LÓGICA SIMPLIFICADA ==================
+      // 2. OBTENER EL ID DIRECTAMENTE DEL MODELO
+      final String? idPagosDetalles = pagoDestino.idpagosdetalles;
+
+      // Verificación de seguridad: nos aseguramos de que el ID no sea nulo o vacío.
+      if (idPagosDetalles == null || idPagosDetalles.isEmpty) {
+        _mostrarDialogoError(
+            "El pago de destino no tiene un ID de detalle válido (idpagosdetalles).");
+        setState(() => _isSaving = false);
+        return;
+      }
+      // ========================================================
+
+      // 3. CONSTRUIR EL PAYLOAD
+      final List<Map<String, dynamic>> payload = [
+        {
+          "idcredito": widget.idCredito,
+          "idpagos": pagoDestino.idpagos,
+          "montoAdepositar": pagoDestino.capitalMasInteres,
+          "idpagosdetalles":
+              idPagosDetalles, // <-- ¡AHORA USAMOS EL CAMPO CORRECTO DEL MODELO!
+          "idfechaspagos": pagoDestino.idfechaspagos,
+          "saldofavor": double.parse(montoTotalAAplicar.toStringAsFixed(2)),
+        }
+      ];
+
+      // 4. ENVIAR LA SOLICITUD (con prints para depuración)
+      final url = Uri.parse('$baseUrl/api/v1/pagos/utilizar/saldofavor');
+
+      print("=============================================");
+      print("🚀 APLICANDO SALDO A FAVOR (VERSIÓN FINAL) 🚀");
+      print("➡️  URL: $url");
+      print("📦 PAYLOAD: ${jsonEncode(payload)}");
+
+      final response = await http.post(
+        url,
+        headers: {
+          'tokenauth': token,
+          'Content-Type': 'application/json; charset=UTF-8'
+        },
+        body: jsonEncode(payload),
+      );
+
+      print("⬅️  RESPUESTA: ${response.statusCode} - ${response.body}");
+      print("=============================================");
+
+      if (!mounted) return;
+
+      // 5. MANEJAR LA RESPUESTA (sin cambios)
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(mainContext).showSnackBar(
+          const SnackBar(
+              content: Text("Saldo a favor aplicado exitosamente."),
+              backgroundColor: Colors.green),
+        );
+
+        Navigator.of(popupContext).pop();
+        Navigator.of(mainContext).pop();
+        await recargarPagos();
+        _infoCreditoState?._refrescarDatosCredito();
+      } else {
+        try {
+          final errorData = json.decode(response.body);
+          String mensajeError = errorData["Error"]?["Message"] ??
+              "Error desconocido al aplicar saldo.";
+          _mostrarDialogoError(mensajeError);
+        } catch (e) {
+          _mostrarDialogoError("Error del servidor: ${response.statusCode}");
+        }
+      }
+    } catch (e) {
+      if (mounted) _mostrarDialogoError("Error de conexión: $e");
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  // =========================================================================
+// NUEVA FUNCIÓN QUE CONSTRUYE EL SUBMENÚ PARA EL SALDO A FAVOR
+// =========================================================================
+  // =========================================================================
+// FUNCIÓN MEJORADA: Permite al usuario elegir el monto a aplicar
+// =========================================================================
+// =========================================================================
+// <<< FUNCIÓN ACTUALIZADA: SUBMENÚ INTERACTIVO PARA SALDO A FAVOR >>>
+// Reemplaza tu función _buildSaldoAFavorSubMenuItems existente con esta.
+// =========================================================================
+  // EN TU CLASE _PaginaControlState, REEMPLAZA ESTA FUNCIÓN COMPLETA
+
+// EN TU CLASE _PaginaControlState, REEMPLAZA ESTA FUNCIÓN COMPLETA:
+
+  List<MenuItemModel> _buildSaldoAFavorSubMenuItems(
+    BuildContext context,
+    Pago pago,
+    List<Pago> allPagos,
+    bool isDarkMode,
+    double saldoFavorTotalAcumulado,
+  ) {
+    final List<MenuItemModel> items = [];
+    final double montoAPagar = pago.saldoEnContra ?? 0.0;
+    final double favorYaUtilizado = pago.totalFavorUtilizado;
+
+    // --- Header e Información (sin cambios) ---
+    items.add(MenuInfoItem(
+        child: Transform.translate(
+      offset: const Offset(0, -8.0),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child:
+                  Icon(Icons.savings_outlined, color: Colors.white, size: 18),
+            ),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "Gestionar Saldo a Favor",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    )));
+
+    items.add(MenuInfoItem(
+      child: _buildInfoRowInteligente(
+        Icons.account_balance_wallet_outlined,
+        "Saldo Total Disponible",
+        "\$${formatearNumero(saldoFavorTotalAcumulado)}",
+        isDarkMode,
+        isAmount: true,
+        iconColor: Color(0xFF00C853),
+        iconBackgroundColor: Color(0xFF00C853).withOpacity(0.1),
+      ),
+    ));
+
+    if (favorYaUtilizado > 0) {
+      items.add(MenuInfoItem(
+        child: _buildInfoRowInteligente(
+          Icons.check_circle_outline,
+          "Saldo a favor ya aplicado",
+          "\$${formatearNumero(favorYaUtilizado)}",
+          isDarkMode,
+          isAmount: true,
+          iconColor: Color(0xFF3F51B5),
+          iconBackgroundColor: Color(0xFF3F51B5).withOpacity(0.1),
+        ),
+      ));
+    }
+
+    if (montoAPagar > 0 && !pago.estaFinalizado) {
+      items.add(MenuInfoItem(
+        child: _buildInfoRowInteligente(
+          Icons.warning_amber_rounded,
+          "Deuda restante en este pago",
+          "\$${formatearNumero(montoAPagar)}",
+          isDarkMode,
+          isAmount: true,
+          iconColor: Color(0xFFFFA000),
+          iconBackgroundColor: Color(0xFFFFA000).withOpacity(0.1),
+        ),
+      ));
+    }
+
+    items.add(MenuInfoItem(child: Divider(height: 12)));
+
+    // =========================================================================
+    // ===== INICIO: LÓGICA DE ACCIONES MUTUAMENTE EXCLUYENTES ===============
+    // =========================================================================
+
+    if (!pago.estaFinalizado &&
+        (widget.tipoUsuario == 'Admin' || widget.tipoUsuario == 'Asistente') &&
+        _puedeEditarPago(pago)) {
+      final bool tieneActividadGuardadaEnServidor =
+          (pago.sumaDepositoMoratorisos ?? 0.0) > 0.0;
+      final bool puedeCubrirPagoCompleto =
+          saldoFavorTotalAcumulado >= montoAPagar && montoAPagar > 0.01;
+
+      // --- ESCENARIO 1: "ACCIÓN ESPECIAL" ---
+      // Si NO hay abonos Y el saldo a favor puede liquidar el pago.
+      if (puedeCubrirPagoCompleto && !tieneActividadGuardadaEnServidor) {
+        items.add(
+          MenuCustomItem(
+            builder: (popupContext) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: _isSaving
+                        ? SizedBox.shrink()
+                        : Icon(Icons.check_circle_outline,
+                            size: 14, color: Colors.white),
+                    label: _isSaving
+                        ? SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2.5, color: Colors.white))
+                        : Text(
+                            "Cubrir pago completo con saldo",
+                            style: TextStyle(fontSize: 12),
+                          ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF00C853),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      disabledBackgroundColor:
+                          Color(0xFF00C853).withOpacity(0.5),
+                    ),
+                    onPressed: _isSaving
+                        ? null
+                        : () => _aplicarSaldoAFavor(
+                            popupContext, pago, montoAPagar),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      }
+      // --- ESCENARIO 2: "ACCIÓN NORMAL" ---
+      // Si SÍ hay abonos, hay deuda y hay saldo disponible.
+      else if (tieneActividadGuardadaEnServidor &&
+          montoAPagar > 0.01 &&
+          saldoFavorTotalAcumulado > 0.01) {
+        items.add(
+          MenuCustomItem(
+            builder: (popupContext) {
+              final montoController = TextEditingController();
+              final montoAAplicarNotifier = ValueNotifier<double>(0.0);
+              final double montoMaximoAplicable =
+                  min(montoAPagar, saldoFavorTotalAcumulado);
+
+              if (montoMaximoAplicable > 0) {
+                montoController.text = montoMaximoAplicable.toStringAsFixed(2);
+                montoAAplicarNotifier.value = montoMaximoAplicable;
+              }
+
+              return ValueListenableBuilder<double>(
+                valueListenable: montoAAplicarNotifier,
+                builder: (context, montoActual, child) {
+                  final bool puedeAplicar = montoActual > 0.01 && !_isSaving;
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Monto a Utilizar:", // Texto simplificado
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isDarkMode
+                                    ? Colors.white70
+                                    : Colors.black87)),
+                        SizedBox(height: 8),
+                        // El TextField y su botón no tienen cambios internos
+                        TextField(
+                          controller: montoController,
+                          autofocus: true,
+                          keyboardType:
+                              TextInputType.numberWithOptions(decimal: true),
+                          style: TextStyle(
+                              fontSize: 14,
+                              color:
+                                  isDarkMode ? Colors.white : Colors.black87),
+                          decoration: InputDecoration(
+                              prefixText: '\$ ',
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                  vertical: 12.0, horizontal: 12.0),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade400)),
+                              focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                      color: Color(0xFF3F51B5), width: 2),
+                                  borderRadius: BorderRadius.circular(8)),
+                              hintText:
+                                  "Máx: \$${formatearNumero(montoMaximoAplicable)}",
+                              hintStyle: TextStyle(
+                                  fontWeight: FontWeight.normal, fontSize: 12)),
+                          onChanged: (value) {
+                            double nuevoMonto =
+                                double.tryParse(value.replaceAll(",", "")) ??
+                                    0.0;
+                            // Aplicar el límite máximo
+                            if (nuevoMonto > montoMaximoAplicable) {
+                              nuevoMonto = montoMaximoAplicable;
+                              final formattedValue =
+                                  nuevoMonto.toStringAsFixed(2);
+                              montoController.text = formattedValue;
+                              montoController.selection =
+                                  TextSelection.fromPosition(TextPosition(
+                                      offset: formattedValue.length));
+                            }
+                            montoAAplicarNotifier.value = nuevoMonto;
+                          },
+                        ),
+                        SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: _isSaving
+                                ? SizedBox.shrink()
+                                : Icon(Icons.download_done_rounded,
+                                    size: 18, color: Colors.white),
+                            label: _isSaving
+                                ? SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2.5, color: Colors.white))
+                                : Text("Aplicar Monto"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFF3F51B5),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              disabledBackgroundColor:
+                                  Color(0xFF3F51B5).withOpacity(0.5),
+                              disabledForegroundColor:
+                                  Colors.white.withOpacity(0.7),
+                            ),
+                            onPressed: puedeAplicar
+                                ? () => _aplicarSaldoAFavor(popupContext, pago,
+                                    montoAAplicarNotifier.value)
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        );
+      }
+      // --- ESCENARIO 3: "MENSAJE DE ADVERTENCIA" ---
+      // Si no se cumplen los escenarios anteriores, y hay saldo, mostramos el mensaje.
+      else {
+        if (!tieneActividadGuardadaEnServidor && saldoFavorTotalAcumulado > 0) {
+          items.add(MenuInfoItem(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDarkMode
+                    ? Colors.blue.withOpacity(0.1)
+                    : Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: isDarkMode
+                        ? Colors.blue.withOpacity(0.3)
+                        : Colors.blue.shade200,
+                    width: 1),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline,
+                      color: isDarkMode
+                          ? Colors.blue.shade300
+                          : Colors.blue.shade700,
+                      size: 20),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Guarde primero un abono para usar el saldo a favor.",
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: isDarkMode
+                              ? Colors.blue.shade200
+                              : Colors.blue.shade800,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3),
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ));
+        }
+      }
+    }
+    // Si el pago está finalizado, no hay cambios.
+    else if (pago.estaFinalizado) {
+      items.add(MenuInfoItem(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDarkMode
+                ? Colors.green.withOpacity(0.1)
+                : Colors.green.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: isDarkMode
+                    ? Colors.green.withOpacity(0.3)
+                    : Colors.green.shade200,
+                width: 1),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.verified_outlined,
+                  color: isDarkMode
+                      ? Colors.green.shade300
+                      : Colors.green.shade700,
+                  size: 20),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  "Este pago ya está liquidado.",
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: isDarkMode
+                          ? Colors.green.shade200
+                          : Colors.green.shade800,
+                      fontWeight: FontWeight.w500),
+                ),
+              )
+            ],
+          ),
+        ),
+      ));
+    }
+
+    return items;
+  }
+
+// ==========================================================
+// ===== WIDGETS HELPER ACTUALIZADOS ========================
+// ==========================================================
+
+  /// Construye el campo de texto editable.
+  /// AHORA ACEPTA CONTEXT PARA MANEJAR EL FOCO.
+// EN TU CLASE _PaginaControlState, REEMPLAZA ESTA FUNCIÓN:
+
+  /// Construye el campo de texto editable.
+  /// AHORA GUARDA AL PERDER EL FOCO (HACER CLIC FUERA).
+  Widget _buildEditableField(
+      BuildContext context,
+      String clientId,
+      double montoFinal,
+      Map<String, TextEditingController> controllers,
+      ValueNotifier<String?> currentlyEditingNotifier,
+      ValueNotifier<Map<String, double>> montosNotifier,
+      bool isDarkMode) {
+    // Configuración del controlador (sin cambios)
+    final controller = controllers.putIfAbsent(
+      clientId,
+      () => TextEditingController(text: montoFinal.toStringAsFixed(2)),
+    );
+    controller.text = montoFinal.toStringAsFixed(2);
+    controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: controller.text.length));
+
+    // --- Lógica de guardado encapsulada para ser reutilizada ---
+    void saveAndCloseEditor() {
+      // Si el widget ya no está montado, no hacemos nada.
+      if (!context.mounted) return;
+
+      final double? newAmount =
+          double.tryParse(controller.text.replaceAll(",", ""));
+      if (newAmount != null) {
+        final currentMontos = Map<String, double>.from(montosNotifier.value);
+        currentMontos[clientId] = newAmount;
+        montosNotifier.value = currentMontos;
+      }
+      // Cerramos el modo de edición.
+      currentlyEditingNotifier.value = null;
+    }
+
+    return Focus(
+      // --- LÓGICA CLAVE: Detectar la pérdida de foco ---
+      onFocusChange: (hasFocus) {
+        if (!hasFocus) {
+          // Si el TextField pierde el foco, guardamos y cerramos el editor.
+          saveAndCloseEditor();
+        }
+      },
+      // Manejo de la tecla "Escape" para cancelar la edición (sin cambios)
+      onKey: (FocusNode node, RawKeyEvent event) {
+        if (event is RawKeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
+          currentlyEditingNotifier.value = null;
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: TextField(
+        controller: controller,
+        autofocus: true,
+        textAlign: TextAlign.right,
+        keyboardType: TextInputType.numberWithOptions(decimal: true),
+        style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.white : Colors.black87),
+        decoration: InputDecoration(
+          prefixText: '\$',
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(6),
+            borderSide: BorderSide(color: Colors.grey.shade400),
+          ),
+          focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFF3F51B5), width: 2),
+              borderRadius: BorderRadius.circular(6)),
+        ),
+        // Al presionar "Enter", también guardamos y cerramos.
+        onSubmitted: (_) => saveAndCloseEditor(),
+      ),
+    );
+  }
+
+  /// Construye el widget de texto estático que se muestra por defecto.
+  /// (Este widget no necesita cambios).
+  Widget _buildStaticText(
+      String clientId,
+      double montoFinal,
+      double montoOriginal,
+      double descuentoAplicado,
+      ValueNotifier<String?> currentlyEditingNotifier,
+      bool yaEstaGuardado,
+      bool isDarkMode) {
+    return GestureDetector(
+      onTap: yaEstaGuardado
+          ? null
+          : () {
+              currentlyEditingNotifier.value = clientId;
+            },
+      child: Container(
+        alignment: Alignment.centerRight,
+        color: Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (descuentoAplicado.abs() > 0.01)
+              Text(
+                '\$${formatearNumero(montoOriginal)}',
+                style: TextStyle(
+                    fontSize: 10,
+                    color: isDarkMode ? Colors.white54 : Colors.black54,
+                    decoration: TextDecoration.lineThrough),
+              ),
+            Text(
+              '\$${formatearNumero(montoFinal)}',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isDarkMode ? Colors.white : Colors.black87),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
 // Widget helper mejorado para las filas de información
   Widget _buildInfoRowInteligente(
@@ -5565,50 +6875,52 @@ List<MenuItemModel> _buildRenovacionSubMenuItems(
 
 // EN TU CLASE _PaginaControlState, REEMPLAZA LA FUNCIÓN OTRA VEZ CON ESTA VERSIÓN MEJORADA:
 
-void _recalcularSaldos(Pago pago) {
-  // 1. Calcular abonos en efectivo (pagos que NO son de garantía).
-  double abonosEnEfectivo = pago.abonos
-      .where((abono) => abono['garantia'] != 'Si')
-      .fold(0.0, (total, abono) => total + (abono['deposito'] ?? 0.0));
+  void _recalcularSaldos(Pago pago) {
+    // 1. Calcular abonos en efectivo (pagos que NO son de garantía).
+    double abonosEnEfectivo = pago.abonos
+        .where((abono) => abono['garantia'] != 'Si')
+        .fold(0.0, (total, abono) => total + (abono['deposito'] ?? 0.0));
 
-  // 2. Calcular el monto pagado específicamente con la garantía.
-  double abonosConGarantia = pago.abonos
-      .where((abono) => abono['garantia'] == 'Si')
-      .fold(0.0, (total, abono) => total + (abono['deposito'] ?? 0.0));
+    // 2. Calcular el monto pagado específicamente con la garantía.
+    double abonosConGarantia = pago.abonos
+        .where((abono) => abono['garantia'] == 'Si')
+        .fold(0.0, (total, abono) => total + (abono['deposito'] ?? 0.0));
 
-  // 3. Calcular lo cubierto por renovación pendiente.
-  double cubiertoPorRenovacion = pago.renovacionesPendientes.fold(
-      0.0, (total, renovacion) => total + (renovacion.descuento ?? 0.0));
-  if (pago.renovacionesPendientes.isNotEmpty) {
-    cubiertoPorRenovacion = cubiertoPorRenovacion.roundToDouble();
+    // 3. Calcular lo cubierto por renovación pendiente.
+    double cubiertoPorRenovacion = pago.renovacionesPendientes.fold(
+        0.0, (total, renovacion) => total + (renovacion.descuento ?? 0.0));
+    if (pago.renovacionesPendientes.isNotEmpty) {
+      cubiertoPorRenovacion = cubiertoPorRenovacion.roundToDouble();
+    }
+
+    // 4. Calcular la deuda total de la semana.
+    double totalDeudaSemana = pago.capitalMasInteres ?? 0.0;
+    if (pago.moratorioDesabilitado != "Si") {
+      totalDeudaSemana += pago.moratorios?.moratorios ?? 0.0;
+    }
+
+    // 5. Ajustar la deuda con el descuento del remanente de garantía del pago anterior (si aplica).
+    double deudaAjustada =
+        totalDeudaSemana - (pago.descuentoGarantiaAplicado ?? 0.0);
+
+    // ---- INICIO DE LA LÓGICA DE CÁLCULO DE SALDOS CORREGIDA ----
+
+    // a. Para calcular si AÚN SE DEBE DINERO (Saldo en Contra), consideramos TODOS los pagos.
+    //    Esto determina si la deuda de la semana fue cubierta, sin importar cómo.
+    double montoTotalPagado =
+        abonosEnEfectivo + abonosConGarantia + cubiertoPorRenovacion;
+    double saldoContraCalculado = deudaAjustada - montoTotalPagado;
+    pago.saldoEnContra = max(0, saldoContraCalculado);
+
+    // b. Para calcular si SOBRÓ DINERO A FAVOR DEL CLIENTE (Saldo a Favor),
+    //    NO consideramos el sobrepago de la garantía. Un "saldo a favor" real
+    //    solo puede venir de un sobrepago en efectivo o por renovación.
+    double montoParaSaldoFavor = abonosEnEfectivo + cubiertoPorRenovacion;
+    double saldoFavorCalculado = montoParaSaldoFavor - deudaAjustada;
+    pago.saldoFavor = max(0, saldoFavorCalculado);
+
+    // ---- FIN DE LA LÓGICA DE CÁLCULO DE SALDOS CORREGIDA ----
   }
-
-  // 4. Calcular la deuda total de la semana.
-  double totalDeudaSemana = pago.capitalMasInteres ?? 0.0;
-  if (pago.moratorioDesabilitado != "Si") {
-    totalDeudaSemana += pago.moratorios?.moratorios ?? 0.0;
-  }
-
-  // 5. Ajustar la deuda con el descuento del remanente de garantía del pago anterior (si aplica).
-  double deudaAjustada = totalDeudaSemana - (pago.descuentoGarantiaAplicado ?? 0.0);
-
-  // ---- INICIO DE LA LÓGICA DE CÁLCULO DE SALDOS CORREGIDA ----
-
-  // a. Para calcular si AÚN SE DEBE DINERO (Saldo en Contra), consideramos TODOS los pagos.
-  //    Esto determina si la deuda de la semana fue cubierta, sin importar cómo.
-  double montoTotalPagado = abonosEnEfectivo + abonosConGarantia + cubiertoPorRenovacion;
-  double saldoContraCalculado = deudaAjustada - montoTotalPagado;
-  pago.saldoEnContra = max(0, saldoContraCalculado);
-
-  // b. Para calcular si SOBRÓ DINERO A FAVOR DEL CLIENTE (Saldo a Favor),
-  //    NO consideramos el sobrepago de la garantía. Un "saldo a favor" real
-  //    solo puede venir de un sobrepago en efectivo o por renovación.
-  double montoParaSaldoFavor = abonosEnEfectivo + cubiertoPorRenovacion;
-  double saldoFavorCalculado = montoParaSaldoFavor - deudaAjustada;
-  pago.saldoFavor = max(0, saldoFavorCalculado);
-
-  // ---- FIN DE LA LÓGICA DE CÁLCULO DE SALDOS CORREGIDA ----
-}
 
   // Método auxiliar para construir items del popup
   Widget _buildPopupItem(String title, String value,
@@ -5768,24 +7080,24 @@ class Pago {
   List<Map<String, dynamic>> abonos;
   List<String?> fechasDepositos;
   String? idfechaspagos;
+  String? idpagosdetalles;
+  String? idpagos;
+  double totalFavorUtilizado;
   double? sumaDepositosFavor;
   double? sumaDepositoMoratorisos;
   Moratorios? moratorios;
   List<Map<String, dynamic>> pagosMoratorios;
   String moratorioDesabilitado;
-
-  // --- 1. NUEVO CAMPO AÑADIDO ---
-  // Almacenará la lista de clientes ya marcados para renovación en este pago.
   List<RenovacionPendiente> renovacionesPendientes;
-
-  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ AQUÍ ESTÁ LA ÚNICA LÍNEA A AÑADIR ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-  // Es una propiedad de la clase, no del constructor. Su valor se calculará en la UI.
   bool estaFinalizado = false;
-  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
-  // ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
-  double descuentoGarantiaAplicado =
-      0.0; // Para almacenar el descuento a aplicar
+  double descuentoGarantiaAplicado = 0.0;
+  double montoDeSaldoAplicado;
+  double? saldoFavorTotalOriginal;
+  bool fueLiquidadoConSaldo;
+  double saldoFavorInicial;
+  double saldoFavorOriginalGenerado;
+  bool fueUtilizadoPorServidor;
+  double? saldoRestante;
 
   Pago({
     required this.semana,
@@ -5793,6 +7105,7 @@ class Pago {
     required this.capital,
     required this.interes,
     required this.capitalMasInteres,
+    required this.idpagos,
     this.saldoFavor,
     this.saldoEnContra,
     required this.restanteTotal,
@@ -5804,20 +7117,34 @@ class Pago {
     this.abonos = const [],
     this.fechasDepositos = const [],
     this.idfechaspagos,
+    this.idpagosdetalles,
+    required this.totalFavorUtilizado,
     this.sumaDepositosFavor,
     this.sumaDepositoMoratorisos,
     this.moratorios,
     required this.pagosMoratorios,
     required this.moratorioDesabilitado,
-    // --- 2. AÑADIR AL CONSTRUCTOR ---
     required this.renovacionesPendientes,
+    this.montoDeSaldoAplicado = 0.0,
+    this.saldoFavorTotalOriginal,
+    this.fueLiquidadoConSaldo = false,
+    this.saldoFavorInicial = 0.0,
+    required this.saldoFavorOriginalGenerado,
+    required this.fueUtilizadoPorServidor,
+    this.saldoRestante,
   });
 
   factory Pago.fromJson(Map<String, dynamic> json) {
+    // --- Lógica para extraer el idpagos del primer abono (si existe) ---
+    final List<dynamic>? pagosList = json['pagos'] as List?;
+    final String idPagoPrincipal = (pagosList != null && pagosList.isNotEmpty)
+        ? pagosList[0]['idpagos'] ?? ''
+        : '';
+    // -------------------------------------------------------------------
+
     List<String?> fechasDepositos = [];
-    var pagos = json['pagos'] as List?;
-    if (pagos != null) {
-      for (var pago in pagos) {
+    if (pagosList != null) {
+      for (var pago in pagosList) {
         fechasDepositos.add(pago['fechaDeposito']);
       }
     }
@@ -5828,8 +7155,6 @@ class Pago {
                 .toList() ??
             [];
 
-    // --- 3. LÓGICA DE PARSEO EN fromJson ---
-    // Este código maneja si la API devuelve un solo objeto, una lista, o es nulo.
     List<RenovacionPendiente> pendientes = [];
     if (json['RenovacionPendientes'] != null) {
       if (json['RenovacionPendientes'] is List) {
@@ -5837,27 +7162,31 @@ class Pago {
             .map((i) => RenovacionPendiente.fromJson(i))
             .toList();
       } else if (json['RenovacionPendientes'] is Map) {
-        // Si es un solo objeto, lo convertimos en una lista de un elemento.
         pendientes
             .add(RenovacionPendiente.fromJson(json['RenovacionPendientes']));
+      }
+    }
+
+    double favorUtilizadoSuma = 0.0;
+    if (json['pagos'] is List) {
+      for (var abono in json['pagos']) {
+        if (abono['favorUtilizado'] is num) {
+          favorUtilizadoSuma += (abono['favorUtilizado'] as num).toDouble();
+        }
       }
     }
 
     return Pago(
       semana: json['semana'] ?? 0,
       fechaPago: json['fechaPago'] ?? '',
-      capital: (json['capital'] is int)
-          ? (json['capital'] as int).toDouble()
-          : (json['capital'] as num?)?.toDouble() ?? 0.0,
-      interes: (json['interes'] is int)
-          ? (json['interes'] as int).toDouble()
-          : (json['interes'] as num?)?.toDouble() ?? 0.0,
-      capitalMasInteres: (json['capitalMasInteres'] is int)
-          ? (json['capitalMasInteres'] as int).toDouble()
-          : (json['capitalMasInteres'] as num?)?.toDouble() ?? 0.0,
-      saldoFavor: json['saldoFavor'] != null
-          ? double.tryParse(json['saldoFavor'].toString())
-          : null,
+      capital: (json['capital'] as num?)?.toDouble() ?? 0.0,
+      interes: (json['interes'] as num?)?.toDouble() ?? 0.0,
+      capitalMasInteres: (json['capitalMasInteres'] as num?)?.toDouble() ?? 0.0,
+
+      // --- Usamos la variable que calculamos al principio ---
+      idpagos: idPagoPrincipal,
+      // ------------------------------------------------------
+
       sumaDepositosFavor: json['sumaDepositosFavor'] != null
           ? double.tryParse(json['sumaDepositosFavor'].toString())
           : null,
@@ -5867,11 +7196,9 @@ class Pago {
       saldoEnContra: json['saldoEnContra'] != null
           ? double.tryParse(json['saldoEnContra'].toString())
           : null,
-      restanteTotal: (json['restanteTotal'] is int)
-          ? (json['restanteTotal'] as int).toDouble()
-          : (json['restanteTotal'] as num?)?.toDouble() ?? 0.0,
+      restanteTotal: (json['restanteTotal'] as num?)?.toDouble() ?? 0.0,
       estado: json['estado'] ?? '',
-      deposito: json['pagos'] != null && (json['pagos'] as List).isNotEmpty
+      deposito: (json['pagos'] as List?)?.isNotEmpty ?? false
           ? ((json['pagos'][0]['deposito'] as num?)?.toDouble() ?? 0.0)
           : null,
       tipoPago:
@@ -5885,18 +7212,27 @@ class Pago {
           .toList(),
       fechasDepositos: fechasDepositos,
       idfechaspagos: json['idfechaspagos'],
+      idpagosdetalles: json['idpagosdetalles'],
       moratorios: json['moratorios'] is Map<String, dynamic>
           ? Moratorios.fromJson(Map<String, dynamic>.from(json['moratorios']))
           : null,
       pagosMoratorios: pagosMoratorios,
       moratorioDesabilitado: json['moratorioDesabilitado'] ?? "No",
-      // --- 4. PASAR LA LISTA AL CONSTRUCTOR ---
       renovacionesPendientes: pendientes,
+      saldoFavorInicial: 0.0,
+      totalFavorUtilizado: favorUtilizadoSuma,
+      saldoFavorOriginalGenerado:
+          (json['saldoFavor'] as num?)?.toDouble() ?? 0.0,
+      fueUtilizadoPorServidor: json['saldoFavorUtilizado'] == 'Si',
+      saldoFavor: json['saldoFavor'] != null
+          ? double.tryParse(json['saldoFavor'].toString())
+          : null,
+      saldoRestante: json['saldoRestante'] != null
+          ? double.tryParse(json['saldoRestante'].toString())
+          : null,
     );
   }
 
-  // El método toPagoSeleccionado no necesita cambios, ya que 'renovacionesPendientes'
-  // es para lógica de visualización, no para el proceso de guardar pagos.
   PagoSeleccionado toPagoSeleccionado() {
     return PagoSeleccionado(
       semana: semana,

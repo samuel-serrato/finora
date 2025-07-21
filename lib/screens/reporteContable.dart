@@ -132,68 +132,56 @@ class ReporteContableWidget extends StatelessWidget {
   }
 
   // SECCIÓN: TARJETA DE TOTALES
+   // --- CAMBIO APLICADO 1: Tarjeta de Totales ---
   Widget _buildTotalesCard(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
+  final themeProvider = Provider.of<ThemeProvider>(context);
+  final isDarkMode = themeProvider.isDarkMode;
 
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        elevation: 1,
-        color: isDarkMode ? Colors.grey[800] : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-          side: BorderSide(
-            color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
-            width: 1,
-          ),
+  return SizedBox(
+    width: double.infinity,
+    child: Card(
+      // ... (estilos de la card sin cambios)
+      elevation: 1,
+      color: isDarkMode ? Colors.grey[800] : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: BorderSide(
+          color: isDarkMode ? Colors.grey[700]! : Colors.grey[400]!,
+          width: 1,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Texto "Totales" a la izquierda
-              const Text(
-                'Totales',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-              // Elementos de resumen a la derecha
-              SingleChildScrollView(
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        child: Row(
+          // mainAxisAlignment: MainAxisAlignment.spaceBetween, // <-- CAMBIO 1: Se elimina esto
+          children: [
+            const Text('Totales', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primaryColor)),
+            const SizedBox(width: 16), // <-- CAMBIO 2: Añadimos un espacio para separar el título de los valores
+
+            // --- CAMBIO PRINCIPAL ---
+            // Envolvemos el SingleChildScrollView en un Expanded.
+            // Esto le da un tamaño delimitado (el resto del espacio en el Row)
+            // y le permite saber cuándo debe hacer scroll.
+            Expanded(
+              child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    // Vertical divider entre el texto "Totales" y los elementos de resumen
-                    Container(
-                      height: 24,
-                      width: 1,
-                      color: isDarkMode ? Colors.grey[700] : Colors.white30,
-                      margin: const EdgeInsets.only(right: 16),
-                    ),
-                    // Todos los elementos de resumen en una fila
-                    _buildSummaryItem(
-                        context, 'Capital Total', reporteData.totalCapital),
+                    Container(height: 24, width: 1, color: isDarkMode ? Colors.grey[700] : Colors.white30, margin: const EdgeInsets.only(right: 16)),
+                    _buildSummaryItem(context, 'Capital Total', reporteData.totalCapital),
                     const SizedBox(width: 24),
-                    _buildSummaryItem(
-                        context, 'Interés Total', reporteData.totalInteres),
+                    _buildSummaryItem(context, 'Interés Total', reporteData.totalInteres),
                     const SizedBox(width: 24),
-                    _buildSummaryItem(
-                        context, 'Monto Fichas', reporteData.totalFicha),
+                    _buildSummaryItem(context, 'Monto Fichas', reporteData.totalFicha),
                     const SizedBox(width: 24),
-                    _buildSummaryItem(
-                        context, 'Pago Fichas', reporteData.totalPagoficha),
+                    _buildSummaryItem(context, 'Pago Fichas', reporteData.totalPagoficha),
                     const SizedBox(width: 24),
-                    _buildSummaryItem(
-                        context, 'Saldo Favor', reporteData.totalSaldoFavor),
+                    
+                    _buildSaldoFavorTotalItem(context), 
+                    
                     const SizedBox(width: 24),
-                    _buildSummaryItem(
-                        context, 'Moratorios', reporteData.saldoMoratorio),
-
-                    const SizedBox(width: 100),
+                    _buildSummaryItem(context, 'Moratorios', reporteData.saldoMoratorio),
+                    const SizedBox(width: 50), // <-- CAMBIO 3: Reduje un SizedBox que parecía muy grande
                     _buildSummaryItem(
                       context,
                       'Total Ideal',
@@ -205,6 +193,7 @@ class ReporteContableWidget extends StatelessWidget {
                       message: 'El Total Ideal representa el total de:\n\n'
                           '• Monto ficha\n\n'
                           'Es el monto objetivo que se debe alcanzar.',
+                      // ... (resto del tooltip sin cambios)
                       decoration: BoxDecoration(
                         color: const Color(0xFFE53888),
                         borderRadius: BorderRadius.circular(12),
@@ -237,6 +226,7 @@ class ReporteContableWidget extends StatelessWidget {
                       message:
                           'La Diferencia es el monto restante para alcanzar el Total Ideal.\n\n'
                           'Se calcula restando el total de pagos recibidos del Total Ideal.',
+                      // ... (resto del tooltip sin cambios)
                       decoration: BoxDecoration(
                         color: const Color(0xFFE53888),
                         borderRadius: BorderRadius.circular(12),
@@ -272,6 +262,7 @@ class ReporteContableWidget extends StatelessWidget {
                           '• Moratorios\n'
                           '• Saldos a favor\n\n'
                           'Es el total acumulado antes de aplicar cualquier ajuste o validación.',
+                      // ... (resto del tooltip sin cambios)
                       decoration: BoxDecoration(
                         color: const Color(0xFFE53888),
                         borderRadius: BorderRadius.circular(12),
@@ -295,10 +286,36 @@ class ReporteContableWidget extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    ),
+  );
+}
+
+   // --- NUEVO WIDGET AUXILIAR: Para el total de Saldo a Favor ---
+  Widget _buildSaldoFavorTotalItem(BuildContext context) {
+    return Row(
+      children: [
+        // Muestra el total DISPONIBLE como item principal
+        _buildSummaryItem(context, 'S. Favor Disp.', reporteData.totalSaldoDisponible),
+        const SizedBox(width: 6),
+        // Muestra el ícono con el tooltip del total HISTÓRICO
+        Tooltip(
+          message: 'Total generado históricamente: ${currencyFormat.format(reporteData.totalSaldoFavor)}',
+          child: MouseRegion(
+            cursor: SystemMouseCursors.help,
+            child: Icon(
+              Icons.info_outline,
+              size: 16,
+              color: Provider.of<ThemeProvider>(context).isDarkMode 
+                  ? Colors.grey[400] 
+                  : Colors.grey[600],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1036,266 +1053,136 @@ class ReporteContableWidget extends StatelessWidget {
 
   // SECCIÓN: DEPÓSITOS
   // SECCIÓN: DEPÓSITOS
+  // SECCIÓN: DEPÓSITOS (VERSIÓN CORREGIDA Y FINAL)
+    // SECCIÓN: DEPÓSITOS (VERSIÓN FINAL CON LÓGICA DE "OTRO DEPÓSITO")
+   // SECCIÓN: DEPÓSITOS (VERSIÓN FINAL CON LÓGICA DE "OTRO DEPÓSITO")
   Widget _buildDepositosSection(BuildContext context, Pagoficha pagoficha,
       double restanteFicha, ReporteContableGrupo grupo) {
-    // Get theme provider
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-      // --- NUEVA LÍNEA ---
-  // Calculamos la condición UNA SOLA VEZ para todo el grupo de depósitos.
-  // Comparamos el total de depósitos con el total esperado.
-  final bool mostrarIconoInfoParaEsteGrupo = pagoficha.sumaDeposito != pagoficha.depositoCompleto;
+    // --- PASO 1: CREAR LA LISTA DE ITEMS A MOSTRAR ---
+    final List<Map<String, dynamic>> displayItems = [];
+    for (final deposito in pagoficha.depositos) {
+      // Un depósito real siempre genera una tarjeta estándar.
+      // Se muestra incluso si el monto es 0 para mantener la consistencia de la fecha.
+      displayItems.add({
+        'type': 'deposito_real',
+        'data': deposito, // Pasamos el objeto completo
+      });
+      
+      // Si se usó saldo a favor, crea OTRA tarjeta separada para él.
+      if (deposito.favorUtilizado > 0) {
+        displayItems.add({
+          'type': 'abono_favor',
+          'data': deposito, // Pasamos el objeto para obtener el monto y la fecha
+        });
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.account_balance, size: 14, color: primaryColor),
-                const SizedBox(width: 6),
-                Text(
-                  'Depósitos',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 11,
-                    color: primaryColor,
-                  ),
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+                Row(
+                children: [
+                    const Icon(Icons.account_balance, size: 14, color: primaryColor),
+                    const SizedBox(width: 6),
+                    const Text('Depósitos',
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: primaryColor)),
+                ],
                 ),
-              ],
-            ),
-            Text(
-              'Fecha programada: ${_formatDateSafe(pagoficha.fechasPago)}',
-              style: TextStyle(
-                fontSize: 10,
-                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+                Text('Fecha programada: ${_formatDateSafe(pagoficha.fechasPago)}',
+                    style: TextStyle(fontSize: 10, color: isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+                    overflow: TextOverflow.ellipsis),
+            ],
         ),
         const SizedBox(height: 6),
-
         Container(
           constraints: const BoxConstraints(maxHeight: 220),
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: pagoficha.depositos.length,
-            itemBuilder: (context, index) {
-              final deposito = pagoficha.depositos[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                decoration: BoxDecoration(
-                  color: isDarkMode ? Colors.grey[850] : Colors.white,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                      color:
-                          isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
-                ),
-                child: Column(
-                  children: [
-                    // Encabezado con la fecha de depósito
-                    Container(
-                      width: double.infinity, // Ocupa todo el ancho
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Color(0xFF5162F6).withOpacity(0.2),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(4),
-                          topRight: Radius.circular(4),
-                        ),
-                      ),
-                      child: Align(
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: isDarkMode ? Colors.grey[200] : Colors.black,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
+          child: displayItems.isEmpty
+              ? Center(
+                    child: Text(
+                    'Sin depósitos registrados',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: isDarkMode ? Colors.grey[500] : Colors.grey[600]),
                     ),
-                    // Contenido de la tarjeta
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 6),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              // Asumiendo que 'reporte' y 'deposito' están disponibles en este contexto
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: displayItems.length,
+                  itemBuilder: (context, index) {
+                    final item = displayItems[index];
 
-                              _buildDepositoDetail(
-                              context,
-                              'Depósito',
-                              deposito.deposito,
-                              Icons.arrow_downward,
-                              depositoCompleto: pagoficha.depositoCompleto,
-                              // --- LÍNEA MODIFICADA ---
-                              // Pasamos el resultado del cálculo que hicimos arriba.
-                              mostrarIconoInfo: mostrarIconoInfoParaEsteGrupo,
-                            ),
-                              _buildDepositoDetail(
-                                context,
-                                'Saldo a Favor',
-                                deposito.saldofavor,
-                                Icons.account_balance_wallet,
-                              ),
-                              _buildDepositoDetail(
-                                context,
-                                'Moratorio',
-                                deposito.pagoMoratorio,
-                                Icons.warning,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          // Mostrar la etiqueta de garantía si es "Si"
-                          if (deposito.garantia == "Si")
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Color(0xFFE53888),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'Garantía',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    switch (item['type']) {
+                      case 'abono_favor':
+                        return _buildFavorUtilizadoCard(context, item['data']);
+                      case 'deposito_real':
+                      default:
+                        // Pasamos el objeto Deposito completo y el depositoCompleto del padre
+                        return _buildStandardDepositCard(context, item['data'], pagoficha.depositoCompleto);
+                    }
+                  },
                 ),
-              );
-            },
-          ),
         ),
 
-        // Mostrar suma total de depósitos
+        // ... (Resto de la sección: Total depósitos, Restante ficha, Resumen Global)
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(8),
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(top: 6, bottom: 8),
           decoration: BoxDecoration(
-            color: primaryColor.withOpacity(0.1),
+            color: isDarkMode ? Color(0xFF000000).withOpacity(0.3) : primaryColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(4),
             border: Border.all(color: primaryColor.withOpacity(0.3)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Total depósitos:',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: primaryColor,
-                ),
-              ),
-              Text(
-                currencyFormat.format(pagoficha.sumaDeposito),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
+              const Text('Total depósitos:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: primaryColor)),
+              Text(currencyFormat.format(pagoficha.sumaDeposito), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryColor)),
             ],
           ),
         ),
-
-        // Añadir el restanteFicha
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isDarkMode
-                ? Colors.orange[900]!.withOpacity(0.2)
-                : Colors.orange[50],
+            color: isDarkMode ? Colors.orange[900]!.withOpacity(0.2) : Colors.orange[50],
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-                color: isDarkMode ? Colors.orange[800]! : Colors.orange[200]!),
+            border: Border.all(color: isDarkMode ? Colors.orange[800]! : Colors.orange[200]!),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Restante ficha:',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: isDarkMode ? Colors.orange[300] : Colors.orange[900],
-                ),
-              ),
-              Text(
-                currencyFormat.format(restanteFicha),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.orange[300] : Colors.orange[900],
-                ),
-              ),
+              Text('Restante ficha:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDarkMode ? Colors.orange[300] : Colors.orange[900])),
+              Text(currencyFormat.format(restanteFicha), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDarkMode ? Colors.orange[300] : Colors.orange[900])),
             ],
           ),
         ),
         const SizedBox(height: 8),
-
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: isDarkMode ? Colors.grey[850] : Colors.white,
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-                color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!),
+            border: Border.all(color: isDarkMode ? Colors.grey[700]! : Colors.grey[200]!),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Resumen Global',
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 11,
-                  color: primaryColor,
-                ),
-              ),
+              const Text('Resumen Global', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: primaryColor)),
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: _buildFinancialInfoCompact(
-                      context,
-                      'Saldo Global',
-                      grupo.saldoGlobal,
-                    ),
-                  ),
+                  Expanded(child: _buildFinancialInfoCompact(context, 'Saldo Global', grupo.saldoGlobal)),
                   const SizedBox(width: 4),
-                  Expanded(
-                    child: _buildFinancialInfoCompact(
-                      context,
-                      'Restante Global',
-                      grupo.restanteGlobal,
-                    ),
-                  ),
+                  Expanded(child: _buildFinancialInfoCompact(context, 'Restante Global', grupo.restanteGlobal)),
                 ],
               ),
             ],
@@ -1305,68 +1192,223 @@ class ReporteContableWidget extends StatelessWidget {
     );
   }
 
+
+     /// WIDGET PARA LA TARJETA DE DEPÓSITO ESTÁNDAR (TU DISEÑO ORIGINAL)
+  Widget _buildStandardDepositCard(BuildContext context, Deposito deposito, double depositoCompleto) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey[850] : Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF5162F6).withOpacity(0.2),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(4)),
+            ),
+            child: Align(
+              alignment: Alignment.center,
+              child: Text('Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}',
+                  style: TextStyle(fontSize: 10, color: isDarkMode ? Colors.grey[200] : Colors.black, fontWeight: FontWeight.w500)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildDepositoDetail(context, 'Depósito', deposito.deposito, Icons.arrow_downward, depositoCompleto: depositoCompleto),
+                    _buildSaldoFavorDetail(context, deposito),
+                    _buildDepositoDetail(context, 'Moratorio', deposito.pagoMoratorio, Icons.warning),
+                  ],
+                ),
+                if (deposito.garantia == "Si")
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE53888),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('Garantía', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.white)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// WIDGET PARA LA TARJETA ESPECIAL DE ABONO CON SALDO A FAVOR
+  Widget _buildFavorUtilizadoCard(BuildContext context, Deposito deposito) {
+        final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    return Tooltip(
+      message: 'Este abono se realizó utilizando un saldo a favor de un pago anterior en la fecha ${_formatDateSafe(deposito.fechaDeposito)}.',
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: BoxDecoration(
+          color: Colors.green.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.green.shade600),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green.shade600,
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(4)),
+              ),
+              child: const Align(
+                alignment: Alignment.center,
+                child: Text('Abono con Saldo a Favor',
+                    style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w500)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Monto utilizado:', style: TextStyle(fontSize: 11, color: isDarkMode? const Color(0xFFC0E3C1): Colors.green.shade800)),
+                  Text(currencyFormat.format(deposito.favorUtilizado), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDarkMode? const Color(0xFFC0E3C1): Colors.green.shade900)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- WIDGETS AUXILIARES (Sin cambios, necesarios para que todo funcione) ---
+
+  Widget _buildSaldoFavorDetail(BuildContext context, Deposito deposito) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    Widget valueDisplay;
+    String? tooltipMessage;
+
+    if (deposito.utilizadoPago == 'Si') {
+      tooltipMessage = 'Saldo de ${currencyFormat.format(deposito.saldofavor)} utilizado completamente en otro pago.';
+      valueDisplay = Text(
+        currencyFormat.format(deposito.saldofavor),
+        style: TextStyle(
+          fontSize: 11, fontWeight: FontWeight.w500,
+          color: isDarkMode ? Colors.white54 : Colors.grey[600],
+          decoration: TextDecoration.lineThrough,
+          decorationColor: isDarkMode ? Colors.white54 : Colors.grey[600],
+          decorationThickness: 1.5,
+        ),
+      );
+    } else if (deposito.saldoUtilizado > 0) {
+      tooltipMessage = 'Original: ${currencyFormat.format(deposito.saldofavor)}\n'
+                       'Utilizado: ${currencyFormat.format(deposito.saldoUtilizado)}\n'
+                       'Disponible: ${currencyFormat.format(deposito.saldoDisponible)}';
+      valueDisplay = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            currencyFormat.format(deposito.saldoDisponible),
+            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: isDarkMode ? Colors.grey[200] : Colors.black87),
+          ),
+          Text(
+            '(de ${currencyFormat.format(deposito.saldofavor)})',
+            style: TextStyle(fontSize: 9, color: isDarkMode ? Colors.white54 : Colors.grey[600]),
+          ),
+        ],
+      );
+    } else {
+      valueDisplay = Text(
+        currencyFormat.format(deposito.saldofavor),
+        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: isDarkMode ? Colors.grey[200] : Colors.black87),
+      );
+    }
+
+    Widget content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.account_balance_wallet, size: 10, color: isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+            const SizedBox(width: 3),
+            Text('Saldo a Favor', style: TextStyle(fontSize: 10, color: isDarkMode ? Colors.grey[400] : Colors.grey[600])),
+          ],
+        ),
+        valueDisplay,
+      ],
+    );
+
+    if (tooltipMessage != null) {
+      return Tooltip(
+        message: tooltipMessage,
+        decoration: BoxDecoration(color: const Color(0xFFE53888), borderRadius: BorderRadius.circular(12)),
+        child: MouseRegion(cursor: SystemMouseCursors.help, child: content),
+      );
+    }
+    return content;
+  }
+  
   Widget _buildDepositoDetail(
     BuildContext context,
     String label,
     double value,
     IconData icon, {
     double? depositoCompleto,
-    // --- NUEVO PARÁMETRO ---
-  // Por defecto es false para no romper otras llamadas.
-  bool mostrarIconoInfo = false,
   }) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-
-  // --- LÓGICA MODIFICADA ---
-  // Ya no calculamos la condición aquí. Simplemente usamos el valor que nos pasan.
-  final bool mostrarInfoAdicional = mostrarIconoInfo;
+    bool shouldShowIcon = false;
+    if (label == 'Depósito' && depositoCompleto != null && depositoCompleto > 0) {
+        const double epsilon = 0.01;
+        shouldShowIcon = (value - depositoCompleto).abs() > epsilon;
+    }
   
-    // El widget base que se va a construir.
     Widget detailWidget = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Fila para el label y el ícono principal (sin cambios)
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 10,
-                color: isDarkMode ? Colors.grey[400] : Colors.grey[600]),
+            Icon(icon, size: 10, color: isDarkMode ? Colors.grey[400] : Colors.grey[600]),
             const SizedBox(width: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-              ),
-            ),
+            Text(label, style: TextStyle(fontSize: 10, color: isDarkMode ? Colors.grey[400] : Colors.grey[600])),
           ],
         ),
-        // 2. CAMBIO PRINCIPAL: Envolvemos el monto y el nuevo ícono en un Row.
         Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // El texto con el monto del depósito
             Text(
               currencyFormat.format(value),
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 11,
-                color: isDarkMode ? Colors.grey[200] : Colors.black87,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: isDarkMode ? Colors.grey[200] : Colors.black87),
             ),
-            // 3. Ícono de información condicional.
-            //    Se muestra solo si la condición es verdadera.
-            if (mostrarInfoAdicional)
+            if (shouldShowIcon)
               Padding(
-                padding: const EdgeInsets.only(left: 4.0), // Un poco de espacio
+                padding: const EdgeInsets.only(left: 4.0),
                 child: Icon(
-                  Icons.info_outline, // El ícono que pediste
-                  size: 12, // Tamaño sutil
-                  // Colores consistentes con tu primer ejemplo
+                  Icons.info_outline,
+                  size: 12,
                   color: isDarkMode ? Colors.white54 : Colors.grey[600],
                 ),
               ),
@@ -1375,12 +1417,9 @@ class ReporteContableWidget extends StatelessWidget {
       ],
     );
 
-    // 4. La lógica del Tooltip sigue siendo la misma.
-    //    Si hay info adicional, envolvemos todo el widget en el Tooltip.
-    if (mostrarInfoAdicional) {
+    if (shouldShowIcon) {
       return Tooltip(
-        message:
-            'Depósito completo: ${currencyFormat.format(depositoCompleto!)}',
+        message: 'Depósito completo: ${currencyFormat.format(depositoCompleto!)}',
         decoration: BoxDecoration(
           color: const Color(0xFFE53888),
           borderRadius: BorderRadius.circular(12),
@@ -1392,9 +1431,77 @@ class ReporteContableWidget extends StatelessWidget {
       );
     }
 
-    // Si no, se devuelve el widget sin Tooltip ni ícono de info.
     return detailWidget;
   }
+
+
+   /// WIDGET AUXILIAR para crear un "recibo" de pago (copiado y adaptado del reporte general).
+  Widget _buildPaymentItem({
+    required BuildContext context,
+    required double amount,
+    bool isGarantia = false,
+    bool isFavorUtilizado = false,
+  }) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    Color? backgroundColor;
+    String label;
+    String? tooltipMessage;
+
+    if (isGarantia) {
+      backgroundColor = const Color(0xFFE53888);
+      label = 'Abono c/ Garantía';
+      tooltipMessage = 'Pago realizado con garantía';
+    } else if (isFavorUtilizado) {
+      backgroundColor = Colors.green.shade600;
+      label = 'Abono c/ Saldo a Favor';
+      tooltipMessage = 'Abono utilizando saldo a favor de un pago anterior';
+    } else {
+      label = 'Abono en efectivo';
+    }
+
+    final textColor = (backgroundColor != null)
+        ? Colors.white
+        : (isDarkMode ? Colors.white70 : Colors.grey[800]);
+
+    Widget paymentDisplay = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(4),
+        border: backgroundColor == null ? Border.all(color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!) : null,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: backgroundColor != null ? textColor : (isDarkMode ? Colors.grey[400] : Colors.grey[600])),
+          ),
+          Text(
+            currencyFormat.format(amount),
+            style: TextStyle(fontSize: 11, color: textColor, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+
+    if (tooltipMessage != null) {
+      return Tooltip(
+        message: tooltipMessage,
+        decoration: BoxDecoration(color: backgroundColor ?? Colors.black, borderRadius: BorderRadius.circular(12)),
+        child: MouseRegion(cursor: SystemMouseCursors.help, child: paymentDisplay),
+      );
+    }
+    return paymentDisplay;
+  }
+
+
+
+
+   
+  
 
   String _formatDateSafe(String dateString) {
     try {

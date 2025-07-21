@@ -7,19 +7,35 @@ class Deposito {
   final double monto;
   final String fecha;
   final String garantia;
+  final double favorUtilizado; // <-- CAMBIO 1: Añadimos el nuevo campo
+  final double saldofavor;
+  final double saldoUtilizado;
+  final double saldoDisponible;
+  final String utilizadoPago;
 
   Deposito({
     required this.monto,
     required this.fecha,
     required this.garantia,
+    required this.favorUtilizado, // <-- CAMBIO 2: Añadimos al constructor
+    required this.saldofavor,
+    required this.saldoUtilizado,
+    required this.saldoDisponible,
+    required this.utilizadoPago,
   });
 
   factory Deposito.fromJson(Map<String, dynamic> json) {
     return Deposito(
       // El campo 'deposito' en el JSON es un número
-      monto: (json['deposito'] as num?)?.toDouble() ?? 0.0, 
+      monto: (json['deposito'] as num?)?.toDouble() ?? 0.0,
       fecha: json['fechaDeposito']?.toString() ?? 'Sin fecha',
       garantia: json['garantia']?.toString() ?? 'No',
+      favorUtilizado: (json['favorUtilizado'] as num?)?.toDouble() ?? 0.0,
+      // --- LEER LOS NUEVOS VALORES DEL JSON ---
+      saldofavor: (json['saldofavor'] as num?)?.toDouble() ?? 0.0,
+      saldoUtilizado: (json['saldoUtilizado'] as num?)?.toDouble() ?? 0.0,
+      saldoDisponible: (json['saldoDisponible'] as num?)?.toDouble() ?? 0.0,
+      utilizadoPago: json['utilizadoPago']?.toString() ?? 'No',
     );
   }
 }
@@ -41,7 +57,7 @@ class ReporteGeneral {
   final double moratoriosAPagar;
   final double sumaMoratorio;
   final double depositoCompleto;
-  
+
   // --- CAMBIO PRINCIPAL: Guardamos la lista completa de depósitos ---
   final List<Deposito> depositos;
 
@@ -69,7 +85,7 @@ class ReporteGeneral {
 
     final moratoriosData = json['Moratorios'] as Map<String, dynamic>?;
     final pagofichaData = json['pagoficha'] as Map<String, dynamic>?;
-    
+
     // --- CAMBIO: Parseamos la lista de depósitos ---
     List<Deposito> listaDepositos = [];
     if (pagofichaData != null && pagofichaData['depositos'] is List) {
@@ -77,6 +93,13 @@ class ReporteGeneral {
           .map((depositoJson) => Deposito.fromJson(depositoJson))
           .toList();
     }
+
+    // --- CAMBIO CLAVE: CALCULAMOS EL PAGO TOTAL REAL ---
+    // Sumamos los depósitos en efectivo Y el saldo a favor utilizado de cada transacción.
+    final double pagoTotalReal = listaDepositos.fold(
+      0.0,
+      (sum, deposito) => sum + deposito.monto + deposito.favorUtilizado,
+    );
 
     return ReporteGeneral(
       numero: json['num'] ?? 0,
@@ -89,24 +112,26 @@ class ReporteGeneral {
       interessemanal: parseValor(json['interessemanal'] ?? '0.0'),
       saldofavor: parseValor(json['saldofavor'] ?? '0.0'),
       moratorios: parseValor(json['moratoriosPagados'] ?? '0.0'),
-      
-      // Total de pagos, viene de 'sumaDeposito'
-      pagoficha: (pagofichaData?['sumaDeposito'] as num?)?.toDouble() ?? 0.0,
 
-      moratoriosAPagar: (moratoriosData?['moratoriosAPagar'] as num?)?.toDouble() ?? 0.0,
-      sumaMoratorio: (pagofichaData?['sumaMoratorio'] as num?)?.toDouble() ?? 0.0,
-      
+      // Total de pagos, viene de 'sumaDeposito'
+      //pagoficha: (pagofichaData?['sumaDeposito'] as num?)?.toDouble() ?? 0.0,
+      // --- CORRECCIÓN: Usamos nuestro cálculo en lugar de 'sumaDeposito' ---
+      pagoficha: pagoTotalReal,
+      moratoriosAPagar:
+          (moratoriosData?['moratoriosAPagar'] as num?)?.toDouble() ?? 0.0,
+      sumaMoratorio:
+          (pagofichaData?['sumaMoratorio'] as num?)?.toDouble() ?? 0.0,
+
       // Depósito completo (puede venir de dos sitios)
       depositoCompleto: parseValor(json['depositoCompleto'] ?? '0.0') != 0.0
           ? parseValor(json['depositoCompleto'] ?? '0.0')
           : (pagofichaData?['depositoCompleto'] as num?)?.toDouble() ?? 0.0,
-          
+
       // --- Asignamos la lista de depósitos que parseamos ---
       depositos: listaDepositos,
     );
   }
 }
-
 
 // --- La clase ReporteGeneralData no necesita cambios ---
 // ... (El resto de la clase ReporteGeneralData y la función _formatearFechaSemana se quedan igual)
@@ -117,6 +142,7 @@ class ReporteGeneralData {
   final double totalInteres;
   final double totalPagoficha;
   final double totalSaldoFavor;
+  final double totalSaldoDisponible;
   final double saldoMoratorio;
   final double totalTotal;
   final double restante;
@@ -131,6 +157,7 @@ class ReporteGeneralData {
     required this.totalInteres,
     required this.totalPagoficha,
     required this.totalSaldoFavor,
+    required this.totalSaldoDisponible, // --- NUEVO: Añadido al constructor ---
     required this.saldoMoratorio,
     required this.totalTotal,
     required this.restante,
@@ -150,9 +177,8 @@ class ReporteGeneralData {
     List<ReporteGeneral> reportesProcesados = [];
     if (rawListaGrupos.isNotEmpty && rawListaGrupos.first['pagoficha'] is Map) {
       // Si el JSON es como el ejemplo (anidado), mapeamos directamente
-      reportesProcesados = rawListaGrupos
-          .map((item) => ReporteGeneral.fromJson(item))
-          .toList();
+      reportesProcesados =
+          rawListaGrupos.map((item) => ReporteGeneral.fromJson(item)).toList();
     } else {
       // (Opcional) Aquí podrías poner una lógica de fallback si el servidor
       // a veces envía un formato antiguo. Por ahora, asumimos el nuevo.
@@ -160,12 +186,13 @@ class ReporteGeneralData {
     }
 
     return ReporteGeneralData(
-      fechaSemana: _formatearFechaSemana(json['fechaSemana']?? 'N/A'),
+      fechaSemana: _formatearFechaSemana(json['fechaSemana'] ?? 'N/A'),
       fechaActual: json['fechaActual'] ?? 'N/A',
       totalCapital: parseValor(json['totalCapital']),
       totalInteres: parseValor(json['totalInteres']),
       totalPagoficha: parseValor(json['totalPagoficha']),
       totalSaldoFavor: parseValor(json['totalSaldoFavor']),
+      totalSaldoDisponible: parseValor(json['totalSaldoDisponible'] ?? '0.0'),
       saldoMoratorio: parseValor(json['saldoMoratorio']),
       totalTotal: parseValor(json['totalTotal']),
       restante: parseValor(json['restante']),
@@ -176,19 +203,19 @@ class ReporteGeneralData {
   }
 }
 
- String _formatearFechaSemana(String fechaOriginal) {
-    try {
-      final partes = fechaOriginal.split(' - ');
-      final fechaInicio = partes[0].split(' ')[0];
-      final fechaFin = partes[1].split(' ')[0];
-      
-      final formateador = DateFormat('d \'de\' MMMM \'de\' yyyy', 'es');
-      
-      final inicio = formateador.format(DateTime.parse(fechaInicio));
-      final fin = formateador.format(DateTime.parse(fechaFin));
-      
-      return '$inicio - $fin';
-    } catch (e) {
-      return fechaOriginal; // En caso de error, devolver original
-    }
+String _formatearFechaSemana(String fechaOriginal) {
+  try {
+    final partes = fechaOriginal.split(' - ');
+    final fechaInicio = partes[0].split(' ')[0];
+    final fechaFin = partes[1].split(' ')[0];
+
+    final formateador = DateFormat('d \'de\' MMMM \'de\' yyyy', 'es');
+
+    final inicio = formateador.format(DateTime.parse(fechaInicio));
+    final fin = formateador.format(DateTime.parse(fechaFin));
+
+    return '$inicio - $fin';
+  } catch (e) {
+    return fechaOriginal; // En caso de error, devolver original
   }
+}

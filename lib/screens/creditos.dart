@@ -1684,6 +1684,10 @@ class _SeguimientoScreenState extends State<SeguimientoScreen> {
           statusColor = Colors.purple;
           statusIcon = Icons.schedule;
           break;
+        case 'garantia pagada':
+          statusColor = Colors.pink;
+          statusIcon = Icons.security;
+          break;
         default:
           statusColor = Colors.grey;
           statusIcon = Icons.radio_button_unchecked;

@@ -1,4 +1,6 @@
-import 'package:finora/providers/theme_provider.dart'; // Asegúrate de que esta ruta sea correcta
+// reporte_general_widget.dart
+
+import 'package:finora/providers/theme_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../models/reporte_general.dart';
 
 class ReporteGeneralWidget extends StatelessWidget {
+  // ... (Propiedades de la clase sin cambios)
   final List<ReporteGeneral> listaReportes;
   final ReporteGeneralData? reporteData;
   final NumberFormat currencyFormat;
@@ -25,23 +28,20 @@ class ReporteGeneralWidget extends StatelessWidget {
     this.cellTextSize = 11.0,
   });
 
-  // Color principal definido como constante para fácil referencia
   static const Color primaryColor = Color(0xFF5162F6);
 
+  // ... (Widget build y _buildHeader sin cambios)
   @override
   Widget build(BuildContext context) {
-    final themeProvider =
-        Provider.of<ThemeProvider>(context); // Obtén el ThemeProvider
-    final isDarkMode = themeProvider.isDarkMode; // Estado del tema
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
 
     return Container(
       padding: const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
       child: Column(
         children: [
-          // Header fuera del container con ClipRRect
           if (reporteData != null) _buildHeader(context),
-          const SizedBox(
-              height: 10), // Espacio entre el header y el contenedor principal
+          const SizedBox(height: 10),
           Expanded(
             child: Container(
               width: double.infinity,
@@ -165,8 +165,8 @@ class ReporteGeneralWidget extends StatelessWidget {
           _buildHeaderCell('Saldo Contra', context),
           _buildHeaderCell('Capital', context),
           _buildHeaderCell('Interés', context),
+          // El título de la columna se mantiene, ya que representa el concepto general
           _buildHeaderCell('Saldo Favor', context),
-          // Columnas de moratorios con los nombres solicitados
           _buildHeaderCell('Moratorios\nGenerados', context),
           _buildHeaderCell('Moratorios\nPagados', context),
         ],
@@ -174,6 +174,8 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
   }
 
+  // ... (El resto de los widgets de construcción de celdas y cuerpo de la tabla se mantienen iguales)
+  // ... (Es decir, _buildHeaderCell, _buildDataTableBody, _buildFechasColumn, etc. hasta _buildSaldoFavor)
   Widget _buildHeaderCell(String text, BuildContext context) {
     return Expanded(
       child: Text(
@@ -188,23 +190,15 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
   }
 
-  // --- WIDGET MODIFICADO ---
-  // Se ha cambiado la lógica para determinar el estado del círculo.
-
-  // --- WIDGET MODIFICADO: _buildDataTableBody ---
-  // Simplificado para iterar directamente sobre la lista de reportes,
-  // ya que el servidor ahora agrupa los datos.
   Widget _buildDataTableBody(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    // Ya no necesitamos groupBy, porque cada 'ReporteGeneral' es una fila.
     return Column(
       children: listaReportes.asMap().entries.map((entry) {
         final index = entry.key;
         final reporte = entry.value;
 
-        // La lógica de estado ahora se basa en el reporte único
         final totalPagos = reporte.pagoficha;
         final montoFicha = reporte.montoficha;
         final moratoriosGenerados = reporte.moratoriosAPagar;
@@ -237,10 +231,8 @@ class ReporteGeneralWidget extends StatelessWidget {
                   context: context, alignment: Alignment.center),
               _buildBodyCell(reporte.grupos,
                   context: context, alignment: Alignment.center),
-              // --- CAMBIO: Usamos el nuevo método que muestra la lista de pagos ---
               _buildBodyCell(_buildPagosColumn(reporte, context),
                   alignment: Alignment.center, context: context),
-              // --- CAMBIO: Usamos el nuevo método para mostrar las fechas ---
               _buildBodyCell(_buildFechasColumn(reporte, context),
                   alignment: Alignment.center, context: context),
               _buildBodyCell(currencyFormat.format(reporte.montoficha),
@@ -264,7 +256,6 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
   }
 
-  // --- WIDGET NUEVO: Para mostrar la lista de fechas ---
   Widget _buildFechasColumn(ReporteGeneral reporte, BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
@@ -339,11 +330,9 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
   }
 
-  // --- WIDGET MODIFICADO ---
-  // Ahora acepta más parámetros para determinar el color y el mensaje del tooltip.
   Widget _buildIndexCircle(int index, bool pagoNoRealizado, bool esIncompleto,
       bool faltaPagoFicha, bool faltaPagoMoratorios, BuildContext context) {
-    Color circleColor = Colors.transparent; // Estado por defecto: completo
+    Color circleColor = Colors.transparent;
     String tooltipMessage = 'Pago completo y al corriente';
 
     if (pagoNoRealizado) {
@@ -351,8 +340,6 @@ class ReporteGeneralWidget extends StatelessWidget {
       tooltipMessage = 'Pago no realizado';
     } else if (esIncompleto) {
       circleColor = Colors.orange;
-
-      // Construir un mensaje dinámico para el tooltip
       List<String> razones = [];
       if (faltaPagoFicha) {
         razones.add('monto de la ficha no cubierto');
@@ -397,15 +384,174 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
   }
 
-  // --- WIDGET MODIFICADO: _buildPagosColumn ---
-  // Ahora itera sobre la lista de depósitos dentro del reporte.
   Widget _buildPagosColumn(ReporteGeneral reporte, BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
+    final textColor = isDarkMode ? Colors.white70 : Colors.grey[800];
 
     if (reporte.depositos.isEmpty) {
       return Text(
-        currencyFormat.format(0.0), // Muestra 0 si no hay depósitos
+        currencyFormat.format(0.0),
+        style: TextStyle(
+          fontSize: cellTextSize,
+          color: textColor,
+        ),
+      );
+    }
+
+    final List<Widget> paymentWidgets = reporte.depositos.expand((deposito) {
+      final List<Widget> widgetsParaEsteDeposito = [];
+      final bool isGarantia = deposito.garantia == "Si";
+
+      // --- CORRECCIÓN CLAVE ---
+      // Movemos la lógica de comparación DENTRO del bloque que procesa el depósito en efectivo.
+
+      // Procesamos el depósito en efectivo (deposito.monto)
+      if (deposito.monto > 0) {
+        // --- LÓGICA CORREGIDA ---
+        // Comparamos el MONTO EN EFECTIVO (deposito.monto) con el DEPOSITO COMPLETO (reporte.depositoCompleto).
+        // Esta es la comparación correcta.
+        const double epsilon = 0.01;
+        final bool montoDifiereDeCompleto = reporte.depositoCompleto > 0 &&
+            (deposito.monto - reporte.depositoCompleto).abs() > epsilon;
+
+        final String depositoCompletoMsg =
+            'Depósito completo: ${currencyFormat.format(reporte.depositoCompleto)}';
+
+        String? tooltip;
+        Color? bgColor;
+
+        if (isGarantia) {
+          bgColor = const Color(0xFFE53888);
+          tooltip = 'Pago realizado con garantía';
+          // Añadimos el mensaje de depósito completo solo si realmente es diferente
+          if (montoDifiereDeCompleto) {
+            tooltip = '$tooltip\n$depositoCompletoMsg';
+          }
+        } else if (montoDifiereDeCompleto) {
+          // Si no es garantía, el único motivo para el tooltip es que el monto sea diferente
+          tooltip = depositoCompletoMsg;
+        }
+
+        widgetsParaEsteDeposito.add(
+          _buildPaymentItem(
+            context: context,
+            amount: deposito.monto,
+            backgroundColor: bgColor,
+            tooltipMessage: tooltip,
+            tooltipColor: bgColor ?? const Color(0xFFE53888),
+            // El ícono solo se muestra si el monto en efectivo difiere y no es garantía
+            showInfoIcon: montoDifiereDeCompleto && !isGarantia,
+          ),
+        );
+      }
+
+      // Procesamos el pago con saldo a favor (sin cambios aquí)
+      if (deposito.favorUtilizado > 0) {
+        widgetsParaEsteDeposito.add(
+          _buildPaymentItem(
+            context: context,
+            amount: deposito.favorUtilizado,
+            backgroundColor: Colors.green.shade600,
+            tooltipMessage: 'Pago con saldo a favor',
+            tooltipColor: Colors.green.shade600,
+          ),
+        );
+      }
+      return widgetsParaEsteDeposito;
+    }).toList();
+
+    if (paymentWidgets.isEmpty) {
+      return Text(
+        currencyFormat.format(0.0),
+        style: TextStyle(
+          fontSize: cellTextSize,
+          color: textColor,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: paymentWidgets,
+    );
+  }
+
+  Widget _buildPaymentItem({
+    required BuildContext context,
+    required double amount,
+    Color? backgroundColor,
+    String? tooltipMessage,
+    Color? tooltipColor,
+    bool showInfoIcon = false,
+  }) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final textColor = (backgroundColor != null)
+        ? Colors.white
+        : (isDarkMode ? Colors.white70 : Colors.grey[800]);
+
+    Widget paymentDisplay = Container(
+      margin: const EdgeInsets.symmetric(vertical: 1.5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: backgroundColor != null
+          ? BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(10),
+            )
+          : null,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            currencyFormat.format(amount),
+            style: TextStyle(
+              fontSize: cellTextSize,
+              color: textColor,
+            ),
+          ),
+          if (showInfoIcon)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Icon(
+                Icons.info_outline,
+                size: 10,
+                color: textColor,
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (tooltipMessage != null && tooltipMessage.isNotEmpty) {
+      return Tooltip(
+        message: tooltipMessage,
+        decoration: BoxDecoration(
+          color: tooltipColor ?? backgroundColor ?? Colors.black,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.help,
+          child: paymentDisplay,
+        ),
+      );
+    }
+    return paymentDisplay;
+  }
+
+  // --- MÉTODO REVERTIDO A TU VERSIÓN ORIGINAL ---
+  // Este widget ahora vuelve a mostrar la lógica detallada para cada fila individual.
+  Widget _buildSaldoFavor(ReporteGeneral reporte, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+
+    final deposito =
+        reporte.depositos.isNotEmpty ? reporte.depositos.first : null;
+
+    if (deposito == null || deposito.saldofavor == 0) {
+      return Text(
+        currencyFormat.format(reporte.saldofavor),
         style: TextStyle(
           fontSize: cellTextSize,
           color: isDarkMode ? Colors.white70 : Colors.grey[800],
@@ -413,95 +559,54 @@ class ReporteGeneralWidget extends StatelessWidget {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      // Itera sobre la lista de depósitos
-      children: reporte.depositos.map((deposito) {
-        bool isGarantia = deposito.garantia == "Si";
-        // La comparación de "depositoCompleto" se hace contra el total
-        bool tieneDepositoDiferente =
-            reporte.pagoficha != reporte.depositoCompleto;
-
-        Widget paymentDisplay = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          decoration: isGarantia
-              ? BoxDecoration(
-                  color: const Color(0xFFE53888),
-                  borderRadius: BorderRadius.circular(10),
-                )
-              : null,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                currencyFormat.format(
-                    deposito.monto), // Muestra el monto del depósito individual
-                style: TextStyle(
-                  fontSize: cellTextSize,
-                  color: isGarantia
-                      ? Colors.white
-                      : (isDarkMode ? Colors.white70 : Colors.grey[800]),
-                ),
-              ),
-              if (tieneDepositoDiferente)
-                // El tooltip de info solo se muestra si el TOTAL es diferente
-                Padding(
-                  padding: const EdgeInsets.only(left: 2),
-                  child: Icon(
-                    Icons.info_outline,
-                    size: 12,
-                    color: isGarantia
-                        ? Colors.white70
-                        : (isDarkMode ? Colors.white54 : Colors.grey[600]),
-                  ),
-                ),
-            ],
+    if (deposito.utilizadoPago == 'Si') {
+      return Tooltip(
+        message:
+            'Saldo de ${currencyFormat.format(deposito.saldofavor)} utilizado completamente',
+        child: Text(
+          currencyFormat.format(deposito.saldofavor),
+          style: TextStyle(
+            fontSize: cellTextSize,
+            color: isDarkMode ? Colors.white54 : Colors.grey[600],
+            decoration: TextDecoration.lineThrough,
+            decorationThickness: 1.0,
           ),
-        );
+        ),
+      );
+    }
 
-        // La lógica del Tooltip se mantiene, pero ahora se aplica a cada pago
-        if (tieneDepositoDiferente || isGarantia) {
-          String tooltipMessage = '';
-
-          if (isGarantia && tieneDepositoDiferente) {
-            tooltipMessage =
-                'Pago realizado con garantía\nDepósito completo: ${currencyFormat.format(reporte.depositoCompleto)}';
-          } else if (isGarantia) {
-            tooltipMessage = 'Pago realizado con garantía';
-          } else if (tieneDepositoDiferente) {
-            tooltipMessage =
-                'Depósito completo: ${currencyFormat.format(reporte.depositoCompleto)}';
-          }
-
-          return Tooltip(
-            message: tooltipMessage,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE53888),
-              borderRadius: BorderRadius.circular(12),
+    if (deposito.saldoUtilizado > 0) {
+      return Tooltip(
+        message:
+            'Se utilizaron ${currencyFormat.format(deposito.saldoUtilizado)} de saldo a favor',
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              currencyFormat.format(deposito.saldoDisponible),
+              style: TextStyle(
+                fontSize: cellTextSize,
+                color: isDarkMode ? Colors.white70 : Colors.grey[800],
+              ),
             ),
-            child: MouseRegion(
-              cursor: SystemMouseCursors.help,
-              child: paymentDisplay,
+            Text(
+              '(de ${currencyFormat.format(deposito.saldofavor)})',
+              style: TextStyle(
+                fontSize: cellTextSize - 2,
+                color: isDarkMode ? Colors.white54 : Colors.grey[600],
+              ),
             ),
-          );
-        }
-
-        return paymentDisplay;
-      }).toList(),
-    );
-  }
-
-  Widget _buildSaldoFavor(ReporteGeneral reporte, BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-    final saldoFavor = reporte.saldofavor;
-    final color = isDarkMode ? Colors.white70 : Colors.grey[800];
+          ],
+        ),
+      );
+    }
 
     return Text(
-      currencyFormat.format(saldoFavor),
+      currencyFormat.format(reporte.saldofavor),
       style: TextStyle(
         fontSize: cellTextSize,
-        color: color,
+        color: isDarkMode ? Colors.white70 : Colors.grey[800],
       ),
     );
   }
@@ -548,27 +653,22 @@ class ReporteGeneralWidget extends StatelessWidget {
     );
   }
 
+  // --- WIDGET DE TOTALES MODIFICADO ---
+  // Aquí es donde aplicamos la nueva lógica.
   Widget _buildTotalsWidget() {
-    // --- INICIO DE LA MODIFICACIÓN ---
-
-    // Primero, nos aseguramos de que reporteData no sea nulo para evitar errores.
     if (reporteData == null) {
-      return const SizedBox.shrink(); // No muestra nada si no hay datos.
+      return const SizedBox.shrink();
     }
 
-    // Usamos los totales que ya vienen directamente del servidor.
-    // Tu modelo ReporteGeneralData ya debería convertir estos valores a double.
+    // Obtenemos los valores de los totales
     final double totalPagosFicha = reporteData!.totalPagoficha;
     final double totalFicha = reporteData!.totalFicha;
     final double totalCapital = reporteData!.totalCapital;
     final double totalInteres = reporteData!.totalInteres;
-    final double totalSaldoFavor = reporteData!.totalSaldoFavor;
+    final double totalSaldoDisponible = reporteData!.totalSaldoDisponible;
+    final double totalSaldoFavorHistorico = reporteData!.totalSaldoFavor;
 
-    // --- VALORES QUE SÍ SEGUIMOS CALCULANDO LOCALMENTE ---
-    // Estos totales específicos no vienen en el objeto principal del JSON,
-    // por lo que es correcto seguir sumándolos desde la lista de grupos.
-
-    // 1. Total Saldo Contra: La lógica original es correcta, ya que solo suma si es positivo.
+    // Calculamos los que no vienen en el reporte principal
     double totalSaldoContra = 0.0;
     for (final reporte in listaReportes) {
       final double saldoContra = reporte.montoficha - reporte.pagoficha;
@@ -576,36 +676,108 @@ class ReporteGeneralWidget extends StatelessWidget {
         totalSaldoContra += saldoContra;
       }
     }
-
-    // 2. Totales de Moratorios: Estos se calculan sumando los de cada fila.
     final double totalMoratoriosGenerados =
         listaReportes.fold(0.0, (sum, r) => sum + r.moratoriosAPagar);
     final double totalMoratoriosPagados =
         listaReportes.fold(0.0, (sum, r) => sum + r.sumaMoratorio);
 
-    // --- FIN DE LA MODIFICACIÓN ---
+    // Un pequeño widget auxiliar para no repetir el estilo del texto del total
+    Widget totalText(double value) {
+      return Text(
+        currencyFormat.format(value),
+        style: TextStyle(
+          fontSize: cellTextSize,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    }
 
-    // El resto del widget que muestra la fila no cambia,
-    // simplemente usará los valores que acabamos de definir.
     return Column(
       children: [
         _buildTotalsRow(
           'Totales',
           [
-            (value: totalPagosFicha, column: 3),
-            (value: totalFicha, column: 5),
-            (value: totalSaldoContra, column: 6),
-            (value: totalCapital, column: 7),
-            (value: totalInteres, column: 8),
-            (value: totalSaldoFavor, column: 9),
-            (value: totalMoratoriosGenerados, column: 10),
-            (value: totalMoratoriosPagados, column: 11),
+            // Las demás columnas usan el widget de texto simple
+            (content: totalText(totalPagosFicha), column: 3),
+            (content: totalText(totalFicha), column: 5),
+            (content: totalText(totalSaldoContra), column: 6),
+            (content: totalText(totalCapital), column: 7),
+            (content: totalText(totalInteres), column: 8),
+            (content: totalText(totalMoratoriosGenerados), column: 10),
+            (content: totalText(totalMoratoriosPagados), column: 11),
+
+            // --- CAMBIO CLAVE: La columna 9 ahora tiene un widget complejo ---
+            (
+              content: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Muestra el total de saldo DISPONIBLE
+                  totalText(totalSaldoDisponible),
+                  const SizedBox(width: 4),
+                  // Muestra un icono con el tooltip del total HISTÓRICO
+                  Tooltip(
+                    message:
+                        'Total generado históricamente: ${currencyFormat.format(totalSaldoFavorHistorico)}',
+                    child: const MouseRegion(
+                      cursor: SystemMouseCursors.help,
+                      child: Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                ],
+              ),
+              column: 9
+            ),
           ],
         ),
       ],
     );
   }
 
+  // --- MÉTODO _buildTotalsRow MODIFICADO para aceptar Widgets ---
+  // Ahora es más flexible y puede renderizar cualquier widget, no solo texto.
+  Widget _buildTotalsRow(
+      String label, List<({Widget content, int column})> items) {
+    List<Widget> cells = List.generate(12, (_) => Expanded(child: Container()));
+
+    cells[0] = Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: cellTextSize,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+
+    // Itera sobre los items y coloca el WIDGET de contenido en la columna correcta
+    for (final item in items) {
+      cells[item.column] = Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          alignment: Alignment.center,
+          child: item.content, // <-- Usa directamente el widget proporcionado
+        ),
+      );
+    }
+
+    return Container(
+      color: const Color(0xFF5162F6),
+      child: Row(children: cells),
+    );
+  }
+
+  // --- _buildTotalsIdealWidget y _buildTotalItem SIN CAMBIOS ---
+  // ... (Pega aquí el resto de tu código que no ha sido modificado)
   Widget _buildTotalsIdealWidget() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
@@ -706,48 +878,6 @@ class ReporteGeneralWidget extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildTotalsRow(
-      String label, List<({double value, int column})> values) {
-    List<Widget> cells = List.generate(12, (_) => Expanded(child: Container()));
-
-    cells[0] = Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: cellTextSize,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-
-    for (final val in values) {
-      cells[val.column] = Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          alignment: Alignment.center,
-          child: Text(
-            currencyFormat.format(val.value),
-            style: TextStyle(
-              fontSize: cellTextSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      color: const Color(0xFF5162F6),
-      child: Row(children: cells),
     );
   }
 }
