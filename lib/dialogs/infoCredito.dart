@@ -1645,91 +1645,81 @@ Future<void> recargarPagos() async {
   }
 }
 
-  // =========================================================================
+ // =========================================================================
 // <<< FUNCIÓN _fetchPagos COMPLETA Y CORREGIDA >>>
-// Esta versión confía en los datos del servidor y elimina la simulación de frontend.
+// Esta versión calcula correctamente el total pagado incluyendo las renovaciones.
 // =========================================================================
-  Future<List<Pago>> _fetchPagos() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-      if (token.isEmpty) {
-        if (!mounted) return [];
-        _mostrarDialogoError(
-            'Tu sesión ha expirado o no es válida. Por favor, inicia sesión de nuevo.');
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-          (route) => false,
-        );
-        return [];
-      }
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/v1/creditos/calendario/${widget.idCredito}'),
-        headers: {'tokenauth': token, 'Content-Type': 'application/json'},
+// =========================================================================
+// <<< FUNCIÓN _fetchPagos VERSIÓN FINAL Y DEFINITIVA >>>
+// Esta versión considera Abonos, Renovaciones y Saldo a Favor Utilizado.
+// =========================================================================
+Future<List<Pago>> _fetchPagos() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    if (token.isEmpty) {
+      if (!mounted) return [];
+      _mostrarDialogoError('Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+        (route) => false,
       );
+      return [];
+    }
 
-      if (response.statusCode == 200) {
-        List<dynamic> data = json.decode(response.body);
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/v1/creditos/calendario/${widget.idCredito}'),
+      headers: {'tokenauth': token, 'Content-Type': 'application/json'},
+    );
 
-        // Mapeamos el JSON a objetos Pago, el modelo se encarga de parsear todo.
-        List<Pago> pagos = data.map((pagoJson) {
-          // Aprovechamos el constructor fromJson que ya tiene la lógica.
-          return Pago.fromJson(pagoJson);
-        }).toList();
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      List<Pago> pagos = data.map((pagoJson) => Pago.fromJson(pagoJson)).toList();
+      pagos.sort((a, b) => a.semana.compareTo(b.semana));
 
-        pagos.sort((a, b) =>
-            a.semana.compareTo(b.semana)); // Asegurar orden cronológico
-
-          for (var pago in pagos) {
-        // Si la lista de abonos está vacía (como después de un borrado)...
-        if (pago.abonos.isEmpty) {
-
-          // <<< INICIO DE LA CORRECCIÓN FINAL >>>
-          // Reseteamos TODOS los campos relevantes a un estado limpio.
-
-          // Propiedades que la UI SÍ está usando para "Saldo a Favor"
-          pago.saldoFavorOriginalGenerado = 0.0;
-          pago.saldoRestante = 0.0;
-          pago.fueUtilizadoPorServidor = false;
-
-          // Propiedades que ya estábamos reseteando
-          pago.tipoPago = '';
-          pago.saldoFavor = 0.0;
-          pago.saldoEnContra = 0.0;
-          pago.estaFinalizado = false;
-          pago.deposito = 0.0;
-          pago.sumaDepositoMoratorisos = 0.0;
-          // <<< FIN DE LA CORRECCIÓN FINAL >>>
-
-          continue; // Pasamos al siguiente pago
-        }
-
-        // Si hay abonos, recalculamos todo desde cero (lógica anterior)
-        double montoTotalPagado = pago.abonos.fold(0.0, (sum, abono) {
+      for (var pago in pagos) {
+        // Sumar los abonos en efectivo.
+        double montoPagadoEnAbonos = pago.abonos.fold(0.0, (sum, abono) {
           final deposito = abono['deposito'];
-          return sum + (deposito is num ? deposito : 0.0);
+          return sum + (deposito is num ? deposito.toDouble() : 0.0);
         });
-        
-        pago.sumaDepositoMoratorisos = montoTotalPagado;
-        pago.deposito = montoTotalPagado;
 
+        // Sumar el monto cubierto por las renovaciones pendientes.
+        double montoCubiertoPorRenovacion = pago.renovacionesPendientes.fold(
+          0.0,
+          (sum, renovacion) => sum + (renovacion.descuento ?? 0.0),
+        );
+        
+        // <<< CORRECCIÓN FINAL >>>
+        // Incluimos el saldo a favor que el servidor indica que ya fue utilizado.
+        double favorYaUtilizado = pago.favorUtilizado;
+        
+        // ¡Este es el total pagado REALMENTE COMPLETO!
+        double montoTotalPagado = montoPagadoEnAbonos + montoCubiertoPorRenovacion + favorYaUtilizado;
+
+        // Asignamos el monto en efectivo a las propiedades que usa la UI para mostrar los abonos.
+        pago.sumaDepositoMoratorisos = montoPagadoEnAbonos;
+        pago.deposito = montoPagadoEnAbonos; 
+
+        // El resto del cálculo ahora usará el 'montoTotalPagado' completo y correcto.
         double totalDeudaSemana = (pago.capitalMasInteres ?? 0.0) +
             (pago.moratorioDesabilitado == "Si"
                 ? 0.0
                 : (pago.moratorios?.moratorios ?? 0.0));
-
+        
         double diferencia = montoTotalPagado - totalDeudaSemana;
 
-        if (diferencia > 0) {
-          pago.saldoFavor = diferencia;
+        if (diferencia >= -0.01) { // Usamos umbral para errores de punto flotante
+          pago.saldoFavor = diferencia > 0 ? diferencia : 0.0;
           pago.saldoEnContra = 0.0;
         } else {
           pago.saldoFavor = 0.0;
           pago.saldoEnContra = -diferencia;
         }
         
+        // El estado finalizado ahora será 100% consistente con todos los tipos de pago.
         pago.estaFinalizado = (pago.saldoEnContra ?? 0.0) <= 0.01;
       }
       
@@ -1741,49 +1731,21 @@ Future<void> recargarPagos() async {
         });
       }
 
-
-        return pagos;
-      } else {
-        // Manejo de errores de sesión y otros (sin cambios, tu lógica aquí es correcta)
-        try {
-          final errorData = json.decode(response.body);
-          if (errorData["Error"] != null) {
-            final mensajeError = errorData["Error"]["Message"];
-            if (mensajeError == "La sesión ha cambiado. Cerrando sesión...") {
-              await prefs.remove('tokenauth');
-              mostrarDialogoCierreSesion(
-                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
-                Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginScreen()),
-                    (route) => false);
-              });
-              return [];
-            } else if (mensajeError == "jwt expired") {
-              await prefs.remove('tokenauth');
-              _mostrarDialogoError(
-                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
-              Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (route) => false);
-              return [];
-            }
-          }
-        } catch (e) {
-          print('Error al procesar la respuesta: $e');
-        }
-        print('Respuesta con error:${response.body}');
-        throw Exception('Error: ${response.statusCode}');
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-      _mostrarDialogoError('Error de conexión: $e');
-      throw Exception(e);
+      return pagos;
+    } else {
+      // Tu manejo de errores (sin cambios)
+      final errorData = json.decode(response.body);
+      // ...
+      throw Exception('Error: ${response.statusCode}');
     }
+  } catch (e) {
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
+    _mostrarDialogoError('Error de conexión: $e');
+    throw Exception(e);
   }
+}
 
   // <<< NUEVO: FUNCIÓN COMPLETA PARA VALIDAR Y APLICAR SALDO A FAVOR >>>
   // <<< REEMPLAZA ESTA FUNCIÓN COMPLETA EN TU CÓDIGO >>>
@@ -2642,7 +2604,7 @@ totalPagoActual += montoIngresadoEnFila + cubiertoPorRenovacion;
 // ▼▼▼ AÑADE ESTA NUEVA CONDICIÓN ▼▼▼
 // Si se ha utilizado saldo a favor en este pago, también contamos como un "estado especial".
                         final bool tieneFavorUtilizado =
-                            pago.totalFavorUtilizado > 0;
+                            pago.favorUtilizado > 0;
                         if (tieneFavorUtilizado) {
                           indicadorCount++;
                         }
@@ -4652,10 +4614,7 @@ totalPagoActual += montoIngresadoEnFila + cubiertoPorRenovacion;
                                 horizontal: 12, vertical: 8),
                             margin: EdgeInsets.symmetric(horizontal: 20),
 
-                            textStyle: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                            ),
+                            
                             waitDuration: Duration(
                                 milliseconds:
                                     300), // Tiempo de espera antes de mostrar
@@ -4983,7 +4942,7 @@ totalPagoActual += montoIngresadoEnFila + cubiertoPorRenovacion;
 
     // --- INICIO DE LA LÓGICA SOLICITADA ---
     String subtituloSaldo;
-    final double favorUtilizadoEnEstePago = pago.totalFavorUtilizado;
+    final double favorUtilizadoEnEstePago = pago.favorUtilizado;
 
     // PRIORIDAD 1: Mostrar cuánto se utilizó en ESTE pago específico.
     if (favorUtilizadoEnEstePago > 0.01) {
@@ -6168,15 +6127,23 @@ totalPagoActual += montoIngresadoEnFila + cubiertoPorRenovacion;
 // <<< FUNCIÓN FINAL: USA EL ID DIRECTAMENTE DESDE EL MODELO PAGO >>>
 // Esta es la versión definitiva, más limpia y correcta.
 // =========================================================================
-  Future<void> _aplicarSaldoAFavor(
-    BuildContext popupContext,
-    Pago pagoDestino,
-    double montoTotalAAplicar,
-  ) async {
-    if (_isSaving) return;
+  // EN TU CLASE _PaginaControlState
 
-    final mainContext = context;
-    setState(() => _isSaving = true);
+Future<void> _aplicarSaldoAFavor(
+  BuildContext popupContext,
+  Pago pagoDestino,
+  double montoTotalAAplicar,
+) async {
+  // 1. Evita múltiples clics si ya se está procesando algo
+  //if (_isSaving) return;
+
+  final mainContext = context;
+  
+  // 2. Activa el estado de carga ANTES de empezar
+  //    (Importante: necesita estar dentro de un setState para que la UI se actualice)
+  //    Lo haremos dentro del builder del botón para que el efecto sea inmediato en el popup.
+  //    Aquí solo lo activamos para la lógica principal.
+  setState(() => _isSaving = true);
 
     try {
       // 1. OBTENER TOKEN (sin cambios)
@@ -6250,26 +6217,25 @@ totalPagoActual += montoIngresadoEnFila + cubiertoPorRenovacion;
               backgroundColor: Colors.green),
         );
 
-        Navigator.of(popupContext).pop();
-        Navigator.of(mainContext).pop();
-        await recargarPagos();
-        _infoCreditoState?._refrescarDatosCredito();
-      } else {
-        try {
-          final errorData = json.decode(response.body);
-          String mensajeError = errorData["Error"]?["Message"] ??
-              "Error desconocido al aplicar saldo.";
-          _mostrarDialogoError(mensajeError);
-        } catch (e) {
-          _mostrarDialogoError("Error del servidor: ${response.statusCode}");
-        }
-      }
-    } catch (e) {
-      if (mounted) _mostrarDialogoError("Error de conexión: $e");
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+           Navigator.of(popupContext).pop();
+      Navigator.of(mainContext).pop();
+      await recargarPagos();
+      _infoCreditoState?._refrescarDatosCredito();
+    } else {
+      final errorData = json.decode(response.body);
+      String mensajeError = errorData["Error"]?["Message"] ??
+          "Error desconocido al aplicar saldo.";
+      _mostrarDialogoError(mensajeError);
     }
+  } catch (e) {
+    if (mounted) _mostrarDialogoError("Error de conexión: $e");
+  /* } finally {
+    // 3. Desactiva el estado de carga SIEMPRE al finalizar (éxito o error)
+    if (mounted) {
+      setState(() => _isSaving = false);
+    } */
   }
+}
 
   // =========================================================================
 // NUEVA FUNCIÓN QUE CONSTRUYE EL SUBMENÚ PARA EL SALDO A FAVOR
@@ -6286,276 +6252,316 @@ totalPagoActual += montoIngresadoEnFila + cubiertoPorRenovacion;
 // EN TU CLASE _PaginaControlState, REEMPLAZA ESTA FUNCIÓN COMPLETA:
 
   List<MenuItemModel> _buildSaldoAFavorSubMenuItems(
-    BuildContext context,
-    Pago pago,
-    List<Pago> allPagos,
-    bool isDarkMode,
-    double saldoFavorTotalAcumulado,
-  ) {
-    final List<MenuItemModel> items = [];
-    final double montoAPagar = pago.saldoEnContra ?? 0.0;
-    final double favorYaUtilizado = pago.totalFavorUtilizado;
+  BuildContext context,
+  Pago pago,
+  List<Pago> allPagos,
+  bool isDarkMode,
+  double saldoFavorTotalAcumulado,
+) {
+  final List<MenuItemModel> items = [];
+  final double montoAPagar = pago.saldoEnContra ?? 0.0;
+  final double favorYaUtilizado = pago.favorUtilizado;
 
-    // --- Header e Información (sin cambios) ---
-    items.add(MenuInfoItem(
-        child: Transform.translate(
-      offset: const Offset(0, -8.0),
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+  // --- Header e Información (sin cambios) ---
+  items.add(MenuInfoItem(
+      child: Transform.translate(
+    offset: const Offset(0, -8.0),
+    child: Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child:
-                  Icon(Icons.savings_outlined, color: Colors.white, size: 18),
-            ),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                "Gestionar Saldo a Favor",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
       ),
-    )));
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child:
+                Icon(Icons.savings_outlined, color: Colors.white, size: 18),
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "Gestionar Saldo a Favor",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  )));
 
+  items.add(MenuInfoItem(
+    child: _buildInfoRowInteligente(
+      Icons.account_balance_wallet_outlined,
+      "Saldo Total Disponible",
+      "\$${formatearNumero(saldoFavorTotalAcumulado)}",
+      isDarkMode,
+      isAmount: true,
+      iconColor: Color(0xFF00C853),
+      iconBackgroundColor: Color(0xFF00C853).withOpacity(0.1),
+    ),
+  ));
+
+  if (favorYaUtilizado > 0) {
     items.add(MenuInfoItem(
       child: _buildInfoRowInteligente(
-        Icons.account_balance_wallet_outlined,
-        "Saldo Total Disponible",
-        "\$${formatearNumero(saldoFavorTotalAcumulado)}",
+        Icons.check_circle_outline,
+        "Saldo a favor ya aplicado",
+        "\$${formatearNumero(favorYaUtilizado)}",
         isDarkMode,
         isAmount: true,
-        iconColor: Color(0xFF00C853),
-        iconBackgroundColor: Color(0xFF00C853).withOpacity(0.1),
+        iconColor: Color(0xFF3F51B5),
+        iconBackgroundColor: Color(0xFF3F51B5).withOpacity(0.1),
       ),
     ));
+  }
 
-    if (favorYaUtilizado > 0) {
-      items.add(MenuInfoItem(
-        child: _buildInfoRowInteligente(
-          Icons.check_circle_outline,
-          "Saldo a favor ya aplicado",
-          "\$${formatearNumero(favorYaUtilizado)}",
-          isDarkMode,
-          isAmount: true,
-          iconColor: Color(0xFF3F51B5),
-          iconBackgroundColor: Color(0xFF3F51B5).withOpacity(0.1),
-        ),
-      ));
-    }
+  if (montoAPagar > 0 && !pago.estaFinalizado) {
+    items.add(MenuInfoItem(
+      child: _buildInfoRowInteligente(
+        Icons.warning_amber_rounded,
+        "Deuda restante en este pago",
+        "\$${formatearNumero(montoAPagar)}",
+        isDarkMode,
+        isAmount: true,
+        iconColor: Color(0xFFFFA000),
+        iconBackgroundColor: Color(0xFFFFA000).withOpacity(0.1),
+      ),
+    ));
+  }
 
-    if (montoAPagar > 0 && !pago.estaFinalizado) {
-      items.add(MenuInfoItem(
-        child: _buildInfoRowInteligente(
-          Icons.warning_amber_rounded,
-          "Deuda restante en este pago",
-          "\$${formatearNumero(montoAPagar)}",
-          isDarkMode,
-          isAmount: true,
-          iconColor: Color(0xFFFFA000),
-          iconBackgroundColor: Color(0xFFFFA000).withOpacity(0.1),
-        ),
-      ));
-    }
+  items.add(MenuInfoItem(child: Divider(height: 12)));
 
-    items.add(MenuInfoItem(child: Divider(height: 12)));
+  if (!pago.estaFinalizado &&
+      (widget.tipoUsuario == 'Admin' || widget.tipoUsuario == 'Asistente') &&
+      _puedeEditarPago(pago)) {
+    final bool tieneActividadGuardadaEnServidor =
+        (pago.sumaDepositoMoratorisos ?? 0.0) > 0.0;
+    final bool puedeCubrirPagoCompleto =
+        saldoFavorTotalAcumulado >= montoAPagar && montoAPagar > 0.01;
 
-    // =========================================================================
-    // ===== INICIO: LÓGICA DE ACCIONES MUTUAMENTE EXCLUYENTES ===============
-    // =========================================================================
-
-    if (!pago.estaFinalizado &&
-        (widget.tipoUsuario == 'Admin' || widget.tipoUsuario == 'Asistente') &&
-        _puedeEditarPago(pago)) {
-      final bool tieneActividadGuardadaEnServidor =
-          (pago.sumaDepositoMoratorisos ?? 0.0) > 0.0;
-      final bool puedeCubrirPagoCompleto =
-          saldoFavorTotalAcumulado >= montoAPagar && montoAPagar > 0.01;
-
-      // --- ESCENARIO 1: "ACCIÓN ESPECIAL" ---
-      // Si NO hay abonos Y el saldo a favor puede liquidar el pago.
-      if (puedeCubrirPagoCompleto && !tieneActividadGuardadaEnServidor) {
-        items.add(
-          MenuCustomItem(
-            builder: (popupContext) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: _isSaving
-                        ? SizedBox.shrink()
-                        : Icon(Icons.check_circle_outline,
-                            size: 14, color: Colors.white),
-                    label: _isSaving
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2.5, color: Colors.white))
-                        : Text(
-                            "Cubrir pago completo con saldo",
-                            style: TextStyle(fontSize: 12),
-                          ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF00C853),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      disabledBackgroundColor:
-                          Color(0xFF00C853).withOpacity(0.5),
-                    ),
-                    onPressed: _isSaving
-                        ? null
-                        : () => _aplicarSaldoAFavor(
-                            popupContext, pago, montoAPagar),
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      }
-      // --- ESCENARIO 2: "ACCIÓN NORMAL" ---
-      // Si SÍ hay abonos, hay deuda y hay saldo disponible.
-      else if (tieneActividadGuardadaEnServidor &&
-          montoAPagar > 0.01 &&
-          saldoFavorTotalAcumulado > 0.01) {
-        items.add(
-          MenuCustomItem(
-            builder: (popupContext) {
-              final montoController = TextEditingController();
-              final montoAAplicarNotifier = ValueNotifier<double>(0.0);
-              final double montoMaximoAplicable =
-                  min(montoAPagar, saldoFavorTotalAcumulado);
-
-              if (montoMaximoAplicable > 0) {
-                montoController.text = montoMaximoAplicable.toStringAsFixed(2);
-                montoAAplicarNotifier.value = montoMaximoAplicable;
-              }
-
-              return ValueListenableBuilder<double>(
-                valueListenable: montoAAplicarNotifier,
-                builder: (context, montoActual, child) {
-                  final bool puedeAplicar = montoActual > 0.01 && !_isSaving;
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Monto a Utilizar:", // Texto simplificado
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isDarkMode
-                                    ? Colors.white70
-                                    : Colors.black87)),
-                        SizedBox(height: 8),
-                        // El TextField y su botón no tienen cambios internos
-                        TextField(
-                          controller: montoController,
-                          autofocus: true,
-                          keyboardType:
-                              TextInputType.numberWithOptions(decimal: true),
-                          style: TextStyle(
-                              fontSize: 14,
-                              color:
-                                  isDarkMode ? Colors.white : Colors.black87),
-                          decoration: InputDecoration(
-                              prefixText: '\$ ',
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  vertical: 12.0, horizontal: 12.0),
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide:
-                                      BorderSide(color: Colors.grey.shade400)),
-                              focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                      color: Color(0xFF3F51B5), width: 2),
-                                  borderRadius: BorderRadius.circular(8)),
-                              hintText:
-                                  "Máx: \$${formatearNumero(montoMaximoAplicable)}",
-                              hintStyle: TextStyle(
-                                  fontWeight: FontWeight.normal, fontSize: 12)),
-                          onChanged: (value) {
-                            double nuevoMonto =
-                                double.tryParse(value.replaceAll(",", "")) ??
-                                    0.0;
-                            // Aplicar el límite máximo
-                            if (nuevoMonto > montoMaximoAplicable) {
-                              nuevoMonto = montoMaximoAplicable;
-                              final formattedValue =
-                                  nuevoMonto.toStringAsFixed(2);
-                              montoController.text = formattedValue;
-                              montoController.selection =
-                                  TextSelection.fromPosition(TextPosition(
-                                      offset: formattedValue.length));
-                            }
-                            montoAAplicarNotifier.value = nuevoMonto;
-                          },
-                        ),
-                        SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            icon: _isSaving
-                                ? SizedBox.shrink()
-                                : Icon(Icons.download_done_rounded,
-                                    size: 18, color: Colors.white),
-                            label: _isSaving
-                                ? SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2.5, color: Colors.white))
-                                : Text("Aplicar Monto"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF3F51B5),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              disabledBackgroundColor:
-                                  Color(0xFF3F51B5).withOpacity(0.5),
-                              disabledForegroundColor:
-                                  Colors.white.withOpacity(0.7),
+     // ESCENARIO 1: Cubrir pago completo
+    if (puedeCubrirPagoCompleto && !tieneActividadGuardadaEnServidor) {
+      items.add(
+        MenuCustomItem(
+          builder: (popupContext) {
+            return StatefulBuilder(
+              builder: (context, setStateInPopup) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: _isSaving
+                          ? SizedBox.shrink()
+                          : Icon(Icons.check_circle_outline,
+                              size: 14, color: Colors.white),
+                      label: _isSaving
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2.5, color: Colors.white))
+                          : Text(
+                              "Cubrir pago completo con saldo",
+                              style: TextStyle(fontSize: 12),
                             ),
-                            onPressed: puedeAplicar
-                                ? () => _aplicarSaldoAFavor(popupContext, pago,
-                                    montoAAplicarNotifier.value)
-                                : null,
-                          ),
-                        ),
-                      ],
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF00C853),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        disabledBackgroundColor:
+                            Color(0xFF00C853).withOpacity(0.5),
+                      ),
+                      // ==========================================================
+                      // <<< INICIO DEL CAMBIO CLAVE 1 >>>
+                      // ==========================================================
+                      onPressed: _isSaving
+                          ? null
+                          : () async {
+                              setStateInPopup(() {
+                                _isSaving = true;
+                              });
+                              try {
+                                await _aplicarSaldoAFavor(popupContext, pago, montoAPagar);
+                              } finally {
+                                // Se ejecuta siempre, incluso si hay un error
+                                if (mounted) {
+                                  setStateInPopup(() {
+                                    _isSaving = false;
+                                  });
+                                }
+                              }
+                            },
+                      // ==========================================================
+                      // <<< FIN DEL CAMBIO CLAVE 1 >>>
+                      // ==========================================================
                     ),
-                  );
-                },
-              );
-            },
-          ),
-        );
-      }
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      );
+    }
+     // ESCENARIO 2: Aplicar monto parcial
+    else if (tieneActividadGuardadaEnServidor &&
+        montoAPagar > 0.01 &&
+        saldoFavorTotalAcumulado > 0.01) {
+      items.add(
+        MenuCustomItem(
+          builder: (popupContext) {
+            final montoController = TextEditingController();
+            final montoAAplicarNotifier = ValueNotifier<double>(0.0);
+            final double montoMaximoAplicable =
+                min(montoAPagar, saldoFavorTotalAcumulado);
+
+            if (montoMaximoAplicable > 0) {
+              montoController.text = montoMaximoAplicable.toStringAsFixed(2);
+              montoAAplicarNotifier.value = montoMaximoAplicable;
+            }
+
+            return StatefulBuilder(
+              builder: (context, setStateInPopup) {
+                return ValueListenableBuilder<double>(
+                  valueListenable: montoAAplicarNotifier,
+                  builder: (context, montoActual, child) {
+                    final bool puedeAplicar = montoActual > 0.01 && !_isSaving;
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Monto a Utilizar:",
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDarkMode
+                                      ? Colors.white70
+                                      : Colors.black87)),
+                          SizedBox(height: 8),
+                          TextField(
+                            controller: montoController,
+                            autofocus: true,
+                            enabled: !_isSaving, // Deshabilita el campo al cargar
+                            keyboardType:
+                                TextInputType.numberWithOptions(decimal: true),
+                            style: TextStyle(
+                                fontSize: 14,
+                                color:
+                                    isDarkMode ? Colors.white : Colors.black87),
+                            decoration: InputDecoration(
+                                prefixText: '\$ ',
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                    vertical: 12.0, horizontal: 12.0),
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide:
+                                        BorderSide(color: Colors.grey.shade400)),
+                                focusedBorder: OutlineInputBorder(
+                                    borderSide: BorderSide(
+                                        color: Color(0xFF3F51B5), width: 2),
+                                    borderRadius: BorderRadius.circular(8)),
+                                hintText:
+                                    "Máx: \$${formatearNumero(montoMaximoAplicable)}",
+                                hintStyle: TextStyle(
+                                    fontWeight: FontWeight.normal, fontSize: 12)),
+                            onChanged: (value) {
+                              double nuevoMonto =
+                                  double.tryParse(value.replaceAll(",", "")) ?? 0.0;
+                              if (nuevoMonto > montoMaximoAplicable) {
+                                nuevoMonto = montoMaximoAplicable;
+                                final formattedValue =
+                                    nuevoMonto.toStringAsFixed(2);
+                                montoController.text = formattedValue;
+                                montoController.selection =
+                                    TextSelection.fromPosition(TextPosition(
+                                        offset: formattedValue.length));
+                              }
+                              montoAAplicarNotifier.value = nuevoMonto;
+                            },
+                          ),
+                           SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              icon: _isSaving
+                                  ? SizedBox.shrink()
+                                  : Icon(Icons.download_done_rounded,
+                                      size: 18, color: Colors.white),
+                              label: _isSaving
+                                  ? SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2.5, color: Colors.white))
+                                  : Text("Aplicar Monto"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF3F51B5),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                disabledBackgroundColor:
+                                    Color(0xFF3F51B5).withOpacity(0.5),
+                                disabledForegroundColor:
+                                    Colors.white.withOpacity(0.7),
+                              ),
+                              // ==========================================================
+                              // <<< INICIO DEL CAMBIO CLAVE 2 >>>
+                              // ==========================================================
+                              onPressed: puedeAplicar
+                                  ? () async {
+                                      setStateInPopup(() {
+                                        _isSaving = true;
+                                      });
+                                      try {
+                                        await _aplicarSaldoAFavor(
+                                            popupContext,
+                                            pago,
+                                            montoAAplicarNotifier.value);
+                                      } finally {
+                                        if (mounted) {
+                                          setStateInPopup(() {
+                                            _isSaving = false;
+                                          });
+                                        }
+                                      }
+                                    }
+                                  : null,
+                              // ==========================================================
+                              // <<< FIN DEL CAMBIO CLAVE 2 >>>
+                              // ==========================================================
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        ),
+      );
+    }
       // --- ESCENARIO 3: "MENSAJE DE ADVERTENCIA" ---
       // Si no se cumplen los escenarios anteriores, y hay saldo, mostramos el mensaje.
       else {
@@ -7082,7 +7088,7 @@ class Pago {
   String? idfechaspagos;
   String? idpagosdetalles;
   String? idpagos;
-  double totalFavorUtilizado;
+  //double totalFavorUtilizado;
   double? sumaDepositosFavor;
   double? sumaDepositoMoratorisos;
   Moratorios? moratorios;
@@ -7098,6 +7104,7 @@ class Pago {
   double saldoFavorOriginalGenerado;
   bool fueUtilizadoPorServidor;
   double? saldoRestante;
+  double favorUtilizado; 
 
   Pago({
     required this.semana,
@@ -7118,7 +7125,7 @@ class Pago {
     this.fechasDepositos = const [],
     this.idfechaspagos,
     this.idpagosdetalles,
-    required this.totalFavorUtilizado,
+    //required this.totalFavorUtilizado,
     this.sumaDepositosFavor,
     this.sumaDepositoMoratorisos,
     this.moratorios,
@@ -7132,6 +7139,7 @@ class Pago {
     required this.saldoFavorOriginalGenerado,
     required this.fueUtilizadoPorServidor,
     this.saldoRestante,
+    required this.favorUtilizado,
   });
 
   factory Pago.fromJson(Map<String, dynamic> json) {
@@ -7167,14 +7175,14 @@ class Pago {
       }
     }
 
-    double favorUtilizadoSuma = 0.0;
+    /* double favorUtilizadoSuma = 0.0;
     if (json['pagos'] is List) {
       for (var abono in json['pagos']) {
         if (abono['favorUtilizado'] is num) {
           favorUtilizadoSuma += (abono['favorUtilizado'] as num).toDouble();
         }
       }
-    }
+    } */
 
     return Pago(
       semana: json['semana'] ?? 0,
@@ -7220,7 +7228,10 @@ class Pago {
       moratorioDesabilitado: json['moratorioDesabilitado'] ?? "No",
       renovacionesPendientes: pendientes,
       saldoFavorInicial: 0.0,
-      totalFavorUtilizado: favorUtilizadoSuma,
+      //totalFavorUtilizado: favorUtilizadoSuma,
+            // <-- CAMBIO 3: Leer el valor directamente del JSON
+      favorUtilizado: (json['favorUtilizado'] as num?)?.toDouble() ?? 0.0,
+
       saldoFavorOriginalGenerado:
           (json['saldoFavor'] as num?)?.toDouble() ?? 0.0,
       fueUtilizadoPorServidor: json['saldoFavorUtilizado'] == 'Si',

@@ -261,42 +261,57 @@ class _nGrupoDialogState extends State<nGrupoDialog>
   // Nueva función para verificar si un cliente tiene adeudos
 // Modificamos la función para que devuelva el monto del adeudo o null
   Future<double?> _verificarAdeudoCliente(String idCliente) async {
-    if (idCliente.isEmpty) return null;
+  if (idCliente.isEmpty) return null;
 
-    print('🔍 Verificando adeudos para el cliente: $idCliente');
+  print('🔍 Verificando adeudos para el cliente: $idCliente');
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-      final url = Uri.parse(
-          '$baseUrl/api/v1/grupodetalles/renovacion/clientes/$idCliente');
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    final url = Uri.parse(
+        '$baseUrl/api/v1/grupodetalles/renovacion/clientes/$idCliente');
 
-      final response = await http.get(
-        url,
-        headers: {'tokenauth': token},
-      );
+    final response = await http.get(
+      url,
+      headers: {'tokenauth': token},
+    );
 
-      print(
-          '📥 Respuesta de adeudos [${response.statusCode}]: ${response.body}');
+    print(
+        '📥 Respuesta de adeudos [${response.statusCode}]: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
 
-        if (data.isNotEmpty && data[0]['descuento'] != null) {
-          // Si hay datos, extraemos el monto y lo devolvemos
-          final double montoAdeudo = (data[0]['descuento'] as num).toDouble();
-          print('⚠️ ¡El cliente tiene un adeudo de: $montoAdeudo!');
-          return montoAdeudo;
+      if (data.isNotEmpty) {
+        // --- CAMBIO PRINCIPAL AQUÍ ---
+        // Usamos fold para sumar todos los valores de 'descuento' en la lista.
+        // Empezamos con un valor inicial de 0.0.
+        final double totalAdeudo = data.fold<double>(0.0, (sum, item) {
+          final descuento = item['descuento'];
+          // Nos aseguramos que el descuento no sea nulo antes de sumarlo
+          if (descuento != null) {
+            // (descuento as num).toDouble() es para asegurar que manejamos int y double
+            return sum + (descuento as num).toDouble();
+          }
+          return sum; // Si no hay descuento en este item, no sumamos nada.
+        });
+        // --- FIN DEL CAMBIO ---
+
+        // Si el total es mayor que 0, significa que hay un adeudo.
+        if (totalAdeudo > 0) {
+          print('⚠️ ¡El cliente tiene un adeudo total de: $totalAdeudo!');
+          return totalAdeudo;
         }
       }
-      // Si la respuesta no es 200, o la lista está vacía, o no hay descuento, no hay adeudo.
-      print('✅ El cliente no tiene adeudos.');
-      return null; // Devolvemos null para indicar que no hay adeudo
-    } catch (e) {
-      print('❌ Error al verificar adeudos del cliente: $e');
-      return null; // En caso de error, asumimos que no hay adeudo
     }
+    // Si la respuesta no es 200, la lista está vacía o la suma es 0, no hay adeudo.
+    print('✅ El cliente no tiene adeudos.');
+    return null; // Devolvemos null para indicar que no hay adeudo
+  } catch (e) {
+    print('❌ Error al verificar adeudos del cliente: $e');
+    return null; // En caso de error, asumimos que no hay adeudo
   }
+}
 
   void mostrarDialogoCierreSesion(String mensaje,
       {required Function() onClose}) {

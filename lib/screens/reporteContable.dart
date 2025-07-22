@@ -1056,33 +1056,16 @@ class ReporteContableWidget extends StatelessWidget {
   // SECCIÓN: DEPÓSITOS (VERSIÓN CORREGIDA Y FINAL)
     // SECCIÓN: DEPÓSITOS (VERSIÓN FINAL CON LÓGICA DE "OTRO DEPÓSITO")
    // SECCIÓN: DEPÓSITOS (VERSIÓN FINAL CON LÓGICA DE "OTRO DEPÓSITO")
+    // --- CAMBIO CLAVE 1: LÓGICA DE LA SECCIÓN DE DEPÓSITOS ACTUALIZADA ---
   Widget _buildDepositosSection(BuildContext context, Pagoficha pagoficha,
       double restanteFicha, ReporteContableGrupo grupo) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    // --- PASO 1: CREAR LA LISTA DE ITEMS A MOSTRAR ---
-    final List<Map<String, dynamic>> displayItems = [];
-    for (final deposito in pagoficha.depositos) {
-      // Un depósito real siempre genera una tarjeta estándar.
-      // Se muestra incluso si el monto es 0 para mantener la consistencia de la fecha.
-      displayItems.add({
-        'type': 'deposito_real',
-        'data': deposito, // Pasamos el objeto completo
-      });
-      
-      // Si se usó saldo a favor, crea OTRA tarjeta separada para él.
-      if (deposito.favorUtilizado > 0) {
-        displayItems.add({
-          'type': 'abono_favor',
-          'data': deposito, // Pasamos el objeto para obtener el monto y la fecha
-        });
-      }
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Encabezado de la sección (sin cambios)
         Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1090,8 +1073,7 @@ class ReporteContableWidget extends StatelessWidget {
                 children: [
                     const Icon(Icons.account_balance, size: 14, color: primaryColor),
                     const SizedBox(width: 6),
-                    const Text('Depósitos',
-                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: primaryColor)),
+                    const Text('Depósitos', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: primaryColor)),
                 ],
                 ),
                 Text('Fecha programada: ${_formatDateSafe(pagoficha.fechasPago)}',
@@ -1100,34 +1082,33 @@ class ReporteContableWidget extends StatelessWidget {
             ],
         ),
         const SizedBox(height: 6),
+
+        // --- Lógica de visualización actualizada ---
         Container(
           constraints: const BoxConstraints(maxHeight: 220),
-          child: displayItems.isEmpty
+          // Si no hay depósitos en efectivo NI abonos con saldo, muestra el mensaje.
+          child: pagoficha.depositos.isEmpty && pagoficha.favorUtilizado == 0
               ? Center(
                     child: Text(
                     'Sin depósitos registrados',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: isDarkMode ? Colors.grey[500] : Colors.grey[600]),
+                    style: TextStyle(fontSize: 11, color: isDarkMode ? Colors.grey[500] : Colors.grey[600]),
                     ),
                 )
-              : ListView.builder(
+              : ListView( // Usamos un ListView simple para combinar diferentes tipos de widgets
                   shrinkWrap: true,
-                  itemCount: displayItems.length,
-                  itemBuilder: (context, index) {
-                    final item = displayItems[index];
+                  children: [
+                    // Mapeamos los depósitos reales a sus tarjetas
+                    ...pagoficha.depositos.map((deposito) {
+                      return _buildStandardDepositCard(context, deposito, pagoficha);
+                    }).toList(),
 
-                    switch (item['type']) {
-                      case 'abono_favor':
-                        return _buildFavorUtilizadoCard(context, item['data']);
-                      case 'deposito_real':
-                      default:
-                        // Pasamos el objeto Deposito completo y el depositoCompleto del padre
-                        return _buildStandardDepositCard(context, item['data'], pagoficha.depositoCompleto);
-                    }
-                  },
+                    // Si se usó saldo a favor, añadimos una tarjeta especial para ello
+                    if (pagoficha.favorUtilizado > 0)
+                      _buildFavorUtilizadoCard(context, pagoficha.favorUtilizado, pagoficha.fechasPago),
+                  ],
                 ),
         ),
+
 
         // ... (Resto de la sección: Total depósitos, Restante ficha, Resumen Global)
         Container(
@@ -1194,7 +1175,9 @@ class ReporteContableWidget extends StatelessWidget {
 
 
      /// WIDGET PARA LA TARJETA DE DEPÓSITO ESTÁNDAR (TU DISEÑO ORIGINAL)
-  Widget _buildStandardDepositCard(BuildContext context, Deposito deposito, double depositoCompleto) {
+   /// WIDGET PARA LA TARJETA DE DEPÓSITO ESTÁNDAR
+  /// --- CAMBIO CLAVE 2: Ahora recibe el objeto Pagoficha completo ---
+  Widget _buildStandardDepositCard(BuildContext context, Deposito deposito, Pagoficha pagoficha) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
@@ -1227,8 +1210,9 @@ class ReporteContableWidget extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildDepositoDetail(context, 'Depósito', deposito.deposito, Icons.arrow_downward, depositoCompleto: depositoCompleto),
-                    _buildSaldoFavorDetail(context, deposito),
+                    _buildDepositoDetail(context, 'Depósito', deposito.deposito, Icons.arrow_downward, depositoCompleto: pagoficha.depositoCompleto),
+                    // --- La llamada ahora pasa el objeto 'pagoficha' ---
+                    _buildSaldoFavorDetail(context, pagoficha),
                     _buildDepositoDetail(context, 'Moratorio', deposito.pagoMoratorio, Icons.warning),
                   ],
                 ),
@@ -1239,10 +1223,7 @@ class ReporteContableWidget extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE53888),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                        decoration: BoxDecoration(color: const Color(0xFFE53888), borderRadius: BorderRadius.circular(4)),
                         child: const Text('Garantía', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.white)),
                       ),
                     ),
@@ -1256,11 +1237,14 @@ class ReporteContableWidget extends StatelessWidget {
   }
 
   /// WIDGET PARA LA TARJETA ESPECIAL DE ABONO CON SALDO A FAVOR
-  Widget _buildFavorUtilizadoCard(BuildContext context, Deposito deposito) {
-        final themeProvider = Provider.of<ThemeProvider>(context);
+   /// WIDGET PARA LA TARJETA ESPECIAL DE ABONO CON SALDO A FAVOR
+  /// Ahora recibe el monto y la fecha directamente.
+  Widget _buildFavorUtilizadoCard(BuildContext context, double favorUtilizado, String fechaOriginal) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     return Tooltip(
-      message: 'Este abono se realizó utilizando un saldo a favor de un pago anterior en la fecha ${_formatDateSafe(deposito.fechaDeposito)}.',
+      //message: 'Este abono se realizó utilizando un saldo a favor de un pago anterior en la fecha ${_formatDateSafe(fechaOriginal)}.',
+      message: 'Este abono se realizó utilizando un saldo a favor de un pago anterior.',
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
         decoration: BoxDecoration(
@@ -1289,7 +1273,7 @@ class ReporteContableWidget extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Monto utilizado:', style: TextStyle(fontSize: 11, color: isDarkMode? const Color(0xFFC0E3C1): Colors.green.shade800)),
-                  Text(currencyFormat.format(deposito.favorUtilizado), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDarkMode? const Color(0xFFC0E3C1): Colors.green.shade900)),
+                  Text(currencyFormat.format(favorUtilizado), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDarkMode? const Color(0xFFC0E3C1): Colors.green.shade900)),
                 ],
               ),
             ),
@@ -1301,44 +1285,50 @@ class ReporteContableWidget extends StatelessWidget {
 
   // --- WIDGETS AUXILIARES (Sin cambios, necesarios para que todo funcione) ---
 
-  Widget _buildSaldoFavorDetail(BuildContext context, Deposito deposito) {
+   // --- CAMBIO CLAVE 3: LÓGICA DE _buildSaldoFavorDetail ACTUALIZADA ---
+  /// Este widget ahora lee los datos del objeto 'pagoficha' en lugar de 'deposito'
+  Widget _buildSaldoFavorDetail(BuildContext context, Pagoficha pagoficha) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     Widget valueDisplay;
     String? tooltipMessage;
 
-    if (deposito.utilizadoPago == 'Si') {
-      tooltipMessage = 'Saldo de ${currencyFormat.format(deposito.saldofavor)} utilizado completamente en otro pago.';
+    // Si el saldo generado en ESTE pago es cero, no mostramos nada.
+    if (pagoficha.saldofavor == 0) {
       valueDisplay = Text(
-        currencyFormat.format(deposito.saldofavor),
+        currencyFormat.format(0.0),
+        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: isDarkMode ? Colors.grey[200] : Colors.black87),
+      );
+    } else if (pagoficha.utilizadoPago == 'Si') {
+      tooltipMessage = 'Saldo de ${currencyFormat.format(pagoficha.saldofavor)} utilizado completamente en otro pago.';
+      valueDisplay = Text(
+        currencyFormat.format(pagoficha.saldofavor),
         style: TextStyle(
           fontSize: 11, fontWeight: FontWeight.w500,
           color: isDarkMode ? Colors.white54 : Colors.grey[600],
           decoration: TextDecoration.lineThrough,
-          decorationColor: isDarkMode ? Colors.white54 : Colors.grey[600],
-          decorationThickness: 1.5,
         ),
       );
-    } else if (deposito.saldoUtilizado > 0) {
-      tooltipMessage = 'Original: ${currencyFormat.format(deposito.saldofavor)}\n'
-                       'Utilizado: ${currencyFormat.format(deposito.saldoUtilizado)}\n'
-                       'Disponible: ${currencyFormat.format(deposito.saldoDisponible)}';
+    } else if (pagoficha.saldoUtilizado > 0) {
+      tooltipMessage = 'Original: ${currencyFormat.format(pagoficha.saldofavor)}\n'
+                       'Utilizado: ${currencyFormat.format(pagoficha.saldoUtilizado)}\n'
+                       'Disponible: ${currencyFormat.format(pagoficha.saldoDisponible)}';
       valueDisplay = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            currencyFormat.format(deposito.saldoDisponible),
+            currencyFormat.format(pagoficha.saldoDisponible),
             style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: isDarkMode ? Colors.grey[200] : Colors.black87),
           ),
           Text(
-            '(de ${currencyFormat.format(deposito.saldofavor)})',
+            '(de ${currencyFormat.format(pagoficha.saldofavor)})',
             style: TextStyle(fontSize: 9, color: isDarkMode ? Colors.white54 : Colors.grey[600]),
           ),
         ],
       );
     } else {
       valueDisplay = Text(
-        currencyFormat.format(deposito.saldofavor),
+        currencyFormat.format(pagoficha.saldofavor),
         style: TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: isDarkMode ? Colors.grey[200] : Colors.black87),
       );
     }

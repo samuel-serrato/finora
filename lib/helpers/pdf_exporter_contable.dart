@@ -177,17 +177,10 @@ class PDFExportHelperContable {
   }
 
   // --- SECCIÓN DE DEPÓSITOS CON LÓGICA NUEVA Y ESTILOS ORIGINALES ---
+  
+  // --- CAMBIO CLAVE 1: LÓGICA DE LA SECCIÓN DE DEPÓSITOS ACTUALIZADA ---
   pw.Widget _buildDepositosSection(
       Pagoficha pagoficha, double restanteFicha, ReporteContableGrupo grupo) {
-    final List<pw.Widget> depositWidgets = [];
-    for (final deposito in pagoficha.depositos) {
-      depositWidgets.add(
-          _buildStandardDepositCardPdf(deposito, pagoficha.depositoCompleto));
-      if (deposito.favorUtilizado > 0) {
-        depositWidgets.add(pw.SizedBox(height: 4));
-        depositWidgets.add(_buildFavorUtilizadoCardPdf(deposito));
-      }
-    }
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -195,73 +188,61 @@ class PDFExportHelperContable {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Depósitos',
-                style: pw.TextStyle(
-                    fontSize: 6,
-                    fontWeight: pw.FontWeight.bold,
-                    color: primaryColor)),
-            pw.Text('Fecha prog: ${_formatDateSafe(pagoficha.fechasPago)}',
-                style:
-                    const pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
+            pw.Text('Depósitos', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+            pw.Text('Fecha prog: ${_formatDateSafe(pagoficha.fechasPago)}', style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
           ],
         ),
         pw.SizedBox(height: 4),
+
+        // --- Lógica de visualización de tarjetas ---
         pw.Column(
-            children: depositWidgets.isEmpty
+            children: (pagoficha.depositos.isEmpty && pagoficha.favorUtilizado == 0)
                 ? [
                     pw.Container(
                         height: 50,
                         alignment: pw.Alignment.center,
-                        child: pw.Text('Sin depósitos',
-                            style: pw.TextStyle(
-                                color: PdfColors.grey, fontSize: 6)))
+                        child: pw.Text('Sin depósitos', style: pw.TextStyle(color: PdfColors.grey, fontSize: 6)))
                   ]
-                : depositWidgets),
+                : [
+                    // Mapeamos los depósitos reales a sus tarjetas
+                    ...pagoficha.depositos.map((deposito) {
+                      return _buildStandardDepositCardPdf(deposito, pagoficha);
+                    }).toList(),
+
+                    // Si se usó saldo a favor, añadimos una tarjeta especial para ello
+                    if (pagoficha.favorUtilizado > 0)
+                      _buildFavorUtilizadoCardPdf(pagoficha.favorUtilizado, pagoficha.fechasPago),
+                ]
+        ),
         pw.SizedBox(height: 6),
-        // --- Contenedores de resumen con colores originales ---
+        
+        // --- Resto de la sección (resúmenes) sin cambios ---
         pw.Container(
           padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          decoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFedeffe),
-              borderRadius: pw.BorderRadius.circular(4)),
-          child: _buildSummaryRow('Total depósitos:', pagoficha.sumaDeposito,
-              color: PdfColor.fromInt(0xFF5465f6)),
+          decoration: pw.BoxDecoration(color: PdfColor.fromInt(0xFFedeffe), borderRadius: pw.BorderRadius.circular(4)),
+          child: _buildSummaryRow('Total depósitos:', pagoficha.sumaDeposito, color: PdfColor.fromInt(0xFF5465f6)),
         ),
         pw.SizedBox(height: 4),
         pw.Container(
           padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          decoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFfff3e0),
-              borderRadius: pw.BorderRadius.circular(4)),
-          child: _buildSummaryRow('Restante ficha:', restanteFicha,
-              color: PdfColor.fromInt(0xFFe9661d)),
+          decoration: pw.BoxDecoration(color: PdfColor.fromInt(0xFFfff3e0), borderRadius: pw.BorderRadius.circular(4)),
+          child: _buildSummaryRow('Restante ficha:', restanteFicha, color: PdfColor.fromInt(0xFFe9661d)),
         ),
         pw.SizedBox(height: 6),
-        // --- SECCIÓN DE RESUMEN GLOBAL RESTAURADA ---
         pw.Container(
           padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          decoration: pw.BoxDecoration(
-              borderRadius: pw.BorderRadius.circular(4),
-              border: pw.Border.all(color: PdfColors.grey300)),
+          decoration: pw.BoxDecoration(borderRadius: pw.BorderRadius.circular(4), border: pw.Border.all(color: PdfColors.grey300)),
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Resumen Global',
-                  style: pw.TextStyle(
-                      fontSize: 6,
-                      fontWeight: pw.FontWeight.bold,
-                      color: primaryColor)),
+              pw.Text('Resumen Global', style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: primaryColor)),
               pw.SizedBox(height: 4),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Expanded(
-                      child: _buildFinancialColumn(
-                          'Saldo Global', grupo.saldoGlobal)),
+                  pw.Expanded(child: _buildFinancialColumn('Saldo Global', grupo.saldoGlobal)),
                   pw.SizedBox(width: 5),
-                  pw.Expanded(
-                      child: _buildFinancialColumn(
-                          'Restante Global', grupo.restanteGlobal)),
+                  pw.Expanded(child: _buildFinancialColumn('Restante Global', grupo.restanteGlobal)),
                 ],
               ),
             ],
@@ -272,27 +253,18 @@ class PDFExportHelperContable {
   }
 
   // --- TARJETAS DE DEPÓSITO (MANTIENEN LA NUEVA LÓGICA) ---
-  pw.Widget _buildStandardDepositCardPdf(
-      Deposito deposito, double depositoCompleto) {
+   /// --- TARJETA DE DEPÓSITO ESTÁNDAR: Ahora recibe Pagoficha ---
+  pw.Widget _buildStandardDepositCardPdf(Deposito deposito, Pagoficha pagoficha) {
     return pw.Container(
       margin: const pw.EdgeInsets.only(bottom: 4),
-      decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: PdfColors.grey300),
-          borderRadius: pw.BorderRadius.circular(4)),
+      decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey300), borderRadius: pw.BorderRadius.circular(4)),
       child: pw.Column(
         children: [
           pw.Container(
             width: double.infinity,
             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFdce0fd),
-                borderRadius: const pw.BorderRadius.only(
-                    topLeft: pw.Radius.circular(4),
-                    topRight: pw.Radius.circular(4))),
-            child: pw.Text(
-                'Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}',
-                style: pw.TextStyle(fontSize: 6),
-                textAlign: pw.TextAlign.center),
+            decoration: pw.BoxDecoration(color: PdfColor.fromInt(0xFFdce0fd), borderRadius: const pw.BorderRadius.only(topLeft: pw.Radius.circular(4), topRight: pw.Radius.circular(4))),
+            child: pw.Text('Fecha depósito: ${_formatDateSafe(deposito.fechaDeposito)}', style: pw.TextStyle(fontSize: 6), textAlign: pw.TextAlign.center),
           ),
           pw.Padding(
             padding: const pw.EdgeInsets.all(6),
@@ -302,16 +274,11 @@ class PDFExportHelperContable {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Expanded(
-                        child: _buildDepositoDetailPDF(
-                            'Depósito', deposito.deposito,
-                            depositoCompleto: depositoCompleto)),
+                    pw.Expanded(child: _buildDepositoDetailPDF('Depósito', deposito.deposito, depositoCompleto: pagoficha.depositoCompleto)),
                     pw.SizedBox(width: 5),
-                    pw.Expanded(child: _buildSaldoFavorDetailPdf(deposito)),
+                    pw.Expanded(child: _buildSaldoFavorDetailPdf(pagoficha)), // <--- Pasa el objeto pagoficha completo
                     pw.SizedBox(width: 5),
-                    pw.Expanded(
-                        child: _buildDepositoDetailPDF(
-                            'Moratorio', deposito.pagoMoratorio)),
+                    pw.Expanded(child: _buildDepositoDetailPDF('Moratorio', deposito.pagoMoratorio)),
                   ],
                 ),
                 if (deposito.garantia == "Si")
@@ -319,14 +286,9 @@ class PDFExportHelperContable {
                     alignment: pw.Alignment.centerLeft,
                     child: pw.Container(
                       margin: const pw.EdgeInsets.only(top: 4),
-                      padding: const pw.EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 2),
-                      decoration: pw.BoxDecoration(
-                          color: guaranteeColor,
-                          borderRadius: pw.BorderRadius.circular(4)),
-                      child: pw.Text('Garantía',
-                          style: pw.TextStyle(
-                              fontSize: 6, color: PdfColors.white)),
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: pw.BoxDecoration(color: guaranteeColor, borderRadius: pw.BorderRadius.circular(4)),
+                      child: pw.Text('Garantía', style: pw.TextStyle(fontSize: 6, color: PdfColors.white)),
                     ),
                   ),
               ],
@@ -337,38 +299,26 @@ class PDFExportHelperContable {
     );
   }
 
-  pw.Widget _buildFavorUtilizadoCardPdf(Deposito deposito) {
+   /// --- TARJETA DE SALDO A FAVOR: Ahora recibe los datos directamente ---
+  pw.Widget _buildFavorUtilizadoCardPdf(double favorUtilizado, String fechaOriginal) {
     return pw.Container(
-      decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: favorUsedColor),
-          borderRadius: pw.BorderRadius.circular(4)),
+      margin: const pw.EdgeInsets.only(bottom: 4), // Añadido para consistencia
+      decoration: pw.BoxDecoration(border: pw.Border.all(color: favorUsedColor), borderRadius: pw.BorderRadius.circular(4)),
       child: pw.Column(
         children: [
           pw.Container(
             width: double.infinity,
             padding: const pw.EdgeInsets.symmetric(vertical: 3),
-            decoration: pw.BoxDecoration(
-                color: favorUsedColor,
-                borderRadius: const pw.BorderRadius.only(
-                    topLeft: pw.Radius.circular(4),
-                    topRight: pw.Radius.circular(4))),
-            child: pw.Text('Abono con Saldo a Favor',
-                style: pw.TextStyle(
-                    fontSize: 6,
-                    color: PdfColors.white,
-                    fontWeight: pw.FontWeight.bold),
-                textAlign: pw.TextAlign.center),
+            decoration: pw.BoxDecoration(color: favorUsedColor, borderRadius: const pw.BorderRadius.only(topLeft: pw.Radius.circular(4), topRight: pw.Radius.circular(4))),
+            child: pw.Text('Abono con Saldo a Favor', style: pw.TextStyle(fontSize: 6, color: PdfColors.white, fontWeight: pw.FontWeight.bold), textAlign: pw.TextAlign.center),
           ),
           pw.Padding(
             padding: const pw.EdgeInsets.all(6),
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('Monto utilizado:',
-                    style: const pw.TextStyle(fontSize: 6)),
-                pw.Text(currencyFormat.format(deposito.favorUtilizado),
-                    style: pw.TextStyle(
-                        fontSize: 6, fontWeight: pw.FontWeight.bold)),
+                pw.Text('Monto utilizado:', style: const pw.TextStyle(fontSize: 6)),
+                pw.Text(currencyFormat.format(favorUtilizado), style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold)),
               ],
             ),
           ),
@@ -378,36 +328,27 @@ class PDFExportHelperContable {
   }
 
   // --- DETALLES DE DEPÓSITO Y SALDO FAVOR (MANTIENEN LA NUEVA LÓGICA) ---
-  pw.Widget _buildSaldoFavorDetailPdf(Deposito deposito) {
-    // ... (sin cambios, la lógica es correcta)
+  // --- CAMBIO CLAVE 2: LÓGICA DE DETALLE DE SALDO A FAVOR ACTUALIZADA ---
+  pw.Widget _buildSaldoFavorDetailPdf(Pagoficha pagoficha) {
     pw.Widget valueDisplay;
-    if (deposito.utilizadoPago == 'Si') {
-      valueDisplay =
-          pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-        pw.Text(currencyFormat.format(deposito.saldofavor),
-            style: const pw.TextStyle(
-                fontSize: 6,
-                color: PdfColors.grey,
-                decoration: pw.TextDecoration.lineThrough)),
-      ]);
-    } else if (deposito.saldoUtilizado > 0) {
-      valueDisplay =
-          pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-        pw.Text(currencyFormat.format(deposito.saldoDisponible),
-            style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold)),
-        pw.Text('(de ${currencyFormat.format(deposito.saldofavor)})',
-            style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey)),
+    
+    if (pagoficha.saldofavor == 0) {
+        valueDisplay = pw.Text(currencyFormat.format(0.0), style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold));
+    } else if (pagoficha.utilizadoPago == 'Si') {
+      valueDisplay = pw.Text(currencyFormat.format(pagoficha.saldofavor), style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey, decoration: pw.TextDecoration.lineThrough));
+    } else if (pagoficha.saldoUtilizado > 0) {
+      valueDisplay = pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text(currencyFormat.format(pagoficha.saldoDisponible), style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold)),
+        pw.Text('(de ${currencyFormat.format(pagoficha.saldofavor)})', style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey)),
       ]);
     } else {
-      valueDisplay = pw.Text(currencyFormat.format(deposito.saldofavor),
-          style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold));
+      valueDisplay = pw.Text(currencyFormat.format(pagoficha.saldofavor), style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold));
     }
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('Saldo a Favor',
-            style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
+        pw.Text('Saldo a Favor', style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey600)),
         valueDisplay,
       ],
     );
@@ -438,20 +379,15 @@ class PDFExportHelperContable {
   }
 
   // --- TARJETA DE TOTALES CON LA NUEVA LÓGICA ---
+    // --- CAMBIO CLAVE 3: TARJETA DE TOTALES CON LA NUEVA LÓGICA ---
   pw.Widget _buildTotalesCard() {
     return pw.Container(
-      decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: PdfColors.grey300),
-          borderRadius: pw.BorderRadius.circular(6)),
+      decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey300), borderRadius: pw.BorderRadius.circular(6)),
       padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 10),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text('Totales',
-              style: pw.TextStyle(
-                  color: primaryColor,
-                  fontSize: 8,
-                  fontWeight: pw.FontWeight.bold)),
+          pw.Text('Totales', style: pw.TextStyle(color: primaryColor, fontSize: 8, fontWeight: pw.FontWeight.bold)),
           pw.Expanded(
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.end,
@@ -466,28 +402,17 @@ class PDFExportHelperContable {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('Saldo Favor Disp.',
-                          style: const pw.TextStyle(
-                              fontSize: 6, color: PdfColors.black)),
-                      pw.Text(
-                          currencyFormat
-                              .format(reporteData.totalSaldoDisponible),
-                          style: pw.TextStyle(
-                              fontSize: 6,
-                              fontWeight: pw.FontWeight.bold,
-                              color: PdfColors.black)),
-                      pw.Text(
-                          '(Hist: ${currencyFormat.format(reporteData.totalSaldoFavor)})',
-                          style: const pw.TextStyle(
-                              fontSize: 5, color: PdfColors.grey)),
+                      pw.Text('Saldo Favor Disp.', style: const pw.TextStyle(fontSize: 6, color: PdfColors.black)),
+                      pw.Text(currencyFormat.format(reporteData.totalSaldoDisponible), style: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold, color: PdfColors.black)),
+                      pw.Text('(Hist: ${currencyFormat.format(reporteData.totalSaldoFavor)})', style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey)),
                     ],
                   ),
                 ),
                 _buildTotalItem('Moratorios', reporteData.saldoMoratorio),
                 pw.SizedBox(width: 40),
-                _buildTotalItem('Total Ideal', reporteData.totalTotal),
-                _buildTotalItem('Diferencia', reporteData.restante),
-                _buildTotalItem('Total Bruto', reporteData.sumaTotalCapMoraFav),
+                _buildTotalItem('Total Ideal', reporteData.totalTotal, isPrimary: true),
+                _buildTotalItem('Diferencia', reporteData.restante, isPrimary: true),
+                _buildTotalItem('Total Bruto', reporteData.sumaTotalCapMoraFav, isPrimary: true),
               ],
             ),
           ),
@@ -708,17 +633,16 @@ class PDFExportHelperContable {
         ]));
   }
 
-  pw.Widget _buildTotalItem(String label, double value) {
-    return pw.Padding(
+  pw.Widget _buildTotalItem(String label, double value, {bool isPrimary = false}) {
+      return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 6),
       child: pw.Column(children: [
-        pw.Text(label,
-            style: const pw.TextStyle(fontSize: 6, color: PdfColors.black)),
+        pw.Text(label, style: const pw.TextStyle(fontSize: 6, color: PdfColors.black)),
         pw.Text(currencyFormat.format(value),
             style: pw.TextStyle(
                 fontSize: 6,
                 fontWeight: pw.FontWeight.bold,
-                color: PdfColors.black)),
+                color: isPrimary ? primaryColor : PdfColors.black)),
       ]),
     );
   }

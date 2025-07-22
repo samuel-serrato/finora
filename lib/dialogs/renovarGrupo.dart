@@ -78,61 +78,70 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
 
   // <-- NUEVO: La función que me proporcionaste para obtener los adeudos
   Future<void> _fetchDescuentosRenovacion(String idgrupo) async {
-    // Si no hay ID de grupo, no hacemos nada.
-    if (idgrupo.isEmpty) return;
+  // Si no hay ID de grupo, no hacemos nada.
+  if (idgrupo.isEmpty) return;
 
-    if (!mounted) return;
-    setState(() {
-      _cargandoDescuentos = true;
-    });
+  if (!mounted) return;
+  setState(() {
+    _cargandoDescuentos = true;
+  });
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-      final url =
-          Uri.parse('$baseUrl/api/v1/grupodetalles/renovacion/$idgrupo');
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    final url =
+        Uri.parse('$baseUrl/api/v1/grupodetalles/renovacion/$idgrupo');
 
-      final response = await http.get(
-        url,
-        headers: {'tokenauth': token},
-      );
+    final response = await http.get(
+      url,
+      headers: {'tokenauth': token},
+    );
 
-      final Map<String, double> descuentosObtenidos = {};
+    // El mapa donde acumularemos los totales por cliente.
+    final Map<String, double> descuentosObtenidos = {};
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        for (var item in data) {
-          // <<< ¡AQUÍ ESTÁ LA LÓGICA CLAVE! >>>
-          // Comparamos el ID del grupo actual con el ID del grupo que viene en los datos de renovación.
-          if (item['idclientes'] != null &&
-              item['descuento'] != null &&
-              idgrupo != item['idgrupoNuevo']) {
-            // <-- NUEVA CONDICIÓN
-            descuentosObtenidos[item['idclientes']] =
-                (item['descuento'] as num).toDouble();
-          }
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+
+      // Iteramos sobre cada registro de descuento recibido.
+      for (var item in data) {
+        final String? idCliente = item['idclientes'];
+        final num? descuento = item['descuento'];
+        final String? idGrupoNuevo = item['idgrupoNuevo'];
+
+        // Verificamos que los datos necesarios existan y que no sea del mismo grupo.
+        if (idCliente != null && descuento != null && idgrupo != idGrupoNuevo) {
+
+          // --- LÓGICA DE SUMA MODIFICADA ---
+          // Obtenemos el descuento ya acumulado para este cliente (o 0.0 si es el primero)
+          // y le sumamos el valor del descuento actual.
+          descuentosObtenidos[idCliente] = (descuentosObtenidos[idCliente] ?? 0.0) + descuento.toDouble();
+          // --- FIN DE LA MODIFICACIÓN ---
+
         }
-        print("Adeudos de renovación encontrados: $descuentosObtenidos");
-      } else {
-        print(
-            'Respuesta de descuentos no fue 200: ${response.statusCode} - ${response.body}');
       }
+      print("Adeudos de renovación totales por cliente: $descuentosObtenidos");
 
-      if (mounted) {
-        setState(() {
-          _descuentosRenovacion = descuentosObtenidos;
-          _cargandoDescuentos = false;
-        });
-      }
-    } catch (e) {
-      print('Error al obtener descuentos de renovación: $e');
-      if (mounted) {
-        setState(() {
-          _cargandoDescuentos = false;
-        });
-      }
+    } else {
+      print(
+          'Respuesta de descuentos no fue 200: ${response.statusCode} - ${response.body}');
+    }
+
+    if (mounted) {
+      setState(() {
+        _descuentosRenovacion = descuentosObtenidos;
+        _cargandoDescuentos = false;
+      });
+    }
+  } catch (e) {
+    print('Error al obtener descuentos de renovación: $e');
+    if (mounted) {
+      setState(() {
+        _cargandoDescuentos = false;
+      });
     }
   }
+}
 
   // Función para obtener los detalles del grupo
   // Función para obtener los detalles del grupo con manejo de token y errores

@@ -47,8 +47,8 @@ class ReporteGeneral {
   final String tipoPago;
   final String folio;
   final String idficha;
-  final String grupos;
-  final double pagoficha; // Mantenemos esto para el total de la fila
+  final String grupos; // <--- CAMPO AÑADIDO QUE FALTABA
+  final double pagoficha; 
   final double montoficha;
   final double capitalsemanal;
   final double interessemanal;
@@ -58,7 +58,11 @@ class ReporteGeneral {
   final double sumaMoratorio;
   final double depositoCompleto;
 
-  // --- CAMBIO PRINCIPAL: Guardamos la lista completa de depósitos ---
+  final double favorUtilizado;
+  final double saldoUtilizado;
+  final double saldoDisponible;
+  final String utilizadoPago;
+
   final List<Deposito> depositos;
 
   ReporteGeneral({
@@ -66,7 +70,7 @@ class ReporteGeneral {
     required this.tipoPago,
     required this.folio,
     required this.idficha,
-    required this.grupos,
+    required this.grupos, // <--- AHORA ESTE TIENE UN CAMPO CORRESPONDIENTE
     required this.pagoficha,
     required this.montoficha,
     required this.capitalsemanal,
@@ -76,9 +80,14 @@ class ReporteGeneral {
     required this.moratoriosAPagar,
     required this.sumaMoratorio,
     required this.depositoCompleto,
-    required this.depositos, // Se añade al constructor
+    required this.depositos,
+    required this.favorUtilizado,
+    required this.saldoUtilizado,
+    required this.saldoDisponible,
+    required this.utilizadoPago,
   });
 
+  // El método factory ReporteGeneral.fromJson() ya estaba correcto y no necesita cambios.
   factory ReporteGeneral.fromJson(Map<String, dynamic> json) {
     double parseValor(String value) =>
         double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
@@ -86,49 +95,41 @@ class ReporteGeneral {
     final moratoriosData = json['Moratorios'] as Map<String, dynamic>?;
     final pagofichaData = json['pagoficha'] as Map<String, dynamic>?;
 
-    // --- CAMBIO: Parseamos la lista de depósitos ---
     List<Deposito> listaDepositos = [];
     if (pagofichaData != null && pagofichaData['depositos'] is List) {
       listaDepositos = (pagofichaData['depositos'] as List)
           .map((depositoJson) => Deposito.fromJson(depositoJson))
           .toList();
     }
-
-    // --- CAMBIO CLAVE: CALCULAMOS EL PAGO TOTAL REAL ---
-    // Sumamos los depósitos en efectivo Y el saldo a favor utilizado de cada transacción.
-    final double pagoTotalReal = listaDepositos.fold(
-      0.0,
-      (sum, deposito) => sum + deposito.monto + deposito.favorUtilizado,
-    );
+    
+    final double sumaDepositos = (pagofichaData?['sumaDeposito'] as num?)?.toDouble() ?? 0.0;
+    final double favorUsado = (pagofichaData?['favorUtilizado'] as num?)?.toDouble() ?? 0.0;
+    final double pagoTotalReal = sumaDepositos + favorUsado;
 
     return ReporteGeneral(
       numero: json['num'] ?? 0,
       tipoPago: json['tipopago'] ?? 'N/A',
       folio: json['folio'] ?? 'N/A',
       idficha: json['idficha'] ?? 'N/A',
-      grupos: json['grupos'] ?? 'N/A',
+      grupos: json['grupos'] ?? 'N/A', // <-- Esta línea ya leía el dato correctamente
       montoficha: parseValor(json['montoficha'] ?? '0.0'),
       capitalsemanal: parseValor(json['capitalsemanal'] ?? '0.0'),
       interessemanal: parseValor(json['interessemanal'] ?? '0.0'),
       saldofavor: parseValor(json['saldofavor'] ?? '0.0'),
       moratorios: parseValor(json['moratoriosPagados'] ?? '0.0'),
-
-      // Total de pagos, viene de 'sumaDeposito'
-      //pagoficha: (pagofichaData?['sumaDeposito'] as num?)?.toDouble() ?? 0.0,
-      // --- CORRECCIÓN: Usamos nuestro cálculo en lugar de 'sumaDeposito' ---
-      pagoficha: pagoTotalReal,
+      pagoficha: pagoTotalReal, 
       moratoriosAPagar:
           (moratoriosData?['moratoriosAPagar'] as num?)?.toDouble() ?? 0.0,
       sumaMoratorio:
           (pagofichaData?['sumaMoratorio'] as num?)?.toDouble() ?? 0.0,
-
-      // Depósito completo (puede venir de dos sitios)
       depositoCompleto: parseValor(json['depositoCompleto'] ?? '0.0') != 0.0
           ? parseValor(json['depositoCompleto'] ?? '0.0')
           : (pagofichaData?['depositoCompleto'] as num?)?.toDouble() ?? 0.0,
-
-      // --- Asignamos la lista de depósitos que parseamos ---
       depositos: listaDepositos,
+      favorUtilizado: favorUsado,
+      saldoUtilizado: (pagofichaData?['saldoUtilizado'] as num?)?.toDouble() ?? 0.0,
+      saldoDisponible: (pagofichaData?['saldoDisponible'] as num?)?.toDouble() ?? 0.0,
+      utilizadoPago: pagofichaData?['utilizadoPago']?.toString() ?? 'No',
     );
   }
 }

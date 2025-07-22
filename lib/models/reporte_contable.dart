@@ -158,15 +158,24 @@ class ReporteContableGrupo {
   }
 }
 
+// --- CAMBIO CLAVE 1: Actualizar la clase Pagoficha ---
 class Pagoficha {
   final String idpagosdetalles;
   final String idgrupos;
   final int semanaPago;
   final String fechasPago;
   final double sumaDeposito;
-  final double sumaMoratorio; // <--- NUEVO: Este es el moratorio pagado
+  final double sumaMoratorio;
   final List<Deposito> depositos;
   final double depositoCompleto;
+
+  // --- Añadimos los campos de saldo que ahora pertenecen a la ficha de pago completa ---
+  final double favorUtilizado;
+  final double saldofavor; // Saldo a favor generado en este pago
+  final double saldoUtilizado;
+  final double saldoDisponible;
+  final String utilizadoPago;
+
 
   Pagoficha({
     required this.idpagosdetalles,
@@ -174,9 +183,15 @@ class Pagoficha {
     required this.semanaPago,
     required this.fechasPago,
     required this.sumaDeposito,
-    required this.sumaMoratorio, // <--- NUEVO
+    required this.sumaMoratorio,
     required this.depositos,
     required this.depositoCompleto,
+    // --- Añadidos al constructor ---
+    required this.favorUtilizado,
+    required this.saldofavor,
+    required this.saldoUtilizado,
+    required this.saldoDisponible,
+    required this.utilizadoPago,
   });
 
   factory Pagoficha.fromJson(Map<String, dynamic> json) {
@@ -186,58 +201,48 @@ class Pagoficha {
       semanaPago: json['semanaPago'] ?? 0,
       fechasPago: json['fechasPago']?.toString() ?? '',
       sumaDeposito: ParseHelpers.parseDouble(json['sumaDeposito']),
-      sumaMoratorio:
-          ParseHelpers.parseDouble(json['sumaMoratorio']), // <--- NUEVO
+      sumaMoratorio: ParseHelpers.parseDouble(json['sumaMoratorio']),
       depositos: ParseHelpers.parseList(
         json['depositos'],
         (item) => Deposito.fromJson(item),
       ),
       depositoCompleto: ParseHelpers.parseDouble(json['depositoCompleto']),
-    );
-  }
-}
-
-class Deposito {
-  final double deposito;
-  final double saldofavor; // Cuánto se GENERÓ con este pago
-  final double pagoMoratorio;
-  final String garantia;
-  final String fechaDeposito;
-  // --- CAMPOS NECESARIOS AÑADIDOS (debes recibirlos del backend) ---
-  final double favorUtilizado;
-  final double saldoUtilizado;
-  final double saldoDisponible;
-  final String utilizadoPago;
-
-
-  Deposito({
-    required this.deposito,
-    required this.saldofavor,
-    required this.pagoMoratorio,
-    required this.garantia,
-    required this.fechaDeposito,
-    // --- AÑADIDOS AL CONSTRUCTOR ---
-    required this.favorUtilizado,
-    required this.saldoUtilizado,
-    required this.saldoDisponible,
-    required this.utilizadoPago,
-  });
-
-  factory Deposito.fromJson(Map<String, dynamic> json) {
-    return Deposito(
-      deposito: ParseHelpers.parseDouble(json['deposito']),
-      saldofavor: ParseHelpers.parseDouble(json['saldofavor']),
-      pagoMoratorio: ParseHelpers.parseDouble(json['pagoMoratorio']),
-      garantia: json['garantia'] ?? 'No',
-      fechaDeposito: json['fechaDeposito'] ?? '',
-      // --- PARSEAR LOS NUEVOS CAMPOS ---
+      // --- Leer los nuevos campos del JSON ---
       favorUtilizado: ParseHelpers.parseDouble(json['favorUtilizado']),
+      saldofavor: ParseHelpers.parseDouble(json['saldofavor']),
       saldoUtilizado: ParseHelpers.parseDouble(json['saldoUtilizado']),
       saldoDisponible: ParseHelpers.parseDouble(json['saldoDisponible']),
       utilizadoPago: json['utilizadoPago'] ?? 'No',
     );
   }
 }
+
+// --- CAMBIO CLAVE 2: Simplificar la clase Deposito ---
+// Ya no contiene los campos de saldo, solo la información del depósito en sí.
+class Deposito {
+  final double deposito;
+  final double pagoMoratorio;
+  final String garantia;
+  final String fechaDeposito;
+  // Los campos de saldo se han movido a Pagoficha
+
+  Deposito({
+    required this.deposito,
+    required this.pagoMoratorio,
+    required this.garantia,
+    required this.fechaDeposito,
+  });
+
+  factory Deposito.fromJson(Map<String, dynamic> json) {
+    return Deposito(
+      deposito: ParseHelpers.parseDouble(json['deposito']),
+      pagoMoratorio: ParseHelpers.parseDouble(json['pagoMoratorio']),
+      garantia: json['garantia'] ?? 'No',
+      fechaDeposito: json['fechaDeposito'] ?? '',
+    );
+  }
+}
+
 
 class Cliente {
   final String nombreCompleto;
