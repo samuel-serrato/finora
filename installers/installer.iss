@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Finora"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.4.1"
 #define MyAppPublisher "CODX"
 #define MyAppURL "https://www.codxtech.com"
 #define MyAppExeName "finora.exe"
