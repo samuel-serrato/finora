@@ -7774,59 +7774,68 @@ class _PaginaIntegrantesState extends State<PaginaIntegrantes> {
   }
 
   // <--- NUEVO: La función para obtener los descuentos (adaptada de tu otra pantalla) --->
-  Future<void> _fetchDescuentosRenovacion() async {
-    setState(() {
-      _cargandoDescuentos = true;
-      _errorDescuentos = null;
-    });
+  // La función para obtener los descuentos con la lógica de suma correcta.
+Future<void> _fetchDescuentosRenovacion() async {
+  setState(() {
+    _cargandoDescuentos = true;
+    _errorDescuentos = null;
+  });
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-      final url = Uri.parse(
-          '$baseUrl/api/v1/grupodetalles/renovacion/${widget.idgrupo}');
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    final url = Uri.parse(
+        '$baseUrl/api/v1/grupodetalles/renovacion/${widget.idgrupo}');
 
-      final response = await http.get(url, headers: {'tokenauth': token});
+    final response = await http.get(url, headers: {'tokenauth': token});
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final Map<String, double> descuentosObtenidos = {};
-        for (var item in data) {
-          // <<< ¡AQUÍ ESTÁ LA LÓGICA CLAVE! >>>
-          // Comparamos el ID del grupo actual con el ID del grupo que viene en los datos de renovación.
-          if (item['idclientes'] != null &&
-              item['descuento'] != null &&
-              widget.idgrupo != item['idgrupos']) {
-            // <-- NUEVA CONDICIÓN
-            descuentosObtenidos[item['idclientes']] =
-                (item['descuento'] as num).toDouble();
-          }
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      final Map<String, double> descuentosObtenidos = {};
+
+      for (var item in data) {
+        final String? idCliente = item['idclientes'];
+        final num? descuento = item['descuento'];
+        final String? idGrupoDelAdeudo = item['idgrupos']; // El grupo al que pertenece el adeudo
+
+        // Verificamos que los datos necesarios existan y que el adeudo no sea del grupo actual.
+        if (idCliente != null &&
+            descuento != null &&
+            widget.idgrupo != idGrupoDelAdeudo) {
+              
+          // <<< ¡AQUÍ ESTÁ LA LÓGICA DE SUMA CORRECTA! >>>
+          // Obtenemos el descuento ya acumulado para este cliente (o 0.0 si es el primero)
+          // y le sumamos el valor del descuento actual.
+          descuentosObtenidos[idCliente] = (descuentosObtenidos[idCliente] ?? 0.0) + descuento.toDouble();
         }
-        if (mounted) {
-          setState(() {
-            _descuentosRenovacion = descuentosObtenidos;
-            _cargandoDescuentos = false;
-          });
-        }
-      } else if (response.statusCode == 404) {
-        // No es un error, simplemente no hay descuentos para este grupo.
-        if (mounted) {
-          setState(() {
-            _cargandoDescuentos = false;
-          });
-        }
-      } else {
-        throw Exception('Error al cargar descuentos: ${response.body}');
       }
-    } catch (e) {
+
       if (mounted) {
         setState(() {
-          _errorDescuentos = 'No se pudieron cargar los descuentos.';
+          _descuentosRenovacion = descuentosObtenidos;
           _cargandoDescuentos = false;
         });
       }
+    } else if (response.statusCode == 404) {
+      // No es un error, simplemente no hay descuentos para este grupo.
+      if (mounted) {
+        setState(() {
+          _descuentosRenovacion = {}; // Aseguramos que el mapa esté vacío
+          _cargandoDescuentos = false;
+        });
+      }
+    } else {
+      throw Exception('Error al cargar descuentos: ${response.body}');
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() {
+        _errorDescuentos = 'No se pudieron cargar los descuentos.';
+        _cargandoDescuentos = false;
+      });
     }
   }
+}
 
   String formatearNumero(double numero) {
     final formatter = NumberFormat("#,##0.00", "en_US");

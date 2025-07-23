@@ -403,77 +403,93 @@ class _renovarGrupoDialogState extends State<renovarGrupoDialog>
     }
   }
 
-  void _renovarGrupo() async {
-    if (!mounted) return;
+  // Esta es la única función que necesitas ahora para renovar
+void _renovarGrupo() async {
+  if (!mounted) return;
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    _timer = Timer(const Duration(seconds: 10), () {
-      if (mounted && _isLoading && !_dialogShown) {
-        setState(() => _isLoading = false);
-        mostrarDialogoError(
-          'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
-        );
-        _dialogShown = true;
-      }
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-
-      final Map<String, dynamic> data = {
-        'idgrupos': widget.idGrupo,
-        'nombreGrupo': nombreGrupoController.text,
-        'detalles': descripcionController.text,
-        'tipoGrupo': selectedTipo,
-      };
-
-      final url = '$baseUrl/api/v1/grupos/renovacion';
-
-      print('🔁 Renovando grupo...');
-      print('⏩ POST $url');
-      print('📤 Headers: {Content-Type: application/json, tokenauth: $token}');
-      print('📤 Body: $data');
-
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'tokenauth': token,
-        },
-        body: json.encode(data),
+  // El timer para controlar el tiempo de espera sigue siendo una excelente idea
+  _timer = Timer(const Duration(seconds: 10), () {
+    if (mounted && _isLoading && !_dialogShown) {
+      setState(() => _isLoading = false);
+      mostrarDialogoError(
+        'No se pudo conectar al servidor. Por favor, revise su conexión de red.',
       );
+      _dialogShown = true;
+    }
+  });
 
-      print('📥 Código de respuesta: ${response.statusCode}');
-      print('📦 Cuerpo de respuesta: ${response.body}');
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
 
-      if (!mounted) return;
-      _timer?.cancel();
+    // 1. Construimos el cuerpo completo de la solicitud (el nuevo JSON)
+    final Map<String, dynamic> requestBody = {
+      // Datos del grupo a renovar y sus nuevas propiedades
+      'idgrupos': widget.idGrupo, // El ID del grupo original que se está renovando
+      'nombreGrupo': nombreGrupoController.text,
+      'detalles': descripcionController.text,
+      'tipoGrupo': selectedTipo,
+      // NOTA: El JSON de ejemplo incluye 'isAdicional'. Asegúrate de tener esta variable.
+      // Si no la tienes, puedes quitar esta línea o ajustarla.
+      //'isAdicional': esAdicional ? 'Sí' : 'No', 
 
-      if (response.statusCode == 201) {
-        final responseBody = jsonDecode(response.body);
-        final idNuevoGrupo = responseBody['idgrupos'];
+      // Datos de los miembros y el usuario
+      // NOTA: Tu código anterior usaba 'grupoData['idusuario']'. Asegúrate de que esta variable esté disponible aquí.
+      'idusuarios': grupoData['idusuario'], 
+      'clientes': _selectedPersons.map((persona) => {
+            // OJO: El backend ahora pide 'idcliente' (singular), no 'idclientes' (plural)
+            'idclientes': persona['idclientes'],
+            'nomCargo': _cargosSeleccionados[persona['idclientes']] ?? 'Miembro',
+          }).toList(),
+    };
 
-        if (_selectedPersons.isNotEmpty) {
-          await _enviarMiembros(idNuevoGrupo, token);
-        }
+    // 2. Definimos la URL del endpoint unificado
+    // CONFIRMA si esta es la URL correcta. A menudo es la misma que la anterior para renovar el grupo.
+    final url = '$baseUrl/api/v1/grupodetalles/renovacion';
 
-        if (mounted) {
-          widget.onGrupoRenovado?.call();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Grupo renovado correctamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } else {
-        try {
-          final errorData = json.decode(response.body);
-          if (errorData["Error"] != null &&
-              errorData["Error"]["Message"] ==
-                  "La sesión ha cambiado. Cerrando sesión...") {
+    // Logs para depuración (muy útiles)
+    print('🔁 Renovando grupo (Endpoint Unificado)...');
+    print('⏩ POST $url');
+    print('📤 Body: ${json.encode(requestBody)}');
+
+    // 3. Realizamos la única llamada HTTP
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'tokenauth': token,
+      },
+      body: json.encode(requestBody),
+    );
+
+    print('📥 Código de respuesta: ${response.statusCode}');
+    print('📦 Cuerpo de respuesta: ${response.body}');
+
+    if (!mounted) return;
+    _timer?.cancel();
+
+    // 4. Manejamos la respuesta
+    if (response.statusCode == 201) {
+      // ¡Éxito! Ya no necesitamos obtener un nuevo ID ni llamar a otra función.
+      widget.onGrupoRenovado?.call();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Grupo renovado correctamente'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      // Probablemente quieras cerrar la pantalla después de renovar con éxito
+      //Navigator.of(context).pop();
+
+    } else {
+      // Reutilizamos tu excelente lógica de manejo de errores
+      try {
+        final errorData = json.decode(response.body);
+        if (errorData["Error"] != null &&
+            errorData["Error"]["Message"] ==
+                "La sesión ha cambiado. Cerrando sesión...") {
             final prefs = await SharedPreferences.getInstance();
             await prefs.remove('tokenauth');
 

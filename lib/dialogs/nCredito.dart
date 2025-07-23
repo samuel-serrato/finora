@@ -209,75 +209,88 @@ class _nCreditoDialogState extends State<nCreditoDialog>
   // --- NUEVO: Función para obtener descuentos por renovación ---
   // --- NUEVO: Función para obtener descuentos por renovación ---
   Future<void> _fetchDescuentosRenovacion(String idgrupo) async {
-    // Si no hay ID de grupo, no hacemos nada.
-    if (idgrupo.isEmpty) return;
+  // Si no hay ID de grupo, no hacemos nada.
+  if (idgrupo.isEmpty) return;
 
-    setState(() {
-      _cargandoDescuentos = true;
-      _descuentosRenovacion.clear(); // Limpiamos descuentos anteriores
-    });
+  if (!mounted) return;
+  setState(() {
+    _cargandoDescuentos = true;
+    _descuentosRenovacion.clear(); // Limpiamos descuentos anteriores
+  });
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-      final url =
-          Uri.parse('$baseUrl/api/v1/grupodetalles/renovacion/$idgrupo');
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
+    final url =
+        Uri.parse('$baseUrl/api/v1/grupodetalles/renovacion/$idgrupo');
 
-      // ========== PRINTS PARA DEBUG ==========
-      print('🔗 URL de la petición: $url');
-      print('🔑 Token enviado: $token');
-      print('📤 Método: GET');
-      print('📋 Headers: {tokenauth: $token}');
-      print('=======================================');
+    // ========== PRINTS PARA DEBUG ==========
+    print('🔗 URL de la petición: $url');
+    print('🔑 Token enviado: $token');
+    print('📤 Método: GET');
+    print('📋 Headers: {tokenauth: $token}');
+    print('=======================================');
 
-      final response = await http.get(
-        url,
-        headers: {'tokenauth': token},
-      );
+    final response = await http.get(
+      url,
+      headers: {'tokenauth': token},
+    );
 
-      // Print de la respuesta
-      print('📥 Status Code: ${response.statusCode}');
-      print('📄 Response Body: ${response.body}');
+    // Print de la respuesta
+    print('📥 Status Code: ${response.statusCode}');
+    print('📄 Response Body: ${response.body}');
 
-      // Mapa temporal para construir los resultados
-      final Map<String, double> descuentosObtenidos = {};
+    // Mapa temporal para construir los resultados
+    final Map<String, double> descuentosObtenidos = {};
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        print('✅ Datos decodificados: $data');
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      print('✅ Datos decodificados: $data');
 
-        // Llenamos el mapa temporal
-        for (var item in data) {
-          if (item['idclientes'] != null && item['descuento'] != null) {
-            descuentosObtenidos[item['idclientes']] =
-                (item['descuento'] as num).toDouble();
-          }
+      // --- INICIO DE LA LÓGICA MODIFICADA ---
+      for (var item in data) {
+        final String? idCliente = item['idclientes'];
+        final num? descuento = item['descuento'];
+        // Asumimos que la respuesta incluye el ID del grupo al que pertenece el adeudo.
+        // ¡IMPORTANTE! Ajusta 'idgrupos' si la clave en tu JSON es otra (ej: 'idgrupoNuevo').
+        final String? idGrupoDelAdeudo = item['idgrupos'];
+
+        // Verificamos que los datos necesarios existan Y que el adeudo sea de un grupo DIFERENTE.
+        if (idCliente != null &&
+            descuento != null &&
+            idgrupo != idGrupoDelAdeudo) {
+              
+          // ¡LÓGICA DE SUMA! Sumamos el nuevo descuento al total acumulado para ese cliente.
+          descuentosObtenidos[idCliente] =
+              (descuentosObtenidos[idCliente] ?? 0.0) + descuento.toDouble();
         }
+      }
+      // --- FIN DE LA LÓGICA MODIFICADA ---
 
-        print('💰 Descuentos procesados: $descuentosObtenidos');
-      } else {
-        // Si la respuesta no es 200 (ej. 404 si no hay renovaciones), simplemente lo registramos
-        // y continuamos, ya que no es un error crítico.
-        print(
-            '⚠️ Respuesta de descuentos no fue 200: ${response.statusCode} - ${response.body}');
-      }
+      print('💰 Descuentos procesados y sumados: $descuentosObtenidos');
 
-      // Actualizamos el estado una vez con los datos finales (o un mapa vacío si no hubo)
-      if (mounted) {
-        setState(() {
-          _descuentosRenovacion = descuentosObtenidos;
-          _cargandoDescuentos = false;
-        });
-      }
-    } catch (e) {
-      print('❌ Error al obtener descuentos de renovación: $e');
-      if (mounted) {
-        setState(() {
-          _cargandoDescuentos = false;
-        });
-      }
+    } else {
+      // Si la respuesta no es 200 (ej. 404), lo registramos y continuamos.
+      print(
+          '⚠️ Respuesta de descuentos no fue 200: ${response.statusCode} - ${response.body}');
+    }
+
+    // Actualizamos el estado una vez con los datos finales.
+    if (mounted) {
+      setState(() {
+        _descuentosRenovacion = descuentosObtenidos;
+        _cargandoDescuentos = false;
+      });
+    }
+  } catch (e) {
+    print('❌ Error al obtener descuentos de renovación: $e');
+    if (mounted) {
+      setState(() {
+        _cargandoDescuentos = false;
+      });
     }
   }
+}
 
   // --- NUEVO: Lógica para obtener Tasas de Interés de la API ---
   Future<void> _fetchTasasDeInteres() async {
@@ -1634,7 +1647,7 @@ class _nCreditoDialogState extends State<nCreditoDialog>
     );
   }
 
-  Widget _paginaResumen() {
+    Widget _paginaResumen() {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final isDarkMode = themeProvider.isDarkMode;
     int pasoActual = 3;
@@ -2088,8 +2101,6 @@ class _nCreditoDialogState extends State<nCreditoDialog>
 
                   SizedBox(height: 20),
                   // Sección Integrantes y Montos
-                  // Sección Integrantes y Montos
-                  // Sección Integrantes y Montos
                   Container(
                     margin: EdgeInsets.symmetric(vertical: 10),
                     padding: EdgeInsets.all(15),
@@ -2159,110 +2170,127 @@ class _nCreditoDialogState extends State<nCreditoDialog>
                                     ],
                                     rows:
                                         integrantes.map<DataRow>((integrante) {
-                                      final montoIndividual =
-                                          montosIndividuales[
-                                                  integrante.idclientes] ??
-                                              0.0;
-
-                                      final descuentoIndividual =
-                                          _descuentosRenovacion[
-                                                  integrante.idclientes] ??
-                                              0.0;
+                                      // Cálculos individuales
+                                      final montoIndividual = montosIndividuales[integrante.idclientes] ?? 0.0;
+                                      final descuentoIndividual = _descuentosRenovacion[integrante.idclientes] ?? 0.0;
 
                                       double proporcion = 0.0;
                                       if (monto > 0) {
                                         proporcion = montoIndividual / monto;
                                       }
-                                      final garantiaIndividual =
-                                          montoGarantia * proporcion;
+                                      final garantiaIndividual = montoGarantia * proporcion;
+                                      final montoDesembolsadoIndividual = montoIndividual - descuentoIndividual - garantiaIndividual;
 
-                                      final montoDesembolsadoIndividual =
-                                          montoIndividual -
-                                              descuentoIndividual -
-                                              garantiaIndividual;
-
-                                      // ==========================================================
-                                      // <--- LÓGICA VISUAL (AQUÍ ESTÁ EL CAMBIO FINAL) --->
-                                      // ==========================================================
-
-                                      final bool tieneDescuento =
-                                          descuentoIndividual > 0;
-
-                                      // Se definen el fontWeight y el color de forma condicional
-                                      final FontWeight fontWeightEstilo =
-                                          tieneDescuento
-                                              ? FontWeight.bold
-                                              : FontWeight.normal;
+                                      // Estilo de texto (el que ya tenías)
+                                      final bool tieneDescuento = descuentoIndividual > 0;
+                                      final FontWeight fontWeightEstilo = tieneDescuento ? FontWeight.bold : FontWeight.normal;
                                       final Color colorEstilo = tieneDescuento
-                                          ? (isDarkMode
-                                              ? Colors.greenAccent[400]!
-                                              : Colors.green[800]!)
-                                          : (isDarkMode
-                                              ? Colors.white
-                                              : Colors.black87);
-
-                                      final TextStyle estiloDesembolso =
-                                          TextStyle(
+                                          ? (isDarkMode ? Colors.greenAccent[400]! : Colors.green[800]!)
+                                          : (isDarkMode ? Colors.white : Colors.black87);
+                                      final TextStyle estiloDesembolso = TextStyle(
                                         fontSize: 12,
-                                        fontWeight:
-                                            fontWeightEstilo, // Asignación condicional de negrita
-                                        color:
-                                            colorEstilo, // Asignación condicional de color
+                                        fontWeight: fontWeightEstilo,
+                                        color: colorEstilo,
                                       );
+
+                                      // <-- NUEVO: Condición para mostrar el icono de desglose
+                                      final bool tieneDeducciones = descuentoIndividual > 0 || garantiaIndividual > 0;
 
                                       // Demás cálculos...
                                       final pagosTotales = plazoNumerico;
-                                      final capitalSemanal = (pagosTotales > 0)
-                                          ? (montoIndividual / pagosTotales)
-                                          : 0.0;
-                                      final interesSemanal = (montoIndividual *
-                                          (tasaInteresMensualCalculada /
-                                              (frecuenciaPago == "Semanal"
-                                                  ? 4
-                                                  : 2) /
-                                              100));
-                                      final pagoSemanal =
-                                          (capitalSemanal + interesSemanal);
-                                      final totalCapital =
-                                          (capitalSemanal * pagosTotales);
-                                      final totalIntereses =
-                                          (interesSemanal * pagosTotales);
-                                      final pagoTotal =
-                                          (totalCapital + totalIntereses);
+                                      final capitalSemanal = (pagosTotales > 0) ? (montoIndividual / pagosTotales) : 0.0;
+                                      final interesSemanal = (montoIndividual * (tasaInteresMensualCalculada / (frecuenciaPago == "Semanal" ? 4 : 2) / 100));
+                                      final pagoSemanal = (capitalSemanal + interesSemanal);
+                                      final totalCapital = (capitalSemanal * pagosTotales);
+                                      final totalIntereses = (interesSemanal * pagosTotales);
+                                      final pagoTotal = (totalCapital + totalIntereses);
 
                                       return DataRow(cells: [
-                                        DataCell(Text(
-                                            integrante.nombres ??
-                                                'No especificado',
-                                            style: TextStyle(fontSize: 12))),
-                                        DataCell(Text(
-                                            '\$${formatearNumero(montoIndividual)}',
-                                            style: TextStyle(fontSize: 12))),
+                                        DataCell(Text(integrante.nombres ?? 'No especificado', style: TextStyle(fontSize: 12))),
+                                        DataCell(Text('\$${formatearNumero(montoIndividual)}', style: TextStyle(fontSize: 12))),
+                                        
+                                        // <-- MODIFICADO: Celda de Monto Desembolsado
                                         DataCell(
-                                          Text(
-                                            '\$${formatearNumero(montoDesembolsadoIndividual)}',
-                                            style:
-                                                estiloDesembolso, // <--- Aplicamos el estilo totalmente dinámico
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '\$${formatearNumero(montoDesembolsadoIndividual)}',
+                                                style: estiloDesembolso,
+                                              ),
+                                              // <-- NUEVO: Icono y Tooltip condicional
+                                              if (tieneDeducciones) ...[
+                                                SizedBox(width: 4),
+                                                Container(
+                                                  height: 20,
+                                                  width: 20,
+                                                  child: Tooltip(
+                                                    waitDuration: Duration.zero,
+                                                    showDuration: Duration(seconds: 10),
+                                                    richMessage: WidgetSpan(
+                                                      child: Transform.translate(
+                                                        offset: Offset(-100, -10),
+                                                        child: Container(
+                                                          padding: EdgeInsets.all(12),
+                                                          constraints: BoxConstraints(maxWidth: 220),
+                                                          decoration: BoxDecoration(
+                                                            color: isDarkMode ? Colors.grey[800] : Color(0xFFF7F8FA),
+                                                            borderRadius: BorderRadius.circular(8),
+                                                            boxShadow: [
+                                                              BoxShadow(
+                                                                color: Colors.black.withOpacity(0.5),
+                                                                blurRadius: 8,
+                                                                offset: Offset(0, 2),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          child: Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              Text(
+                                                                "Desglose Individual",
+                                                                style: TextStyle(
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 13,
+                                                                  color: isDarkMode ? Colors.white : Colors.black,
+                                                                ),
+                                                              ),
+                                                              Container(margin: EdgeInsets.symmetric(vertical: 8), height: 1, color: (isDarkMode ? Colors.white : Colors.black).withOpacity(0.2)),
+                                                              _buildDesgloseRow('Monto Solicitado', '\$${formatearNumero(montoIndividual)}'),
+                                                              if (garantiaIndividual > 0)
+                                                                _buildDesgloseRow('(-) Garantía', '-\$${formatearNumero(garantiaIndividual)}'),
+                                                              if (descuentoIndividual > 0)
+                                                                _buildDesgloseRow('(-) Descuento Renov.', '-\$${formatearNumero(descuentoIndividual)}'),
+                                                              Container(margin: EdgeInsets.symmetric(vertical: 4), height: 1, color: (isDarkMode ? Colors.white : Colors.black).withOpacity(0.2)),
+                                                              _buildDesgloseRow('(=) Total a Recibir', '\$${formatearNumero(montoDesembolsadoIndividual)}', isTotal: true),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    decoration: BoxDecoration(),
+                                                    child: MouseRegion(
+                                                      cursor: SystemMouseCursors.click,
+                                                      child: Icon(
+                                                        Icons.info_outline,
+                                                        size: 16,
+                                                        color: Color(0xFF5162F6),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ]
+                                            ],
                                           ),
                                         ),
-                                        DataCell(Text(
-                                            '\$${formatearNumero(capitalSemanal)}',
-                                            style: TextStyle(fontSize: 12))),
-                                        DataCell(Text(
-                                            '\$${formatearNumero(interesSemanal)}',
-                                            style: TextStyle(fontSize: 12))),
-                                        DataCell(Text(
-                                            '\$${formatearNumero(totalCapital)}',
-                                            style: TextStyle(fontSize: 12))),
-                                        DataCell(Text(
-                                            '\$${formatearNumero(totalIntereses)}',
-                                            style: TextStyle(fontSize: 12))),
-                                        DataCell(Text(
-                                            '\$${formatearNumero(pagoSemanal)}',
-                                            style: TextStyle(fontSize: 12))),
-                                        DataCell(Text(
-                                            '\$${formatearNumero(pagoTotal)}',
-                                            style: TextStyle(fontSize: 12))),
+                                        
+                                        DataCell(Text('\$${formatearNumero(capitalSemanal)}', style: TextStyle(fontSize: 12))),
+                                        DataCell(Text('\$${formatearNumero(interesSemanal)}', style: TextStyle(fontSize: 12))),
+                                        DataCell(Text('\$${formatearNumero(totalCapital)}', style: TextStyle(fontSize: 12))),
+                                        DataCell(Text('\$${formatearNumero(totalIntereses)}', style: TextStyle(fontSize: 12))),
+                                        DataCell(Text('\$${formatearNumero(pagoSemanal)}', style: TextStyle(fontSize: 12))),
+                                        DataCell(Text('\$${formatearNumero(pagoTotal)}', style: TextStyle(fontSize: 12))),
                                       ]);
                                     }).toList(),
                                   ),

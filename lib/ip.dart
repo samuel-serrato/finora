@@ -2,7 +2,7 @@
 //IP OFICINA
 //const String baseUrl = '192.168.0.103:3001';
 //IP OFICINA LENIN PC
-//const String baseUrl = 'http://192.168.0.101:3002';
+const String baseUrl = 'http://192.168.0.105:3002';
 //IP CASA
 //const String baseUrl = '192.168.1.23:3000';
 //IP OFICINA PC YO
@@ -27,7 +27,7 @@
 //const String baseUrl = 'http://finoraxcodx.duckdns.org';
 
 //SERVIDOR FINORA TEST 5 SSL=
-const String baseUrl = 'https://finoraxcodx.duckdns.org';
+//const String baseUrl = 'https://finoraxcodx.duckdns.org';
 
 
 /* import 'package:shared_preferences/shared_preferences.dart';

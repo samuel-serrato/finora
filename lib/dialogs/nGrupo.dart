@@ -649,121 +649,131 @@ class _nGrupoDialogState extends State<nGrupoDialog>
       }
     });
 
-    try {
-      final grupoResponse = await _enviarGrupo();
-      if (!mounted) return;
+      try {
+    // AHORA SOLO LLAMAMOS A UNA FUNCIÓN
+    final bool exito = await _crearGrupoConMiembros();
 
-      if (grupoResponse != null) {
-        final idGrupo = grupoResponse["idgrupos"];
-        if (idGrupo != null) {
-          final miembrosAgregados = await _enviarMiembros(idGrupo);
-          if (!mounted) return;
+    if (!mounted) return;
 
-          if (miembrosAgregados) {
-            widget.onGrupoAgregado();
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                backgroundColor: Colors.green,
-                content: Text(
-                  'Grupo agregado correctamente',
-                  style: TextStyle(color: Colors.white),
-                )));
-            Navigator.of(context).pop();
-          }
-        }
-      }
-    } finally {
-      _timer?.cancel();
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    if (exito) {
+      // Si la función tuvo éxito, mostramos el mensaje y cerramos la pantalla
+      widget.onGrupoAgregado();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.green,
+          content: Text(
+            'Grupo agregado correctamente',
+            style: TextStyle(color: Colors.white),
+          )));
+      Navigator.of(context).pop();
+    }
+    // No necesitamos un 'else' aquí, porque la función _crearGrupoConMiembros
+    // ya se encarga de mostrar los diálogos de error.
+
+  } finally {
+    _timer?.cancel();
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
-  Future<Map<String, dynamic>?> _enviarGrupo() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
+  // NUEVA FUNCIÓN QUE REEMPLAZA A LAS DOS ANTERIORES
+Future<bool> _crearGrupoConMiembros() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('tokenauth') ?? '';
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/grupos'),
-        headers: {
-          'tokenauth': token,
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'nombreGrupo': nombreGrupoController.text,
-          'detalles': descripcionController.text,
-          'tipoGrupo': selectedTipo,
-          'isAdicional': esAdicional ? 'Sí' : 'No',
-        }),
-      );
+    // 1. Construimos el cuerpo completo de la solicitud (el JSON que te pide el backend)
+    final requestBody = {
+      'nombreGrupo': nombreGrupoController.text,
+      'detalles': descripcionController.text,
+      'tipoGrupo': selectedTipo,
+      'isAdicional': esAdicional ? 'Sí' : 'No',
+      'idusuarios': _selectedUsuario?.idusuarios,
+      'clientes': _selectedPersons.map((persona) => {
+            // OJO: El backend pide 'idcliente', tu código anterior usaba 'idclientes'
+            'idclientes': persona['idclientes'], 
+            'nomCargo': _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
+          }).toList(),
+    };
 
-      if (!mounted) return null;
+    // Imprimimos para depuración (opcional pero recomendado)
+    print('==== ENVIANDO DATOS AL NUEVO ENDPOINT ====');
+    print('URL: $baseUrl/api/v1/grupodetalles'); // Asegúrate que esta sea la URL correcta
+    print('Body: ${json.encode(requestBody)}');
+    print('=========================================');
 
-      if (response.statusCode == 201) {
-        return jsonDecode(response.body);
-      } else {
-        try {
-          final errorData = json.decode(response.body);
+    // 2. Realizamos la llamada HTTP POST
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/v1/grupodetalles'), // CONFIRMA SI ESTA ES LA URL CORRECTA DEL NUEVO ENDPOINT
+      headers: {
+        'tokenauth': token,
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(requestBody),
+    );
+    
+    print('==== RESPUESTA RECIBIDA ====');
+    print('Status code: ${response.statusCode}');
+    print('Body: ${response.body}');
+    print('===========================');
 
-          // Verificar si es el mensaje específico de sesión cambiada
-          if (errorData["Error"] != null &&
-              errorData["Error"]["Message"] ==
-                  "La sesión ha cambiado. Cerrando sesión...") {
-            if (mounted) {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('tokenauth');
-              _timer?.cancel();
+    if (!mounted) return false;
 
-              // Mostrar diálogo y redirigir al login
-              mostrarDialogoCierreSesion(
-                  'La sesión ha cambiado. Cerrando sesión...', onClose: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (route) => false, // Elimina todas las rutas anteriores
-                );
-              });
-            }
-            return null;
+    // 3. Manejamos la respuesta
+    if (response.statusCode == 201) {
+      return true; // ¡Éxito!
+    } else {
+      // Reutilizamos toda tu excelente lógica de manejo de errores
+      try {
+        final errorData = json.decode(response.body);
+        if (errorData["Error"] != null &&
+            errorData["Error"]["Message"] == "La sesión ha cambiado. Cerrando sesión...") {
+          if (mounted) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+            _timer?.cancel();
+            mostrarDialogoCierreSesion('La sesión ha cambiado. Cerrando sesión...', onClose: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+                (route) => false,
+              );
+            });
           }
-          // Manejar error JWT expirado
-          else if (response.statusCode == 404 &&
-              errorData["Error"]["Message"] == "jwt expired") {
-            if (mounted) {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('tokenauth');
-              _timer?.cancel();
-              mostrarDialogoError(
-                  'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                  onClose: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                );
-              });
-            }
-            return null;
-          } else {
-            _handleResponseError(response);
+        } else if (response.statusCode == 401 && errorData["Error"]["Message"] == "jwt expired" ||
+                   response.statusCode == 404 && errorData["Error"]["Message"] == "jwt expired") { // Agrego 401 por si acaso
+          if (mounted) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('tokenauth');
+            _timer?.cancel();
+            mostrarDialogoError('Tu sesión ha expirado. Por favor inicia sesión nuevamente.', onClose: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
+            });
           }
-        } catch (parseError) {
-          _handleResponseError(response);
+        } else {
+          _handleResponseError(response); // Tu manejador de errores genérico
         }
+      } catch (parseError) {
+        _handleResponseError(response);
       }
-    } catch (e) {
-      if (mounted && !_dialogShown) {
-        _mostrarDialogo(
-            title: 'Error',
-            message:
-                'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
-            isSuccess: false);
-      }
+      return false; // Hubo un error
     }
-    return null;
+  } catch (e) {
+    if (mounted && !_dialogShown) {
+      _mostrarDialogo(
+          title: 'Error de Conexión',
+          message: e is SocketException ? 'No se pudo conectar al servidor. Verifica tu conexión a internet.' : 'Ocurrió un error inesperado.',
+          isSuccess: false);
+    }
+    return false; // Hubo una excepción
   }
+}
 
-  void _handleResponseError(http.Response response) {
+void _handleResponseError(http.Response response) {
     final responseBody = jsonDecode(response.body);
     final errorCode = responseBody['Error']?['Code'] ?? response.statusCode;
     final errorMessage =
@@ -777,116 +787,6 @@ class _nGrupoDialogState extends State<nGrupoDialog>
         message: errorMessage,
         isSuccess: false,
       );
-    }
-  }
-
-// Función para enviar los miembros al grupo
-  Future<bool> _enviarMiembros(String idGrupo) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('tokenauth') ?? '';
-
-      // Creamos el cuerpo de la solicitud antes de enviarlo
-      final requestBody = {
-        'idgrupos': idGrupo,
-        'clientes': _selectedPersons
-            .map((persona) => {
-                  'idclientes': persona['idclientes'],
-                  'nomCargo':
-                      _rolesSeleccionados[persona['idclientes']] ?? 'Miembro',
-                })
-            .toList(),
-        'idusuarios': _selectedUsuario?.idusuarios,
-      };
-
-      // Imprimimos los datos en la consola
-      print('==== DATOS A ENVIAR ====');
-      print('URL: $baseUrl/api/v1/grupodetalles/');
-      print(
-          'Headers: tokenauth=${token.substring(0, 10)}... (truncado por seguridad)');
-      print('Body: ${json.encode(requestBody)}');
-      print('=======================');
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/grupodetalles/'),
-        headers: {
-          'tokenauth': token,
-          'Content-Type': 'application/json',
-        },
-        body: json.encode(requestBody),
-      );
-
-      // También podemos imprimir la respuesta
-      print('==== RESPUESTA RECIBIDA ====');
-      print('Status code: ${response.statusCode}');
-      print('Body: ${response.body}');
-      print('===========================');
-
-      if (!mounted) return false;
-
-      if (response.statusCode == 201) return true;
-
-      try {
-        final errorData = json.decode(response.body);
-
-        // Verificar si es el mensaje específico de sesión cambiada
-        if (errorData["Error"] != null &&
-            errorData["Error"]["Message"] ==
-                "La sesión ha cambiado. Cerrando sesión...") {
-          if (mounted) {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
-            _timer?.cancel();
-
-            // Mostrar diálogo y redirigir al login
-            mostrarDialogoCierreSesion(
-                'La sesión ha cambiado. Cerrando sesión...', onClose: () {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-                (route) => false, // Elimina todas las rutas anteriores
-              );
-            });
-          }
-          return false;
-        }
-        // Manejar error JWT expirado
-        else if (response.statusCode == 404 &&
-            errorData["Error"]["Message"] == "jwt expired") {
-          if (mounted) {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('tokenauth');
-            _timer?.cancel();
-            mostrarDialogoError(
-                'Tu sesión ha expirado. Por favor inicia sesión nuevamente.',
-                onClose: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
-            });
-          }
-          return false;
-        } else {
-          _handleResponseError(response);
-        }
-      } catch (parseError) {
-        print('Error al parsear la respuesta: $parseError');
-        _handleResponseError(response);
-      }
-
-      return false;
-    } catch (e) {
-      print('Excepción capturada: $e');
-      if (mounted && !_dialogShown) {
-        _mostrarDialogo(
-          title: 'Error',
-          message:
-              'Error de conexión: ${e is SocketException ? 'Verifica tu red' : 'Error inesperado'}',
-          isSuccess: false,
-        );
-      }
-      return false;
     }
   }
 
